@@ -2,26 +2,30 @@
   "name": "space-craft-planner",
   "version": "0.0.1",
   "private": true,
-  "description": "Full-stack planner app with React and MongoDB Atlas.",
+  "description": "Star Citizen theory crafter — React + Cloudflare Pages + MongoDB Atlas.",
   "workspaces": [
-    "client",
-    "server"
+    "client"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace client\" \"npm run dev --workspace server\"",
-    "dev:client": "npm run dev --workspace client",
-    "dev:server": "npm run dev --workspace server",
-    "build": "npm run build --workspace client",
-    "start": "npm run start --workspace server",
-    "import:ptu-data": "npm run import:ptu-data --workspace server"
+    "dev":         "concurrently -n vite,cf -c blue,yellow \"npm run dev:vite\" \"npm run dev:cf\"",
+    "dev:vite":    "npm run dev --workspace client",
+    "dev:cf":      "wrangler pages dev --proxy 5173 --port 8788",
+    "build":       "npm run build --workspace client",
+    "deploy":      "npm run build && wrangler pages deploy client/dist",
+    "import:ptu":  "npm run import:ptu  --prefix exporter",
+    "import:live": "npm run import:live --prefix exporter"
   },
-  "keywords": [
-    "react",
-    "vite",
-    "express",
-    "mongodb",
-    "atlas"
-  ],
+  "dependencies": {
+    "mongodb": "^6.13.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "wrangler": "^3.101.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": ["react", "vite", "cloudflare-pages", "mongodb", "atlas"],
   "author": "TheSamon",
   "license": "MIT"
 }

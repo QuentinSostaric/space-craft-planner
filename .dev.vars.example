@@ -1,0 +1,5 @@
+# Copier ce fichier en .dev.vars (jamais commité)
+# Wrangler charge .dev.vars automatiquement pour `wrangler pages dev`
+
+# URI de connexion MongoDB Atlas (driver natif — nodejs_compat)
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<AppName>

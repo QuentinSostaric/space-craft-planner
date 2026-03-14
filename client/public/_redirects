@@ -1,0 +1,3 @@
+# SPA routing — toutes les routes non-fichier renvoient vers index.html
+# Cloudflare Pages gère les fonctions /api/* avant cette règle.
+/*    /index.html    200

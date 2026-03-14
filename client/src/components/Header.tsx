@@ -2,6 +2,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
 import { Button } from './ui/Button';
+import { GameIcon } from './ui/GameIcon';
 
 function formatChannelLabel(channel: 'live' | 'ptu') {
   return channel.toUpperCase();
@@ -44,7 +45,7 @@ export function Header() {
   return (
     <header className="header" role="banner">
       <div className="header__brand">
-        <span className="header__logo" aria-hidden="true">SC</span>
+        <GameIcon name="calculator" size={22} shimmer className="header__logo-icon" />
         <span className="header__title">
           SC<span className="header__title-accent">Craft</span>
         </span>
@@ -103,7 +104,7 @@ export function Header() {
             ? t('Light theme', 'Theme clair')
             : t('Dark theme', 'Theme sombre')}
         >
-          {theme === 'dark' ? 'L' : 'D'}
+          {theme === 'dark' ? '☀' : '☾'}
         </button>
 
         <div className="lang-toggle" role="group" aria-label={t('Language', 'Langue')}>
@@ -138,6 +139,7 @@ export function Header() {
               : '')
           }
         >
+          <GameIcon name="shopping-cart" size={14} />
           {t('Planner', 'Planificateur')}
           {goals.length > 0 && (
             <span className="header__goal-count" aria-hidden="true">

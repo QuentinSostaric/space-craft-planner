@@ -4,12 +4,17 @@ node_modules/
 # Build outputs
 dist/
 client/dist/
-server/dist/
+
 
 # Local environment variables
 .env
+.env.local
 client/.env
-server/.env
+client/.env.local
+exporter/.env
+
+# Cloudflare Pages dev vars
+.dev.vars
 
 # Logs
 npm-debug.log*
@@ -46,4 +51,6 @@ venv/
 /exporter/work/
 /exporter/tools/
 /exporter/__pycache__/
+/exporter/source-game-files/*
+!/exporter/source-game-files/README.md
 /.claude/

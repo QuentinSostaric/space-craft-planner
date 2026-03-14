@@ -1,0 +1,22 @@
+# ─── Assets JS/CSS hashés → cache long (1 an, immutable) ─────────────────────
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# ─── Icones game → cache 24h ──────────────────────────────────────────────────
+/icons/game/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=3600
+
+# ─── Autres assets publics → cache 1h ─────────────────────────────────────────
+/favicon.svg
+  Cache-Control: public, max-age=3600
+
+# ─── HTML → no-cache (toujours la dernière version) ──────────────────────────
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# ─── Headers de sécurité (toutes les pages) ───────────────────────────────────
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

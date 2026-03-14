@@ -4,9 +4,18 @@ import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { getLocationsForResource } from '../data/farmLocations';
 import { CategoryBadge } from './ui/Badge';
+import { GameIcon } from './ui/GameIcon';
+import type { GameIconName } from './ui/GameIcon';
 import { Button } from './ui/Button';
 import type { CraftGoal, AggregatedResource, FarmLocation, FarmActivityType, Lang, Quality } from '../types';
-import { ACTIVITY_LABELS, ACTIVITY_ICONS, EFFICIENCY_LABELS, GAME_QUALITY_NAMES, QUALITY_ORDER } from '../types';
+import { ACTIVITY_LABELS, EFFICIENCY_LABELS, GAME_QUALITY_NAMES, QUALITY_ORDER } from '../types';
+
+const ACTIVITY_GAME_ICONS: Record<FarmActivityType, GameIconName> = {
+  mining:  'mining-gadget',
+  salvage: 'salvage',
+  mission: 'computer',
+  shop:    'shopping-cart',
+};
 
 // ─── Export helpers ───────────────────────────────────────────────────────────
 function buildTextExport(goals: CraftGoal[], aggregated: AggregatedResource[], lang: Lang): string {
@@ -233,7 +242,7 @@ function FarmPlanSection({ aggregated }: { aggregated: AggregatedResource[] }) {
       {groups.map(({ activity, resources, locations }) => (
         <section key={activity} className="farm-plan__activity">
           <h4 className="farm-plan__activity-title">
-            <span aria-hidden="true">{ACTIVITY_ICONS[activity]}</span>
+            <GameIcon name={ACTIVITY_GAME_ICONS[activity]} size={20} shimmer />
             {ACTIVITY_LABELS[activity][lang]}
           </h4>
 
