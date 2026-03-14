@@ -4,12 +4,6 @@ compatibility_flags = ["nodejs_compat"]
 
 pages_build_output_dir = "client/dist"
 
-# Build command utilisé par le dashboard CF Pages (Settings → Builds & deployments)
-# et par `wrangler pages dev` en local.
-# NE PAS ajouter de "Deploy command" dans le dashboard — CF Pages déploie automatiquement.
-[build]
-command = "npm run build --workspace client"
-
 # Variables non-sensibles (collections MongoDB)
 [vars]
 ATLAS_DB_NAME         = "craft"
