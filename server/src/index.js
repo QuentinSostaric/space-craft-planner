@@ -2,6 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import { connectToDatabase } from './config/db.js';
+import { gameDataRoutes } from './routes/gameDataRoutes.js';
 import { plannerRoutes } from './routes/plannerRoutes.js';
 
 dotenv.config();
@@ -17,11 +18,19 @@ app.use(
     origin: clientOrigin,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 app.use(
   '/api',
   plannerRoutes({
+    databaseConnected: dbState.connected,
+    databaseMessage: dbState.reason,
+  }),
+);
+
+app.use(
+  '/api',
+  gameDataRoutes({
     databaseConnected: dbState.connected,
     databaseMessage: dbState.reason,
   }),

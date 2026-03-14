@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 export async function connectToDatabase() {
   const connectionString = process.env.MONGODB_URI;
+  const databaseName = process.env.MONGODB_DB_NAME ?? 'craft';
 
   if (!connectionString) {
     return {
@@ -11,11 +12,14 @@ export async function connectToDatabase() {
   }
 
   try {
-    await mongoose.connect(connectionString);
+    await mongoose.connect(connectionString, {
+      dbName: databaseName,
+      serverSelectionTimeoutMS: 10000,
+    });
 
     return {
       connected: true,
-      reason: 'MongoDB Atlas connected.',
+      reason: `MongoDB Atlas connected to database "${databaseName}".`,
     };
   } catch (error) {
     return {

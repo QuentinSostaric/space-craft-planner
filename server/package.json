@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "import:game-data": "node src/scripts/importGameDataset.js",
+    "import:ptu-data": "node src/scripts/importGameDataset.js --channel=ptu --datasetId=alpha-4.7-ptu --version=alpha-4.7 --label=Star Citizen Alpha 4.7 PTU"
   },
   "dependencies": {
     "cors": "^2.8.5",
