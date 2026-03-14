@@ -15,6 +15,8 @@ export async function getMongoClient(env) {
     socketTimeoutMS:          15_000,
     maxPoolSize:              1,
     minPoolSize:              0,
+    tls:                      true,
+    directConnection:         false,
   });
 
   await client.connect();
