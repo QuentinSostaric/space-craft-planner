@@ -11,7 +11,7 @@ let _clientUri = null;
 
 export async function getMongoClient(env) {
   const uri = env.MONGODB_URI;
-  if (!uri) throw new Error('Variable d'environnement MONGODB_URI manquante');
+  if (!uri) throw new Error('MONGODB_URI environment variable is not set');
 
   if (_client && _clientUri === uri) return _client;
 
