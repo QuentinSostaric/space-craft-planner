@@ -1,9 +1,14 @@
 /**
- * Service de données — appelle les Cloudflare Pages Functions (/api/game-data/…).
- * Les clés MongoDB Atlas sont stockées côté Cloudflare (secrets), jamais dans le bundle.
+ * Service de données — lit les JSON statiques générés au moment du build
+ * par scripts/fetchGameData.mjs depuis MongoDB Atlas.
  *
- * En dev local : utiliser `npm run dev` (wrangler pages dev + Vite via proxy).
- * En production : Cloudflare Pages déploie les fonctions automatiquement.
+ * Fichiers servis en statique via CDN :
+ *   /data/index.json          → liste des datasets publiés
+ *   /data/live.json           → dataset live complet
+ *   /data/ptu.json            → dataset ptu complet
+ *
+ * En dev local : placer des fichiers JSON de mock dans client/public/data/
+ * ou lancer `node scripts/fetchGameData.mjs` avec MONGODB_URI configuré.
  */
 
 import type { DatasetChannel, DatasetSummary, GameDataset } from '../types';
@@ -13,14 +18,14 @@ export interface DatasetIndexResponse {
   defaultChannel: DatasetChannel | null;
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
+async function staticFetch<T>(path: string): Promise<T> {
   const response = await fetch(path);
 
   let payload: unknown;
   try {
     payload = await response.json();
   } catch {
-    throw new Error(`Réponse non-JSON — HTTP ${response.status}`);
+    throw new Error(`Non-JSON response — HTTP ${response.status}`);
   }
 
   if (!response.ok) {
@@ -31,23 +36,15 @@ async function apiFetch<T>(path: string): Promise<T> {
   return payload as T;
 }
 
-/**
- * Récupère la liste des datasets publiés (résumés).
- */
 export async function fetchPublishedDatasetIndex(): Promise<DatasetIndexResponse> {
-  return apiFetch<DatasetIndexResponse>('/api/game-data/public');
+  return staticFetch<DatasetIndexResponse>('/data/index.json');
 }
 
-/**
- * Récupère le dataset complet (blueprints + resources + changelog) pour un canal.
- */
 export async function fetchPublishedDataset(channel: DatasetChannel): Promise<GameDataset> {
-  const payload = await apiFetch<{ dataset: GameDataset | null }>(
-    `/api/game-data/public/${channel}`,
-  );
+  const payload = await staticFetch<{ dataset: GameDataset | null }>(`/data/${channel}.json`);
 
   if (!payload.dataset) {
-    throw new Error(`Aucun dataset publié pour le canal "${channel}".`);
+    throw new Error(`No published dataset for channel "${channel}".`);
   }
 
   return payload.dataset;
