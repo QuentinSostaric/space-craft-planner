@@ -1,0 +1,26 @@
+{
+  "name": "space-craft-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack planner app with React and MongoDB Atlas.",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace client\" \"npm run dev --workspace server\"",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspace client",
+    "start": "npm run start --workspace server"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "express",
+    "mongodb",
+    "atlas"
+  ],
+  "author": "",
+  "license": "MIT"
+}
