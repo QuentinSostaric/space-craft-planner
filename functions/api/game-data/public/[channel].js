@@ -12,11 +12,12 @@ export async function onRequestGet({ params, env }) {
   const channel = params.channel;
 
   if (channel !== 'live' && channel !== 'ptu') {
-    return errorResponse(`Canal invalide : "${channel}". Valeurs acceptées : live, ptu`, 400);
+    return errorResponse(`Invalid channel: "${channel}". Accepted: live, ptu`, 400);
   }
 
+  let client;
   try {
-    const client     = await getMongoClient(env);
+    client = await getMongoClient(env);
     const db         = client.db(env.ATLAS_DB_NAME ?? 'craft');
     const collection = getCollections(env)[channel];
 
@@ -30,6 +31,8 @@ export async function onRequestGet({ params, env }) {
 
     return jsonResponse({ dataset: { ...doc, channel } });
   } catch (err) {
-    return errorResponse(err instanceof Error ? err.message : 'Erreur inconnue');
+    return errorResponse(err instanceof Error ? err.message : 'Unknown error');
+  } finally {
+    await client?.close();
   }
 }

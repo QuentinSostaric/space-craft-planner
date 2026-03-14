@@ -9,8 +9,9 @@ import {
 } from '../../_shared/mongoClient.js';
 
 export async function onRequestGet({ env }) {
+  let client;
   try {
-    const client = await getMongoClient(env);
+    client = await getMongoClient(env);
     const db   = client.db(env.ATLAS_DB_NAME ?? 'craft');
     const cols = getCollections(env);
 
@@ -33,6 +34,8 @@ export async function onRequestGet({ env }) {
 
     return jsonResponse({ datasets, defaultChannel });
   } catch (err) {
-    return errorResponse(err instanceof Error ? err.message : 'Erreur inconnue');
+    return errorResponse(err instanceof Error ? err.message : 'Unknown error');
+  } finally {
+    await client?.close();
   }
 }

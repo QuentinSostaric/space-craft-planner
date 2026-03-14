@@ -1,29 +1,24 @@
 /**
- * Client MongoDB natif partagé entre les Cloudflare Pages Functions.
- * Utilise le driver officiel `mongodb` via nodejs_compat (cloudflare:sockets TCP).
- * MONGODB_URI est stocké en secret Cloudflare — jamais dans le bundle JS client.
+ * Client MongoDB natif pour Cloudflare Pages Functions.
+ * CF Workers = environnement serverless : pas de pool de connexions persistant.
+ * On crée une connexion fraîche par requête et on la ferme après usage.
  */
 import { MongoClient } from 'mongodb';
-
-/** Cache de connexion par URI (réutilisé entre requêtes dans le même isolate) */
-let _client = null;
-let _clientUri = null;
 
 export async function getMongoClient(env) {
   const uri = env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI environment variable is not set');
 
-  if (_client && _clientUri === uri) return _client;
-
-  _client = new MongoClient(uri, {
-    maxPoolSize: 1,          // CF Workers : isolate ephémère → pool minimal
-    minPoolSize: 0,
-    serverSelectionTimeoutMS: 5_000,
-    socketTimeoutMS: 30_000,
+  const client = new MongoClient(uri, {
+    serverSelectionTimeoutMS: 10_000,
+    connectTimeoutMS:         10_000,
+    socketTimeoutMS:          15_000,
+    maxPoolSize:              1,
+    minPoolSize:              0,
   });
-  _clientUri = uri;
-  await _client.connect();
-  return _client;
+
+  await client.connect();
+  return client;
 }
 
 export function getCollections(env) {
@@ -33,7 +28,6 @@ export function getCollections(env) {
   };
 }
 
-/** Projections réutilisables */
 export const SUMMARY_PROJECTION = {
   _id: 0, blueprints: 0, resources: 0, changelog: 0,
   metrics: 0, sourceFiles: 0,
@@ -43,7 +37,6 @@ export const FULL_PROJECTION = {
   _id: 0, metrics: 0, sourceFiles: 0,
 };
 
-/** Construit un résumé de dataset (sans les données volumineuses) */
 export function toSummary(doc) {
   return {
     channel:        doc.channel,
@@ -61,7 +54,6 @@ export function toSummary(doc) {
   };
 }
 
-/** Réponse JSON avec headers CORS et cache */
 export function jsonResponse(data, status = 200) {
   return Response.json(data, {
     status,
@@ -73,7 +65,6 @@ export function jsonResponse(data, status = 200) {
   });
 }
 
-/** Réponse d'erreur normalisée */
 export function errorResponse(message, status = 502) {
   console.error(`[sc-craft function] ${message}`);
   return jsonResponse({ message }, status);
