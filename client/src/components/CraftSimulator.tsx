@@ -7,6 +7,7 @@ import { QualityBadge, CategoryBadge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { QUALITY_ORDER, GAME_QUALITY_NAMES } from '../types';
 import type { MaterialSlot, Quality } from '../types';
+import { ResourceIcon } from './ui/ResourceIcon';
 
 const QUALITY_OPTIONS: Quality[] = ['CMR', 'CMP', 'CMS'];
 
@@ -63,11 +64,13 @@ function SlotButton({ slot, assignedQuality, onOpenPicker }: {
       <div className="slot-btn__content">
         {assignedQuality ? (
           <>
+            <ResourceIcon name={slot.requiredResource} size={18} shimmer />
             <span className="slot-btn__mat-name">{slot.requiredResource}</span>
             <QualityBadge quality={assignedQuality} size="sm" />
           </>
         ) : (
           <>
+            <ResourceIcon name={slot.requiredResource} size={18} className="game-icon--dim" />
             <span className="slot-btn__resource-hint">{slot.requiredResource}</span>
             <span className="slot-btn__placeholder" aria-hidden="true">
               + {t('Assign', 'Assigner')}

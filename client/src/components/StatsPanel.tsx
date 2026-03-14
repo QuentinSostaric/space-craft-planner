@@ -5,6 +5,7 @@ import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { STAT_LABELS, STAT_UNITS, STAT_LOWER_IS_BETTER, COMPARISON_COLORS, GAME_QUALITY_NAMES } from '../types';
 import type { ItemStats } from '../types';
 import { Button } from './ui/Button';
+import { ResourceIcon } from './ui/ResourceIcon';
 
 interface StatBarProps {
   label: string;
@@ -90,6 +91,7 @@ function ResourceSummary() {
     <ul className="res-list" aria-label={t('Required resources', 'Ressources nécessaires')}>
       {entries.map((info, i) => (
         <li key={i} className="res-item">
+          <ResourceIcon name={info.resource} size={16} shimmer />
           <span className="res-item__name">{info.resource}</span>
           <span className="res-item__quality">{info.quality}</span>
           <span className="res-item__qty">×{info.totalScu.toFixed(2)} SCU</span>

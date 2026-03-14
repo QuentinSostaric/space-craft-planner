@@ -4,6 +4,7 @@ import { QUALITY_ORDER, QUALITY_NUMERIC, GAME_QUALITY_NAMES } from '../types';
 import { useI18n, loc } from '../i18n/I18nContext';
 import { QualityBadge } from './ui/Badge';
 import { Button } from './ui/Button';
+import { ResourceIcon } from './ui/ResourceIcon';
 
 const QUALITIES: Quality[] = ['CMR', 'CMP', 'CMS'];
 
@@ -65,9 +66,7 @@ export function QualityPicker({ slot, currentQuality, onSelect, onClose }: Quali
               {loc(slot.label, lang)}
             </h2>
             <p className="picker__desc">
-              <span className="picker__resource-label">
-                {t('Required resource', 'Ressource requise')}:
-              </span>
+              <ResourceIcon name={slot.requiredResource} size={20} shimmer />
               {' '}
               <strong>{slot.requiredResource}</strong>
               {' — '}

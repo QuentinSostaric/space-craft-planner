@@ -6,6 +6,7 @@ import { getLocationsForResource } from '../data/farmLocations';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import type { GameIconName } from './ui/GameIcon';
+import { ResourceIcon } from './ui/ResourceIcon';
 import { Button } from './ui/Button';
 import type { CraftGoal, AggregatedResource, FarmLocation, FarmActivityType, Lang, Quality } from '../types';
 import { ACTIVITY_LABELS, EFFICIENCY_LABELS, GAME_QUALITY_NAMES, QUALITY_ORDER } from '../types';
@@ -112,6 +113,7 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
             return (
               <div key={slot.id} className="goal-edit__slot">
                 <div className="goal-edit__slot-info">
+                  <ResourceIcon name={slot.requiredResource} size={16} shimmer />
                   <span className="goal-edit__slot-resource">{slot.requiredResource}</span>
                   <span className="goal-edit__slot-scu">{slot.quantityScu.toFixed(2)} SCU</span>
                 </div>
@@ -249,6 +251,7 @@ function FarmPlanSection({ aggregated }: { aggregated: AggregatedResource[] }) {
           <ul className="farm-plan__mats">
             {resources.map((e, i) => (
               <li key={i} className="farm-plan__mat-item">
+                <ResourceIcon name={e.resourceName} size={14} shimmer />
                 <span className="farm-plan__mat-name">
                   {e.resourceName}
                   <span className="farm-plan__mat-quality"> {GAME_QUALITY_NAMES[e.quality]} ({e.quality})</span>
