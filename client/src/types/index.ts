@@ -4,49 +4,54 @@ export type LocalizedString = Record<Lang, string>;
 
 // ─── localStorage keys ────────────────────────────────────────────────────────
 export const LS_KEYS = {
-  GOALS:     'sc-craft-goals',
-  FAVORITES: 'sc-craft-favorites',
-  LANG:      'sc-craft-lang',
-  THEME:     'sc-craft-theme',
+  GOALS:           'sc-craft-goals',
+  FAVORITES:       'sc-craft-favorites',
+  LANG:            'sc-craft-lang',
+  THEME:           'sc-craft-theme',
   DATASET_CHANNEL: 'sc-craft-dataset-channel',
+  INVENTORY:       'sc-craft-inventory',
 } as const;
 
 // ─── Quality ─────────────────────────────────────────────────────────────────
-export type Quality = 'CMR' | 'CMP' | 'CMS';
+/**
+ * Named quality presets for UX — correspond to physical material grades in-game.
+ * Internally quality is a numeric value on the game's 0–1000 scale.
+ * GPP modifiers interpolate between startQuality=500 and endQuality=1000.
+ *
+ * chunks (300): below GPP threshold, no stat bonus
+ * scraps (500): GPP startQuality, modAtStart (no improvement over base)
+ * powder (1000): GPP endQuality, modAtMax (full bonus)
+ */
+export type QualityPreset = 'chunks' | 'scraps' | 'powder';
 
-export const QUALITY_LABEL: Record<Quality, LocalizedString> = {
-  CMR: { en: 'Powder', fr: 'Poudre' },
-  CMP: { en: 'Scraps', fr: 'Débris' },
-  CMS: { en: 'Chunks', fr: 'Blocs' },
+/** Nominal quality values on the game's 0–1000 scale */
+export const QUALITY_PRESET_VALUE: Record<QualityPreset, number> = {
+  chunks: 300,
+  scraps: 500,
+  powder: 1000,
 };
 
-/** Official in-game English names for quality tiers */
-export const GAME_QUALITY_NAMES: Record<Quality, string> = {
-  CMR: 'Powder',
-  CMP: 'Scraps',
-  CMS: 'Chunks',
+export const QUALITY_PRESET_LABEL: Record<QualityPreset, LocalizedString> = {
+  chunks: { en: 'Chunks', fr: 'Blocs' },
+  scraps: { en: 'Scraps', fr: 'Débris' },
+  powder: { en: 'Powder', fr: 'Poudre' },
 };
 
-/** Numeric rank: higher = better quality */
-export const QUALITY_ORDER: Record<Quality, number> = {
-  CMR: 3,
-  CMP: 2,
-  CMS: 1,
-};
+export const QUALITY_PRESETS: QualityPreset[] = ['chunks', 'scraps', 'powder'];
 
-/** Numeric value used in GPP modifier interpolation (500=CMS, 750=CMP, 1000=CMR) */
-export const QUALITY_NUMERIC: Record<Quality, number> = {
-  CMR: 1000,
-  CMP: 750,
-  CMS: 500,
-};
+/** Map a numeric quality value to the closest named preset */
+export function qualityValueToPreset(value: number): QualityPreset {
+  if (value >= 1000) return 'powder';
+  if (value >= 500) return 'scraps';
+  return 'chunks';
+}
 
 // ─── GPP (GameplayProperty) modifiers ────────────────────────────────────────
 export interface GppModifier {
   gppId: string;
-  /** Modifier multiplier at minimum quality (CMS, numeric 500) */
+  /** Modifier multiplier at quality=500 (GPP startQuality) */
   modAtMin: number;
-  /** Modifier multiplier at maximum quality (CMR, numeric 1000) */
+  /** Modifier multiplier at quality=1000 (GPP endQuality) */
   modAtMax: number;
 }
 
@@ -54,10 +59,13 @@ export interface GppModifier {
 export interface MaterialSlot {
   id: string;
   label: LocalizedString;
-  /** Fixed resource required for this slot (e.g. "Torite") */
+  /** Fixed resource type required for this slot (e.g. "Torite") */
   requiredResource: string;
-  /** Minimum quality tier allowed, or null if any quality works */
-  minQuality: Quality | null;
+  /**
+   * Minimum quality value on the game's 0–1000 scale, or null if no restriction.
+   * Raw value from game XML (0, 300, 500 observed in data).
+   */
+  minQuality: number | null;
   /** Required quantity in SCU */
   quantityScu: number;
   /** GPP modifiers this slot contributes to the crafted item */
@@ -71,14 +79,14 @@ export interface ItemStats {
   rateOfFire?: number;
   magazineSize?: number;
   effectiveRange?: number;
-  recoilSmoothness?: number;
-  recoilHandling?: number;
-  recoilKick?: number;
+  recoilSmoothness?: number;  // multiplier, base 1.0 — lower is better
+  recoilHandling?: number;    // multiplier, base 1.0 — lower is better
+  recoilKick?: number;        // multiplier, base 1.0 — lower is better
   // Armor
-  damageMitigation?: number;
-  temperatureMin?: number;
-  temperatureMax?: number;
-  radiationDissipation?: number;
+  damageMitigation?: number;     // avg(kinetic + energy + thermal) resistance — GPP modifiable
+  temperatureMin?: number;       // minimum comfortable temperature (°C)
+  temperatureMax?: number;       // maximum comfortable temperature (°C)
+  radiationDissipation?: number; // radiation dissipation rate — GPP modifiable
 }
 
 /**
@@ -86,29 +94,29 @@ export interface ItemStats {
  * GPP modifiers are applied multiplicatively to the matching base stat.
  */
 export const GPP_TO_STAT: Partial<Record<string, keyof ItemStats>> = {
-  GPP_Weapon_Damage:            'damage',
-  GPP_Weapon_FireRate:          'rateOfFire',
-  GPP_Weapon_Recoil_Smoothness: 'recoilSmoothness',
-  GPP_Weapon_Recoil_Handling:   'recoilHandling',
-  GPP_Weapon_Recoil_Kick:       'recoilKick',
-  GPP_Armor_DamageMitigation:   'damageMitigation',
-  GPP_Armor_TemperatureMin:     'temperatureMin',
-  GPP_Armor_TemperatureMax:     'temperatureMax',
+  GPP_Weapon_Damage:              'damage',
+  GPP_Weapon_FireRate:            'rateOfFire',
+  GPP_Weapon_Recoil_Smoothness:   'recoilSmoothness',
+  GPP_Weapon_Recoil_Handling:     'recoilHandling',
+  GPP_Weapon_Recoil_Kick:         'recoilKick',
+  GPP_Armor_DamageMitigation:     'damageMitigation',
+  GPP_Armor_TemperatureMin:       'temperatureMin',
+  GPP_Armor_TemperatureMax:       'temperatureMax',
   GPP_Armor_RadiationDissipation: 'radiationDissipation',
 };
 
 export const STAT_LABELS: Record<keyof ItemStats, LocalizedString> = {
-  damage:               { en: 'Damage',            fr: 'Dégâts' },
-  rateOfFire:           { en: 'Rate of Fire',      fr: 'Cadence' },
-  magazineSize:         { en: 'Magazine',           fr: 'Chargeur' },
-  effectiveRange:       { en: 'Range',              fr: 'Portée' },
-  recoilSmoothness:     { en: 'Recoil Smoothness',  fr: 'Fluidité recul' },
-  recoilHandling:       { en: 'Recoil Handling',    fr: 'Gestion recul' },
-  recoilKick:           { en: 'Recoil Kick',        fr: 'Recul' },
-  damageMitigation:     { en: 'Dmg Mitigation',     fr: 'Mitigation' },
-  temperatureMin:       { en: 'Temp. Resistance Min', fr: 'Résistance Temp. Min' },
-  temperatureMax:       { en: 'Temp. Resistance Max', fr: 'Résistance Temp. Max' },
-  radiationDissipation: { en: 'Radiation',           fr: 'Radiation' },
+  damage:               { en: 'Damage',              fr: 'Dégâts' },
+  rateOfFire:           { en: 'Rate of Fire',        fr: 'Cadence' },
+  magazineSize:         { en: 'Magazine',             fr: 'Chargeur' },
+  effectiveRange:       { en: 'Range',                fr: 'Portée' },
+  recoilSmoothness:     { en: 'Recoil Smoothness',    fr: 'Fluidité recul' },
+  recoilHandling:       { en: 'Recoil Handling',      fr: 'Gestion recul' },
+  recoilKick:           { en: 'Recoil Kick',          fr: 'Recul' },
+  damageMitigation:     { en: 'Dmg Mitigation',       fr: 'Mitigation' },
+  temperatureMin:       { en: 'Temp. Min',            fr: 'Temp. Min' },
+  temperatureMax:       { en: 'Temp. Max',            fr: 'Temp. Max' },
+  radiationDissipation: { en: 'Radiation Dissip.',    fr: 'Dissip. Radiation' },
 };
 
 export const STAT_UNITS: Record<keyof ItemStats, string> = {
@@ -119,10 +127,10 @@ export const STAT_UNITS: Record<keyof ItemStats, string> = {
   recoilSmoothness:     '×',
   recoilHandling:       '×',
   recoilKick:           '×',
-  damageMitigation:     '%',
+  damageMitigation:     '',
   temperatureMin:       '°C',
   temperatureMax:       '°C',
-  radiationDissipation: '×',
+  radiationDissipation: 'mRem/s',
 };
 
 /** Stats where a lower projected value is an improvement */
@@ -181,6 +189,7 @@ export interface DatasetSummary {
   published: boolean;
   blueprintCount: number;
   resourceCount: number;
+  hasDismantling: boolean;
   importedAt: string;
   updatedAt: string;
   hasChangelog: boolean;
@@ -238,8 +247,54 @@ export interface GameDataset {
   blueprints: Blueprint[];
   resources: Resource[];
   changelog: DatasetChangelog | null;
+  dismantling: DismantlingData | null;
   importedAt: string;
   updatedAt: string;
+}
+
+// ─── App mode ────────────────────────────────────────────────────────────────
+export type AppMode = 'craft' | 'dismantle';
+
+// ─── Dismantling ─────────────────────────────────────────────────────────────
+export interface DismantlingMeta {
+  outputLabel: string;
+  extractedAt: string;
+  confidence: {
+    globalProcess: string;
+    uiResultShape: string;
+    perItemYieldTable: string;
+  };
+}
+
+export interface FabricatorQueue {
+  debugName: string;
+  maxJobsInProgress: number;
+  maxJobsWaiting: number;
+}
+
+export interface DismantlingFabricator {
+  displayName: string;
+  inventoryOccupancyScu: number;
+  queues: FabricatorQueue[];
+}
+
+export interface DismantlingBlueprint {
+  efficiency: number;
+  dismantleTimeSecs: number;
+}
+
+export interface DismantlingGlobalParams {
+  defaultCompositionQuality: number;
+  refiningQualityUnitMultiplier: number;
+}
+
+export interface DismantlingData {
+  meta: DismantlingMeta;
+  fabricator: DismantlingFabricator;
+  dismantling: {
+    blueprint: DismantlingBlueprint;
+    globalParams: DismantlingGlobalParams;
+  };
 }
 
 // ─── Craft goal ──────────────────────────────────────────────────────────────
@@ -248,8 +303,8 @@ export interface CraftGoal {
   blueprintId: string;
   blueprintName: string;
   category: ItemCategory;
-  /** Quality tier assigned per slot id */
-  slotAssignments: Record<string, Quality | undefined>;
+  /** Numeric quality value (0–1000) assigned per slot id */
+  slotAssignments: Record<string, number | undefined>;
   quantity: number;
   qualityScore: number;
   projectedStats: ItemStats;
@@ -264,7 +319,8 @@ export interface ComparisonItem {
   blueprintId: string;
   blueprintName: string;
   category: ItemCategory;
-  slotAssignments: Record<string, Quality | undefined>;
+  /** Numeric quality value (0–1000) per slot id */
+  slotAssignments: Record<string, number | undefined>;
   projectedStats: ItemStats;
   baseStats: ItemStats;
   qualityScore: number;
@@ -308,7 +364,8 @@ export interface FarmLocation {
 
 export interface AggregatedResource {
   resourceName: string;
-  quality: Quality;
+  /** Numeric quality value (0–1000) assigned to this resource in goals */
+  qualityValue: number;
   totalScu: number;
   locations: FarmLocation[];
   bestActivity: FarmActivityType;

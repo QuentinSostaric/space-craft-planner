@@ -1,21 +1,40 @@
 import type { ReactNode } from 'react';
-import type { Quality, ItemCategory } from '../../types';
-import { CATEGORY_LABELS } from '../../types';
+import type { ItemCategory } from '../../types';
+import { CATEGORY_LABELS, QUALITY_PRESET_LABEL, qualityValueToPreset } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
 import { GameIcon } from './GameIcon';
 import type { GameIconName } from './GameIcon';
 
 // ─── Quality badge ────────────────────────────────────────────────────────────
-interface QualityBadgeProps { quality: Quality; size?: 'sm' | 'md' }
+interface QualityBadgeProps { qualityValue: number; size?: 'sm' | 'md' }
 
-export function QualityBadge({ quality, size = 'md' }: QualityBadgeProps) {
-  const GAME_NAMES: Record<Quality, string> = { CMR: 'Powder', CMP: 'Scraps', CMS: 'Chunks' };
+export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
+  const { lang } = useI18n();
+  const preset = qualityValueToPreset(qualityValue);
+  const label = QUALITY_PRESET_LABEL[preset][lang];
   return (
     <span
-      className={`badge badge--quality badge--quality-${quality.toLowerCase()} badge--${size}`}
-      aria-label={`${quality} — ${GAME_NAMES[quality]}`}
+      className={`badge badge--quality badge--quality-${preset} badge--${size}`}
+      aria-label={`${label} (${qualityValue})`}
     >
-      {quality}
+      {label}
+    </span>
+  );
+}
+
+/** Show a minimum quality requirement as a badge */
+interface MinQualityBadgeProps { minQuality: number; size?: 'sm' | 'md' }
+
+export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProps) {
+  const { lang } = useI18n();
+  const preset = qualityValueToPreset(minQuality);
+  const label = QUALITY_PRESET_LABEL[preset][lang];
+  return (
+    <span
+      className={`badge badge--quality badge--quality-${preset} badge--${size}`}
+      aria-label={`Min: ${label} (${minQuality})`}
+    >
+      {label}+
     </span>
   );
 }
@@ -25,15 +44,14 @@ const CAT_GAME_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon':    'weapons',
   'fps-magazine':  'ammos',
   'fps-armor':     'armor',
-  'fps-helmet':    'armor',     // même fichier, hue différent (260°)
+  'fps-helmet':    'armor',
   'fps-undersuit': 'utilities',
-  'fps-backpack':  'utilities', // même fichier, hue différent (160°)
+  'fps-backpack':  'utilities',
 };
 
-/** Hue-rotate par catégorie pour distinguer celles qui partagent le même fichier */
 const CAT_HUE: Partial<Record<ItemCategory, number>> = {
-  'fps-helmet':    220,  // bleu-acier (vs 260° pour armor)
-  'fps-backpack':  160,  // teal (vs 130° pour undersuit)
+  'fps-helmet':    220,
+  'fps-backpack':  160,
 };
 
 interface CategoryBadgeProps { category: ItemCategory; iconOnly?: boolean; shimmer?: boolean }

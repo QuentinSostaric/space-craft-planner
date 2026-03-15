@@ -19,7 +19,7 @@ const LIVE_COLLECTION      = process.env.ATLAS_LIVE_COLLECTION ?? 'craft-live-da
 const PTU_COLLECTION       = process.env.ATLAS_PTU_COLLECTION  ?? 'craft-ptu-data';
 
 const SUMMARY_PROJECTION = {
-  _id: 0, blueprints: 0, resources: 0, changelog: 0, metrics: 0, sourceFiles: 0,
+  _id: 0, blueprints: 0, resources: 0, dismantling: 0, missionRewards: 0, changelog: 0, metrics: 0, sourceFiles: 0,
 };
 const FULL_PROJECTION = { _id: 0, metrics: 0, sourceFiles: 0 };
 
@@ -34,6 +34,10 @@ function toSummary(doc, channel) {
     published:      Boolean(doc.published),
     blueprintCount: doc.blueprintCount ?? (doc.blueprints?.length ?? 0),
     resourceCount:  doc.resourceCount  ?? (doc.resources?.length  ?? 0),
+    hasDismantling: Boolean(doc.dismantlingAvailable ?? doc.dismantling),
+    hasMissionRewards: (doc.missionRewardContractCount ?? 0) > 0 || Boolean(doc.missionRewards),
+    missionRewardContractCount: doc.missionRewardContractCount ?? 0,
+    missionRewardFactionGroupCount: doc.missionRewardFactionGroupCount ?? 0,
     importedAt:     doc.importedAt,
     updatedAt:      doc.updatedAt ?? doc.importedAt,
     hasChangelog:   Boolean(doc.changelog),
@@ -68,11 +72,10 @@ async function main() {
 
     mkdirSync(OUT, { recursive: true });
 
-    // index.json — réponse de /api/game-data/public
     writeFileSync(join(OUT, 'index.json'), JSON.stringify({ datasets, defaultChannel }, null, 2));
     console.log('[fetchGameData] Written index.json —', datasets.length, 'dataset(s)');
 
-    // live.json + ptu.json — réponses de /api/game-data/public/:channel
+    // live.json + ptu.json
     for (const channel of ['live', 'ptu']) {
       const collection = channel === 'live' ? LIVE_COLLECTION : PTU_COLLECTION;
       const doc = await db.collection(collection)

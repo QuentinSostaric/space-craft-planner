@@ -1,7 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { STAT_LABELS, STAT_UNITS, STAT_LOWER_IS_BETTER, GAME_QUALITY_NAMES } from '../types';
+import { STAT_LABELS, STAT_UNITS, STAT_LOWER_IS_BETTER, qualityValueToPreset, QUALITY_PRESET_LABEL } from '../types';
 import type { ComparisonItem, ItemStats } from '../types';
 import { Button } from './ui/Button';
 import { CategoryBadge } from './ui/Badge';
@@ -218,17 +218,18 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'f
   const bp = blueprints.find((blueprint) => blueprint.id === item.blueprintId);
   if (!bp) return null;
 
-  const needed: Record<string, { resource: string; quality: string; totalScu: number }> = {};
+  const needed: Record<string, { resource: string; qualityLabel: string; totalScu: number }> = {};
   for (const slot of bp.slots) {
-    const quality = item.slotAssignments[slot.id];
-    if (!quality) continue;
-    const key = `${slot.requiredResource}|${quality}`;
+    const qualityValue = item.slotAssignments[slot.id];
+    if (qualityValue === undefined) continue;
+    const key = `${slot.requiredResource}|${qualityValue}`;
     if (needed[key]) {
       needed[key].totalScu += slot.quantityScu;
     } else {
+      const preset = qualityValueToPreset(qualityValue);
       needed[key] = {
         resource: slot.requiredResource,
-        quality: `${GAME_QUALITY_NAMES[quality]} (${quality})`,
+        qualityLabel: QUALITY_PRESET_LABEL[preset][lang],
         totalScu: slot.quantityScu,
       };
     }
@@ -242,7 +243,7 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'f
       {entries.map((info, i) => (
         <li key={i} className="cmp-mat-item">
           <span className="cmp-mat-item__name">{info.resource}</span>
-          <span className="cmp-mat-item__quality">{info.quality}</span>
+          <span className="cmp-mat-item__quality">{info.qualityLabel}</span>
           <span className="cmp-mat-item__qty">×{info.totalScu.toFixed(2)} SCU</span>
         </li>
       ))}

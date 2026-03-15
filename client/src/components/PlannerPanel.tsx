@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
@@ -18,7 +18,6 @@ const ACTIVITY_GAME_ICONS: Record<FarmActivityType, GameIconName> = {
   shop:    'shopping-cart',
 };
 
-// ─── Export helpers ───────────────────────────────────────────────────────────
 function buildTextExport(goals: CraftGoal[], aggregated: AggregatedResource[], lang: Lang): string {
   const now = new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US');
   const lines: string[] = [];
@@ -30,7 +29,7 @@ function buildTextExport(goals: CraftGoal[], aggregated: AggregatedResource[], l
 
   lines.push(h(lang === 'en' ? 'GOALS' : 'OBJECTIFS'));
   for (const g of goals) {
-    lines.push(`${g.quantity}× ${g.blueprintName}  (${lang === 'en' ? 'Score' : 'Score'}: ${g.qualityScore}/100)`);
+    lines.push(`${g.quantity}× ${g.blueprintName}  (Score: ${g.qualityScore}/100)`);
   }
   lines.push('');
 
@@ -70,16 +69,8 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
   const { lang, t } = useI18n();
   const bp = blueprints.find((blueprint) => blueprint.id === goal.blueprintId);
   const [assignments, setAssignments] = useState<Record<string, number | undefined>>({ ...goal.slotAssignments });
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   const { qualityScore, projectedStats } = useCraftSimulator(bp ?? null, assignments);
-
-  // Focus trap & Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const handleSave = () => {
     updateGoal(goal.id, assignments, qualityScore, projectedStats);
@@ -91,8 +82,7 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
   return (
     <div
       className="goal-edit-overlay"
-      ref={overlayRef}
-      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      onClick={(e) => { if (e.currentTarget === e.target) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-label={t(`Edit goal: ${goal.blueprintName}`, `Modifier: ${goal.blueprintName}`)}
@@ -135,11 +125,7 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
                     return (
                       <button
                         key={preset}
-                        className={[
-                          'goal-edit__q-btn',
-                          `goal-edit__q-btn--${preset}`,
-                          isActive && 'goal-edit__q-btn--active',
-                        ].filter(Boolean).join(' ')}
+                        className={['goal-edit__q-btn', `goal-edit__q-btn--${preset}`, isActive && 'goal-edit__q-btn--active'].filter(Boolean).join(' ')}
                         onClick={() => !isLocked && setAssignments((prev) => ({ ...prev, [slot.id]: value }))}
                         disabled={isLocked}
                         aria-pressed={isActive}
@@ -165,18 +151,25 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
 }
 
 // ─── Goal card ────────────────────────────────────────────────────────────────
-function GoalCard({ goal, onRemove, onQtyChange, onEdit }: {
+function GoalCard({ goal, onRemove, onQtyChange, onEdit, onSelect, isActive }: {
   goal: CraftGoal;
   onRemove: () => void;
   onQtyChange: (qty: number) => void;
   onEdit: () => void;
+  onSelect: () => void;
+  isActive: boolean;
 }) {
   const { blueprints } = useCraft();
   const { t } = useI18n();
   const bp = blueprints.find((blueprint) => blueprint.id === goal.blueprintId);
 
   return (
-    <article className="goal-card" aria-label={`${t('Goal', 'Objectif')}: ${goal.blueprintName}`}>
+    <article
+      className={['goal-card', isActive && 'goal-card--active'].filter(Boolean).join(' ')}
+      aria-label={`${t('Goal', 'Objectif')}: ${goal.blueprintName}`}
+      onClick={onSelect}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="goal-card__header">
         {bp && <CategoryBadge category={bp.category} iconOnly />}
         <div className="goal-card__info">
@@ -186,23 +179,13 @@ function GoalCard({ goal, onRemove, onQtyChange, onEdit }: {
           </span>
         </div>
         <div className="goal-card__actions">
-          <button
-            className="goal-card__edit"
-            onClick={onEdit}
-            aria-label={`${t('Edit', 'Modifier')} ${goal.blueprintName}`}
-          >✎</button>
-          <button
-            className="goal-card__remove"
-            onClick={onRemove}
-            aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}
-          >✕</button>
+          <button className="goal-card__edit" onClick={onEdit} aria-label={`${t('Edit', 'Modifier')} ${goal.blueprintName}`}>✎</button>
+          <button className="goal-card__remove" onClick={onRemove} aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}>✕</button>
         </div>
       </div>
 
       <div className="goal-card__qty">
-        <label htmlFor={`qty-${goal.id}`} className="goal-card__qty-label">
-          {t('Qty', 'Qté')}
-        </label>
+        <label htmlFor={`qty-${goal.id}`} className="goal-card__qty-label">{t('Qty', 'Qté')}</label>
         <div className="goal-card__qty-ctrl">
           <button className="goal-card__qty-btn" onClick={() => onQtyChange(Math.max(1, goal.quantity - 1))} aria-label={t('Decrease', 'Réduire')}>−</button>
           <input
@@ -252,7 +235,6 @@ function FarmPlanSection({ aggregated }: { aggregated: AggregatedResource[] }) {
             <GameIcon name={ACTIVITY_GAME_ICONS[activity]} size={20} />
             {ACTIVITY_LABELS[activity][lang]}
           </h4>
-
           <ul className="farm-plan__mats">
             {resources.map((e, i) => {
               const preset = qualityValueToPreset(e.qualityValue);
@@ -269,7 +251,6 @@ function FarmPlanSection({ aggregated }: { aggregated: AggregatedResource[] }) {
               );
             })}
           </ul>
-
           {locations.length > 0 && (
             <ul className="farm-plan__locs">
               {locations.map((loc) => (
@@ -292,27 +273,17 @@ function FarmPlanSection({ aggregated }: { aggregated: AggregatedResource[] }) {
   );
 }
 
-// ─── Main drawer ──────────────────────────────────────────────────────────────
-export function PlannerDrawer() {
-  const { plannerOpen, closePlanner, goals, removeGoal, updateGoalQuantity, blueprints, activeChannel } = useCraft();
+// ─── Main panel ───────────────────────────────────────────────────────────────
+export function PlannerPanel() {
+  const { goals, removeGoal, updateGoalQuantity, selectGoalBlueprint, activeBlueprint, blueprints, activeChannel } = useCraft();
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const editingGoal = goals.find((g) => g.id === editingGoalId) ?? null;
   const { lang, t } = useI18n();
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
-  const blueprintIds = useMemo(() => new Set(blueprints.map((blueprint) => blueprint.id)), [blueprints]);
 
-  useEffect(() => { if (plannerOpen) closeBtnRef.current?.focus(); }, [plannerOpen]);
-  useEffect(() => {
-    if (!plannerOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePlanner(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [plannerOpen, closePlanner]);
+  const blueprintIds = useMemo(() => new Set(blueprints.map((bp) => bp.id)), [blueprints]);
 
   const aggregated = useMemo<AggregatedResource[]>(() => {
-    // key: "resourceName|qualityValue" — numeric quality as discriminator
     const totals: Record<string, { resourceName: string; qualityValue: number; totalScu: number }> = {};
-
     for (const goal of goals) {
       const bp = blueprints.find((blueprint) => blueprint.id === goal.blueprintId);
       if (!bp) continue;
@@ -327,7 +298,6 @@ export function PlannerDrawer() {
         }
       }
     }
-
     return Object.values(totals).map((entry) => {
       const locations = getLocationsForResource(entry.resourceName);
       return {
@@ -375,81 +345,80 @@ export function PlannerDrawer() {
     : `${goals.length} objectif${goals.length !== 1 ? 's' : ''}`;
 
   return (
-    <>
-      <div
-        className={['planner-backdrop', plannerOpen && 'planner-backdrop--open'].filter(Boolean).join(' ')}
-        onClick={closePlanner}
-        aria-hidden="true"
-      />
-      <div
-        className={['planner-drawer', plannerOpen && 'planner-drawer--open'].filter(Boolean).join(' ')}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('Resource planner', 'Planificateur de ressources')}
-      >
-        <header className="planner-drawer__header">
-          <div>
-            <h2 className="planner-drawer__title">{t('Planner', 'Planificateur')}</h2>
-            <p className="planner-drawer__subtitle">
-              {goalWord} · {aggregated.length} {t('resource', 'ressource')}{aggregated.length !== 1 && lang === 'fr' ? 's' : aggregated.length !== 1 ? 's' : ''}
+    <aside className="planner-panel" aria-label={t('Resource planner', 'Planificateur de ressources')}>
+      <header className="planner-panel__header">
+        <h2 className="planner-panel__title">{t('Planner', 'Planificateur')}</h2>
+        <p className="planner-panel__subtitle">
+          {goalWord} · {aggregated.length} {t('resource', 'ressource')}{aggregated.length !== 1 ? 's' : ''}
+        </p>
+      </header>
+
+      <div className="planner-panel__body">
+        {/* Goals */}
+        <section className="planner-panel__section">
+          <h3 className="planner-panel__section-title">
+            {t('Goals', 'Objectifs')}
+            {goals.length > 0 && <span className="planner-panel__count">{goals.length}</span>}
+          </h3>
+          {goals.length === 0 ? (
+            <p className="planner__empty">
+              {t(
+                'No goals yet. Simulate a craft and click "Add to Planner".',
+                'Aucun objectif. Simulez un craft et cliquez sur "Ajouter au Planificateur".',
+              )}
             </p>
-          </div>
-          <button ref={closeBtnRef} className="planner-drawer__close" onClick={closePlanner} aria-label={t('Close', 'Fermer')}>✕</button>
-        </header>
-
-        <div className="planner-drawer__body">
-          {/* Goals */}
-          <section>
-            <h3 className="planner-drawer__section-title">
-              {t('Goals', 'Objectifs')}
-              {goals.length > 0 && <span className="planner-drawer__count">{goals.length}</span>}
-            </h3>
-            {goals.length === 0 ? (
-              <p className="planner__empty">{t('No goals yet. Simulate a craft and click "Add to Planner".', 'Aucun objectif. Simulez un craft et cliquez sur "Ajouter au Planificateur".')}</p>
-            ) : (
-              <>
-                {unavailableGoalCount > 0 && (
-                  <p className="planner__notice">
-                    {t(
-                      `${unavailableGoalCount} saved goal(s) are not available in the current ${activeChannel.toUpperCase()} dataset.`,
-                      `${unavailableGoalCount} objectif(s) enregistres ne sont pas disponibles dans le dataset ${activeChannel.toUpperCase()} actif.`,
-                    )}
-                  </p>
-                )}
-                <div className="goal-list">
-                  {goals.map((g) => (
-                    <GoalCard key={g.id} goal={g} onRemove={() => removeGoal(g.id)} onQtyChange={(qty) => updateGoalQuantity(g.id, qty)} onEdit={() => setEditingGoalId(g.id)} />
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* Farm plan */}
-          <section>
-            <h3 className="planner-drawer__section-title">{t('Farm Plan', 'Plan de farm')}</h3>
-            <FarmPlanSection aggregated={aggregated} />
-          </section>
-
-          {/* Export */}
-          {goals.length > 0 && (
-            <section className="planner-export">
-              <h3 className="planner-drawer__section-title">{t('Export', 'Export')}</h3>
-              <div className="planner-export__btns">
-                <Button variant="ghost" size="sm" onClick={handleCopyText} icon="📋">
-                  {t('Copy as text', 'Copier en texte')}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleDownloadJSON} icon="⬇">
-                  {t('Download JSON', 'Télécharger JSON')}
-                </Button>
+          ) : (
+            <>
+              {unavailableGoalCount > 0 && (
+                <p className="planner__notice">
+                  {t(
+                    `${unavailableGoalCount} saved goal(s) are not available in the current ${activeChannel.toUpperCase()} dataset.`,
+                    `${unavailableGoalCount} objectif(s) enregistrés ne sont pas disponibles dans le dataset ${activeChannel.toUpperCase()} actif.`,
+                  )}
+                </p>
+              )}
+              <div className="goal-list">
+                {goals.map((g) => (
+                  <GoalCard
+                    key={g.id}
+                    goal={g}
+                    isActive={activeBlueprint?.id === g.blueprintId}
+                    onRemove={() => removeGoal(g.id)}
+                    onQtyChange={(qty) => updateGoalQuantity(g.id, qty)}
+                    onEdit={() => setEditingGoalId(g.id)}
+                    onSelect={() => selectGoalBlueprint(g.id)}
+                  />
+                ))}
               </div>
-            </section>
+            </>
           )}
-        </div>
+        </section>
+
+        {/* Farm plan */}
+        <section className="planner-panel__section">
+          <h3 className="planner-panel__section-title">{t('Farm Plan', 'Plan de farm')}</h3>
+          <FarmPlanSection aggregated={aggregated} />
+        </section>
+
+        {/* Export */}
+        {goals.length > 0 && (
+          <section className="planner-panel__section planner-export">
+            <h3 className="planner-panel__section-title">{t('Export', 'Export')}</h3>
+            <div className="planner-export__btns">
+              <Button variant="ghost" size="sm" onClick={handleCopyText} icon="📋">
+                {t('Copy as text', 'Copier en texte')}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleDownloadJSON} icon="⬇">
+                {t('Download JSON', 'Télécharger JSON')}
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
+
       {editingGoal && (
         <GoalEditModal goal={editingGoal} onClose={() => setEditingGoalId(null)} />
       )}
-    </>
+    </aside>
   );
 }

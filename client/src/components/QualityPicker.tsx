@@ -1,17 +1,15 @@
 import { useEffect, useRef } from 'react';
-import type { MaterialSlot, Quality } from '../types';
-import { QUALITY_ORDER, QUALITY_NUMERIC, GAME_QUALITY_NAMES } from '../types';
+import type { MaterialSlot } from '../types';
+import { QUALITY_PRESETS, QUALITY_PRESET_VALUE, QUALITY_PRESET_LABEL, qualityValueToPreset } from '../types';
 import { useI18n, loc } from '../i18n/I18nContext';
-import { QualityBadge } from './ui/Badge';
+import { MinQualityBadge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { ResourceIcon } from './ui/ResourceIcon';
 
-const QUALITIES: Quality[] = ['CMR', 'CMP', 'CMS'];
-
 interface QualityPickerProps {
   slot: MaterialSlot;
-  currentQuality: Quality | undefined;
-  onSelect: (quality: Quality | undefined) => void;
+  currentQuality: number | undefined;
+  onSelect: (quality: number | undefined) => void;
   onClose: () => void;
 }
 
@@ -45,9 +43,6 @@ export function QualityPicker({ slot, currentQuality, onSelect, onClose }: Quali
     return () => { document.removeEventListener('keydown', handleKey); prev?.focus(); };
   }, [onClose]);
 
-  const minOrder = slot.minQuality ? QUALITY_ORDER[slot.minQuality] : 1;
-  const validQualities = QUALITIES.filter((q) => QUALITY_ORDER[q] >= minOrder);
-
   return (
     <div
       className="picker-overlay"
@@ -60,13 +55,13 @@ export function QualityPicker({ slot, currentQuality, onSelect, onClose }: Quali
         <header className="picker__header">
           <div>
             <p className="picker__eyebrow">
-              {t('Select quality tier', 'Sélectionner la qualité')}
+              {t('Select quality', 'Sélectionner la qualité')}
             </p>
             <h2 id="picker-title" className="picker__title">
               {loc(slot.label, lang)}
             </h2>
             <p className="picker__desc">
-              <ResourceIcon name={slot.requiredResource} size={20} shimmer />
+              <ResourceIcon name={slot.requiredResource} size={20} />
               {' '}
               <strong>{slot.requiredResource}</strong>
               {' — '}
@@ -83,34 +78,43 @@ export function QualityPicker({ slot, currentQuality, onSelect, onClose }: Quali
           </button>
         </header>
 
-        {slot.minQuality && (
+        {slot.minQuality != null && slot.minQuality > 0 && (
           <p className="picker__min-quality">
             {t('Minimum required quality:', 'Qualité minimale requise :')}
-            {' '}<QualityBadge quality={slot.minQuality} />
+            {' '}<MinQualityBadge minQuality={slot.minQuality} />
           </p>
         )}
 
         <div className="picker__groups">
           <div className="picker__group">
             <div className="picker__quality-row">
-              {validQualities.map((quality) => {
-                const isSelected = quality === currentQuality;
-                // lerp ∈ [0,1], 0=CMS, 1=CMR — used to show "bonus potential"
-                const lerp = (QUALITY_NUMERIC[quality] - 500) / 500;
-                const potentialPct = Math.round(lerp * 100);
+              {QUALITY_PRESETS.map((preset) => {
+                const value = QUALITY_PRESET_VALUE[preset];
+                const label = QUALITY_PRESET_LABEL[preset][lang];
+                const isSelected = currentQuality !== undefined && qualityValueToPreset(currentQuality) === preset;
+                const isDisabled = slot.minQuality != null && value < slot.minQuality;
+                // t ∈ [0,1]: fraction of GPP bonus range achieved at this quality value
+                const t2 = Math.max(0, Math.min(1, (value - 500) / 500));
+                const potentialPct = Math.round(t2 * 100);
 
                 return (
                   <button
-                    key={quality}
-                    className={['picker__mat-btn', isSelected && 'picker__mat-btn--selected'].filter(Boolean).join(' ')}
-                    onClick={() => { onSelect(quality); onClose(); }}
+                    key={preset}
+                    className={[
+                      'picker__mat-btn',
+                      `picker__mat-btn--${preset}`,
+                      isSelected && 'picker__mat-btn--selected',
+                      isDisabled && 'picker__mat-btn--disabled',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => { if (!isDisabled) { onSelect(value); onClose(); } }}
+                    disabled={isDisabled}
                     aria-pressed={isSelected}
-                    aria-label={`${slot.requiredResource} ${GAME_QUALITY_NAMES[quality]} (${quality}) — ${potentialPct}% bonus potential`}
+                    aria-label={`${slot.requiredResource} ${label} (${value}) — ${potentialPct}% bonus potential`}
                   >
                     <div className="picker__mat-info">
-                      <QualityBadge quality={quality} size="sm" />
-                      <span className="picker__mat-game-name">{GAME_QUALITY_NAMES[quality]}</span>
+                      <span className={`badge badge--quality badge--quality-${preset} badge--sm`}>{label}</span>
                     </div>
+                    <span className="picker__mat-value">{value}</span>
                     <span className="picker__mat-factor">{potentialPct}%</span>
                   </button>
                 );
@@ -119,7 +123,7 @@ export function QualityPicker({ slot, currentQuality, onSelect, onClose }: Quali
           </div>
         </div>
 
-        {currentQuality && (
+        {currentQuality !== undefined && (
           <div className="picker__footer">
             <Button variant="ghost" size="sm" onClick={() => { onSelect(undefined); onClose(); }}>
               {t('Remove assignment', 'Retirer l\'assignation')}

@@ -9,49 +9,53 @@ import {
   type ReactNode,
 } from 'react';
 import type {
+  AppMode,
   Blueprint,
   CategoryFilter,
   ComparisonItem,
   CraftGoal,
   DatasetChannel,
   DatasetSummary,
+  DismantlingData,
   GameDataset,
   ItemStats,
-  Quality,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
-import { BLUEPRINTS as LOCAL_BLUEPRINTS } from '../data/blueprints';
 import { fetchPublishedDataset, fetchPublishedDatasetIndex } from '../hooks/gameDataApi';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 
-const LOCAL_FALLBACK_DATASET: GameDataset = {
+const EMPTY_DATASET: GameDataset = {
   channel: 'ptu',
-  datasetId: 'local-static-alpha-4.7',
-  label: 'Local fallback dataset',
-  version: 'Alpha 4.7',
+  datasetId: '',
+  label: '',
+  version: '',
   branch: null,
   buildNumber: null,
-  published: true,
-  blueprints: LOCAL_BLUEPRINTS as Blueprint[],
+  published: false,
+  blueprints: [],
   resources: [],
   changelog: null,
+  dismantling: null,
   importedAt: new Date(0).toISOString(),
   updatedAt: new Date(0).toISOString(),
 };
 
 interface CraftState {
+  appMode: AppMode;
+  setAppMode: (mode: AppMode) => void;
+  dismantlingData: DismantlingData | null;
   activeBlueprint: Blueprint | null;
   blueprints: Blueprint[];
   activeDataset: GameDataset;
   availableDatasets: DatasetSummary[];
   activeChannel: DatasetChannel;
-  datasetSource: 'local' | 'remote';
   datasetLoading: boolean;
   datasetError: string | null;
   categoryFilter: CategoryFilter;
   searchQuery: string;
   favoriteIds: string[];
-  slotAssignments: Record<string, Quality | undefined>;
+  inventoryIds: string[];
+  slotAssignments: Record<string, number | undefined>;
   goals: CraftGoal[];
   plannerOpen: boolean;
   comparisonItems: ComparisonItem[];
@@ -62,17 +66,19 @@ interface CraftState {
   setCategoryFilter: (cat: CategoryFilter) => void;
   setSearchQuery: (q: string) => void;
   toggleFavorite: (blueprintId: string) => void;
-  assignQuality: (slotId: string, quality: Quality | undefined) => void;
+  toggleInventory: (blueprintId: string) => void;
+  assignQuality: (slotId: string, quality: number | undefined) => void;
   clearAssignments: () => void;
   addGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
   removeGoal: (goalId: string) => void;
   updateGoalQuantity: (goalId: string, quantity: number) => void;
   updateGoal: (
     goalId: string,
-    slotAssignments: Record<string, Quality | undefined>,
+    slotAssignments: Record<string, number | undefined>,
     qualityScore: number,
     projectedStats: ItemStats,
   ) => void;
+  selectGoalBlueprint: (goalId: string) => void;
   openPlanner: () => void;
   closePlanner: () => void;
   addToComparison: (score: number, projectedStats: ItemStats) => void;
@@ -89,20 +95,40 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     LS_KEYS.DATASET_CHANNEL,
     'ptu',
   );
-  const [activeDataset, setActiveDataset] = useState<GameDataset>(LOCAL_FALLBACK_DATASET);
+  const [activeDataset, setActiveDataset] = useState<GameDataset>(EMPTY_DATASET);
   const [availableDatasets, setAvailableDatasets] = useState<DatasetSummary[]>([]);
-  const [datasetSource, setDatasetSource] = useState<'local' | 'remote'>('local');
   const [datasetLoading, setDatasetLoading] = useState(true);
   const [datasetError, setDatasetError] = useState<string | null>(null);
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [slotAssignments, setSlotAssignments] = useState<Record<string, Quality | undefined>>({});
+  const [slotAssignments, setSlotAssignments] = useState<Record<string, number | undefined>>({});
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
   const [comparisonOpen, setComparisonOpen] = useState(false);
-  const [goals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
+  const [appMode, setAppMode] = useState<AppMode>('craft');
+
+  const dismantlingData = activeDataset.dismantling ?? null;
+
+  const [rawGoals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
+  // Migrate legacy goals: coerce qualityScore to number, normalize slot assignments
+  // (old data may have stored Quality strings like "CMR" instead of numeric values)
+  const LEGACY_QUALITY_VALUE: Record<string, number> = { CMR: 1000, CMP: 500, CMS: 300 };
+  const goals = useMemo(
+    () => rawGoals.map((g) => ({
+      ...g,
+      qualityScore: typeof g.qualityScore === 'number' ? g.qualityScore : 0,
+      slotAssignments: Object.fromEntries(
+        Object.entries(g.slotAssignments ?? {}).map(([k, v]) => [
+          k,
+          typeof v === 'number' ? v : (typeof v === 'string' ? (LEGACY_QUALITY_VALUE[v] ?? undefined) : undefined),
+        ]),
+      ),
+    })),
+    [rawGoals], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const [favoriteIds, setFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
+  const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(LS_KEYS.INVENTORY, []);
 
   const blueprints = activeDataset.blueprints;
   const activeChannel = activeDataset.channel;
@@ -111,13 +137,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     (
       dataset: GameDataset,
       datasets: DatasetSummary[],
-      source: 'local' | 'remote',
       errorMessage: string | null,
     ) => {
       startTransition(() => {
         setActiveDataset(dataset);
         setAvailableDatasets(datasets);
-        setDatasetSource(source);
         setDatasetError(errorMessage);
         setPreferredChannel(dataset.channel);
         setSlotAssignments({});
@@ -132,7 +156,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const loadChannel = useCallback(
     async (channel: DatasetChannel, datasets: DatasetSummary[]) => {
       const dataset = await fetchPublishedDataset(channel);
-      applyDataset(dataset, datasets, 'remote', null);
+      applyDataset(dataset, datasets, null);
       return dataset;
     },
     [applyDataset],
@@ -145,12 +169,8 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const index = await fetchPublishedDatasetIndex();
 
       if (index.datasets.length === 0 || !index.defaultChannel) {
-        applyDataset(
-          LOCAL_FALLBACK_DATASET,
-          [],
-          'local',
-          'No published dataset is available yet. Falling back to local static data.',
-        );
+        setDatasetError('No published dataset is available yet.');
+        setDatasetLoading(false);
         return;
       }
 
@@ -161,16 +181,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
 
       await loadChannel(channelToLoad, index.datasets);
     } catch (error) {
-      applyDataset(
-        LOCAL_FALLBACK_DATASET,
-        [],
-        'local',
-        error instanceof Error ? error.message : 'Failed to load published datasets.',
-      );
+      setDatasetError(error instanceof Error ? error.message : 'Failed to load published datasets.');
     } finally {
       setDatasetLoading(false);
     }
-  }, [applyDataset, loadChannel, preferredChannel]);
+  }, [loadChannel, preferredChannel]);
 
   useEffect(() => {
     void refreshDatasets();
@@ -178,7 +193,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
 
   const setActiveDatasetChannel = useCallback(
     async (channel: DatasetChannel) => {
-      if (channel === activeDataset.channel && datasetSource === 'remote') {
+      if (channel === activeDataset.channel && availableDatasets.length > 0 && !datasetError) {
         return;
       }
 
@@ -193,7 +208,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setDatasetLoading(false);
       }
     },
-    [activeDataset.channel, availableDatasets, datasetSource, loadChannel],
+    [activeDataset.channel, availableDatasets, datasetError, loadChannel],
   );
 
   const setActiveBlueprint = useCallback((bp: Blueprint | null) => {
@@ -210,7 +225,16 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     [setFavoriteIds],
   );
 
-  const assignQuality = useCallback((slotId: string, quality: Quality | undefined) => {
+  const toggleInventory = useCallback(
+    (blueprintId: string) => {
+      setInventoryIds((prev) =>
+        prev.includes(blueprintId) ? prev.filter((id) => id !== blueprintId) : [...prev, blueprintId],
+      );
+    },
+    [setInventoryIds],
+  );
+
+  const assignQuality = useCallback((slotId: string, quality: number | undefined) => {
     setSlotAssignments((prev) => ({ ...prev, [slotId]: quality }));
   }, []);
 
@@ -249,7 +273,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const updateGoal = useCallback(
     (
       goalId: string,
-      updatedAssignments: Record<string, Quality | undefined>,
+      updatedAssignments: Record<string, number | undefined>,
       qualityScore: number,
       projectedStats: ItemStats,
     ) => {
@@ -262,6 +286,18 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       );
     },
     [setGoals],
+  );
+
+  const selectGoalBlueprint = useCallback(
+    (goalId: string) => {
+      const goal = goals.find((g) => g.id === goalId);
+      if (!goal) return;
+      const bp = blueprints.find((b) => b.id === goal.blueprintId);
+      if (!bp) return;
+      setActiveBlueprintRaw(bp);
+      setSlotAssignments({ ...goal.slotAssignments });
+    },
+    [goals, blueprints],
   );
 
   const addToComparison = useCallback(
@@ -304,17 +340,20 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   return (
     <CraftContext.Provider
       value={{
+        appMode,
+        setAppMode,
+        dismantlingData,
         activeBlueprint,
         blueprints,
         activeDataset,
         availableDatasets,
         activeChannel,
-        datasetSource,
         datasetLoading,
         datasetError,
         categoryFilter,
         searchQuery,
         favoriteIds,
+        inventoryIds,
         slotAssignments,
         goals,
         plannerOpen,
@@ -326,12 +365,14 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setCategoryFilter,
         setSearchQuery,
         toggleFavorite,
+        toggleInventory,
         assignQuality,
         clearAssignments,
         addGoal,
         removeGoal,
         updateGoalQuantity,
         updateGoal,
+        selectGoalBlueprint,
         openPlanner,
         closePlanner,
         addToComparison,
@@ -378,7 +419,7 @@ export function useFilteredBlueprints(): Blueprint[] {
         }
 
         return true;
-      }),
+      }).sort((a, b) => a.name.localeCompare(b.name)),
     [blueprints, categoryFilter, searchQuery, favoriteIds],
   );
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
-import { STAT_LABELS, STAT_UNITS, STAT_LOWER_IS_BETTER, COMPARISON_COLORS, GAME_QUALITY_NAMES } from '../types';
+import { STAT_LABELS, STAT_UNITS, STAT_LOWER_IS_BETTER, COMPARISON_COLORS, qualityValueToPreset, QUALITY_PRESET_LABEL } from '../types';
 import type { ItemStats } from '../types';
 import { Button } from './ui/Button';
 import { ResourceIcon } from './ui/ResourceIcon';
@@ -23,36 +23,39 @@ function StatBar({ label, unit, baseValue, projValue, lowerIsBetter, maxValue }:
   const isImproved = lowerIsBetter ? delta < 0 : delta > 0;
   const isNeutral = delta === 0;
   const diffLabel = isNeutral
-    ? '—'
+    ? null
     : `${delta > 0 ? '+' : ''}${Math.abs(delta) < 1 ? delta.toFixed(2) : Math.round(delta)} ${unit}`;
 
   return (
     <div className="stat-bar" role="group" aria-label={`${label}: ${baseValue} → ${projValue} ${unit}`}>
       <div className="stat-bar__header">
         <span className="stat-bar__label">{label}</span>
-        <div className="stat-bar__values">
-          <span className="stat-bar__base" aria-label={`Base: ${baseValue} ${unit}`}>{baseValue}</span>
-          <span className="stat-bar__arrow" aria-hidden="true">→</span>
-          <span
-            className={['stat-bar__proj', !isNeutral && (isImproved ? 'stat-bar__proj--better' : 'stat-bar__proj--worse')].filter(Boolean).join(' ')}
-            aria-label={`Crafted: ${projValue} ${unit}`}
-          >
-            {projValue}
+        {diffLabel && (
+          <span className={['stat-bar__delta', isImproved ? 'stat-bar__delta--better' : 'stat-bar__delta--worse'].join(' ')}>
+            {diffLabel}
           </span>
-          <span className="stat-bar__unit">{unit}</span>
-        </div>
-        <span
-          className={['stat-bar__delta', !isNeutral && (isImproved ? 'stat-bar__delta--better' : 'stat-bar__delta--worse')].filter(Boolean).join(' ')}
-        >
-          {diffLabel}
-        </span>
+        )}
       </div>
-      <div className="stat-bar__track" aria-hidden="true">
-        <div className="stat-bar__fill stat-bar__fill--base" style={{ width: `${basePct}%` }} />
-        <div
-          className={['stat-bar__fill stat-bar__fill--proj', isImproved ? 'stat-bar__fill--better' : isNeutral ? '' : 'stat-bar__fill--worse'].filter(Boolean).join(' ')}
-          style={{ width: `${projPct}%` }}
-        />
+      <div className="stat-bar__rows" aria-hidden="true">
+        <div className="stat-bar__row">
+          <span className="stat-bar__row-lbl">Base</span>
+          <div className="stat-bar__track">
+            <div className="stat-bar__fill stat-bar__fill--base" style={{ width: `${basePct}%` }} />
+          </div>
+          <span className="stat-bar__row-val">{baseValue} {unit}</span>
+        </div>
+        <div className="stat-bar__row">
+          <span className="stat-bar__row-lbl">Craft</span>
+          <div className="stat-bar__track">
+            <div
+              className={['stat-bar__fill', isImproved ? 'stat-bar__fill--better' : isNeutral ? 'stat-bar__fill--proj' : 'stat-bar__fill--worse'].join(' ')}
+              style={{ width: `${projPct}%` }}
+            />
+          </div>
+          <span className={['stat-bar__row-val', !isNeutral && (isImproved ? 'stat-bar__row-val--better' : 'stat-bar__row-val--worse')].filter(Boolean).join(' ')}>
+            {projValue} {unit}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -60,21 +63,22 @@ function StatBar({ label, unit, baseValue, projValue, lowerIsBetter, maxValue }:
 
 function ResourceSummary() {
   const { activeBlueprint, slotAssignments } = useCraft();
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   if (!activeBlueprint) return null;
 
-  // Aggregate: resource name + quality → total SCU
-  const needed: Record<string, { resource: string; quality: string; totalScu: number }> = {};
+  // Aggregate: resource name + quality value → total SCU
+  const needed: Record<string, { resource: string; qualityLabel: string; totalScu: number }> = {};
   for (const slot of activeBlueprint.slots) {
-    const quality = slotAssignments[slot.id];
-    if (!quality) continue;
-    const key = `${slot.requiredResource}|${quality}`;
+    const qualityValue = slotAssignments[slot.id];
+    if (qualityValue == null || qualityValue === 0) continue;
+    const key = `${slot.requiredResource}|${qualityValue}`;
     if (needed[key]) {
       needed[key].totalScu += slot.quantityScu;
     } else {
+      const preset = qualityValueToPreset(qualityValue);
       needed[key] = {
         resource: slot.requiredResource,
-        quality: `${GAME_QUALITY_NAMES[quality]} (${quality})`,
+        qualityLabel: QUALITY_PRESET_LABEL[preset][lang],
         totalScu: slot.quantityScu,
       };
     }
@@ -91,9 +95,9 @@ function ResourceSummary() {
     <ul className="res-list" aria-label={t('Required resources', 'Ressources nécessaires')}>
       {entries.map((info, i) => (
         <li key={i} className="res-item">
-          <ResourceIcon name={info.resource} size={16} shimmer />
+          <ResourceIcon name={info.resource} size={16} />
           <span className="res-item__name">{info.resource}</span>
-          <span className="res-item__quality">{info.quality}</span>
+          <span className="res-item__quality">{info.qualityLabel}</span>
           <span className="res-item__qty">×{info.totalScu.toFixed(2)} SCU</span>
         </li>
       ))}
@@ -102,7 +106,7 @@ function ResourceSummary() {
 }
 
 export function StatsPanel() {
-  const { activeBlueprint, slotAssignments, addGoal, addToComparison, comparisonItems, openComparison, favoriteIds, toggleFavorite } = useCraft();
+  const { activeBlueprint, slotAssignments, addGoal, addToComparison, comparisonItems, openComparison } = useCraft();
   const { lang, t } = useI18n();
   const { projectedStats, qualityScore } = useCraftSimulator(activeBlueprint, slotAssignments);
   const [qty, setQty] = useState(1);
@@ -133,17 +137,6 @@ export function StatsPanel() {
     <aside className="stats-panel" aria-label={`${t('Stats', 'Statistiques')} — ${activeBlueprint.name}`}>
       <div className="stats-panel__titlebar">
         <h2 className="stats-panel__title">{t('Stats', 'Statistiques')}</h2>
-        <div className="stats-panel__titlebar-actions">
-          <button
-            className={['stats-panel__fav', favoriteIds.includes(activeBlueprint.id) && 'stats-panel__fav--active'].filter(Boolean).join(' ')}
-            onClick={() => toggleFavorite(activeBlueprint.id)}
-            aria-label={favoriteIds.includes(activeBlueprint.id)
-              ? t(`Remove ${activeBlueprint.name} from favorites`, `Retirer ${activeBlueprint.name} des favoris`)
-              : t(`Add ${activeBlueprint.name} to favorites`, `Ajouter ${activeBlueprint.name} aux favoris`)}
-            aria-pressed={favoriteIds.includes(activeBlueprint.id)}
-          >
-            {favoriteIds.includes(activeBlueprint.id) ? '★' : '☆'}
-          </button>
         {comparisonItems.length > 0 && (
           <button
             className="stats-panel__cmp-badge"
@@ -156,15 +149,10 @@ export function StatsPanel() {
             <span>{comparisonItems.length}</span>
           </button>
         )}
-        </div>
       </div>
 
       {/* Stat bars */}
       <section className="stats-panel__stats" aria-label={t('Stats comparison', 'Comparaison des statistiques')}>
-        <div className="stats-panel__legend" aria-hidden="true">
-          <span className="stats-panel__legend-base">{t('Shop base', 'Base shop')}</span>
-          <span className="stats-panel__legend-proj">{t('Crafted', 'Crafté')}</span>
-        </div>
         {statKeys.map((key) => {
           const base = activeBlueprint.baseStats[key as string] ?? 0;
           const proj = projectedStats[key] ?? base;
