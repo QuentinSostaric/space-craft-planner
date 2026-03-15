@@ -175,6 +175,43 @@ body::after {
   overflow: hidden;
 }
 
+.app-status {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8);
+}
+
+.app-status__panel {
+  width: min(100%, 680px);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-2);
+  padding: var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.app-status__panel--error {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.app-status__title {
+  color: var(--c-text);
+  font-size: 1.6rem;
+}
+
+.app-status__message {
+  color: var(--c-text);
+  line-height: 1.6;
+}
+
+.app-status__hint {
+  color: var(--c-text-muted);
+  line-height: 1.6;
+}
+
 .dashboard {
   display: grid;
   grid-template-columns: var(--col-left) 1fr var(--col-right);
@@ -2763,4 +2800,524 @@ body::after {
   border: 1px solid var(--c-border);
   border-left: 3px solid var(--c-warning);
   background: rgba(251,191,36,.04);
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-3);
+  z-index: 30;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-3);
+  border: 1px solid var(--c-border-strong);
+  transform: translateY(-140%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.badge--quality-custom {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: var(--c-blue-light);
+}
+
+.slot-card__clear-btn {
+  min-width: 64px;
+  padding: 0 var(--sp-2);
+  height: 34px;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  background: var(--c-surface-2);
+}
+
+.slot-card__clear-btn:hover {
+  border-color: var(--c-border-hover);
+  color: var(--c-text);
+}
+
+.goal-card {
+  cursor: pointer;
+}
+
+.goal-card:focus-visible {
+  border-color: var(--c-violet);
+}
+
+.goal-edit__slot-min {
+  font-size: .72rem;
+  color: var(--c-text-dim);
+}
+
+.goal-edit__slot-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.goal-edit__slot-input {
+  width: 110px;
+  height: 34px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+.goal-edit__slot-input:focus {
+  border-color: var(--c-violet);
+  outline: none;
+}
+
+.goal-edit__slot-btn {
+  min-width: 58px;
+  height: 34px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+}
+
+.goal-edit__slot-btn:hover {
+  border-color: var(--c-border-hover);
+  color: var(--c-text);
+}
+
+.planner-materials {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.planner-materials__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+.planner-materials__main,
+.planner-materials__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.planner-materials__name {
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.planner-materials__quality,
+.planner-materials__min {
+  color: var(--c-text-muted);
+  font-size: .78rem;
+}
+
+.planner-materials__qty {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--c-text);
+}
+
+.planner-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.planner-sources__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+
+.planner-sources__header,
+.planner-sources__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.planner-sources__title,
+.planner-sources__item-name {
+  font-size: .95rem;
+  color: var(--c-text);
+}
+
+.planner-sources__count,
+.planner-sources__item-scale,
+.planner-sources__item-meta {
+  color: var(--c-text-muted);
+  font-size: .78rem;
+}
+
+.planner-sources__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.planner-sources__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+.planner-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.planner-notes__line {
+  color: var(--c-text-muted);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+
+.planner__notice--danger {
+  color: var(--c-danger);
+}
+
+.dismantle__field-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.dismantle__field-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  background: rgba(14, 18, 37, 0.4);
+}
+
+.dismantle__field-name {
+  color: var(--c-text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .82rem;
+}
+
+.dismantle__field-meta {
+  color: var(--c-text-muted);
+  font-size: .78rem;
+}
+
+/* ── Blueprint card mission badge ─────────────────────────────────────────── */
+.bp-card__mission-badge {
+  margin-left: auto;
+  font-size: .65rem;
+  font-weight: 700;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--c-mauve);
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+/* ── Acquisition sources (CraftSimulator) ─────────────────────────────────── */
+.acq-sources {
+  margin-top: var(--sp-3);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+.acq-sources__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--c-text-dim);
+  text-align: left;
+  cursor: pointer;
+}
+.acq-sources__toggle:hover { color: var(--c-text); }
+.acq-sources__toggle-icon { font-size: .7rem; width: 12px; }
+.acq-sources__toggle-label { flex: 1; text-transform: uppercase; letter-spacing: .1em; font-size: .7rem; }
+.acq-sources__toggle-count {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .72rem;
+  color: var(--c-mauve);
+}
+.acq-sources__body { padding: 0 var(--sp-3) var(--sp-3); }
+.acq-sources__loading {
+  font-size: .78rem;
+  color: var(--c-text-muted);
+  padding: var(--sp-2) var(--sp-3);
+}
+.acq-sources__empty {
+  font-size: .78rem;
+  color: var(--c-text-muted);
+}
+.acq-sources__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  list-style: none;
+}
+.acq-sources__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  background: rgba(14, 18, 37, 0.4);
+}
+.acq-sources__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.acq-sources__item-name {
+  font-size: .82rem;
+  color: var(--c-text);
+}
+.acq-sources__item-scale {
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--c-violet-l);
+}
+.acq-sources__item-meta {
+  font-size: .72rem;
+  color: var(--c-text-muted);
+  margin: 0;
+}
+
+/* ── Missions Panel ───────────────────────────────────────────────────────── */
+.missions-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+.missions-panel--loading,
+.missions-panel--error,
+.missions-panel--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--c-text-dim);
+  padding: var(--sp-5);
+  text-align: center;
+}
+.missions-panel__empty-state { text-align: center; max-width: 320px; }
+.missions-panel__empty-icon {
+  font-size: 4rem;
+  background: var(--g-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.missions-panel__header {
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--c-border);
+}
+.missions-panel__title {
+  font-family: 'Khand', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  text-transform: uppercase;
+  color: var(--c-text);
+  margin-bottom: var(--sp-2);
+}
+.missions-panel__no-results {
+  padding: var(--sp-5);
+  color: var(--c-text-muted);
+  text-align: center;
+  font-size: .88rem;
+}
+
+/* Summary banner */
+.missions-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.missions-banner__stat {
+  font-size: .82rem;
+  color: var(--c-text-dim);
+}
+.missions-banner__stat strong {
+  color: var(--c-blue-light);
+  font-family: 'Share Tech Mono', monospace;
+}
+.missions-banner__sep {
+  color: var(--c-text-muted);
+}
+
+/* Filter bar */
+.missions-filters {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--c-border);
+  flex-wrap: wrap;
+}
+.missions-filters__field { min-width: 120px; }
+.missions-filters__field--grow { flex: 1; min-width: 180px; }
+.missions-filters__select,
+.missions-filters__search {
+  width: 100%;
+  padding: 6px var(--sp-3);
+  font-size: .78rem;
+  font-family: inherit;
+  color: var(--c-text);
+  background: var(--c-surface-1);
+  border: 1px solid var(--c-border);
+  transition: border-color 150ms;
+}
+.missions-filters__select:focus,
+.missions-filters__search:focus {
+  border-color: var(--c-violet);
+  outline: none;
+}
+
+/* Missions panel body */
+.missions-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Faction accordion */
+.faction-accordion {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-1);
+}
+.faction-accordion__header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-3);
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms;
+}
+.faction-accordion__header:hover { background: var(--c-surface-2); }
+.faction-accordion__chevron { font-size: .7rem; width: 14px; color: var(--c-text-dim); }
+.faction-accordion__name {
+  flex: 1;
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--c-text);
+}
+.faction-accordion__type {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--c-border);
+}
+.faction-accordion__type--lawful { color: var(--c-success); border-color: rgba(52,211,153,.3); }
+.faction-accordion__type--unlawful { color: var(--c-danger, #ef4444); border-color: rgba(239,68,68,.3); }
+.faction-accordion__scopes {
+  font-size: .68rem;
+  color: var(--c-text-muted);
+  font-style: italic;
+}
+.faction-accordion__count {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .78rem;
+  color: var(--c-mauve);
+  min-width: 28px;
+  text-align: right;
+}
+.faction-accordion__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+/* Contract card */
+.contract-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  background: rgba(14, 18, 37, 0.4);
+}
+.contract-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.contract-card__name {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--c-text);
+}
+.contract-card__scale {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-violet-l);
+  white-space: nowrap;
+}
+.contract-card__meta {
+  font-size: .72rem;
+  color: var(--c-text-muted);
+  margin: 0;
+}
+
+/* Blueprint reward chips */
+.contract-card__rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--sp-1);
+}
+.contract-card__bp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--c-text-dim);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms;
+}
+.contract-card__bp-chip:hover {
+  border-color: var(--c-violet);
+  color: var(--c-text);
+}
+.contract-card__bp-chip-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

@@ -13,6 +13,7 @@ export function Header() {
     appMode,
     setAppMode,
     dismantlingData,
+    missionRewards,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const [theme, setTheme] = useTheme();
@@ -39,8 +40,12 @@ export function Header() {
                   'channel-toggle__btn',
                   `channel-toggle__btn--${dataset.channel}`,
                   activeChannel === dataset.channel && 'channel-toggle__btn--active',
-                ].filter(Boolean).join(' ')}
-                onClick={() => { void setActiveDatasetChannel(dataset.channel); }}
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => {
+                  void setActiveDatasetChannel(dataset.channel);
+                }}
                 disabled={datasetLoading}
                 aria-pressed={activeChannel === dataset.channel}
                 aria-label={t(
@@ -54,58 +59,78 @@ export function Header() {
           </div>
         )}
 
-        {dismantlingData && (
-          <div className="mode-toggle" role="group" aria-label={t('App mode', 'Mode')}>
+        {(dismantlingData || missionRewards) && (
+          <div className="mode-toggle" role="group" aria-label={t('App mode', 'Mode de l application')}>
             <button
-              className={['mode-toggle__btn', appMode === 'craft' && 'mode-toggle__btn--active'].filter(Boolean).join(' ')}
+              className={['mode-toggle__btn', appMode === 'craft' && 'mode-toggle__btn--active']
+                .filter(Boolean)
+                .join(' ')}
               onClick={() => setAppMode('craft')}
               aria-pressed={appMode === 'craft'}
             >
               {t('Craft', 'Craft')}
             </button>
-            <button
-              className={['mode-toggle__btn', appMode === 'dismantle' && 'mode-toggle__btn--active'].filter(Boolean).join(' ')}
-              onClick={() => setAppMode('dismantle')}
-              aria-pressed={appMode === 'dismantle'}
-            >
-              {t('Dismantle', 'Démontage')}
-            </button>
+            {dismantlingData && (
+              <button
+                className={['mode-toggle__btn', appMode === 'dismantle' && 'mode-toggle__btn--active']
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setAppMode('dismantle')}
+                aria-pressed={appMode === 'dismantle'}
+              >
+                {t('Dismantle', 'Demontage')}
+              </button>
+            )}
+            {missionRewards && (
+              <button
+                className={['mode-toggle__btn', appMode === 'missions' && 'mode-toggle__btn--active']
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setAppMode('missions')}
+                aria-pressed={appMode === 'missions'}
+              >
+                {t('Missions', 'Missions')}
+              </button>
+            )}
           </div>
         )}
 
         <button
           className="theme-toggle"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={theme === 'dark'
-            ? t('Switch to light theme', 'Passer au theme clair')
-            : t('Switch to dark theme', 'Passer au theme sombre')}
-          title={theme === 'dark'
-            ? t('Light theme', 'Theme clair')
-            : t('Dark theme', 'Theme sombre')}
+          aria-label={
+            theme === 'dark'
+              ? t('Switch to light theme', 'Passer au theme clair')
+              : t('Switch to dark theme', 'Passer au theme sombre')
+          }
+          title={theme === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
         >
           {theme === 'dark' ? '☀' : '☾'}
         </button>
 
         <div className="lang-toggle" role="group" aria-label={t('Language', 'Langue')}>
           <button
-            className={['lang-toggle__btn', lang === 'en' && 'lang-toggle__btn--active'].filter(Boolean).join(' ')}
+            className={['lang-toggle__btn', lang === 'en' && 'lang-toggle__btn--active']
+              .filter(Boolean)
+              .join(' ')}
             onClick={() => setLang('en')}
             aria-pressed={lang === 'en'}
-            aria-label="Switch to English"
+            aria-label={t('Switch to English', 'Passer en anglais')}
           >
             EN
           </button>
           <span className="lang-toggle__sep" aria-hidden="true">|</span>
           <button
-            className={['lang-toggle__btn', lang === 'fr' && 'lang-toggle__btn--active'].filter(Boolean).join(' ')}
+            className={['lang-toggle__btn', lang === 'fr' && 'lang-toggle__btn--active']
+              .filter(Boolean)
+              .join(' ')}
             onClick={() => setLang('fr')}
             aria-pressed={lang === 'fr'}
-            aria-label="Passer en francais"
+            aria-label={t('Switch to French', 'Passer en francais')}
           >
             FR
           </button>
         </div>
-
       </div>
     </header>
   );

@@ -11,7 +11,6 @@
     "dev:vite":    "npm run dev --workspace client",
     "dev:cf":      "wrangler pages dev --proxy 5173 --port 8788",
     "build":       "npm run build --workspace client",
-    "devdata":     "node scripts/devData.mjs",
     "deploy":      "node scripts/fetchGameData.mjs && npm run build && wrangler pages deploy client/dist",
     "import:ptu":  "npm run import:ptu  --prefix exporter",
     "import:live": "npm run import:live --prefix exporter"

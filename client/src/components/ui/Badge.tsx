@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ItemCategory } from '../../types';
-import { CATEGORY_LABELS, QUALITY_PRESET_LABEL, qualityValueToPreset } from '../../types';
+import { CATEGORY_LABELS } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
 import { GameIcon } from './GameIcon';
 import type { GameIconName } from './GameIcon';
@@ -9,13 +9,12 @@ import type { GameIconName } from './GameIcon';
 interface QualityBadgeProps { qualityValue: number; size?: 'sm' | 'md' }
 
 export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
-  const { lang } = useI18n();
-  const preset = qualityValueToPreset(qualityValue);
-  const label = QUALITY_PRESET_LABEL[preset][lang];
+  const { t } = useI18n();
+  const label = `Q${Math.round(qualityValue)}`;
   return (
     <span
-      className={`badge badge--quality badge--quality-${preset} badge--${size}`}
-      aria-label={`${label} (${qualityValue})`}
+      className={`badge badge--quality badge--quality-custom badge--${size}`}
+      aria-label={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
     >
       {label}
     </span>
@@ -26,15 +25,14 @@ export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
 interface MinQualityBadgeProps { minQuality: number; size?: 'sm' | 'md' }
 
 export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProps) {
-  const { lang } = useI18n();
-  const preset = qualityValueToPreset(minQuality);
-  const label = QUALITY_PRESET_LABEL[preset][lang];
+  const { t } = useI18n();
+  const label = `>= ${Math.round(minQuality)}`;
   return (
     <span
-      className={`badge badge--quality badge--quality-${preset} badge--${size}`}
-      aria-label={`Min: ${label} (${minQuality})`}
+      className={`badge badge--quality badge--quality-custom badge--${size}`}
+      aria-label={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
     >
-      {label}+
+      {label}
     </span>
   );
 }

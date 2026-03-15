@@ -19,9 +19,14 @@ import type {
   DismantlingData,
   GameDataset,
   ItemStats,
+  MissionRewardsData,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
-import { fetchPublishedDataset, fetchPublishedDatasetIndex } from '../hooks/gameDataApi';
+import {
+  fetchPublishedDataset,
+  fetchPublishedDatasetIndex,
+  fetchPublishedMissionRewards,
+} from '../hooks/gameDataApi';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 
 const EMPTY_DATASET: GameDataset = {
@@ -32,12 +37,15 @@ const EMPTY_DATASET: GameDataset = {
   branch: null,
   buildNumber: null,
   published: false,
+  blueprintCount: 0,
+  resourceCount: 0,
   blueprints: [],
   resources: [],
   changelog: null,
   dismantling: null,
-  importedAt: new Date(0).toISOString(),
-  updatedAt: new Date(0).toISOString(),
+  missionRewards: null,
+  importedAt: null,
+  updatedAt: null,
 };
 
 interface CraftState {
@@ -49,6 +57,9 @@ interface CraftState {
   activeDataset: GameDataset;
   availableDatasets: DatasetSummary[];
   activeChannel: DatasetChannel;
+  missionRewards: MissionRewardsData | null;
+  missionRewardsLoading: boolean;
+  missionRewardsError: string | null;
   datasetLoading: boolean;
   datasetError: string | null;
   categoryFilter: CategoryFilter;
@@ -63,6 +74,7 @@ interface CraftState {
   setActiveBlueprint: (bp: Blueprint | null) => void;
   setActiveDatasetChannel: (channel: DatasetChannel) => Promise<void>;
   refreshDatasets: () => Promise<void>;
+  ensureMissionRewardsLoaded: (channel?: DatasetChannel) => Promise<void>;
   setCategoryFilter: (cat: CategoryFilter) => void;
   setSearchQuery: (q: string) => void;
   toggleFavorite: (blueprintId: string) => void;
@@ -99,6 +111,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [availableDatasets, setAvailableDatasets] = useState<DatasetSummary[]>([]);
   const [datasetLoading, setDatasetLoading] = useState(true);
   const [datasetError, setDatasetError] = useState<string | null>(null);
+  const [missionRewardsByChannel, setMissionRewardsByChannel] = useState<
+    Partial<Record<DatasetChannel, MissionRewardsData | null>>
+  >({});
+  const [missionRewardsLoading, setMissionRewardsLoading] = useState(false);
+  const [missionRewardsError, setMissionRewardsError] = useState<string | null>(null);
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +125,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('craft');
 
+  const activeMissionRewards = activeDataset.missionRewards ?? null;
   const dismantlingData = activeDataset.dismantling ?? null;
 
   const [rawGoals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
@@ -139,10 +157,18 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       datasets: DatasetSummary[],
       errorMessage: string | null,
     ) => {
+      const cachedMissionRewards = missionRewardsByChannel[dataset.channel];
       startTransition(() => {
-        setActiveDataset(dataset);
+        setActiveDataset({
+          ...dataset,
+          missionRewards:
+            cachedMissionRewards !== undefined
+              ? cachedMissionRewards
+              : dataset.missionRewards ?? null,
+        });
         setAvailableDatasets(datasets);
         setDatasetError(errorMessage);
+        setMissionRewardsError(null);
         setPreferredChannel(dataset.channel);
         setSlotAssignments({});
         setActiveBlueprintRaw((previous) =>
@@ -150,7 +176,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         );
       });
     },
-    [setPreferredChannel],
+    [missionRewardsByChannel, setPreferredChannel],
   );
 
   const loadChannel = useCallback(
@@ -190,6 +216,43 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refreshDatasets();
   }, [refreshDatasets]);
+
+  const ensureMissionRewardsLoaded = useCallback(
+    async (requestedChannel?: DatasetChannel) => {
+      const channel = requestedChannel ?? activeDataset.channel;
+      const summary = availableDatasets.find((dataset) => dataset.channel === channel);
+
+      if (!summary?.hasMissionRewards) {
+        return;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(missionRewardsByChannel, channel)) {
+        return;
+      }
+
+      setMissionRewardsLoading(true);
+      setMissionRewardsError(null);
+
+      try {
+        const missionRewards = await fetchPublishedMissionRewards(channel);
+        startTransition(() => {
+          setMissionRewardsByChannel((previous) => ({ ...previous, [channel]: missionRewards }));
+          setActiveDataset((previous) =>
+            previous.channel === channel
+              ? { ...previous, missionRewards }
+              : previous,
+          );
+        });
+      } catch (error) {
+        setMissionRewardsError(
+          error instanceof Error ? error.message : 'Failed to load mission rewards.',
+        );
+      } finally {
+        setMissionRewardsLoading(false);
+      }
+    },
+    [activeDataset.channel, availableDatasets, missionRewardsByChannel],
+  );
 
   const setActiveDatasetChannel = useCallback(
     async (channel: DatasetChannel) => {
@@ -348,6 +411,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         activeDataset,
         availableDatasets,
         activeChannel,
+        missionRewards: activeMissionRewards,
+        missionRewardsLoading,
+        missionRewardsError,
         datasetLoading,
         datasetError,
         categoryFilter,
@@ -362,6 +428,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setActiveBlueprint,
         setActiveDatasetChannel,
         refreshDatasets,
+        ensureMissionRewardsLoaded,
         setCategoryFilter,
         setSearchQuery,
         toggleFavorite,
@@ -397,13 +464,31 @@ export function useCraft(): CraftState {
 }
 
 export function useFilteredBlueprints(): Blueprint[] {
-  const { blueprints, categoryFilter, searchQuery, favoriteIds } = useCraft();
+  const { blueprints, categoryFilter, searchQuery, favoriteIds, missionRewards } = useCraft();
 
   return useMemo(
-    () =>
-      blueprints.filter((blueprint) => {
+    () => {
+      let obtainableIds: Set<string> | null = null;
+      if (categoryFilter === 'obtainable') {
+        obtainableIds = new Set<string>();
+        if (missionRewards) {
+          for (const group of missionRewards.factionGroups) {
+            for (const contract of group.contracts) {
+              for (const bp of contract.rewardedBlueprints) {
+                obtainableIds.add(bp.id);
+              }
+            }
+          }
+        }
+      }
+
+      return blueprints.filter((blueprint) => {
         if (categoryFilter === 'favorites') {
           return favoriteIds.includes(blueprint.id);
+        }
+
+        if (categoryFilter === 'obtainable') {
+          return obtainableIds!.has(blueprint.id);
         }
 
         if (categoryFilter !== 'all' && blueprint.category !== categoryFilter) {
@@ -419,7 +504,8 @@ export function useFilteredBlueprints(): Blueprint[] {
         }
 
         return true;
-      }).sort((a, b) => a.name.localeCompare(b.name)),
-    [blueprints, categoryFilter, searchQuery, favoriteIds],
+      }).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    [blueprints, categoryFilter, searchQuery, favoriteIds, missionRewards],
   );
 }

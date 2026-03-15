@@ -1,6 +1,10 @@
 /**
- * Re-export du service MongoDB Atlas.
- * CraftContext importe depuis ce fichier — on garde la compatibilité des imports.
+ * Runtime API facade.
+ * CraftContext imports from this file to keep data access centralized.
  */
-export { fetchPublishedDatasetIndex, fetchPublishedDataset } from '../services/mongoDbService';
+export {
+  fetchPublishedDatasetIndex,
+  fetchPublishedDataset,
+  fetchPublishedMissionRewards,
+} from '../services/mongoDbService';
 export type { DatasetIndexResponse } from '../services/mongoDbService';

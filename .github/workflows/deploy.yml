@@ -22,10 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Fetch game data from MongoDB
+      - name: Fetch published data from MongoDB
+        run: node scripts/fetchGameData.mjs
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        run: node scripts/fetchGameData.mjs
 
       - name: Build
         run: npm run build

@@ -1,0 +1,227 @@
+import type {
+  AggregatedResource,
+  Blueprint,
+  CraftGoal,
+  Lang,
+  MaterialSlot,
+  MissionContract,
+  MissionRewardsData,
+} from '../types';
+
+const SCALE_LABELS: Record<string, { en: string; fr: string }> = {
+  universe: { en: 'Universe-wide', fr: 'Univers entier' },
+  system: { en: 'System-wide', fr: 'Systeme entier' },
+  'planetary-cluster': { en: 'Planetary cluster', fr: 'Cluster planetaire' },
+  'regional-sector': { en: 'Regional sector', fr: 'Secteur regional' },
+  'specific-location': { en: 'Specific location', fr: 'Lieu specifique' },
+  unknown: { en: 'Unknown scope', fr: 'Portee inconnue' },
+};
+
+export function formatScaleLabel(scale: string, lang: Lang): string {
+  return SCALE_LABELS[scale]?.[lang] ?? (lang === 'fr' ? 'Portee inconnue' : 'Unknown scope');
+}
+
+export function formatStanding(contract: MissionContract, lang: Lang): string {
+  if (contract.minimumRequiredStandings.length === 0) {
+    return lang === 'fr'
+      ? 'Aucun seuil explicite dans les contrats extraits'
+      : 'No explicit standing gate in extracted contract data';
+  }
+
+  return contract.minimumRequiredStandings
+    .map((standing) => {
+      const base = [standing.factionName, standing.scopeName, standing.standingName]
+        .filter(Boolean)
+        .join(' - ');
+      return standing.minReputation != null ? `${base} (${standing.minReputation})` : base;
+    })
+    .join(' | ');
+}
+
+export function formatLocations(contract: MissionContract, lang: Lang): string {
+  if (contract.availability.explicitLocations.length > 0) {
+    return contract.availability.explicitLocations.join(', ');
+  }
+
+  if (contract.availability.localities.length > 0) {
+    return contract.availability.localities.join(', ');
+  }
+
+  return lang === 'fr' ? 'Aucun lieu explicite' : 'No explicit location';
+}
+
+export function buildBlueprintContractCountMap(
+  missionRewards: MissionRewardsData | null,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  if (!missionRewards) return map;
+
+  for (const group of missionRewards.factionGroups) {
+    for (const contract of group.contracts) {
+      for (const bp of contract.rewardedBlueprints) {
+        map.set(bp.id, (map.get(bp.id) ?? 0) + 1);
+      }
+    }
+  }
+
+  return map;
+}
+
+export function clampQualityValue(value: number | undefined): number | undefined {
+  if (value === undefined || Number.isNaN(value)) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.min(1000, Math.round(value)));
+}
+
+export function formatQualityToken(value: number): string {
+  return `Q${Math.round(value)}`;
+}
+
+export function formatQualityLabel(value: number, lang: Lang): string {
+  return lang === 'fr' ? `Qualite ${Math.round(value)}` : `Quality ${Math.round(value)}`;
+}
+
+export function summarizeAssignedQualities(
+  qualityValues: number[],
+  unassignedSlotCount: number,
+  lang: Lang,
+): string {
+  if (qualityValues.length === 0) {
+    return unassignedSlotCount > 0
+      ? (lang === 'fr' ? 'Non selectionnee' : 'Unassigned')
+      : (lang === 'fr' ? 'Aucune' : 'None');
+  }
+
+  const sorted = [...qualityValues].sort((left, right) => left - right);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const baseLabel = min === max ? formatQualityToken(min) : `${formatQualityToken(min)}-${formatQualityToken(max)}`;
+
+  if (unassignedSlotCount > 0) {
+    return lang === 'fr'
+      ? `${baseLabel} (+${unassignedSlotCount} non selectionne)`
+      : `${baseLabel} (+${unassignedSlotCount} unassigned)`;
+  }
+
+  return baseLabel;
+}
+
+function aggregateResourceEntries(
+  entries: Array<{
+    resourceName: string;
+    quantityScu: number;
+    minQuality: number | null;
+    assignedQuality: number | undefined;
+  }>,
+): AggregatedResource[] {
+  const totals = new Map<string, AggregatedResource>();
+
+  for (const entry of entries) {
+    const current = totals.get(entry.resourceName) ?? {
+      resourceName: entry.resourceName,
+      totalScu: 0,
+      minRequiredQuality: entry.minQuality ?? null,
+      assignedQualityValues: [],
+      unassignedSlotCount: 0,
+      slotCount: 0,
+    };
+
+    current.totalScu += entry.quantityScu;
+    current.slotCount += 1;
+    current.minRequiredQuality = Math.max(current.minRequiredQuality ?? 0, entry.minQuality ?? 0) || null;
+
+    if (entry.assignedQuality === undefined) {
+      current.unassignedSlotCount += 1;
+    } else if (!current.assignedQualityValues.includes(entry.assignedQuality)) {
+      current.assignedQualityValues.push(entry.assignedQuality);
+    }
+
+    totals.set(entry.resourceName, current);
+  }
+
+  return [...totals.values()]
+    .map((entry) => ({
+      ...entry,
+      assignedQualityValues: [...entry.assignedQualityValues].sort((left, right) => left - right),
+      totalScu: Math.round(entry.totalScu * 1000) / 1000,
+    }))
+    .sort((left, right) => {
+      if (right.totalScu !== left.totalScu) {
+        return right.totalScu - left.totalScu;
+      }
+      return left.resourceName.localeCompare(right.resourceName);
+    });
+}
+
+export function aggregateBlueprintResources(
+  slots: MaterialSlot[],
+  assignments: Record<string, number | undefined>,
+): AggregatedResource[] {
+  return aggregateResourceEntries(
+    slots.map((slot) => ({
+      resourceName: slot.requiredResource,
+      quantityScu: slot.quantityScu,
+      minQuality: slot.minQuality,
+      assignedQuality: clampQualityValue(assignments[slot.id]),
+    })),
+  );
+}
+
+export function aggregateGoalResources(
+  goals: CraftGoal[],
+  blueprints: Blueprint[],
+): AggregatedResource[] {
+  const entries = [];
+
+  for (const goal of goals) {
+    const blueprint = blueprints.find((candidate) => candidate.id === goal.blueprintId);
+    if (!blueprint) {
+      continue;
+    }
+
+    for (const slot of blueprint.slots) {
+      entries.push({
+        resourceName: slot.requiredResource,
+        quantityScu: slot.quantityScu * goal.quantity,
+        minQuality: slot.minQuality,
+        assignedQuality: clampQualityValue(goal.slotAssignments[slot.id]),
+      });
+    }
+  }
+
+  return aggregateResourceEntries(entries);
+}
+
+export function findMissionContractsForBlueprint(
+  missionRewards: MissionRewardsData | null,
+  blueprintId: string,
+): MissionContract[] {
+  if (!missionRewards) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const matches: MissionContract[] = [];
+
+  for (const group of missionRewards.factionGroups) {
+    for (const contract of group.contracts) {
+      if (!contract.rewardedBlueprints.some((blueprint) => blueprint.id === blueprintId)) {
+        continue;
+      }
+
+      const key = `${contract.contractFile ?? ''}|${contract.contractDebugName ?? ''}`;
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      matches.push(contract);
+    }
+  }
+
+  return matches.sort((left, right) =>
+    String(left.contractDebugName ?? '').localeCompare(String(right.contractDebugName ?? '')),
+  );
+}

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { STAT_LABELS, STAT_UNITS, STAT_LOWER_IS_BETTER, qualityValueToPreset, QUALITY_PRESET_LABEL } from '../types';
+import { STAT_LABELS, STAT_PERCENT_KEYS, STAT_UNITS, STAT_LOWER_IS_BETTER } from '../types';
 import type { ComparisonItem, ItemStats } from '../types';
+import { aggregateBlueprintResources, summarizeAssignedQualities } from '../utils/crafting';
 import { Button } from './ui/Button';
 import { CategoryBadge } from './ui/Badge';
 
@@ -58,7 +59,11 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
       viewBox="0 0 300 300"
       className="radar-chart"
       role="img"
-      aria-label={`Radar chart comparing ${items.length} item${items.length > 1 ? 's' : ''}`}
+      aria-label={
+        lang === 'en'
+          ? `Radar chart comparing ${items.length} item${items.length > 1 ? 's' : ''}`
+          : `Radar comparant ${items.length} item${items.length > 1 ? 's' : ''}`
+      }
     >
       <title>
         {lang === 'en' ? 'Stats comparison radar chart' : 'Radar de comparaison des statistiques'}
@@ -135,6 +140,11 @@ function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
+function formatStatDisplayValue(key: keyof ItemStats, value: number): number {
+  const scaled = STAT_PERCENT_KEYS.has(key) ? value * 100 : value;
+  return Number.isInteger(scaled) ? scaled : Math.round(scaled * 100) / 100;
+}
+
 // ─── Stat comparison table ────────────────────────────────────────────────────
 function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: (keyof ItemStats)[]; lang: 'en' | 'fr' }) {
   return (
@@ -172,17 +182,19 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
               const base = item.baseStats[key] ?? 0;
               const isBest = val === bestVal && vals.filter(v => v === bestVal).length < vals.length;
               const delta = val - base;
+              const displayVal = formatStatDisplayValue(key, val);
+              const displayDelta = formatStatDisplayValue(key, delta);
               return (
                 <div
                   key={item.id}
                   className={['cmp-table__cell cmp-table__cell--val', isBest && 'cmp-table__cell--best'].filter(Boolean).join(' ')}
                   role="cell"
-                  aria-label={`${STAT_LABELS[key]?.[lang] ?? key}: ${val} ${STAT_UNITS[key] ?? ''}${isBest ? ` (${lang === 'en' ? 'best' : 'meilleur'})` : ''}`}
+                  aria-label={`${STAT_LABELS[key]?.[lang] ?? key}: ${displayVal} ${STAT_UNITS[key] ?? ''}${isBest ? ` (${lang === 'en' ? 'best' : 'meilleur'})` : ''}`}
                 >
-                  <span className="cmp-table__val" style={{ color: isBest ? item.color : undefined }}>{val}</span>
+                  <span className="cmp-table__val" style={{ color: isBest ? item.color : undefined }}>{displayVal}</span>
                   {delta !== 0 && (
                     <span className={['cmp-table__delta', delta > 0 ? 'cmp-table__delta--up' : 'cmp-table__delta--down'].join(' ')}>
-                      {delta > 0 ? '+' : ''}{Math.abs(delta) < 1 ? delta.toFixed(2) : Math.round(delta)}
+                      {displayDelta > 0 ? '+' : ''}{displayDelta}
                     </span>
                   )}
                 </div>
@@ -218,33 +230,18 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'f
   const bp = blueprints.find((blueprint) => blueprint.id === item.blueprintId);
   if (!bp) return null;
 
-  const needed: Record<string, { resource: string; qualityLabel: string; totalScu: number }> = {};
-  for (const slot of bp.slots) {
-    const qualityValue = item.slotAssignments[slot.id];
-    if (qualityValue === undefined) continue;
-    const key = `${slot.requiredResource}|${qualityValue}`;
-    if (needed[key]) {
-      needed[key].totalScu += slot.quantityScu;
-    } else {
-      const preset = qualityValueToPreset(qualityValue);
-      needed[key] = {
-        resource: slot.requiredResource,
-        qualityLabel: QUALITY_PRESET_LABEL[preset][lang],
-        totalScu: slot.quantityScu,
-      };
-    }
-  }
-
-  const entries = Object.values(needed);
+  const entries = aggregateBlueprintResources(bp.slots, item.slotAssignments);
   if (entries.length === 0) return <span className="cmp-mat__empty">—</span>;
 
   return (
     <ul className="cmp-mat-list" aria-label={`${lang === 'en' ? 'Resources for' : 'Ressources pour'} ${item.blueprintName}`}>
-      {entries.map((info, i) => (
-        <li key={i} className="cmp-mat-item">
-          <span className="cmp-mat-item__name">{info.resource}</span>
-          <span className="cmp-mat-item__quality">{info.qualityLabel}</span>
-          <span className="cmp-mat-item__qty">×{info.totalScu.toFixed(2)} SCU</span>
+      {entries.map((entry) => (
+        <li key={entry.resourceName} className="cmp-mat-item">
+          <span className="cmp-mat-item__name">{entry.resourceName}</span>
+          <span className="cmp-mat-item__quality">
+            {summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
+          </span>
+          <span className="cmp-mat-item__qty">×{entry.totalScu.toFixed(2)} SCU</span>
         </li>
       ))}
     </ul>

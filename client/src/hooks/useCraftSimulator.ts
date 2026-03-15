@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Blueprint, ItemStats } from '../types';
-import { GPP_TO_STAT, STAT_LOWER_IS_BETTER } from '../types';
+import { ARMOR_DAMAGE_RESISTANCE_KEYS, DIRECT_GPP_TO_STAT } from '../types';
 
 /**
  * Compute the GPP modifier multiplier for a given numeric quality value.
@@ -10,6 +10,19 @@ import { GPP_TO_STAT, STAT_LOWER_IS_BETTER } from '../types';
 export function gppModifier(modAtMin: number, modAtMax: number, qualityValue: number): number {
   const t = Math.max(0, Math.min(1, (qualityValue - 500) / 500));
   return modAtMin + (modAtMax - modAtMin) * t;
+}
+
+function getModifierTargets(gppId: string, result: Record<string, number>): (keyof ItemStats)[] {
+  if (gppId === 'GPP_Armor_DamageMitigation') {
+    return ARMOR_DAMAGE_RESISTANCE_KEYS.filter((key) => key in result);
+  }
+
+  const statKey = DIRECT_GPP_TO_STAT[gppId];
+  return statKey && statKey in result ? [statKey] : [];
+}
+
+function roundStatValue(value: number): number {
+  return Number.isInteger(value) ? value : Math.round(value * 100) / 100;
 }
 
 /** Project all base stats through slot GPP modifiers. Only stats present in baseStats are projected. */
@@ -25,17 +38,18 @@ function calcProjectedStats(
     if (slot.minQuality !== null && qualityValue < slot.minQuality) continue;
 
     for (const mod of slot.modifiers) {
-      const statKey = GPP_TO_STAT[mod.gppId];
-      if (!statKey || !(statKey in result)) continue;
-      result[statKey] *= gppModifier(mod.modAtMin, mod.modAtMax, qualityValue);
+      const targets = getModifierTargets(mod.gppId, result);
+      if (targets.length === 0) continue;
+
+      for (const statKey of targets) {
+        result[statKey] *= gppModifier(mod.modAtMin, mod.modAtMax, qualityValue);
+      }
     }
   }
 
   const stats: ItemStats = {};
   for (const [key, val] of Object.entries(result) as [keyof ItemStats, number][]) {
-    stats[key] = STAT_LOWER_IS_BETTER.has(key)
-      ? Math.round(val * 100) / 100
-      : Math.round(val) as never;
+    stats[key] = roundStatValue(val) as never;
   }
   return stats;
 }
@@ -43,7 +57,7 @@ function calcProjectedStats(
 /**
  * Quality score 0–100 based on the average GPP bonus potential across assigned slots.
  * Derived from the game's quality scale: t = (qualityValue - 500) / 500, clamped to [0,1].
- * Chunks (300) → 0%, Scraps (500) → 0%, Powder (1000) → 100%.
+ * Values below 500 stay at 0% bonus potential; 1000 reaches the full range.
  * Penalised by unfilled slot ratio.
  */
 function calcQualityScore(

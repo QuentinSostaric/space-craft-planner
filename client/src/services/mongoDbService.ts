@@ -4,14 +4,14 @@
  *
  * Fichiers servis en statique via CDN :
  *   /data/index.json          → liste des datasets publiés
- *   /data/live.json           → dataset live complet
+ *   /data/live.json           → dataset live complet (blueprints, resources, dismantling, missionRewards)
  *   /data/ptu.json            → dataset ptu complet
  *
- * En dev local : placer des fichiers JSON de mock dans client/public/data/
- * ou lancer `node scripts/fetchGameData.mjs` avec MONGODB_URI configuré.
+ * En dev local : lancer `node scripts/devData.mjs` ou
+ * `MONGODB_URI=... node scripts/fetchGameData.mjs` pour générer ces fichiers.
  */
 
-import type { DatasetChannel, DatasetSummary, GameDataset } from '../types';
+import type { DatasetChannel, DatasetSummary, GameDataset, MissionRewardsData } from '../types';
 
 export interface DatasetIndexResponse {
   datasets: DatasetSummary[];
@@ -48,4 +48,14 @@ export async function fetchPublishedDataset(channel: DatasetChannel): Promise<Ga
   }
 
   return payload.dataset;
+}
+
+export async function fetchPublishedMissionRewards(
+  channel: DatasetChannel,
+): Promise<MissionRewardsData | null> {
+  // Mission rewards are embedded in the full dataset JSON file.
+  // We re-fetch the dataset and extract missionRewards to keep the
+  // lazy-loading contract from CraftContext without requiring a separate endpoint.
+  const payload = await staticFetch<{ dataset: GameDataset | null }>(`/data/${channel}.json`);
+  return payload.dataset?.missionRewards ?? null;
 }

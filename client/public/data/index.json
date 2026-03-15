@@ -2,10 +2,10 @@
   "datasets": [
     {
       "channel": "ptu",
-      "datasetId": "ptu-sc-alpha-4.7.0-11450623",
-      "label": "Star Citizen 4.7.174.47359 PTU",
+      "datasetId": "ptu-sc-4.7.174.47359-11450623",
+      "label": "Star Citizen PTU 4.7.174.47359",
       "version": "4.7.174.47359",
-      "branch": "sc-alpha-4.7.0",
+      "branch": null,
       "buildNumber": "11450623",
       "published": true,
       "blueprintCount": 419,
@@ -14,8 +14,8 @@
       "hasMissionRewards": true,
       "missionRewardContractCount": 394,
       "missionRewardFactionGroupCount": 15,
-      "importedAt": "2026-03-15T11:11:35.656Z",
-      "updatedAt": "2026-03-15T11:11:35.689Z",
+      "importedAt": "2026-03-15T12:09:26.569Z",
+      "updatedAt": "2026-03-15T12:09:26.583Z",
       "hasChangelog": false
     }
   ],

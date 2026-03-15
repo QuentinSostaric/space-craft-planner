@@ -1,16 +1,54 @@
 # Item Fabricator
 
-React + TypeScript tool for Star Citizen crafting simulation, dismantling analysis, mission reward browsing, and resource planning.
+**[itemfab.space](https://itemfab.space)**
 
-The site is deployed as a static Cloudflare Pages app. Game data is extracted offline from copied Star Citizen files, normalized, stored in MongoDB Atlas, then fetched at build time into static JSON files.
+React + TypeScript app for Star Citizen crafting, dismantling analysis, mission reward browsing, and resource planning.
+
+## Features
+
+- **Craft Simulator** — select a blueprint, assign material quality per slot, preview projected stats and build index
+- **Dismantling Panel** — inspect extracted dismantling metadata (efficiency, queues, global parameters)
+- **Missions Browser** — browse 394 contracts across 15 factions, filter by location/scale, see which blueprints are mission rewards
+- **Blueprint Explorer** — search, filter by category or "Obtainable" (mission-reward blueprints), mission contract badges on cards
+- **Resource Planner** — plan crafting goals, aggregate required materials, view blueprint acquisition sources and export plans
+- **Comparison** — compare up to 4 builds side-by-side with projected stat deltas
+- **Dataset Changelog** — PTU vs LIVE diff when available
+
+## Architecture
+
+Production data is runtime-driven:
+
+- Browser
+- Cloudflare Pages Functions
+- MongoDB Atlas
+
+The frontend must not read local dataset snapshots. The published MongoDB dataset is the source of truth.
+
+Production URL: [itemfab.space](https://itemfab.space) (Cloudflare Pages + custom domain)
+
+Runtime endpoints:
+
+- `GET /api/game-data/public`
+- `GET /api/game-data/public/:channel`
+- `GET /api/game-data/public/:channel/mission-rewards`
+
+`/api/game-data/public/:channel` returns the core dataset used by the app:
+
+- `resources`
+- `blueprints`
+- `dismantling`
+- `changelog`
+- dataset metadata and counters
+
+`missionRewards` is loaded separately on demand to avoid downloading the heaviest block on initial load.
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 22+
-- A copied Star Citizen dataset in `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE` if you want to re-extract game data
-- MongoDB Atlas access only if you want to publish datasets
+- a published dataset in MongoDB Atlas
+- copied Star Citizen files in `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE` only if you want to re-extract data
 
 ### Install
 
@@ -18,45 +56,74 @@ The site is deployed as a static Cloudflare Pages app. Game data is extracted of
 npm install
 ```
 
-### Run with MongoDB Atlas data
+### Local dev
+
+Create a root `.dev.vars` file for Cloudflare Pages local functions:
 
 ```bash
-$env:MONGODB_URI="mongodb+srv://..."
-node scripts/fetchGameData.mjs
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<AppName>
+```
+
+Then run:
+
+```bash
 npm run dev
 ```
 
-This is the default frontend data source. The app should consume the published dataset coming from MongoDB, not read files from `exporter/output/`.
+The app is served through `wrangler pages dev`, so local dev uses the same runtime API shape as production.
 
-## Important Data Notes
+### Build
 
-- Crafting slots in the extracted game data require a fixed material per slot via `requiredResource`.
-- Material quality in game is a numeric inventory-stack value on a 0-1000 scale.
-- `minQuality` is also a raw numeric threshold from the game data. Observed values in PTU 4.7 are `0`, `300`, and `500`.
-- Dismantling is now exported too, but only the parts proven in the extracted files are treated as truth:
-  - one global dismantle blueprint
-  - fabricator queue configuration
-  - dismantle efficiency gameplay property
-  - UI/runtime result shape (`name`, `quantity`, `quality`, `categoryName`, `subCategoryName`)
-- The project does **not** currently have a proven per-item dismantle yield table. That remains unresolved and is exported as such.
-- Mission reward data is now exported from game files too:
-  - grouped by mission giver / faction
-  - with explicit reputation scopes
-  - with minimum required standings when present
-  - with availability scale derived from location prerequisites
-  - with resolved blueprint reward pools
+```bash
+npm run build
+```
+
+### Deploy
+
+```bash
+npm run deploy
+```
+
+This builds the client and deploys `client/dist` to Cloudflare Pages. It does not generate or bundle local JSON dataset files.
+
+## Game Data Rules
+
+These rules are important when changing the app or the exporter.
+
+### Crafting
+
+- Each crafting slot resolves to one fixed required material.
+- `minQuality` is a raw numeric threshold from game data.
+- Material quality is a numeric stack value on a `0-1000` scale.
+- Do not model quality as source-of-truth tiers like `CMS`, `CMP`, `CMR`, `chunks`, `scraps`, or `powder`.
+
+### Dismantling
+
+- The dataset proves one global dismantle process.
+- Dismantling metadata such as efficiency, time, queues, and default composition quality must come from extracted game files.
+- The current extraction does not prove a complete per-item dismantle yield table.
+- `dismantling.perItemYieldModel.resolved` must remain authoritative.
+
+### Mission rewards
+
+- Mission giver / faction grouping comes from extracted contract data.
+- Reputation scopes, minimum standings, and availability scale come from extracted mission records.
+- Current PTU 4.7 extraction proves blueprint reward contracts.
+- Current PTU 4.7 extraction does not prove explicit craft-resource reward contracts in contract XML.
 
 Detailed reference: [CRAFTING_AND_DISMANTLING_MECHANICS.md](./CRAFTING_AND_DISMANTLING_MECHANICS.md)
 
 ## Extraction Pipeline
 
-### Required copied game files
+The extractor works from copied game files only. It must not touch a live game installation.
+
+### Required copied files
 
 Place a copied dataset under `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE`:
 
 - `Data.p4k` required
 - `build_manifest.id` recommended
-- `Game.log` optional fallback for metadata detection
+- `Game.log` optional fallback
 
 ### Main extraction command
 
@@ -64,7 +131,7 @@ Place a copied dataset under `exporter/source-game-files/PTU` or `exporter/sourc
 powershell -ExecutionPolicy Bypass -File .\exporter\extract-game-data.ps1 -SourcePath .\exporter\source-game-files\PTU
 ```
 
-The script automatically detects:
+The script detects:
 
 - channel (`PTU` or `LIVE`)
 - version
@@ -78,7 +145,7 @@ It then runs:
 3. mission reward extraction
 4. dismantling extraction
 5. resource image extraction
-6. optional MongoDB import and publication prompt
+6. optional MongoDB publication prompt
 
 ### Main exported files
 
@@ -89,52 +156,20 @@ It then runs:
 - `exporter/output/<label>-dismantling.json`
 - `exporter/output/<label>-resource-images.json`
 
-## Scripts
+### Publish to MongoDB
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Vite dev server plus Cloudflare Pages local proxy |
-| `npm run devdata` | Optional offline helper: build static data from `exporter/output/` |
-| `npm run build` | Type-check and build the client |
-| `npm run deploy` | Fetch published Atlas data, build, deploy to Cloudflare Pages |
-| `npm run import:ptu` | Import the PTU dataset into MongoDB |
-| `npm run import:live` | Import the LIVE dataset into MongoDB |
+The normal path is to publish from the extractor prompt. You can also import manually:
 
-## Architecture
+```bash
+npm run import:ptu
+npm run import:live
+```
 
-### Static site flow
+## App Data Contract
 
-At build time:
+### Dataset index
 
-1. `scripts/fetchGameData.mjs` reads the latest published MongoDB dataset
-2. it writes `client/public/data/index.json`, `ptu.json`, and `live.json`
-3. Vite builds the static site
-
-At runtime:
-
-- the browser fetches `/data/index.json`
-- then it fetches `/data/{channel}.json`
-
-There is no runtime backend in production.
-
-### Dataset shape
-
-The published full dataset (`/data/ptu.json` or `/data/live.json`) currently contains:
-
-- `resources`
-- `blueprints`
-- `missionRewards`
-- `dismantling`
-- `changelog`
-- dataset metadata (`datasetId`, `channel`, `version`, `buildNumber`, `published`, timestamps)
-- summary counters stored on the dataset document:
-  - `blueprintCount`
-  - `resourceCount`
-  - `dismantlingAvailable`
-  - `missionRewardContractCount`
-  - `missionRewardFactionGroupCount`
-
-The published dataset summary (`/data/index.json`) currently contains:
+`GET /api/game-data/public` returns lightweight summaries:
 
 - `channel`
 - `datasetId`
@@ -153,71 +188,71 @@ The published dataset summary (`/data/index.json`) currently contains:
 - `updatedAt`
 - `hasChangelog`
 
-### missionRewards shape
+### Core dataset
 
-`missionRewards` is the main new block intended for frontend mission browsing.
+`GET /api/game-data/public/:channel` returns:
 
-Top-level keys:
+- `resources`
+- `blueprints`
+- `dismantling`
+- `changelog`
+- dataset metadata
+
+### Mission rewards dataset
+
+`GET /api/game-data/public/:channel/mission-rewards` returns:
 
 - `summary`
 - `conclusions`
 - `factionGroups`
-- `blueprintRewardContracts`
-- `craftResourceRewardContracts`
-- `explicitItemRewardContracts`
 
-Important frontend fields:
+Useful frontend fields:
 
-- `missionRewards.factionGroups[]`
-  - grouped by mission giver / faction
-  - `contractorDisplayName`
-  - `faction`
-  - `reputationScopes`
-  - `contractCount`
-  - `contractFiles`
-  - `contracts[]`
-- `missionRewards.factionGroups[].contracts[]`
-  - `contractDebugName`
-  - `contractType`
-  - `availability`
-  - `minimumRequiredStandings`
-  - `blueprintRewards`
-- `availability`
-  - `derivedScale`
-  - `locationPropertyRules`
-  - `localities`
-  - `explicitLocations`
-  - `hasHandlerAvailabilityRules`
-- `minimumRequiredStandings[]`
-  - `faction`
-  - `scope`
-  - `standing`
+- `factionGroups[].contractorDisplayName`
+- `factionGroups[].faction`
+- `factionGroups[].reputationScopes`
+- `factionGroups[].contractCount`
+- `factionGroups[].contracts[]`
 
-Observed availability scale values in the current PTU export:
+Useful contract fields:
+
+- `availability.derivedScale`
+- `availability.localities`
+- `availability.explicitLocations`
+- `minimumRequiredStandings`
+- `rewardedBlueprints`
+
+Observed availability scales in PTU 4.7:
 
 - `system`
 - `planetary-cluster`
 - `regional-sector`
 - `specific-location`
 
-### Data Source Rule
+## Scripts
 
-For frontend work, treat MongoDB-published datasets as the source of truth.
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Vite dev server plus Cloudflare Pages local proxy |
+| `npm run build` | Type-check and build the client |
+| `npm run deploy` | Build the client and deploy to Cloudflare Pages |
+| `npm run import:ptu` | Import the PTU dataset into MongoDB |
+| `npm run import:live` | Import the LIVE dataset into MongoDB |
 
-- Do not read `exporter/output/*.json` from the app.
-- Do not hardcode mission giver lists, reputation tiers, or mission scales if they already exist in `missionRewards`.
-- Use `index.json` only for channel/dataset selection and lightweight badges.
-- Use `ptu.json` / `live.json` for full mission, crafting, and dismantling data.
+## Key Files
 
-### App modes
-
-The frontend currently has two modes toggled from the header:
-
-- **Craft** — crafting simulator with quality sliders, stat projection, and resource planner
-- **Dismantle** — dismantling calculator showing per-item yield estimates based on global efficiency
-
-Selection is shared between modes: a single blueprint is active across the entire app. In dismantle mode, only inventory items are shown in the explorer.
-
-## Current Limitation
-
-The frontend still contains legacy quality abstractions that do not fully match the extracted game model. Treat the MongoDB-published dataset as the source of truth, not older UI assumptions.
+| File | Purpose |
+| --- | --- |
+| `client/src/store/CraftContext.tsx` | central frontend state and dataset loading |
+| `client/src/services/mongoDbService.ts` | runtime fetch client for published datasets |
+| `client/src/components/CraftSimulator.tsx` | crafting simulation UI |
+| `client/src/components/DismantlingPanel.tsx` | dismantling metadata UI |
+| `client/src/components/MissionsPanel.tsx` | missions browser UI |
+| `client/src/components/PlannerPanel.tsx` | goals, materials, mission sources, export |
+| `functions/_shared/mongoClient.js` | Cloudflare Pages MongoDB client |
+| `functions/api/game-data/public.js` | dataset index endpoint |
+| `functions/api/game-data/public/[channel].js` | core dataset endpoint |
+| `functions/api/game-data/public/[channel]/mission-rewards.js` | mission rewards endpoint |
+| `exporter/extract-game-data.ps1` | main extraction entry point |
+| `exporter/dataset-builder.mjs` | normalized dataset builder |
+| `exporter/importToMongo.mjs` | Atlas import pipeline |
