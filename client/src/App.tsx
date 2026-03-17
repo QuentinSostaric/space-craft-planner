@@ -8,6 +8,7 @@ import { MissionsPanel } from './components/MissionsPanel';
 import { PlannerDrawer } from './components/PlannerDrawer';
 import { ComparisonModal } from './components/ComparisonModal';
 import { DatasetChangelog } from './components/DatasetChangelog';
+import { Footer } from './components/Footer';
 import { useCraft } from './store/CraftContext';
 import { useEffect } from 'react';
 
@@ -108,6 +109,7 @@ function AppShell() {
         </main>
         <PlannerDrawer />
       </div>
+      <Footer />
       <ComparisonModal />
       <DatasetChangelog />
     </div>
