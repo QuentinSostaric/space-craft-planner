@@ -10,15 +10,16 @@ export function Header() {
     activeChannel,
     datasetLoading,
     setActiveDatasetChannel,
-    appMode,
-    setAppMode,
-    dismantlingData,
-    missionRewards,
+    goals,
+    openPlanner,
+    changelogOpen,
+    setChangelogOpen,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const [theme, setTheme] = useTheme();
 
   const showChannelToggle = availableDatasets.length > 1;
+  const hasChangelog = activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog);
 
   return (
     <header className="header" role="banner">
@@ -59,41 +60,29 @@ export function Header() {
           </div>
         )}
 
-        {(dismantlingData || missionRewards) && (
-          <div className="mode-toggle" role="group" aria-label={t('App mode', 'Mode de l application')}>
-            <button
-              className={['mode-toggle__btn', appMode === 'craft' && 'mode-toggle__btn--active']
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => setAppMode('craft')}
-              aria-pressed={appMode === 'craft'}
-            >
-              {t('Craft', 'Craft')}
-            </button>
-            {dismantlingData && (
-              <button
-                className={['mode-toggle__btn', appMode === 'dismantle' && 'mode-toggle__btn--active']
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => setAppMode('dismantle')}
-                aria-pressed={appMode === 'dismantle'}
-              >
-                {t('Dismantle', 'Demontage')}
-              </button>
-            )}
-            {missionRewards && (
-              <button
-                className={['mode-toggle__btn', appMode === 'missions' && 'mode-toggle__btn--active']
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => setAppMode('missions')}
-                aria-pressed={appMode === 'missions'}
-              >
-                {t('Missions', 'Missions')}
-              </button>
-            )}
-          </div>
+        {hasChangelog && (
+          <button
+            className={['header__changelog-btn', changelogOpen && 'header__changelog-btn--active'].filter(Boolean).join(' ')}
+            onClick={() => setChangelogOpen(!changelogOpen)}
+            aria-pressed={changelogOpen}
+            aria-label={t('Toggle changelog', 'Afficher le changelog')}
+            title={t('PTU Changelog', 'Changelog PTU')}
+          >
+            Δ
+          </button>
         )}
+
+        <button
+          className="header__planner-btn"
+          onClick={openPlanner}
+          aria-label={t(`Open planner (${goals.length} goals)`, `Ouvrir le planificateur (${goals.length} objectifs)`)}
+          title={t('Planner', 'Planificateur')}
+        >
+          🎯
+          {goals.length > 0 && (
+            <span className="header__goal-count">{goals.length}</span>
+          )}
+        </button>
 
         <button
           className="theme-toggle"

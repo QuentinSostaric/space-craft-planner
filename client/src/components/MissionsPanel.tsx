@@ -209,7 +209,7 @@ export function MissionsPanel() {
     missionRewardsError,
     blueprints,
     setActiveBlueprint,
-    setAppMode,
+    setActiveItemTab,
   } = useCraft();
   const { t } = useI18n();
 
@@ -284,7 +284,7 @@ export function MissionsPanel() {
     const bp = blueprints.find((b) => b.id === blueprintId);
     if (bp) {
       setActiveBlueprint(bp);
-      setAppMode('craft');
+      setActiveItemTab('acquisition');
     }
   }
 

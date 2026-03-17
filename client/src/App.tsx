@@ -3,16 +3,37 @@ import { CraftProvider } from './store/CraftContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { BlueprintExplorer } from './components/BlueprintExplorer';
-import { CraftSimulator } from './components/CraftSimulator';
-import { DismantlingPanel } from './components/DismantlingPanel';
+import { ItemWorkspace } from './components/ItemWorkspace';
 import { MissionsPanel } from './components/MissionsPanel';
-import { PlannerPanel } from './components/PlannerPanel';
+import { PlannerDrawer } from './components/PlannerDrawer';
 import { ComparisonModal } from './components/ComparisonModal';
 import { DatasetChangelog } from './components/DatasetChangelog';
 import { useCraft } from './store/CraftContext';
+import { useEffect } from 'react';
+
+function CenterContent() {
+  const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
+
+  // Eagerly load missions when no blueprint is selected (so MissionsPanel renders)
+  useEffect(() => {
+    if (!activeBlueprint) {
+      void ensureMissionRewardsLoaded();
+    }
+  }, [activeBlueprint, ensureMissionRewardsLoaded]);
+
+  if (activeBlueprint) {
+    return <ItemWorkspace />;
+  }
+
+  return (
+    <div className="center-welcome">
+      <MissionsPanel />
+    </div>
+  );
+}
 
 function AppShell() {
-  const { appMode, activeDataset, datasetLoading, datasetError } = useCraft();
+  const { activeDataset, datasetLoading, datasetError, activeBlueprint } = useCraft();
   const { t } = useI18n();
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
@@ -71,37 +92,24 @@ function AppShell() {
       </a>
       <Header />
       <div className="app__body">
-        <DatasetChangelog />
-        <main id="main-content" className="dashboard">
+        <main id="main-content" className={['dashboard', !activeBlueprint && 'dashboard--no-bp'].filter(Boolean).join(' ')}>
           <aside
             className="dashboard__col dashboard__col--left"
-            aria-label={t('Blueprint explorer', 'Explorateur de blueprints')}
+            aria-label={t('Blueprint library', 'Bibliotheque de blueprints')}
           >
             <BlueprintExplorer />
           </aside>
           <section
             className="dashboard__col dashboard__col--center"
-            aria-label={
-              appMode === 'craft'
-                ? t('Craft simulator', 'Simulateur de craft')
-                : appMode === 'dismantle'
-                  ? t('Dismantling', 'Demontage')
-                  : t('Missions', 'Missions')
-            }
+            aria-label={t('Content', 'Contenu')}
           >
-            {appMode === 'craft' && <CraftSimulator />}
-            {appMode === 'dismantle' && <DismantlingPanel />}
-            {appMode === 'missions' && <MissionsPanel />}
+            <CenterContent />
           </section>
-          <aside
-            className="dashboard__col dashboard__col--right"
-            aria-label={t('Planner', 'Planificateur')}
-          >
-            <PlannerPanel />
-          </aside>
         </main>
+        <PlannerDrawer />
       </div>
       <ComparisonModal />
+      <DatasetChangelog />
     </div>
   );
 }

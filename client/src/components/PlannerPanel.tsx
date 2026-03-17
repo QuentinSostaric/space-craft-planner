@@ -544,9 +544,8 @@ export function PlannerPanel() {
     : `${goals.length} objectif${goals.length !== 1 ? 's' : ''}`;
 
   return (
-    <aside className="planner-panel" aria-label={t('Resource planner', 'Planificateur de ressources')}>
+    <div className="planner-panel" aria-label={t('Resource planner', 'Planificateur de ressources')}>
       <header className="planner-panel__header">
-        <h2 className="planner-panel__title">{t('Planner', 'Planificateur')}</h2>
         <p className="planner-panel__subtitle">
           {goalWord} · {aggregated.length} {t('material', 'materiau')}{aggregated.length !== 1 ? 'x' : ''}
         </p>
@@ -627,6 +626,6 @@ export function PlannerPanel() {
       </div>
 
       {editingGoal && <GoalEditModal goal={editingGoal} onClose={() => setEditingGoalId(null)} />}
-    </aside>
+    </div>
   );
 }

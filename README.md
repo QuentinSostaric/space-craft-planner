@@ -6,13 +6,15 @@ React + TypeScript app for Star Citizen crafting, dismantling analysis, mission 
 
 ## Features
 
-- **Craft Simulator** — select a blueprint, assign material quality per slot, preview projected stats and build index
-- **Dismantling Panel** — inspect extracted dismantling metadata (efficiency, queues, global parameters)
-- **Missions Browser** — browse 394 contracts across 15 factions, filter by location/scale, see which blueprints are mission rewards
-- **Blueprint Explorer** — search, filter by category or "Obtainable" (mission-reward blueprints), mission contract badges on cards
-- **Resource Planner** — plan crafting goals, aggregate required materials, view blueprint acquisition sources and export plans
+- **Blueprint Library** — unified sidebar with single search, segmented filter (All / Inventory / Favorites / Obtainable), category chips, and mission contract badges
+- **Item Workspace** — tabbed item view (Overview / Craft / Acquisition / Dismantle) centered on the selected blueprint
+- **Craft Simulator** — assign material quality per slot, preview projected stats and build index
+- **Acquisition Sources** — per-blueprint mission contracts with faction, standing, location, and scale details
+- **Dismantling** — contextual dismantling metadata (efficiency, queues, global parameters) as an item tab
+- **Mission Directory** — full-screen faction browser when no blueprint is selected, with location/scale/text filters
+- **Resource Planner** — collapsible drawer with crafting goals, aggregated materials, blueprint sources, and plan export
 - **Comparison** — compare up to 4 builds side-by-side with projected stat deltas
-- **Dataset Changelog** — PTU vs LIVE diff when available
+- **Dataset Changelog** — PTU vs LIVE diff accessible via header button
 
 ## Architecture
 
@@ -245,10 +247,11 @@ Observed availability scales in PTU 4.7:
 | --- | --- |
 | `client/src/store/CraftContext.tsx` | central frontend state and dataset loading |
 | `client/src/services/mongoDbService.ts` | runtime fetch client for published datasets |
-| `client/src/components/CraftSimulator.tsx` | crafting simulation UI |
-| `client/src/components/DismantlingPanel.tsx` | dismantling metadata UI |
-| `client/src/components/MissionsPanel.tsx` | missions browser UI |
+| `client/src/components/ItemWorkspace.tsx` | tabbed item workspace (Overview, Craft, Acquisition, Dismantle) |
+| `client/src/components/BlueprintExplorer.tsx` | unified blueprint library sidebar |
+| `client/src/components/MissionsPanel.tsx` | mission directory (faction browser) |
 | `client/src/components/PlannerPanel.tsx` | goals, materials, mission sources, export |
+| `client/src/components/PlannerDrawer.tsx` | collapsible planner drawer shell |
 | `functions/_shared/mongoClient.js` | Cloudflare Pages MongoDB client |
 | `functions/api/game-data/public.js` | dataset index endpoint |
 | `functions/api/game-data/public/[channel].js` | core dataset endpoint |

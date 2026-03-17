@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import type { DatasetChangelogSection, DatasetDiffEntry } from '../types';
@@ -111,20 +111,27 @@ function DiffCard({
 }
 
 export function DatasetChangelog() {
-  const { activeDataset } = useCraft();
+  const { activeDataset, changelogOpen, setChangelogOpen } = useCraft();
   const { lang, t } = useI18n();
 
   const generatedAtLabel = useMemo(() => {
-    if (!activeDataset.changelog?.generatedAt) {
-      return null;
-    }
-
+    if (!activeDataset.changelog?.generatedAt) return null;
     return new Date(activeDataset.changelog.generatedAt).toLocaleString(
       lang === 'fr' ? 'fr-FR' : 'en-US',
     );
   }, [activeDataset.changelog?.generatedAt, lang]);
 
-  if (activeDataset.channel !== 'ptu' || !activeDataset.changelog) {
+  // Close on Escape
+  useEffect(() => {
+    if (!changelogOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setChangelogOpen(false);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [changelogOpen, setChangelogOpen]);
+
+  if (activeDataset.channel !== 'ptu' || !activeDataset.changelog || !changelogOpen) {
     return null;
   }
 
@@ -138,20 +145,25 @@ export function DatasetChangelog() {
     changelog.summary.resources.removed;
 
   return (
-    <section className="dataset-changelog" aria-label={t('PTU changelog', 'Changelog PTU')}>
-      <div className="dataset-changelog__header">
-        <div>
-          <p className="dataset-changelog__eyebrow">PTU vs LIVE</p>
-          <h2 className="dataset-changelog__title">
-            {t('Detected differences for the active PTU dataset', 'Differences detectees pour le dataset PTU actif')}
-          </h2>
-          <p className="dataset-changelog__subtitle">
-            {t(
-              `Compared against ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
-              `Compare a ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
-            )}
-          </p>
-        </div>
+    <div className="changelog-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangelogOpen(false); }}>
+      <section className="changelog-modal" role="dialog" aria-modal="true" aria-label={t('PTU changelog', 'Changelog PTU')}>
+        <header className="changelog-modal__header">
+          <div>
+            <p className="dataset-changelog__eyebrow">PTU vs LIVE</p>
+            <h2 className="dataset-changelog__title">
+              {t('Detected differences for the active PTU dataset', 'Differences detectees pour le dataset PTU actif')}
+            </h2>
+            <p className="dataset-changelog__subtitle">
+              {t(
+                `Compared against ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
+                `Compare a ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
+              )}
+            </p>
+          </div>
+          <button className="changelog-modal__close" onClick={() => setChangelogOpen(false)} aria-label={t('Close', 'Fermer')}>
+            ✕
+          </button>
+        </header>
 
         <div className="dataset-changelog__summary">
           <div className="dataset-changelog__summary-pill">
@@ -165,22 +177,22 @@ export function DatasetChangelog() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className="dataset-changelog__grid">
-        <DiffCard
-          title={lang === 'en' ? 'Blueprints' : 'Blueprints'}
-          subtitle={t('Craftable items changed between PTU and LIVE.', 'Items craftables modifies entre PTU et LIVE.')}
-          section={changelog.blueprints}
-          lang={lang}
-        />
-        <DiffCard
-          title={lang === 'en' ? 'Resources' : 'Ressources'}
-          subtitle={t('Material list changes between PTU and LIVE.', 'Changements de materiaux entre PTU et LIVE.')}
-          section={changelog.resources}
-          lang={lang}
-        />
-      </div>
-    </section>
+        <div className="dataset-changelog__grid">
+          <DiffCard
+            title={lang === 'en' ? 'Blueprints' : 'Blueprints'}
+            subtitle={t('Craftable items changed between PTU and LIVE.', 'Items craftables modifies entre PTU et LIVE.')}
+            section={changelog.blueprints}
+            lang={lang}
+          />
+          <DiffCard
+            title={lang === 'en' ? 'Resources' : 'Ressources'}
+            subtitle={t('Material list changes between PTU and LIVE.', 'Changements de materiaux entre PTU et LIVE.')}
+            section={changelog.resources}
+            lang={lang}
+          />
+        </div>
+      </section>
+    </div>
   );
 }

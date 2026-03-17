@@ -19,6 +19,7 @@ import type {
   DismantlingData,
   GameDataset,
   ItemStats,
+  ItemTab,
   MissionRewardsData,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
@@ -51,6 +52,10 @@ const EMPTY_DATASET: GameDataset = {
 interface CraftState {
   appMode: AppMode;
   setAppMode: (mode: AppMode) => void;
+  activeItemTab: ItemTab;
+  setActiveItemTab: (tab: ItemTab) => void;
+  changelogOpen: boolean;
+  setChangelogOpen: (open: boolean) => void;
   dismantlingData: DismantlingData | null;
   activeBlueprint: Blueprint | null;
   blueprints: Blueprint[];
@@ -124,6 +129,8 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('craft');
+  const [activeItemTab, setActiveItemTab] = useState<ItemTab>('overview');
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   const activeMissionRewards = activeDataset.missionRewards ?? null;
   const dismantlingData = activeDataset.dismantling ?? null;
@@ -405,6 +412,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       value={{
         appMode,
         setAppMode,
+        activeItemTab,
+        setActiveItemTab,
+        changelogOpen,
+        setChangelogOpen,
         dismantlingData,
         activeBlueprint,
         blueprints,
