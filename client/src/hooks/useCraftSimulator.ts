@@ -4,11 +4,12 @@ import { ARMOR_DAMAGE_RESISTANCE_KEYS, DIRECT_GPP_TO_STAT } from '../types';
 
 /**
  * Compute the GPP modifier multiplier for a given numeric quality value.
- * The game interpolates linearly between startQuality=500 (modAtMin) and
- * endQuality=1000 (modAtMax). Values below 500 receive modAtMin (no bonus).
+ * The game interpolates linearly between startQuality=0 (modAtMin) and
+ * endQuality=1000 (modAtMax). At quality 500 the modifier is exactly 1.0
+ * (no change), matching the game's neutral midpoint.
  */
 export function gppModifier(modAtMin: number, modAtMax: number, qualityValue: number): number {
-  const t = Math.max(0, Math.min(1, (qualityValue - 500) / 500));
+  const t = Math.max(0, Math.min(1, qualityValue / 1000));
   return modAtMin + (modAtMax - modAtMin) * t;
 }
 
@@ -55,9 +56,9 @@ function calcProjectedStats(
 }
 
 /**
- * Quality score 0–100 based on the average GPP bonus potential across assigned slots.
- * Derived from the game's quality scale: t = (qualityValue - 500) / 500, clamped to [0,1].
- * Values below 500 stay at 0% bonus potential; 1000 reaches the full range.
+ * Quality score 0–100 based on the average quality potential across assigned slots.
+ * Uses the full game scale: t = qualityValue / 1000, clamped to [0,1].
+ * Quality 500 maps to 50 (neutral midpoint), 1000 maps to 100.
  * Penalised by unfilled slot ratio.
  */
 function calcQualityScore(
@@ -73,7 +74,7 @@ function calcQualityScore(
     const qualityValue = assignments[slot.id];
     if (qualityValue === undefined) continue;
     if (slot.minQuality !== null && qualityValue < slot.minQuality) continue;
-    const t = Math.max(0, Math.min(1, (qualityValue - 500) / 500));
+    const t = Math.max(0, Math.min(1, qualityValue / 1000));
     total += t * 100;
     filled++;
   }
