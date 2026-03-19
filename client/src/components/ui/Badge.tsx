@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
+import Chip from '@mui/material/Chip';
 import type { ItemCategory } from '../../types';
 import { CATEGORY_LABELS } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
 import { GameIcon } from './GameIcon';
 import type { GameIconName } from './GameIcon';
+import { tokens } from '../../theme';
 
 // ─── Quality badge ────────────────────────────────────────────────────────────
 interface QualityBadgeProps { qualityValue: number; size?: 'sm' | 'md' }
@@ -12,12 +14,18 @@ export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
   const { t } = useI18n();
   const label = `Q${Math.round(qualityValue)}`;
   return (
-    <span
-      className={`badge badge--quality badge--quality-custom badge--${size}`}
+    <Chip
+      label={label}
+      size="small"
+      variant="outlined"
       aria-label={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
-    >
-      {label}
-    </span>
+      sx={{
+        fontFamily: "'Share Tech Mono', monospace",
+        fontSize: size === 'sm' ? '.62rem' : '.65rem',
+        height: size === 'sm' ? 20 : 24,
+        px: size === 'sm' ? 0.5 : 1,
+      }}
+    />
   );
 }
 
@@ -28,12 +36,18 @@ export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProp
   const { t } = useI18n();
   const label = `>= ${Math.round(minQuality)}`;
   return (
-    <span
-      className={`badge badge--quality badge--quality-custom badge--${size}`}
+    <Chip
+      label={label}
+      size="small"
+      variant="outlined"
       aria-label={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
-    >
-      {label}
-    </span>
+      sx={{
+        fontFamily: "'Share Tech Mono', monospace",
+        fontSize: size === 'sm' ? '.62rem' : '.65rem',
+        height: size === 'sm' ? 20 : 24,
+        px: size === 'sm' ? 0.5 : 1,
+      }}
+    />
   );
 }
 
@@ -71,8 +85,28 @@ export function CategoryBadge({ category, iconOnly = false, shimmer = false }: C
 }
 
 // ─── Generic badge ────────────────────────────────────────────────────────────
+const VARIANT_COLORS: Record<string, { color: string; borderColor: string }> = {
+  default: { color: tokens.textMuted, borderColor: tokens.border },
+  success: { color: tokens.success, borderColor: 'rgba(52,211,153,.25)' },
+  warning: { color: tokens.warning, borderColor: 'rgba(251,191,36,.25)' },
+  danger:  { color: tokens.danger, borderColor: 'rgba(248,113,113,.25)' },
+  info:    { color: tokens.info, borderColor: 'rgba(96,165,250,.25)' },
+};
+
 interface BadgeProps { children: ReactNode; variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' }
 
 export function Badge({ children, variant = 'default' }: BadgeProps) {
-  return <span className={`badge badge--${variant}`}>{children}</span>;
+  const colors = VARIANT_COLORS[variant];
+  return (
+    <Chip
+      label={children}
+      size="small"
+      variant="outlined"
+      sx={{
+        color: colors.color,
+        borderColor: colors.borderColor,
+        backgroundColor: 'transparent',
+      }}
+    />
+  );
 }

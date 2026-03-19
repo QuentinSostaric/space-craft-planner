@@ -1,4 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import type { DatasetChangelogSection, DatasetDiffEntry } from '../types';
@@ -121,17 +127,7 @@ export function DatasetChangelog() {
     );
   }, [activeDataset.changelog?.generatedAt, lang]);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!changelogOpen) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setChangelogOpen(false);
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [changelogOpen, setChangelogOpen]);
-
-  if (activeDataset.channel !== 'ptu' || !activeDataset.changelog || !changelogOpen) {
+  if (activeDataset.channel !== 'ptu' || !activeDataset.changelog) {
     return null;
   }
 
@@ -145,26 +141,62 @@ export function DatasetChangelog() {
     changelog.summary.resources.removed;
 
   return (
-    <div className="changelog-overlay" onClick={(e) => { if (e.target === e.currentTarget) setChangelogOpen(false); }}>
-      <section className="changelog-modal" role="dialog" aria-modal="true" aria-label={t('PTU changelog', 'Changelog PTU')}>
-        <header className="changelog-modal__header">
-          <div>
-            <p className="dataset-changelog__eyebrow">PTU vs LIVE</p>
-            <h2 className="dataset-changelog__title">
-              {t('Detected differences for the active PTU dataset', 'Differences detectees pour le dataset PTU actif')}
-            </h2>
-            <p className="dataset-changelog__subtitle">
-              {t(
-                `Compared against ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
-                `Compare a ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
-              )}
-            </p>
-          </div>
-          <button className="changelog-modal__close" onClick={() => setChangelogOpen(false)} aria-label={t('Close', 'Fermer')}>
-            ✕
-          </button>
-        </header>
+    <Dialog
+      open={changelogOpen}
+      onClose={() => setChangelogOpen(false)}
+      aria-label={t('PTU changelog', 'Changelog PTU')}
+      maxWidth="md"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: { maxHeight: '85vh' },
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          pb: 1,
+        }}
+      >
+        <Box>
+          <Typography
+            variant="overline"
+            sx={{ color: 'primary.main', letterSpacing: '0.15em' }}
+          >
+            PTU vs LIVE
+          </Typography>
+          <Typography
+            variant="h6"
+            sx={{
+              fontFamily: "'Khand', sans-serif",
+              fontWeight: 700,
+              fontSize: '1.2rem',
+              lineHeight: 1.2,
+            }}
+          >
+            {t('Detected differences for the active PTU dataset', 'Differences detectees pour le dataset PTU actif')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            {t(
+              `Compared against ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
+              `Compare a ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
+            )}
+          </Typography>
+        </Box>
+        <IconButton
+          onClick={() => setChangelogOpen(false)}
+          aria-label={t('Close', 'Fermer')}
+          size="small"
+          sx={{ mt: -0.5, mr: -1 }}
+        >
+          ✕
+        </IconButton>
+      </DialogTitle>
 
+      <DialogContent dividers>
         <div className="dataset-changelog__summary">
           <div className="dataset-changelog__summary-pill">
             <span>{lang === 'en' ? 'Delta entries' : 'Entrees modifiees'}</span>
@@ -192,7 +224,7 @@ export function DatasetChangelog() {
             lang={lang}
           />
         </div>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

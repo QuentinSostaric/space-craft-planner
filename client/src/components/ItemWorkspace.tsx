@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import MuiBadge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Slider from '@mui/material/Slider';
+import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n, loc } from '../i18n/I18nContext';
 import { useCraftSimulator, gppModifier } from '../hooks/useCraftSimulator';
 import { CategoryBadge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { ResourceIcon } from './ui/ResourceIcon';
+import { tokens } from '../theme';
 import {
   COMPARISON_COLORS,
   GPP_LABELS,
@@ -58,54 +69,101 @@ function SlotCard({
   }, [isAssigned, lang, qualityValue, slot.modifiers]);
 
   return (
-    <div className={['slot-card', isAssigned && 'slot-card--filled'].filter(Boolean).join(' ')}>
-      <div className="slot-card__header">
-        <ResourceIcon name={slot.requiredResource} size={20} />
-        <h4 className="slot-card__name">{loc(slot.label, lang)}</h4>
-        {slot.minQuality != null && slot.minQuality > 0 && (
-          <span className="slot-card__min-q" title={t(`Minimum quality ${slot.minQuality}`, `Qualite minimale ${slot.minQuality}`)}>
-            Min {slot.minQuality}
-          </span>
+    <Card
+      sx={{
+        backgroundColor: isAssigned ? tokens.surface2 : tokens.surface1,
+        borderColor: isAssigned ? tokens.borderStrong : tokens.border,
+      }}
+    >
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <ResourceIcon name={slot.requiredResource} size={20} />
+          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", flex: 1 }}>
+            {loc(slot.label, lang)}
+          </Typography>
+          {slot.minQuality != null && slot.minQuality > 0 && (
+            <Typography
+              variant="caption"
+              sx={{ color: 'warning.main', fontFamily: "'Share Tech Mono', monospace" }}
+              title={t(`Minimum quality ${slot.minQuality}`, `Qualite minimale ${slot.minQuality}`)}
+            >
+              Min {slot.minQuality}
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '.6rem', letterSpacing: '.1em' }}>
+              {t('RESOURCE', 'RESSOURCE')}
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: '.78rem' }}>{slot.requiredResource}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '.6rem', letterSpacing: '.1em' }}>SCU</Typography>
+            <Typography variant="body2" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.78rem' }}>
+              {slot.quantityScu}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ mb: 0.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '.6rem', letterSpacing: '.1em' }}>
+              {t('ASSIGNED QUALITY', 'QUALITE ASSIGNEE')}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 600 }}>
+              {isAssigned ? Math.round(currentQuality) : t('None', 'Aucune')}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Slider
+              min={0}
+              max={1000}
+              value={currentQuality}
+              onChange={(_e, val) => onQualityChange(clampQualityValue(val as number))}
+              aria-label={t(`Quality slider for ${slot.requiredResource}`, `Curseur de qualite pour ${slot.requiredResource}`)}
+              sx={{ flex: 1 }}
+              size="small"
+            />
+            <TextField
+              type="number"
+              size="small"
+              value={currentQuality}
+              onChange={(e) => onQualityChange(clampQualityValue(Number(e.target.value)))}
+              slotProps={{ htmlInput: { min: 0, max: 1000, style: { width: 48, textAlign: 'center', padding: '4px 6px' } } }}
+              aria-label={t(`Quality value for ${slot.requiredResource}`, `Valeur de qualite pour ${slot.requiredResource}`)}
+              sx={{ width: 64 }}
+            />
+            <IconButton
+              onClick={() => onQualityChange(undefined)}
+              aria-label={t(`Clear quality for ${slot.requiredResource}`, `Effacer la qualite pour ${slot.requiredResource}`)}
+              size="small"
+              sx={{ fontSize: '.65rem' }}
+            >
+              ✕
+            </IconButton>
+          </Box>
+        </Box>
+        {modifiers.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+            {modifiers.map((m) => (
+              <Typography
+                key={m.gppId}
+                variant="caption"
+                sx={{
+                  px: 1,
+                  py: 0.25,
+                  border: `1px solid ${tokens.border}`,
+                  fontSize: '.62rem',
+                  color: m.isNeutral ? 'text.secondary' : m.isImproved ? 'success.main' : 'error.main',
+                }}
+              >
+                {m.label} <strong>{m.pct > 0 ? '+' : ''}{m.pct.toFixed(2)}%</strong>
+              </Typography>
+            ))}
+          </Box>
         )}
-      </div>
-      <div className="slot-card__resource">
-        <div className="slot-card__res-col">
-          <span className="slot-card__label">{t('RESOURCE', 'RESSOURCE')}</span>
-          <span className="slot-card__res-name">{slot.requiredResource}</span>
-        </div>
-        <div className="slot-card__res-col">
-          <span className="slot-card__label">SCU</span>
-          <span className="slot-card__res-val">{slot.quantityScu}</span>
-        </div>
-      </div>
-      <div className="slot-card__quality">
-        <div className="slot-card__quality-header">
-          <span className="slot-card__label">{t('ASSIGNED QUALITY', 'QUALITE ASSIGNEE')}</span>
-          <span className="slot-card__quality-val">{isAssigned ? Math.round(currentQuality) : t('None', 'Aucune')}</span>
-        </div>
-        <div className="slot-card__quality-ctrl">
-          <input type="range" className="slot-card__slider" min={0} max={1000} step={1} value={currentQuality}
-            onChange={(e) => onQualityChange(clampQualityValue(Number(e.target.value)))}
-            aria-label={t(`Quality slider for ${slot.requiredResource}`, `Curseur de qualite pour ${slot.requiredResource}`)} />
-          <input type="number" className="slot-card__num-input" min={0} max={1000} value={currentQuality}
-            onChange={(e) => onQualityChange(clampQualityValue(Number(e.target.value)))}
-            aria-label={t(`Quality value for ${slot.requiredResource}`, `Valeur de qualite pour ${slot.requiredResource}`)} />
-          <button className="slot-card__clear-btn" onClick={() => onQualityChange(undefined)}
-            aria-label={t(`Clear quality for ${slot.requiredResource}`, `Effacer la qualite pour ${slot.requiredResource}`)}>
-            {t('Clear', 'Effacer')}
-          </button>
-        </div>
-      </div>
-      {modifiers.length > 0 && (
-        <div className="slot-card__modifiers">
-          {modifiers.map((m) => (
-            <span key={m.gppId} className={['slot-card__mod', !m.isNeutral && (m.isImproved ? 'slot-card__mod--better' : 'slot-card__mod--worse')].filter(Boolean).join(' ')}>
-              {m.label} <strong>{m.pct > 0 ? '+' : ''}{m.pct.toFixed(2)}%</strong>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -402,66 +460,105 @@ export function ItemWorkspace() {
   };
 
   return (
-    <section className="workspace" aria-label={`${t('Item workspace', 'Espace item')} - ${activeBlueprint.name}`}>
+    <Box
+      component="section"
+      aria-label={`${t('Item workspace', 'Espace item')} - ${activeBlueprint.name}`}
+      sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+    >
       {/* Context bar */}
-      <header className="workspace__context">
-        <button
-          className="workspace__back-btn"
-          onClick={() => setActiveBlueprint(null)}
-          aria-label={t('Back to blueprint library', 'Retour à la bibliothèque')}
-        >
+      <Box
+        component="header"
+        className="workspace__context"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 2,
+          py: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          flexShrink: 0,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Button variant="ghost" size="sm" onClick={() => setActiveBlueprint(null)}>
           ← {t('Library', 'Bibliothèque')}
-        </button>
-        <div className="workspace__context-info">
+        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
           <CategoryBadge category={activeBlueprint.category} iconOnly />
-          <h2 className="workspace__bp-name">{activeBlueprint.name}</h2>
-          <span className="workspace__bp-manufacturer">{activeBlueprint.manufacturer}</span>
-          <span className="workspace__craft-time">⏱ {craftMinutes}m</span>
-        </div>
-        <div className="workspace__context-actions">
-          <button
-            className={['sim-action-btn', isLooted && 'sim-action-btn--active'].filter(Boolean).join(' ')}
+          <Typography
+            variant="h6"
+            sx={{
+              fontFamily: "'Khand', sans-serif",
+              fontWeight: 700,
+              fontSize: '1.1rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {activeBlueprint.name}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {activeBlueprint.manufacturer}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+            ⏱ {craftMinutes}m
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <IconButton
             onClick={() => toggleInventory(activeBlueprint.id)}
             aria-pressed={isLooted}
+            size="small"
+            sx={{
+              fontSize: '.7rem',
+              ...(isLooted && { color: 'primary.main', backgroundColor: 'rgba(139, 92, 246, 0.1)' }),
+            }}
           >
-            {isLooted ? <><span>◉</span> {t('Looted', 'Loote')}</> : <><span>◎</span> {t('Mark as looted', 'Marquer comme loote')}</>}
-          </button>
-          <button
-            className={['sim-action-btn', isFavorite && 'sim-action-btn--fav sim-action-btn--active'].filter(Boolean).join(' ')}
+            {isLooted ? '◉' : '◎'}
+          </IconButton>
+          <IconButton
             onClick={() => toggleFavorite(activeBlueprint.id)}
             aria-pressed={isFavorite}
+            size="small"
+            sx={{
+              fontSize: '.85rem',
+              ...(isFavorite && { color: 'warning.main' }),
+            }}
           >
-            {isFavorite ? '★' : '☆'} {isFavorite ? t('Favorited', 'Favori') : t('Favorite', 'Favori')}
-          </button>
-        </div>
-      </header>
+            {isFavorite ? '★' : '☆'}
+          </IconButton>
+        </Box>
+      </Box>
 
       {/* Tab bar */}
-      <nav className="workspace__tabs" role="tablist" aria-label={t('Item sections', 'Sections item')}>
-        {TAB_ORDER.map((tab) => {
-          const visible = visibleTabs.includes(tab);
-          if (!visible) return null;
-          return (
-            <button
-              key={tab}
-              role="tab"
-              className={['workspace__tab', effectiveTab === tab && 'workspace__tab--active'].filter(Boolean).join(' ')}
-              onClick={() => setActiveItemTab(tab)}
-              aria-selected={effectiveTab === tab}
-            >
-              {tabLabels[tab]}
-              {tab === 'acquisition' && acquisitionContracts.length > 0 && (
-                <span className="workspace__tab-badge">{acquisitionContracts.length}</span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+      <Tabs
+        value={effectiveTab}
+        onChange={(_e, val) => setActiveItemTab(val as ItemTab)}
+        aria-label={t('Item sections', 'Sections item')}
+        sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, minHeight: 36 }}
+      >
+        {TAB_ORDER.filter((tab) => visibleTabs.includes(tab)).map((tab) => (
+          <Tab
+            key={tab}
+            value={tab}
+            label={
+              tab === 'acquisition' && acquisitionContracts.length > 0 ? (
+                <MuiBadge badgeContent={acquisitionContracts.length} color="primary" sx={{ '& .MuiBadge-badge': { fontSize: '.5rem', minWidth: 14, height: 14 } }}>
+                  {tabLabels[tab]}
+                </MuiBadge>
+              ) : tabLabels[tab]
+            }
+            sx={{ minHeight: 36, py: 0.5 }}
+          />
+        ))}
+      </Tabs>
 
       {/* Tab content */}
-      <div className="workspace__body" role="tabpanel">
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }} role="tabpanel">
         {effectiveTab === 'overview' && (
-          <div className="workspace__tab-content">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div className="simulator__score-row">
               <QualityScore score={qualityScore} />
             </div>
@@ -482,13 +579,18 @@ export function ItemWorkspace() {
             )}
 
             {/* Actions */}
-            <section className="simulator__actions">
-              <div className="simulator__actions-row">
-                <label htmlFor="sim-qty" className="simulator__qty-label">{t('Qty', 'Qte')}</label>
-                <input id="sim-qty" type="number" min={1} max={99} value={qty}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('Qty', 'Qte')}</Typography>
+                <TextField
+                  type="number"
+                  size="small"
+                  value={qty}
                   onChange={(e) => setQty(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
-                  className="simulator__qty-input" />
-              </div>
+                  slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 48, textAlign: 'center', padding: '4px 6px' } } }}
+                  sx={{ width: 64 }}
+                />
+              </Box>
               <Button variant="gradient" size="md" fullWidth onClick={() => addGoal(qualityScore, projectedStats, qty)}>
                 📋 {t('Add to Planner', 'Ajouter au planificateur')}
               </Button>
@@ -509,47 +611,46 @@ export function ItemWorkspace() {
                   <span>{comparisonItems.length} {t('in comparison', 'en comparaison')}</span>
                 </button>
               )}
-            </section>
-          </div>
+            </Box>
+          </Box>
         )}
 
         {effectiveTab === 'craft' && (
-          <div className="workspace__tab-content">
-            <div className="simulator__score-row">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <QualityScore score={qualityScore} />
-              <div className="simulator__controls">
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Button variant="ghost" size="sm" onClick={() => fillSlots('max')}>{t('Max quality', 'Qualite max')}</Button>
                 <Button variant="ghost" size="sm" onClick={() => fillSlots('minimum')}>{t('Minimum valid', 'Minimum valide')}</Button>
                 <Button variant="ghost" size="sm" onClick={clearAssignments}>{t('Clear', 'Effacer')}</Button>
-              </div>
-            </div>
+              </Box>
+            </Box>
 
-            <h3 className="simulator__section-title">
+            <Typography
+              variant="h6"
+              sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em' }}
+            >
               <span aria-hidden="true">⚙</span> {t('Parts', 'Composants')}
-            </h3>
-            <div className="simulator__slots">
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {activeBlueprint.slots.map((slot) => (
                 <SlotCard key={slot.id} slot={slot} qualityValue={slotAssignments[slot.id]}
                   onQualityChange={(value) => assignQuality(slot.id, value)} />
               ))}
-            </div>
+            </Box>
             <CombinedModifiers blueprint={activeBlueprint} projectedStats={projectedStats} />
             <ResourceSummary entries={requiredResources} />
-          </div>
+          </Box>
         )}
 
         {effectiveTab === 'acquisition' && (
-          <div className="workspace__tab-content">
-            <AcquisitionSources contracts={acquisitionContracts} loading={missionRewardsLoading} />
-          </div>
+          <AcquisitionSources contracts={acquisitionContracts} loading={missionRewardsLoading} />
         )}
 
         {effectiveTab === 'dismantle' && (
-          <div className="workspace__tab-content">
-            <DismantleTab />
-          </div>
+          <DismantleTab />
         )}
-      </div>
-    </section>
+      </Box>
+    </Box>
   );
 }

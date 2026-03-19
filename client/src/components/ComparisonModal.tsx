@@ -1,4 +1,10 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useMemo } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { STAT_LABELS, STAT_PERCENT_KEYS, STAT_UNITS, STAT_LOWER_IS_BETTER } from '../types';
@@ -252,34 +258,6 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'f
 export function ComparisonModal() {
   const { comparisonItems, comparisonOpen, closeComparison, removeFromComparison, clearComparison } = useCraft();
   const { lang, t } = useI18n();
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (comparisonOpen) closeBtnRef.current?.focus();
-  }, [comparisonOpen]);
-
-  useEffect(() => {
-    if (!comparisonOpen) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { closeComparison(); return; }
-      if (e.key === 'Tab') {
-        const focusable = modalRef.current?.querySelectorAll<HTMLElement>(
-          'button, [href], input, [tabindex]:not([tabindex="-1"])',
-        );
-        if (!focusable || focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault(); last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault(); first.focus();
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [comparisonOpen, closeComparison]);
 
   const allStatKeys = useMemo(() => Array.from(
     new Set(
@@ -287,49 +265,67 @@ export function ComparisonModal() {
     ),
   ), [comparisonItems]);
 
-  if (!comparisonOpen) return null;
-
   return (
-    <div
-      className="cmp-overlay"
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      open={comparisonOpen}
+      onClose={closeComparison}
       aria-label={t('Item comparison', 'Comparaison d\'items')}
-      onClick={(e) => { if (e.target === e.currentTarget) closeComparison(); }}
+      maxWidth="lg"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: { maxHeight: '90vh' },
+        },
+      }}
     >
-      <div className="cmp-modal" ref={modalRef}>
-        <header className="cmp-modal__header">
-          <div>
-            <h2 className="cmp-modal__title">{t('Compare', 'Comparer')}</h2>
-            <p className="cmp-modal__subtitle">
-              {comparisonItems.length} {t('item', 'item')}{comparisonItems.length !== 1 ? 's' : ''}
-              {' · '}{t('max 4', 'max 4')}
-            </p>
-          </div>
-          <div className="cmp-modal__header-actions">
-            {comparisonItems.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearComparison}>
-                {t('Clear all', 'Tout effacer')}
-              </Button>
-            )}
-            <button
-              ref={closeBtnRef}
-              className="cmp-modal__close"
-              onClick={closeComparison}
-              aria-label={t('Close comparison', 'Fermer la comparaison')}
-            >
-              ✕
-            </button>
-          </div>
-        </header>
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          pb: 1,
+        }}
+      >
+        <Box>
+          <Typography
+            variant="h6"
+            sx={{
+              fontFamily: "'Khand', sans-serif",
+              fontWeight: 700,
+              fontSize: '1.3rem',
+            }}
+          >
+            {t('Compare', 'Comparer')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {comparisonItems.length} {t('item', 'item')}{comparisonItems.length !== 1 ? 's' : ''}
+            {' · '}{t('max 4', 'max 4')}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {comparisonItems.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearComparison}>
+              {t('Clear all', 'Tout effacer')}
+            </Button>
+          )}
+          <IconButton
+            onClick={closeComparison}
+            aria-label={t('Close comparison', 'Fermer la comparaison')}
+            size="small"
+          >
+            ✕
+          </IconButton>
+        </Box>
+      </DialogTitle>
 
+      <DialogContent dividers>
         {comparisonItems.length === 0 ? (
-          <div className="cmp-modal__empty">
-            <span aria-hidden="true">◈</span>
-            <p>{t('Add items to compare from the Stats panel.', 'Ajoutez des items à comparer depuis le panneau Stats.')}</p>
-          </div>
+          <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
+            <Typography variant="h4" sx={{ mb: 1, opacity: 0.4 }}>◈</Typography>
+            <Typography>{t('Add items to compare from the Stats panel.', 'Ajoutez des items à comparer depuis le panneau Stats.')}</Typography>
+          </Box>
         ) : (
-          <div className="cmp-modal__body">
+          <Box>
             <div className="cmp-chips">
               {comparisonItems.map((item) => (
                 <div key={item.id} className="cmp-chip" style={{ '--chip-color': item.color } as React.CSSProperties}>
@@ -380,9 +376,9 @@ export function ComparisonModal() {
                 ))}
               </div>
             </div>
-          </div>
+          </Box>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

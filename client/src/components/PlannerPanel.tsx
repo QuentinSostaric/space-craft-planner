@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
@@ -100,31 +107,31 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
   }
 
   return (
-    <div
-      className="goal-edit-overlay"
-      onClick={(event) => {
-        if (event.currentTarget === event.target) {
-          onClose();
-        }
-      }}
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      open
+      onClose={onClose}
       aria-label={t(`Edit goal ${goal.blueprintName}`, `Modifier l objectif ${goal.blueprintName}`)}
+      maxWidth="sm"
+      fullWidth
     >
-      <div className="goal-edit-modal">
-        <header className="goal-edit-modal__header">
-          <div className="goal-edit-modal__title-row">
-            <CategoryBadge category={blueprint.category} iconOnly />
-            <h3 className="goal-edit-modal__title">{goal.blueprintName}</h3>
-          </div>
-          <div className="goal-edit-modal__score">
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CategoryBadge category={blueprint.category} iconOnly />
+          <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>
+            {goal.blueprintName}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace" }}>
             {t('Build index', 'Indice de build')}: <strong>{qualityScore}</strong>/100
-          </div>
-          <button className="goal-edit-modal__close" onClick={onClose} aria-label={t('Close', 'Fermer')}>
+          </Typography>
+          <IconButton onClick={onClose} aria-label={t('Close', 'Fermer')} size="small">
             ✕
-          </button>
-        </header>
+          </IconButton>
+        </Box>
+      </DialogTitle>
 
+      <DialogContent dividers>
         <div className="goal-edit-modal__slots">
           {blueprint.slots.map((slot: MaterialSlot) => {
             const assignedValue = assignments[slot.id];
@@ -174,24 +181,24 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
             );
           })}
         </div>
+      </DialogContent>
 
-        <footer className="goal-edit-modal__footer">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            {t('Cancel', 'Annuler')}
-          </Button>
-          <Button
-            variant="gradient"
-            size="sm"
-            onClick={() => {
-              updateGoal(goal.id, assignments, qualityScore, projectedStats);
-              onClose();
-            }}
-          >
-            {t('Save changes', 'Enregistrer')}
-          </Button>
-        </footer>
-      </div>
-    </div>
+      <DialogActions sx={{ px: 3, py: 1.5 }}>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          {t('Cancel', 'Annuler')}
+        </Button>
+        <Button
+          variant="gradient"
+          size="sm"
+          onClick={() => {
+            updateGoal(goal.id, assignments, qualityScore, projectedStats);
+            onClose();
+          }}
+        >
+          {t('Save changes', 'Enregistrer')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

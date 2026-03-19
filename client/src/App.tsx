@@ -1,3 +1,10 @@
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import theme from './theme';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { CraftProvider } from './store/CraftContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -31,47 +38,46 @@ function MainContent({ onToggleFilters, filtersOpen }: { onToggleFilters: () => 
   }
 
   return (
-    <div className="main-content">
-      <div className="main-tabs-row">
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         {/* Mobile filter toggle */}
-        <button
-          className={['main-filter-toggle', filtersOpen && 'main-filter-toggle--active'].filter(Boolean).join(' ')}
+        <IconButton
           onClick={onToggleFilters}
           aria-expanded={filtersOpen}
           aria-label={t('Toggle filters', 'Afficher les filtres')}
+          size="small"
+          sx={{
+            display: { xs: 'inline-flex', md: 'none' },
+            mr: 1,
+            ml: 1,
+            ...(filtersOpen && { color: 'primary.main', backgroundColor: 'rgba(139, 92, 246, 0.1)' }),
+          }}
         >
-          ⚙ {t('Filters', 'Filtres')}
-        </button>
+          ⚙
+        </IconButton>
 
-        <nav className="main-tabs" role="tablist" aria-label={t('Main view', 'Vue principale')}>
-          <button
-            className={['main-tab', mainView === 'blueprints' && 'main-tab--active'].filter(Boolean).join(' ')}
-            role="tab"
-            aria-selected={mainView === 'blueprints'}
-            onClick={() => setMainView('blueprints')}
-          >
-            {t('Blueprints', 'Blueprints')}
-          </button>
-          <button
-            className={['main-tab', mainView === 'missions' && 'main-tab--active'].filter(Boolean).join(' ')}
-            role="tab"
-            aria-selected={mainView === 'missions'}
-            onClick={() => {
-              setMainView('missions');
-              void ensureMissionRewardsLoaded();
-            }}
-          >
-            {t('Missions', 'Missions')}
-          </button>
-        </nav>
-      </div>
+        <Tabs
+          value={mainView}
+          onChange={(_e, val) => {
+            setMainView(val as MainView);
+            if (val === 'missions') void ensureMissionRewardsLoaded();
+          }}
+          aria-label={t('Main view', 'Vue principale')}
+          sx={{ minHeight: 40 }}
+        >
+          <Tab label={t('Blueprints', 'Blueprints')} value="blueprints" />
+          <Tab label={t('Missions', 'Missions')} value="missions" />
+        </Tabs>
+      </Box>
 
-      {mainView === 'blueprints' ? (
-        <BlueprintGrid />
-      ) : (
-        <MissionsPanel />
-      )}
-    </div>
+      <Box sx={{ flex: 1, overflow: 'auto' }}>
+        {mainView === 'blueprints' ? (
+          <BlueprintGrid />
+        ) : (
+          <MissionsPanel />
+        )}
+      </Box>
+    </Box>
   );
 }
 
@@ -170,11 +176,14 @@ function AppShell() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <I18nProvider>
-        <CraftProvider>
-          <AppShell />
-        </CraftProvider>
-      </I18nProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline enableColorScheme />
+        <I18nProvider>
+          <CraftProvider>
+            <AppShell />
+          </CraftProvider>
+        </I18nProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
