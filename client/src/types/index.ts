@@ -8,6 +8,7 @@ export const LS_KEYS = {
   THEME: 'sc-craft-theme',
   DATASET_CHANNEL: 'sc-craft-dataset-channel',
   INVENTORY: 'sc-craft-inventory',
+  NAV_COLLAPSED: 'sc-craft-nav-collapsed',
 } as const;
 
 export interface GppModifier {
@@ -42,6 +43,56 @@ export interface ItemStats {
   temperatureMin?: number;
   temperatureMax?: number;
   radiationDissipation?: number;
+
+  // Weapon-specific categorical & tactical stats
+  weaponType?: string;
+  ammoType?: string;
+  ammoFlavor?: string;
+  projectileSpeed?: number;
+  idealCombatRange?: number;
+
+  // Armor-specific categorical & tactical stats
+  armorType?: string;
+  armorSlot?: string;
+  wearMovementMultiplier?: number;
+  wearSprintMultiplier?: number;
+  wearAimingMultiplier?: number;
+  radiationCapacity?: number;
+  impactForceResistance?: number;
+}
+
+export type NumericItemStatKey = {
+  [K in keyof ItemStats]-?: Exclude<ItemStats[K], undefined> extends number ? K : never;
+}[keyof ItemStats];
+
+export const NUMERIC_ITEM_STAT_KEYS = [
+  'damage',
+  'rateOfFire',
+  'magazineSize',
+  'effectiveRange',
+  'recoilSmoothness',
+  'recoilHandling',
+  'recoilKick',
+  'damageResistanceKinetic',
+  'damageResistanceEnergy',
+  'damageResistanceThermal',
+  'damageResistanceDistortion',
+  'damageResistanceBiochemical',
+  'damageResistanceStun',
+  'temperatureMin',
+  'temperatureMax',
+  'radiationDissipation',
+  'projectileSpeed',
+  'idealCombatRange',
+  'wearMovementMultiplier',
+  'wearSprintMultiplier',
+  'wearAimingMultiplier',
+  'radiationCapacity',
+  'impactForceResistance',
+] as const satisfies readonly NumericItemStatKey[];
+
+export function isNumericItemStatKey(key: keyof ItemStats): key is NumericItemStatKey {
+  return (NUMERIC_ITEM_STAT_KEYS as readonly string[]).includes(key);
 }
 
 export const ARMOR_DAMAGE_RESISTANCE_KEYS = [
@@ -51,9 +102,9 @@ export const ARMOR_DAMAGE_RESISTANCE_KEYS = [
   'damageResistanceDistortion',
   'damageResistanceBiochemical',
   'damageResistanceStun',
-] as const satisfies readonly (keyof ItemStats)[];
+] as const satisfies readonly NumericItemStatKey[];
 
-export const DIRECT_GPP_TO_STAT: Partial<Record<string, keyof ItemStats>> = {
+export const DIRECT_GPP_TO_STAT: Partial<Record<string, NumericItemStatKey>> = {
   GPP_Weapon_Damage: 'damage',
   GPP_Weapon_FireRate: 'rateOfFire',
   GPP_Weapon_Recoil_Smoothness: 'recoilSmoothness',
@@ -93,6 +144,20 @@ export const STAT_LABELS: Record<keyof ItemStats, LocalizedString> = {
   temperatureMin: { en: 'Temp. Min', fr: 'Temp. min' },
   temperatureMax: { en: 'Temp. Max', fr: 'Temp. max' },
   radiationDissipation: { en: 'Radiation Dissip.', fr: 'Dissip. radiation' },
+  
+  weaponType: { en: 'Weapon Type', fr: 'Type d\'arme' },
+  ammoType: { en: 'Ammo Type', fr: 'Type de munition' },
+  ammoFlavor: { en: 'Ammo Flavor', fr: 'Saveur munition' },
+  projectileSpeed: { en: 'Muzzle Velocity', fr: 'Vitesse de sortie' },
+  idealCombatRange: { en: 'Ideal Range', fr: 'Portee ideale' },
+  
+  armorType: { en: 'Armor Type', fr: 'Type d\'armure' },
+  armorSlot: { en: 'Armor Slot', fr: 'Slot d\'armure' },
+  wearMovementMultiplier: { en: 'Movement Multiplier', fr: 'Mult. mouvement' },
+  wearSprintMultiplier: { en: 'Sprint Multiplier', fr: 'Mult. sprint' },
+  wearAimingMultiplier: { en: 'Aiming Multiplier', fr: 'Mult. visee' },
+  radiationCapacity: { en: 'Radiation Capacity', fr: 'Capacite radiation' },
+  impactForceResistance: { en: 'Impact Resistance', fr: 'Resist. impact' },
 };
 
 export const STAT_UNITS: Record<keyof ItemStats, string> = {
@@ -112,9 +177,23 @@ export const STAT_UNITS: Record<keyof ItemStats, string> = {
   temperatureMin: 'C',
   temperatureMax: 'C',
   radiationDissipation: 'mRem/s',
+  
+  weaponType: '',
+  ammoType: '',
+  ammoFlavor: '',
+  projectileSpeed: 'm/s',
+  idealCombatRange: 'm',
+  
+  armorType: '',
+  armorSlot: '',
+  wearMovementMultiplier: 'x',
+  wearSprintMultiplier: 'x',
+  wearAimingMultiplier: 'x',
+  radiationCapacity: 'mRem',
+  impactForceResistance: 'x',
 };
 
-export const STAT_PERCENT_KEYS = new Set<keyof ItemStats>([
+export const STAT_PERCENT_KEYS = new Set<NumericItemStatKey>([
   'damageResistanceKinetic',
   'damageResistanceEnergy',
   'damageResistanceThermal',
@@ -123,7 +202,7 @@ export const STAT_PERCENT_KEYS = new Set<keyof ItemStats>([
   'damageResistanceStun',
 ]);
 
-export const STAT_LOWER_IS_BETTER = new Set<keyof ItemStats>([
+export const STAT_LOWER_IS_BETTER = new Set<NumericItemStatKey>([
   'recoilSmoothness',
   'recoilHandling',
   'recoilKick',
@@ -152,6 +231,18 @@ export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
   'fps-backpack': { en: 'Backpack', fr: 'Sac a dos' },
 };
 
+export interface BlueprintMediaAsset {
+  imageUrl: string | null;
+  sourcePageUrl: string | null;
+  sourceSite: string | null;
+}
+
+export interface BlueprintMedia {
+  image: BlueprintMediaAsset | null;
+  manufacturerLogo: BlueprintMediaAsset | null;
+  primaryVisual: BlueprintMediaAsset | null;
+}
+
 export interface Blueprint {
   id: string;
   name: string;
@@ -160,6 +251,7 @@ export interface Blueprint {
   craftTimeSecs: number;
   baseStats: ItemStats;
   slots: MaterialSlot[];
+  media?: BlueprintMedia;
 }
 
 export interface Resource {

@@ -87,221 +87,185 @@ export function BlueprintExplorer() {
     locationFilter !== null;
 
   return (
-    <Stack
+    <Box
       component="section"
       aria-label={t('Blueprint filters', 'Filtres blueprints')}
-      spacing={1.5}
-      sx={{ p: 1.5, overflow: 'auto', flex: 1 }}
+      sx={{
+        p: 1.5,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+      }}
     >
-      {/* Active blueprint indicator */}
-      {activeBlueprint && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            px: 1.5,
-            py: 0.5,
-            backgroundColor: tokens.surface1,
-            border: `1px solid ${tokens.violet}`,
-            flexShrink: 0,
+      {/* First row: Search + Segmented Control + Active Item Indicator */}
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextField
+          type="search"
+          size="small"
+          placeholder={t('Search blueprints...', 'Rechercher...')}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
+                  <SearchIcon sx={{ fontSize: '1.1rem' }} />
+                </InputAdornment>
+              ),
+            },
           }}
-        >
-          <CategoryBadge category={activeBlueprint.category} iconOnly />
-          <Typography
-            variant="body2"
-            sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '.78rem' }}
-          >
-            {activeBlueprint.name}
-          </Typography>
-          <IconButton
-            onClick={() => setActiveBlueprint(null)}
-            aria-label={t('Back to library', 'Retour a la bibliotheque')}
-            title={t('Back to library', 'Retour a la bibliotheque')}
-            size="small"
-            sx={{ fontSize: '.7rem', p: 0.5 }}
-          >
-            <CloseIcon sx={{ fontSize: '1rem' }} />
-          </IconButton>
-        </Box>
-      )}
+          sx={{
+            flex: { xs: '1 1 100%', sm: '1 1 200px' },
+            '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
+          }}
+        />
 
-      {/* Search */}
-      <TextField
-        type="search"
-        size="small"
-        placeholder={t('Search blueprints...', 'Rechercher...')}
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        label={t('Search', 'Recherche')}
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                <SearchIcon sx={{ fontSize: '1.1rem' }} />
-              </InputAdornment>
-            ),
-          },
-          inputLabel: { shrink: true },
-        }}
-        fullWidth
-        sx={{
-          '& .MuiInputBase-root': { fontSize: '.8rem' },
-          '& .MuiInputLabel-root': { fontSize: '.75rem' },
-        }}
-      />
-
-      {/* Segmented control */}
-      <ToggleButtonGroup
-        value={librarySegment}
-        exclusive
-        onChange={(_e, val) => {
-          if (val) setLibrarySegment(val as LibrarySegment);
-        }}
-        size="small"
-        aria-label={t('Library filter', 'Filtre bibliotheque')}
-        sx={{ display: 'flex', '& .MuiToggleButton-root': { flex: 1, fontSize: '.6rem', px: 0.5, py: 0.5 } }}
-      >
-        {SEGMENTS.map((s) => (
-          <ToggleButton key={s.value} value={s.value}>
-            {s.icon && <s.icon sx={{ fontSize: '.8rem', mr: 0.5 }} />}
-            {lang === 'en' ? s.labelEn : s.labelFr}
-            {s.value === 'inventory' && inventoryIds.length > 0 && (
-              <Box component="span" sx={{ ml: 0.5, fontSize: '.55rem', opacity: 0.7 }}>
-                {inventoryIds.length}
-              </Box>
-            )}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
-
-      {/* Category filter chips */}
-      <Box
-        component="nav"
-        aria-label={t('Category filter', 'Filtre categorie')}
-        sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
-      >
-        {CATEGORY_FILTERS.map(({ value, labelEn, labelFr }) => (
-          <Chip
-            key={value}
-            label={lang === 'en' ? labelEn : labelFr}
-            size="small"
-            variant={categoryFilter === value ? 'filled' : 'outlined'}
-            onClick={() => setCategoryFilter(value)}
-            aria-pressed={categoryFilter === value}
-            sx={{
-              fontSize: '.65rem',
-              height: 24,
-              ...(categoryFilter === value && {
-                backgroundColor: 'rgba(139, 92, 246, 0.15)',
-                color: 'text.primary',
-                borderColor: tokens.violet,
-              }),
-            }}
-          />
-        ))}
-      </Box>
-
-      <Divider />
-
-      {/* Advanced filters section */}
-      <Typography
-        variant="overline"
-        sx={{ fontSize: '.6rem', color: 'text.secondary', letterSpacing: '.1em', lineHeight: 1 }}
-      >
-        {t('Filters', 'Filtres')}
-        {hasActiveFilters && (
-          <Chip
-            label={t('Clear', 'Effacer')}
-            size="small"
-            variant="outlined"
-            onClick={() => {
-              setManufacturerFilter(null);
-              setLegalityFilter('all');
-              setLocationFilter(null);
-            }}
-            sx={{ ml: 1, fontSize: '.55rem', height: 18 }}
-          />
-        )}
-      </Typography>
-
-      {/* Manufacturer filter */}
-      <Autocomplete
-        size="small"
-        options={manufacturers}
-        value={manufacturerFilter}
-        onChange={(_e, val) => setManufacturerFilter(val)}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={t('Manufacturer', 'Fabricant')}
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{
-              '& .MuiInputBase-root': { fontSize: '.78rem' },
-              '& .MuiInputLabel-root': { fontSize: '.72rem' },
-            }}
-          />
-        )}
-        slotProps={{
-          listbox: { sx: { fontSize: '.78rem' } },
-          clearIndicator: { sx: { fontSize: '.7rem' } },
-        }}
-        clearOnEscape
-      />
-
-      {/* Legality filter */}
-      <Box>
-        <Typography
-          variant="caption"
-          sx={{ color: 'text.secondary', fontSize: '.62rem', mb: 0.5, display: 'block' }}
-        >
-          {t('Faction legality', 'Legalite faction')}
-        </Typography>
         <ToggleButtonGroup
-          value={legalityFilter}
+          value={librarySegment}
           exclusive
           onChange={(_e, val) => {
-            if (val) setLegalityFilter(val as LegalityFilter);
+            if (val) setLibrarySegment(val as LibrarySegment);
           }}
           size="small"
-          aria-label={t('Legality filter', 'Filtre legalite')}
-          sx={{ display: 'flex', '& .MuiToggleButton-root': { flex: 1, fontSize: '.6rem', px: 0.5, py: 0.4 } }}
+          aria-label={t('Library filter', 'Filtre bibliotheque')}
+          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: '.65rem', px: 1.5 } }}
         >
-          <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
-          <ToggleButton value="lawful" sx={{ '&.Mui-selected': { color: tokens.success } }}>
-            {t('Lawful', 'Legal')}
-          </ToggleButton>
-          <ToggleButton value="unlawful" sx={{ '&.Mui-selected': { color: tokens.danger } }}>
-            {t('Unlawful', 'Illegal')}
-          </ToggleButton>
+          {SEGMENTS.map((s) => (
+            <ToggleButton key={s.value} value={s.value}>
+              {s.icon && <s.icon sx={{ fontSize: '.8rem', mr: 0.5 }} />}
+              {lang === 'en' ? s.labelEn : s.labelFr}
+              {s.value === 'inventory' && inventoryIds.length > 0 && (
+                <Box component="span" sx={{ ml: 0.5, fontSize: '.55rem', opacity: 0.7 }}>
+                  {inventoryIds.length}
+                </Box>
+              )}
+            </ToggleButton>
+          ))}
         </ToggleButtonGroup>
+
+        {activeBlueprint && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1,
+              height: 32,
+              backgroundColor: tokens.surface1,
+              border: `1px solid ${tokens.violet}`,
+              borderRadius: 1,
+            }}
+          >
+            <CategoryBadge category={activeBlueprint.category} iconOnly />
+            <Typography
+              variant="body2"
+              sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '.75rem' }}
+            >
+              {activeBlueprint.name}
+            </Typography>
+            <IconButton
+              onClick={() => setActiveBlueprint(null)}
+              aria-label={t('Back to library', 'Retour a la bibliotheque')}
+              size="small"
+              sx={{ p: 0.25 }}
+            >
+              <CloseIcon sx={{ fontSize: '.9rem' }} />
+            </IconButton>
+          </Box>
+        )}
       </Box>
 
-      {/* Location filter */}
-      {locations.length > 0 && (
-        <Autocomplete
-          size="small"
-          options={locations}
-          value={locationFilter}
-          onChange={(_e, val) => setLocationFilter(val)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t('Obtainable at', 'Obtenable a')}
-              slotProps={{ inputLabel: { shrink: true } }}
+      {/* Second row: Categories + Advanced Filters Toggle/Indicator */}
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Box
+          component="nav"
+          aria-label={t('Category filter', 'Filtre categorie')}
+          sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: 1 }}
+        >
+          {CATEGORY_FILTERS.map(({ value, labelEn, labelFr }) => (
+            <Chip
+              key={value}
+              label={lang === 'en' ? labelEn : labelFr}
+              size="small"
+              variant={categoryFilter === value ? 'filled' : 'outlined'}
+              onClick={() => setCategoryFilter(value)}
               sx={{
-                '& .MuiInputBase-root': { fontSize: '.78rem' },
-                '& .MuiInputLabel-root': { fontSize: '.72rem' },
+                fontSize: '.65rem',
+                height: 24,
+                ...(categoryFilter === value && {
+                  backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                  color: 'text.primary',
+                  borderColor: tokens.violet,
+                }),
               }}
             />
+          ))}
+        </Box>
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5, display: { xs: 'none', md: 'block' } }} />
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Autocomplete
+            size="small"
+            options={manufacturers}
+            value={manufacturerFilter}
+            onChange={(_e, val) => setManufacturerFilter(val)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={t('Manufacturer', 'Fabricant')}
+                sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '.75rem', height: 28 } }}
+              />
+            )}
+            slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+          />
+
+          <ToggleButtonGroup
+            value={legalityFilter}
+            exclusive
+            onChange={(_e, val) => {
+              if (val) setLegalityFilter(val as LegalityFilter);
+            }}
+            size="small"
+            sx={{ height: 28, '& .MuiToggleButton-root': { fontSize: '.6rem', px: 1 } }}
+          >
+            <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
+            <ToggleButton value="lawful">{t('Lawful', 'Legal')}</ToggleButton>
+            <ToggleButton value="unlawful">{t('Unlawful', 'Illegal')}</ToggleButton>
+          </ToggleButtonGroup>
+
+          {locations.length > 0 && (
+            <Autocomplete
+              size="small"
+              options={locations}
+              value={locationFilter}
+              onChange={(_e, val) => setLocationFilter(val)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={t('Location', 'Lieu')}
+                  sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '.75rem', height: 28 } }}
+                />
+              )}
+              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+            />
           )}
-          slotProps={{
-            listbox: { sx: { fontSize: '.78rem' } },
-            clearIndicator: { sx: { fontSize: '.7rem' } },
-          }}
-          clearOnEscape
-        />
-      )}
-    </Stack>
+
+          {hasActiveFilters && (
+            <IconButton
+              size="small"
+              onClick={() => {
+                setManufacturerFilter(null);
+                setLegalityFilter('all');
+                setLocationFilter(null);
+              }}
+              title={t('Clear filters', 'Effacer les filtres')}
+            >
+              <CloseIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
+          )}
+        </Stack>
+      </Box>
+    </Box>
   );
 }
