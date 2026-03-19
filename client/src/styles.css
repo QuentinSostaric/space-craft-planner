@@ -81,7 +81,7 @@
 
   /* Layout */
   --header-h:   56px;
-  --col-left:   290px;
+  --col-left:   220px;
   --col-right:  360px;
 
   /* Font */
@@ -495,6 +495,28 @@ body::after {
   overflow: hidden;
 }
 
+.workspace__back-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.workspace__back-btn:hover {
+  color: var(--c-text);
+  border-color: var(--c-border-strong);
+}
+
 .workspace__context {
   display: flex;
   align-items: center;
@@ -880,15 +902,53 @@ body::after {
 .panel--glow    { border-color: var(--c-violet); }
 .panel--no-pad  { padding: 0; }
 
-/* ── Blueprint Explorer (Library) ──────────────────────────────────────────── */
+/* ── Explorer active blueprint indicator ────────────────────────────────────── */
+.explorer__active-bp {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-1);
+  border: 1px solid var(--c-violet);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.explorer__active-bp-name {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--c-text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer__active-bp-close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .7rem;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 150ms;
+}
+.explorer__active-bp-close:hover { color: var(--c-text); }
+
+/* ── Blueprint Explorer (Filter panel only) ─────────────────────────────────── */
 .explorer {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--sp-4);
+  padding: var(--sp-3);
   gap: var(--sp-3);
-  overflow: hidden;
+  overflow-y: auto;
+  flex: 1;
 }
 
 /* Legacy section search (kept for compat) */
@@ -924,7 +984,6 @@ body::after {
   flex-wrap: wrap;
   gap: var(--sp-1);
   flex-shrink: 0;
-  padding: var(--sp-2) var(--sp-2) 0;
 }
 .explorer__filter-btn {
   padding: 4px var(--sp-3);
@@ -1078,17 +1137,18 @@ body::after {
 }
 
 .bp-card__name {
-  font-size: .92rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--c-text);
   letter-spacing: -0.01em;
-  margin-bottom: 2px;
+  line-height: 1.25;
+  margin-bottom: 3px;
   position: relative;
 }
 .bp-card__manufacturer {
-  font-size: .72rem;
+  font-size: .68rem;
   color: var(--c-text-dim);
-  letter-spacing: .05em;
+  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
@@ -1105,6 +1165,191 @@ body::after {
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
+}
+
+/* ── Main content tabs (Blueprints / Missions) ──────────────────────────────── */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-tabs-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+}
+
+/* Mobile filter toggle — hidden on desktop */
+.main-filter-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-3);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--c-border);
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+  flex-shrink: 0;
+}
+.main-filter-toggle:hover { color: var(--c-text); background: var(--c-surface-1); }
+.main-filter-toggle--active { color: var(--c-violet-l); background: var(--c-surface-1); }
+
+.main-tabs {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  padding: 0 var(--sp-4);
+}
+
+.main-tab {
+  padding: var(--sp-2) var(--sp-4);
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-bottom: -1px;
+}
+.main-tab:hover { color: var(--c-text); }
+.main-tab--active {
+  color: var(--c-violet-l);
+  border-bottom-color: var(--c-violet);
+}
+
+/* ── Blueprint Grid ──────────────────────────────────────────────────────────── */
+.bp-grid-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bp-grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.bp-grid-count {
+  font-size: .75rem;
+  color: var(--c-text-dim);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.bp-grid-empty {
+  color: var(--c-text-dim);
+  font-size: .88rem;
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.bp-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-strong) transparent;
+}
+.bp-grid::-webkit-scrollbar { width: 4px; }
+.bp-grid::-webkit-scrollbar-track { background: transparent; }
+.bp-grid::-webkit-scrollbar-thumb { background: var(--c-border-strong); }
+
+/* Grid-mode blueprint card */
+.bp-card--grid {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-4);
+  gap: 0;
+}
+
+.bp-card--grid .bp-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+
+.bp-card--grid .bp-card__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+}
+
+.bp-card--grid .bp-card__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 4px;
+  color: var(--c-text);
+}
+
+.bp-card--grid .bp-card__manufacturer {
+  font-size: .68rem;
+  color: var(--c-text-dim);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-3);
+}
+
+.bp-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: auto;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--c-border);
+}
+
+.bp-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+}
+
+.bp-card__slots,
+.bp-card__craft-time {
+  font-size: .68rem;
+  color: var(--c-text-dim);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.bp-card__craft-time::before { content: '·'; margin-right: var(--sp-1); color: var(--c-border-strong); }
+
+.bp-card__mission-badge--footer {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--c-violet-l);
+  letter-spacing: .02em;
 }
 
 /* ── Craft Simulator ───────────────────────────────────────────────────────── */
@@ -2539,8 +2784,16 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   :root {
-    --col-left:  240px;
+    --col-left:  200px;
   }
+}
+
+/* ── Mobile filter backdrop (only rendered in DOM when filters open) ─────────── */
+.filters-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 199;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2553,102 +2806,139 @@ body::after {
   .app {
     height: auto;
     min-height: 100dvh;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto 1fr auto;
     overflow: visible;
   }
 
   .app__body {
-    flex-direction: column;
     overflow: visible;
-  }
-
-  .dashboard {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    overflow: visible;
-  }
-
-  .dashboard__col {
-    height: auto;
-    overflow: visible;
+    flex: 1;
     min-height: 0;
-    display: block;
   }
-  .dashboard__col--left  {
-    border-right: none;
-    border-bottom: 1px solid var(--c-border);
+
+  /* Dashboard: 1 column, sidebar overlays */
+  .dashboard {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
     overflow: visible;
   }
 
-  .explorer {
-    flex: none;
+  /* Left filter panel: slide-in overlay */
+  .dashboard__col--left {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    width: 280px;
+    height: calc(100dvh - var(--header-h));
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(.4,0,.2,1);
+    border-right: 1px solid var(--c-border);
+    background: var(--c-bg);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .dashboard__col--left--open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,.4);
+  }
+
+  /* Center column: full width, scrollable */
+  .dashboard__col--center {
+    grid-column: 1;
     height: auto;
     overflow: visible;
+    min-height: 60dvh;
   }
-  .explorer__list { flex: none; max-height: 50dvh; }
 
+  /* Show filter toggle button on mobile */
+  .main-filter-toggle { display: flex; }
+
+  /* Main content scrolls naturally on mobile */
+  .main-content { height: auto; overflow: visible; }
+
+  /* Blueprint grid: 2 columns on tablet */
+  .bp-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    padding: var(--sp-3);
+    gap: var(--sp-2);
+  }
+  .bp-grid-header { padding: var(--sp-2) var(--sp-3); }
+
+  /* Workspace */
   .workspace { height: auto; overflow: visible; }
   .workspace__body { overflow: visible; }
-  .workspace__context { padding: var(--sp-2) var(--sp-3); }
-  .workspace__tabs { padding: 0 var(--sp-3); }
+  .workspace__context { padding: var(--sp-2) var(--sp-3); flex-wrap: wrap; }
+  .workspace__context-info { flex-wrap: wrap; }
+  .workspace__tabs { padding: 0 var(--sp-2); }
+  .workspace__back-btn { padding: var(--sp-1) var(--sp-2); }
 
-  .simulator { height: auto; padding: var(--sp-5); }
+  .simulator { height: auto; padding: var(--sp-4); }
   .simulator__slots { overflow: visible; }
 
-  /* Header */
+  /* Header — compact */
   .header {
     height: auto;
     min-height: var(--header-h);
     padding: var(--sp-2) var(--sp-3);
     gap: var(--sp-2);
-    flex-wrap: wrap;
   }
   .header__subtitle { display: none; }
-  .header__brand { flex: 1; }
+  .header__brand { flex: 1; min-width: 0; }
+  .header__actions { gap: var(--sp-2); flex-shrink: 0; }
 
   /* Planner drawer full-width on mobile */
   .planner-drawer { width: 100vw; }
 
-  /* Changelog modal responsive */
+  /* Changelog modal */
   .changelog-modal { margin: var(--sp-2); max-width: calc(100vw - var(--sp-4)); }
-
   .dataset-changelog__header,
-  .dataset-changelog__grid {
-    grid-template-columns: 1fr;
-    display: grid;
-  }
-
-  .dataset-changelog__summary {
-    min-width: 0;
-  }
+  .dataset-changelog__grid { grid-template-columns: 1fr; display: grid; }
+  .dataset-changelog__summary { min-width: 0; }
 
   /* Comparison modal */
   .cmp-content { grid-template-columns: 1fr; }
   .cmp-modal   { max-height: 95dvh; margin: var(--sp-2); max-width: calc(100vw - var(--sp-4)); width: auto; }
 
-  /* Mobile bottom nav */
-  .mobile-nav {
-    display: flex;
-  }
+  /* Missions panel on mobile */
+  .missions-panel__header { padding: var(--sp-3) var(--sp-3); }
+  .missions-panel__title { font-size: 1.3rem; }
+  .faction-accordion__header { padding: var(--sp-2) var(--sp-3); gap: var(--sp-2); }
+  .contract-card { padding: var(--sp-2) var(--sp-3); }
+
+  /* Explorer active indicator */
+  .explorer__active-bp { margin: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    RESPONSIVE — Small phone (≤ 480px)
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
-  .header__title  { font-size: 1.2rem; }
-  .channel-toggle__btn { padding-inline: 8px; }
+  .header__title { font-size: 1.2rem; }
+  .header__actions { gap: var(--sp-1); }
+  .channel-toggle__btn { padding-inline: 8px; font-size: .7rem; }
+  .lang-toggle__btn { padding: 4px 6px; font-size: .7rem; }
+  .header__planner-btn,
+  .header__changelog-btn { padding: 6px 8px; font-size: .8rem; }
+
+  /* Blueprint grid: 1 column on small phones */
+  .bp-grid { grid-template-columns: 1fr; }
 
   .simulator { padding: var(--sp-4); gap: var(--sp-4); }
   .simulator__bp-name { font-size: 1.5rem; }
   .simulator__slots { grid-template-columns: 1fr; }
 
   .stats-panel { padding: var(--sp-4); }
-
   .picker { padding: var(--sp-4); }
-
   .btn--sm { padding: 4px var(--sp-2); font-size: .75rem; }
+
+  /* Missions on small screens */
+  .faction-accordion__type { display: none; }
+  .contract-card__bp-chip-name { max-width: 120px; }
+
+  /* Explorer drawer full width on very small screens */
+  .dashboard__col--left { width: 100vw; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3578,12 +3868,21 @@ body::after {
   transition: background 150ms;
 }
 .faction-accordion__header:hover { background: var(--c-surface-2); }
-.faction-accordion__chevron { font-size: .7rem; width: 14px; color: var(--c-text-dim); }
-.faction-accordion__name {
+.faction-accordion__chevron { font-size: .7rem; width: 14px; color: var(--c-text-dim); flex-shrink: 0; }
+.faction-accordion__info {
   flex: 1;
-  font-size: .92rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.faction-accordion__name {
+  font-size: .95rem;
   font-weight: 700;
   color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .faction-accordion__type {
   font-size: .62rem;
@@ -3596,9 +3895,12 @@ body::after {
 .faction-accordion__type--lawful { color: var(--c-success); border-color: rgba(52,211,153,.3); }
 .faction-accordion__type--unlawful { color: var(--c-danger, #ef4444); border-color: rgba(239,68,68,.3); }
 .faction-accordion__scopes {
-  font-size: .68rem;
-  color: var(--c-text-muted);
+  font-size: .65rem;
+  color: var(--c-text-dim);
   font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .faction-accordion__count {
   font-family: 'Share Tech Mono', monospace;
@@ -3614,7 +3916,7 @@ body::after {
   padding: 0 var(--sp-3) var(--sp-3);
 }
 
-/* Contract card */
+/* Contract card — rewards first, name + location secondary */
 .contract-card {
   display: flex;
   flex-direction: column;
@@ -3623,60 +3925,79 @@ body::after {
   border: 1px solid rgba(99, 102, 241, 0.12);
   background: rgba(14, 18, 37, 0.4);
 }
-.contract-card__head {
+/* Blueprint reward chips — PRIMARY info, shown first */
+.contract-card__rewards {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: var(--sp-2);
 }
-.contract-card__name {
-  font-size: .82rem;
+.contract-card__bp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: .78rem;
   font-weight: 600;
   color: var(--c-text);
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-2);
+  cursor: pointer;
+  transition: border-color 150ms, background 150ms;
+}
+.contract-card__bp-chip:hover {
+  border-color: var(--c-violet);
+  background: var(--c-surface-3);
+}
+.contract-card__bp-chip-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Contract name + scale — SECONDARY */
+.contract-card__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-bottom: 3px;
+}
+.contract-card__name {
+  font-size: .75rem;
+  font-weight: 500;
+  color: var(--c-text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .contract-card__scale {
-  font-size: .62rem;
+  font-size: .6rem;
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--c-violet-l);
   white-space: nowrap;
-}
-.contract-card__meta {
-  font-size: .72rem;
-  color: var(--c-text-muted);
-  margin: 0;
+  flex-shrink: 0;
 }
 
-/* Blueprint reward chips */
-.contract-card__rewards {
+/* Location + standing — TERTIARY */
+.contract-card__footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: var(--sp-1);
-}
-.contract-card__bp-chip {
-  display: inline-flex;
+  gap: var(--sp-2);
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+}
+.contract-card__meta {
   font-size: .68rem;
-  font-weight: 600;
   color: var(--c-text-dim);
-  border: 1px solid var(--c-border);
-  background: var(--c-surface-2);
-  cursor: pointer;
-  transition: border-color 150ms, color 150ms;
+  margin: 0;
 }
-.contract-card__bp-chip:hover {
-  border-color: var(--c-violet);
-  color: var(--c-text);
-}
-.contract-card__bp-chip-name {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.contract-card__meta--standing {
+  color: var(--c-warning);
+  opacity: .8;
 }
 
 /* ── Site Footer ──────────────────────────────────────────────────────────── */

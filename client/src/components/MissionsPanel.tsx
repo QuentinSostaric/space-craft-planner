@@ -3,6 +3,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
 import {
+  formatContractName,
   formatLocations,
   formatScaleLabel,
   formatStanding,
@@ -111,23 +112,11 @@ function ContractCard({
   onBlueprintClick: (blueprintId: string) => void;
 }) {
   const { lang } = useI18n();
+  const hasStanding = contract.minimumRequiredStandings.length > 0;
 
   return (
     <div className="contract-card">
-      <div className="contract-card__head">
-        <span className="contract-card__name">
-          {contract.contractDebugName ?? 'Unknown contract'}
-        </span>
-        <span className="contract-card__scale">
-          {formatScaleLabel(contract.availability.derivedScale, lang)}
-        </span>
-      </div>
-      <p className="contract-card__meta">
-        {formatLocations(contract, lang)}
-      </p>
-      <p className="contract-card__meta">
-        {formatStanding(contract, lang)}
-      </p>
+      {/* Blueprint rewards — primary info */}
       {contract.rewardedBlueprints.length > 0 && (
         <div className="contract-card__rewards">
           {contract.rewardedBlueprints.map((bp) => (
@@ -135,7 +124,7 @@ function ContractCard({
               key={bp.id}
               className="contract-card__bp-chip"
               onClick={() => onBlueprintClick(bp.id)}
-              title={`${bp.name}${bp.manufacturer ? ` (${bp.manufacturer})` : ''}`}
+              title={bp.manufacturer ? `${bp.name} (${bp.manufacturer})` : bp.name}
             >
               {bp.category && <CategoryBadge category={bp.category} iconOnly />}
               <span className="contract-card__bp-chip-name">{bp.name}</span>
@@ -143,6 +132,28 @@ function ContractCard({
           ))}
         </div>
       )}
+
+      {/* Contract name + scale — secondary */}
+      <div className="contract-card__head">
+        <span className="contract-card__name">
+          {formatContractName(contract.contractDebugName)}
+        </span>
+        <span className="contract-card__scale">
+          {formatScaleLabel(contract.availability.derivedScale, lang)}
+        </span>
+      </div>
+
+      {/* Location + standing — tertiary */}
+      <div className="contract-card__footer">
+        <span className="contract-card__meta contract-card__meta--loc">
+          📍 {formatLocations(contract, lang)}
+        </span>
+        {hasStanding && (
+          <span className="contract-card__meta contract-card__meta--standing">
+            ★ {formatStanding(contract, lang)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -174,14 +185,16 @@ function FactionAccordion({
         <span className="faction-accordion__chevron" aria-hidden="true">
           {open ? '▾' : '▸'}
         </span>
-        <span className="faction-accordion__name">{group.contractorDisplayName}</span>
+        <div className="faction-accordion__info">
+          <span className="faction-accordion__name">{group.contractorDisplayName}</span>
+          {scopeNames && (
+            <span className="faction-accordion__scopes">{scopeNames}</span>
+          )}
+        </div>
         {factionType && (
           <span className={`faction-accordion__type faction-accordion__type--${factionType.toLowerCase()}`}>
             {factionType}
           </span>
-        )}
-        {scopeNames && (
-          <span className="faction-accordion__scopes">{scopeNames}</span>
         )}
         <span className="faction-accordion__count">
           {filteredContracts.length}

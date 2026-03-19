@@ -21,6 +21,27 @@ export function formatScaleLabel(scale: string, lang: Lang): string {
   return SCALE_LABELS[scale]?.[lang] ?? (lang === 'fr' ? 'Portee inconnue' : 'Unknown scope');
 }
 
+const CONTRACT_PREFIXES = [
+  'SCItemPurchasableBP_',
+  'SCItemPurchasable_',
+  'MissionBuying_',
+  'Mission_',
+  'SCItem_',
+  'BP_',
+];
+
+export function formatContractName(debugName: string | null): string {
+  if (!debugName) return '—';
+  let name = debugName;
+  for (const prefix of CONTRACT_PREFIXES) {
+    if (name.startsWith(prefix)) {
+      name = name.slice(prefix.length);
+      break;
+    }
+  }
+  return name.replace(/_/g, ' ').trim();
+}
+
 export function formatStanding(contract: MissionContract, lang: Lang): string {
   if (contract.minimumRequiredStandings.length === 0) {
     return lang === 'fr'
