@@ -327,6 +327,7 @@ const TAB_ORDER: ItemTab[] = ['overview', 'craft', 'acquisition', 'dismantle'];
 export function ItemWorkspace() {
   const {
     activeBlueprint,
+    setActiveBlueprint,
     activeItemTab,
     setActiveItemTab,
     slotAssignments,
