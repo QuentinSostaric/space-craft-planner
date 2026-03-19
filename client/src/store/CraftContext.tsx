@@ -20,6 +20,7 @@ import type {
   GameDataset,
   ItemStats,
   ItemTab,
+  LibrarySegment,
   MissionRewardsData,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
@@ -69,6 +70,8 @@ interface CraftState {
   datasetError: string | null;
   categoryFilter: CategoryFilter;
   searchQuery: string;
+  librarySegment: LibrarySegment;
+  setLibrarySegment: (segment: LibrarySegment) => void;
   favoriteIds: string[];
   inventoryIds: string[];
   slotAssignments: Record<string, number | undefined>;
@@ -124,6 +127,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('all');
   const [slotAssignments, setSlotAssignments] = useState<Record<string, number | undefined>>({});
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
@@ -429,6 +433,8 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         datasetError,
         categoryFilter,
         searchQuery,
+        librarySegment,
+        setLibrarySegment,
         favoriteIds,
         inventoryIds,
         slotAssignments,

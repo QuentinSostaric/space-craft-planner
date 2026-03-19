@@ -81,7 +81,7 @@
 
   /* Layout */
   --header-h:   56px;
-  --col-left:   290px;
+  --col-left:   220px;
   --col-right:  360px;
 
   /* Font */
@@ -880,15 +880,14 @@ body::after {
 .panel--glow    { border-color: var(--c-violet); }
 .panel--no-pad  { padding: 0; }
 
-/* ── Blueprint Explorer (Library) ──────────────────────────────────────────── */
+/* ── Blueprint Explorer (Filter panel only) ─────────────────────────────────── */
 .explorer {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--sp-4);
+  padding: var(--sp-3);
   gap: var(--sp-3);
-  overflow: hidden;
+  overflow-y: auto;
+  flex: 1;
 }
 
 /* Legacy section search (kept for compat) */
@@ -924,7 +923,6 @@ body::after {
   flex-wrap: wrap;
   gap: var(--sp-1);
   flex-shrink: 0;
-  padding: var(--sp-2) var(--sp-2) 0;
 }
 .explorer__filter-btn {
   padding: 4px var(--sp-3);
@@ -1105,6 +1103,150 @@ body::after {
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
+}
+
+/* ── Main content tabs (Blueprints / Missions) ──────────────────────────────── */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+  padding: 0 var(--sp-4);
+}
+
+.main-tab {
+  padding: var(--sp-2) var(--sp-4);
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-bottom: -1px;
+}
+.main-tab:hover { color: var(--c-text); }
+.main-tab--active {
+  color: var(--c-violet-l);
+  border-bottom-color: var(--c-violet);
+}
+
+/* ── Blueprint Grid ──────────────────────────────────────────────────────────── */
+.bp-grid-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bp-grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.bp-grid-count {
+  font-size: .75rem;
+  color: var(--c-text-dim);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.bp-grid-empty {
+  color: var(--c-text-dim);
+  font-size: .88rem;
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.bp-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-strong) transparent;
+}
+.bp-grid::-webkit-scrollbar { width: 4px; }
+.bp-grid::-webkit-scrollbar-track { background: transparent; }
+.bp-grid::-webkit-scrollbar-thumb { background: var(--c-border-strong); }
+
+/* Grid-mode blueprint card */
+.bp-card--grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+}
+
+.bp-card--grid .bp-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+
+.bp-card--grid .bp-card__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+}
+
+.bp-card--grid .bp-card__name {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: var(--sp-1);
+}
+
+.bp-card--grid .bp-card__manufacturer {
+  font-size: .72rem;
+  color: var(--c-text-dim);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-2);
+}
+
+.bp-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: auto;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--c-border);
+}
+
+.bp-card__slots {
+  font-size: .72rem;
+  color: var(--c-text-dim);
+}
+
+.bp-card__craft-time {
+  font-size: .72rem;
+  color: var(--c-text-dim);
+  margin-left: auto;
 }
 
 /* ── Craft Simulator ───────────────────────────────────────────────────────── */
@@ -2539,7 +2681,7 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   :root {
-    --col-left:  240px;
+    --col-left:  200px;
   }
 }
 
@@ -2586,7 +2728,8 @@ body::after {
     height: auto;
     overflow: visible;
   }
-  .explorer__list { flex: none; max-height: 50dvh; }
+  .main-content { height: auto; overflow: visible; }
+  .bp-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 
   .workspace { height: auto; overflow: visible; }
   .workspace__body { overflow: visible; }
