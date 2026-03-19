@@ -1,12 +1,19 @@
 import { useMemo } from 'react';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
+import { tokens } from '../theme';
 import type { DatasetChangelogSection, DatasetDiffEntry } from '../types';
 
 function renderDiffLabel(entry: DatasetDiffEntry) {
@@ -27,37 +34,51 @@ function DiffList({
   const visibleEntries = entries.slice(0, 5);
 
   return (
-    <div className="dataset-changelog__list-block">
-      <div className="dataset-changelog__list-header">
-        <span>{title}</span>
-        <span>{entries.length}</span>
-      </div>
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+        <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: '.65rem' }}>
+          {title}
+        </Typography>
+        <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 600 }}>
+          {entries.length}
+        </Typography>
+      </Box>
 
       {visibleEntries.length === 0 ? (
-        <p className="dataset-changelog__empty">{emptyLabel}</p>
+        <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '.75rem', py: 1 }}>{emptyLabel}</Typography>
       ) : (
-        <ul className="dataset-changelog__list">
+        <List dense disablePadding>
           {visibleEntries.map((entry) => (
-            <li key={`${type}-${entry.id}`} className="dataset-changelog__list-item">
-              <span className="dataset-changelog__list-name">{renderDiffLabel(entry)}</span>
-              {type === 'changed' && entry.changedFields && entry.changedFields.length > 0 && (
-                <span className="dataset-changelog__list-meta">
-                  {entry.changedFields.join(', ')}
-                </span>
-              )}
-            </li>
+            <ListItem key={`${type}-${entry.id}`} disablePadding sx={{ py: 0.25 }}>
+              <ListItemText
+                primary={renderDiffLabel(entry)}
+                secondary={type === 'changed' && entry.changedFields && entry.changedFields.length > 0
+                  ? entry.changedFields.join(', ')
+                  : undefined}
+                slotProps={{
+                  primary: { variant: 'body2', sx: { fontSize: '.78rem' } },
+                  secondary: { variant: 'caption', sx: { fontSize: '.62rem' } },
+                }}
+              />
+            </ListItem>
           ))}
-        </ul>
+        </List>
       )}
 
       {entries.length > visibleEntries.length && (
-        <p className="dataset-changelog__more">
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.65rem' }}>
           +{entries.length - visibleEntries.length}
-        </p>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }
+
+const COUNT_COLORS: Record<string, string> = {
+  added: tokens.success,
+  changed: tokens.warning,
+  removed: tokens.danger,
+};
 
 function DiffCard({
   title,
@@ -70,49 +91,57 @@ function DiffCard({
   section: DatasetChangelogSection;
   lang: 'en' | 'fr';
 }) {
+  const counts = [
+    { key: 'added', label: lang === 'en' ? 'Added' : 'Ajoutes', value: section.added.length },
+    { key: 'changed', label: lang === 'en' ? 'Changed' : 'Modifies', value: section.changed.length },
+    { key: 'removed', label: lang === 'en' ? 'Removed' : 'Retires', value: section.removed.length },
+  ];
+
   return (
-    <article className="dataset-changelog__card">
-      <div className="dataset-changelog__card-header">
-        <h3 className="dataset-changelog__card-title">{title}</h3>
-        <p className="dataset-changelog__card-subtitle">{subtitle}</p>
-      </div>
+    <Card component="article">
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1rem', mb: 0.25 }}>
+          {title}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem', mb: 1.5 }}>
+          {subtitle}
+        </Typography>
 
-      <div className="dataset-changelog__counts">
-        <div className="dataset-changelog__count dataset-changelog__count--added">
-          <span>{lang === 'en' ? 'Added' : 'Ajoutes'}</span>
-          <strong>{section.added.length}</strong>
-        </div>
-        <div className="dataset-changelog__count dataset-changelog__count--changed">
-          <span>{lang === 'en' ? 'Changed' : 'Modifies'}</span>
-          <strong>{section.changed.length}</strong>
-        </div>
-        <div className="dataset-changelog__count dataset-changelog__count--removed">
-          <span>{lang === 'en' ? 'Removed' : 'Retires'}</span>
-          <strong>{section.removed.length}</strong>
-        </div>
-      </div>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          {counts.map((c) => (
+            <Box key={c.key} sx={{ flex: 1, textAlign: 'center', py: 0.75, border: `1px solid ${tokens.border}` }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.6rem', display: 'block' }}>
+                {c.label}
+              </Typography>
+              <Typography variant="body2" sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, color: COUNT_COLORS[c.key] }}>
+                {c.value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
 
-      <div className="dataset-changelog__lists">
-        <DiffList
-          title={lang === 'en' ? 'Added' : 'Ajoutes'}
-          emptyLabel={lang === 'en' ? 'No additions.' : 'Aucun ajout.'}
-          entries={section.added}
-          type="added"
-        />
-        <DiffList
-          title={lang === 'en' ? 'Changed' : 'Modifies'}
-          emptyLabel={lang === 'en' ? 'No changes.' : 'Aucune modification.'}
-          entries={section.changed}
-          type="changed"
-        />
-        <DiffList
-          title={lang === 'en' ? 'Removed' : 'Retires'}
-          emptyLabel={lang === 'en' ? 'No removals.' : 'Aucun retrait.'}
-          entries={section.removed}
-          type="removed"
-        />
-      </div>
-    </article>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <DiffList
+            title={lang === 'en' ? 'Added' : 'Ajoutes'}
+            emptyLabel={lang === 'en' ? 'No additions.' : 'Aucun ajout.'}
+            entries={section.added}
+            type="added"
+          />
+          <DiffList
+            title={lang === 'en' ? 'Changed' : 'Modifies'}
+            emptyLabel={lang === 'en' ? 'No changes.' : 'Aucune modification.'}
+            entries={section.changed}
+            type="changed"
+          />
+          <DiffList
+            title={lang === 'en' ? 'Removed' : 'Retires'}
+            emptyLabel={lang === 'en' ? 'No removals.' : 'Aucun retrait.'}
+            entries={section.removed}
+            type="removed"
+          />
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -197,20 +226,22 @@ export function DatasetChangelog() {
       </DialogTitle>
 
       <DialogContent dividers>
-        <div className="dataset-changelog__summary">
-          <div className="dataset-changelog__summary-pill">
-            <span>{lang === 'en' ? 'Delta entries' : 'Entrees modifiees'}</span>
-            <strong>{totalDelta}</strong>
-          </div>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+          <Chip
+            label={<><Typography component="span" variant="caption" sx={{ mr: 0.5 }}>{lang === 'en' ? 'Delta entries' : 'Entrees modifiees'}</Typography><strong>{totalDelta}</strong></>}
+            variant="outlined"
+            size="small"
+          />
           {generatedAtLabel && (
-            <div className="dataset-changelog__summary-pill">
-              <span>{lang === 'en' ? 'Generated' : 'Genere'}</span>
-              <strong>{generatedAtLabel}</strong>
-            </div>
+            <Chip
+              label={<><Typography component="span" variant="caption" sx={{ mr: 0.5 }}>{lang === 'en' ? 'Generated' : 'Genere'}</Typography><strong>{generatedAtLabel}</strong></>}
+              variant="outlined"
+              size="small"
+            />
           )}
-        </div>
+        </Box>
 
-        <div className="dataset-changelog__grid">
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
           <DiffCard
             title={lang === 'en' ? 'Blueprints' : 'Blueprints'}
             subtitle={t('Craftable items changed between PTU and LIVE.', 'Items craftables modifies entre PTU et LIVE.')}
@@ -223,7 +254,7 @@ export function DatasetChangelog() {
             section={changelog.resources}
             lang={lang}
           />
-        </div>
+        </Box>
       </DialogContent>
     </Dialog>
   );

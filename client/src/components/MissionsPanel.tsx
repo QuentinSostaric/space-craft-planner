@@ -1,7 +1,28 @@
-import { useId, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import SearchIcon from '@mui/icons-material/Search';
+import PlaceIcon from '@mui/icons-material/Place';
+import StarIcon from '@mui/icons-material/Star';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import FlagIcon from '@mui/icons-material/Flag';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
+import { tokens } from '../theme';
 import {
   formatContractName,
   formatLocations,
@@ -19,19 +40,13 @@ function MissionsSummaryBanner({ summary }: { summary: MissionRewardsData['summa
   if (!summary) return null;
 
   return (
-    <div className="missions-banner">
-      <span className="missions-banner__stat">
-        <strong>{summary.blueprintRewardContractCount}</strong> {t('contracts', 'contrats')}
-      </span>
-      <span className="missions-banner__sep" aria-hidden="true">·</span>
-      <span className="missions-banner__stat">
-        <strong>{summary.factionGroupCount}</strong> {t('factions', 'factions')}
-      </span>
-      <span className="missions-banner__sep" aria-hidden="true">·</span>
-      <span className="missions-banner__stat">
-        <strong>{summary.uniqueBlueprintPoolCount}</strong> {t('blueprints', 'blueprints')}
-      </span>
-    </div>
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', fontSize: '.75rem', color: 'text.secondary' }}>
+      <span><strong>{summary.blueprintRewardContractCount}</strong> {t('contracts', 'contrats')}</span>
+      <span aria-hidden="true">·</span>
+      <span><strong>{summary.factionGroupCount}</strong> {t('factions', 'factions')}</span>
+      <span aria-hidden="true">·</span>
+      <span><strong>{summary.uniqueBlueprintPoolCount}</strong> {t('blueprints', 'blueprints')}</span>
+    </Box>
   );
 }
 
@@ -55,52 +70,57 @@ function MissionsFilterBar({
   onSearchChange: (v: string) => void;
 }) {
   const { lang, t } = useI18n();
-  const searchId = useId();
-  const locationId = useId();
-  const scaleId = useId();
 
   return (
-    <div className="missions-filters">
-      <div className="missions-filters__field">
-        <label className="sr-only" htmlFor={locationId}>{t('Location', 'Lieu')}</label>
-        <select
-          id={locationId}
-          className="missions-filters__select"
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+      <FormControl size="small" sx={{ minWidth: 140 }}>
+        <InputLabel>{t('Location', 'Lieu')}</InputLabel>
+        <Select
           value={selectedLocation}
-          onChange={(e) => onLocationChange(e.target.value)}
+          onChange={(e: SelectChangeEvent) => onLocationChange(e.target.value)}
+          label={t('Location', 'Lieu')}
+          sx={{ fontSize: '.78rem' }}
         >
-          <option value="">{t('All locations', 'Tous les lieux')}</option>
+          <MenuItem value="">{t('All locations', 'Tous les lieux')}</MenuItem>
           {locations.map((loc) => (
-            <option key={loc} value={loc}>{loc}</option>
+            <MenuItem key={loc} value={loc}>{loc}</MenuItem>
           ))}
-        </select>
-      </div>
-      <div className="missions-filters__field">
-        <label className="sr-only" htmlFor={scaleId}>{t('Scale', 'Echelle')}</label>
-        <select
-          id={scaleId}
-          className="missions-filters__select"
+        </Select>
+      </FormControl>
+      <FormControl size="small" sx={{ minWidth: 140 }}>
+        <InputLabel>{t('Scale', 'Echelle')}</InputLabel>
+        <Select
           value={selectedScale}
-          onChange={(e) => onScaleChange(e.target.value)}
+          onChange={(e: SelectChangeEvent) => onScaleChange(e.target.value)}
+          label={t('Scale', 'Echelle')}
+          sx={{ fontSize: '.78rem' }}
         >
-          <option value="">{t('All scales', 'Toutes les echelles')}</option>
+          <MenuItem value="">{t('All scales', 'Toutes les echelles')}</MenuItem>
           {scales.map((s) => (
-            <option key={s} value={s}>{formatScaleLabel(s, lang)}</option>
+            <MenuItem key={s} value={s}>{formatScaleLabel(s, lang)}</MenuItem>
           ))}
-        </select>
-      </div>
-      <div className="missions-filters__field missions-filters__field--grow">
-        <label className="sr-only" htmlFor={searchId}>{t('Search', 'Rechercher')}</label>
-        <input
-          id={searchId}
-          type="search"
-          className="missions-filters__search"
-          placeholder={t('Search contracts...', 'Rechercher des contrats...')}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
-      </div>
-    </div>
+        </Select>
+      </FormControl>
+      <TextField
+        type="search"
+        size="small"
+        placeholder={t('Search contracts...', 'Rechercher des contrats...')}
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        label={t('Search', 'Rechercher')}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
+                <SearchIcon sx={{ fontSize: '1.1rem' }} />
+              </InputAdornment>
+            ),
+          },
+          inputLabel: { shrink: true },
+        }}
+        sx={{ flex: 1, minWidth: 140, '& .MuiInputBase-root': { fontSize: '.78rem' } }}
+      />
+    </Box>
   );
 }
 
@@ -115,46 +135,53 @@ function ContractCard({
   const hasStanding = contract.minimumRequiredStandings.length > 0;
 
   return (
-    <div className="contract-card">
-      {/* Blueprint rewards — primary info */}
-      {contract.rewardedBlueprints.length > 0 && (
-        <div className="contract-card__rewards">
-          {contract.rewardedBlueprints.map((bp) => (
-            <button
-              key={bp.id}
-              className="contract-card__bp-chip"
-              onClick={() => onBlueprintClick(bp.id)}
-              title={bp.manufacturer ? `${bp.name} (${bp.manufacturer})` : bp.name}
-            >
-              {bp.category && <CategoryBadge category={bp.category} iconOnly />}
-              <span className="contract-card__bp-chip-name">{bp.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Contract name + scale — secondary */}
-      <div className="contract-card__head">
-        <span className="contract-card__name">
-          {formatContractName(contract.contractDebugName)}
-        </span>
-        <span className="contract-card__scale">
-          {formatScaleLabel(contract.availability.derivedScale, lang)}
-        </span>
-      </div>
-
-      {/* Location + standing — tertiary */}
-      <div className="contract-card__footer">
-        <span className="contract-card__meta contract-card__meta--loc">
-          📍 {formatLocations(contract, lang)}
-        </span>
-        {hasStanding && (
-          <span className="contract-card__meta contract-card__meta--standing">
-            ★ {formatStanding(contract, lang)}
-          </span>
+    <Card sx={{ mb: 1, backgroundColor: tokens.surface1 }}>
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        {/* Blueprint rewards */}
+        {contract.rewardedBlueprints.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+            {contract.rewardedBlueprints.map((bp) => (
+              <Chip
+                key={bp.id}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {bp.category && <CategoryBadge category={bp.category} iconOnly />}
+                    <span>{bp.name}</span>
+                  </Box>
+                }
+                size="small"
+                variant="outlined"
+                onClick={() => onBlueprintClick(bp.id)}
+                title={bp.manufacturer ? `${bp.name} (${bp.manufacturer})` : bp.name}
+                sx={{ cursor: 'pointer' }}
+              />
+            ))}
+          </Box>
         )}
-      </div>
-    </div>
+
+        {/* Contract name + scale */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.78rem' }}>
+            {formatContractName(contract.contractDebugName)}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '.62rem', textTransform: 'uppercase' }}>
+            {formatScaleLabel(contract.availability.derivedScale, lang)}
+          </Typography>
+        </Box>
+
+        {/* Location + standing */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, fontSize: '.68rem', color: 'text.secondary' }}>
+          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+            <PlaceIcon sx={{ fontSize: '.8rem' }} /> {formatLocations(contract, lang)}
+          </Box>
+          {hasStanding && (
+            <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+              <StarIcon sx={{ fontSize: '.8rem' }} /> {formatStanding(contract, lang)}
+            </Box>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -167,8 +194,6 @@ function FactionAccordion({
   filteredContracts: MissionContract[];
   onBlueprintClick: (blueprintId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   const factionType = group.faction?.factionType ?? null;
   const scopeNames = group.reputationScopes
     .map((s) => s.displayName ?? s.scopeName)
@@ -176,42 +201,49 @@ function FactionAccordion({
     .join(', ');
 
   return (
-    <div className="faction-accordion">
-      <button
-        className="faction-accordion__header"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
+    <Accordion>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon sx={{ fontSize: '1.2rem' }} />}
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
       >
-        <span className="faction-accordion__chevron" aria-hidden="true">
-          {open ? '▾' : '▸'}
-        </span>
-        <div className="faction-accordion__info">
-          <span className="faction-accordion__name">{group.contractorDisplayName}</span>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif" }}>
+            {group.contractorDisplayName}
+          </Typography>
           {scopeNames && (
-            <span className="faction-accordion__scopes">{scopeNames}</span>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
+              {scopeNames}
+            </Typography>
           )}
-        </div>
-        {factionType && (
-          <span className={`faction-accordion__type faction-accordion__type--${factionType.toLowerCase()}`}>
-            {factionType}
-          </span>
-        )}
-        <span className="faction-accordion__count">
-          {filteredContracts.length}
-        </span>
-      </button>
-      {open && (
-        <div className="faction-accordion__body">
-          {filteredContracts.map((contract) => (
-            <ContractCard
-              key={`${contract.contractFile ?? ''}-${contract.contractDebugName ?? ''}`}
-              contract={contract}
-              onBlueprintClick={onBlueprintClick}
+          {factionType && (
+            <Chip
+              label={factionType}
+              size="small"
+              variant="outlined"
+              sx={{ ml: 'auto', fontSize: '.55rem', height: 18 }}
             />
-          ))}
-        </div>
-      )}
-    </div>
+          )}
+          <Typography
+            variant="caption"
+            sx={{ ml: factionType ? 1 : 'auto', fontFamily: "'Share Tech Mono', monospace", fontWeight: 600 }}
+          >
+            {filteredContracts.length}
+          </Typography>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 1 }}>
+        {filteredContracts.map((contract) => (
+          <ContractCard
+            key={`${contract.contractFile ?? ''}-${contract.contractDebugName ?? ''}`}
+            contract={contract}
+            onBlueprintClick={onBlueprintClick}
+          />
+        ))}
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -303,38 +335,47 @@ export function MissionsPanel() {
 
   if (missionRewardsLoading) {
     return (
-      <section className="missions-panel missions-panel--loading">
-        <p>{t('Loading mission rewards...', 'Chargement des recompenses de missions...')}</p>
-      </section>
+      <Box sx={{ p: 3, color: 'text.secondary' }}>
+        <Typography>{t('Loading mission rewards...', 'Chargement des recompenses de missions...')}</Typography>
+      </Box>
     );
   }
 
   if (missionRewardsError) {
     return (
-      <section className="missions-panel missions-panel--error">
-        <p>{missionRewardsError}</p>
-      </section>
+      <Box sx={{ p: 3, color: 'error.main' }}>
+        <Typography>{missionRewardsError}</Typography>
+      </Box>
     );
   }
 
   if (!missionRewards || missionRewards.factionGroups.length === 0) {
     return (
-      <section className="missions-panel missions-panel--empty">
-        <div className="missions-panel__empty-state">
-          <span className="missions-panel__empty-icon" aria-hidden="true">⚑</span>
-          <h2>{t('No mission data', 'Aucune donnee de mission')}</h2>
-          <p>{t('Mission rewards are not available for this dataset.', 'Les recompenses de missions ne sont pas disponibles pour ce dataset.')}</p>
-        </div>
-      </section>
+      <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+        <FlagIcon sx={{ mb: 1, opacity: 0.4, fontSize: '3rem' }} />
+        <Typography variant="h6">{t('No mission data', 'Aucune donnee de mission')}</Typography>
+        <Typography variant="body2">
+          {t('Mission rewards are not available for this dataset.', 'Les recompenses de missions ne sont pas disponibles pour ce dataset.')}
+        </Typography>
+      </Box>
     );
   }
 
   return (
-    <section className="missions-panel" aria-label={t('Missions browser', 'Explorateur de missions')}>
-      <header className="missions-panel__header">
-        <h2 className="missions-panel__title">{t('Missions', 'Missions')}</h2>
+    <Box
+      component="section"
+      aria-label={t('Missions browser', 'Explorateur de missions')}
+      sx={{ p: 2 }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}
+        >
+          {t('Missions', 'Missions')}
+        </Typography>
         <MissionsSummaryBanner summary={missionRewards.summary} />
-      </header>
+      </Box>
 
       <MissionsFilterBar
         locations={allLocations}
@@ -347,11 +388,11 @@ export function MissionsPanel() {
         onSearchChange={setSearch}
       />
 
-      <div className="missions-panel__body">
+      <Box>
         {filteredGroups.length === 0 ? (
-          <p className="missions-panel__no-results">
+          <Typography sx={{ color: 'text.secondary', py: 3, textAlign: 'center' }}>
             {t('No contracts match your filters.', 'Aucun contrat ne correspond a vos filtres.')}
-          </p>
+          </Typography>
         ) : (
           filteredGroups.map(({ group, contracts }) => (
             <FactionAccordion
@@ -362,7 +403,7 @@ export function MissionsPanel() {
             />
           ))
         )}
-      </div>
-    </section>
+      </Box>
+    </Box>
   );
 }

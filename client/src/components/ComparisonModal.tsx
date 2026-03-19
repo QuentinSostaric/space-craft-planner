@@ -1,9 +1,21 @@
 import { useMemo } from 'react';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import Divider from '@mui/material/Divider';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -154,79 +166,91 @@ function formatStatDisplayValue(key: keyof ItemStats, value: number): number {
 // ─── Stat comparison table ────────────────────────────────────────────────────
 function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: (keyof ItemStats)[]; lang: 'en' | 'fr' }) {
   return (
-    <div className="cmp-table" role="table" aria-label={lang === 'en' ? 'Stats comparison' : 'Comparaison des statistiques'}>
-      <div className="cmp-table__row cmp-table__row--header" role="row">
-        <div className="cmp-table__cell cmp-table__cell--stat" role="columnheader">Stat</div>
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="cmp-table__cell cmp-table__cell--item"
-            role="columnheader"
-            style={{ '--item-color': item.color } as React.CSSProperties}
-          >
-            <span className="cmp-table__item-dot" style={{ background: item.color }} aria-hidden="true" />
-            <span className="cmp-table__item-name">{item.blueprintName}</span>
-          </div>
-        ))}
-      </div>
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small" aria-label={lang === 'en' ? 'Stats comparison' : 'Comparaison des statistiques'}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 600, fontSize: '.7rem', textTransform: 'uppercase', letterSpacing: '.06em' }}>Stat</TableCell>
+            {items.map((item) => (
+              <TableCell key={item.id} align="center">
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
+                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.68rem' }}>{item.blueprintName}</Typography>
+                </Box>
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {statKeys.map((key) => {
+            const vals = items.map((i) => i.projectedStats[key] ?? 0);
+            const maxVal = Math.max(...vals);
+            const minVal = Math.min(...vals);
+            const isLower = STAT_LOWER_IS_BETTER.has(key);
+            const bestVal = isLower ? minVal : maxVal;
 
-      {statKeys.map((key) => {
-        const vals = items.map((i) => i.projectedStats[key] ?? 0);
-        const maxVal = Math.max(...vals);
-        const minVal = Math.min(...vals);
-        const isLower = STAT_LOWER_IS_BETTER.has(key);
-        const bestVal = isLower ? minVal : maxVal;
-
-        return (
-          <div key={key} className="cmp-table__row" role="row">
-            <div className="cmp-table__cell cmp-table__cell--stat" role="rowheader">
-              <span className="cmp-table__stat-name">{STAT_LABELS[key]?.[lang] ?? String(key)}</span>
-              <span className="cmp-table__stat-unit">{STAT_UNITS[key] ?? ''}</span>
-            </div>
-            {items.map((item) => {
-              const val = item.projectedStats[key] ?? 0;
-              const base = item.baseStats[key] ?? 0;
-              const isBest = val === bestVal && vals.filter(v => v === bestVal).length < vals.length;
-              const delta = val - base;
-              const displayVal = formatStatDisplayValue(key, val);
-              const displayDelta = formatStatDisplayValue(key, delta);
-              return (
-                <div
-                  key={item.id}
-                  className={['cmp-table__cell cmp-table__cell--val', isBest && 'cmp-table__cell--best'].filter(Boolean).join(' ')}
-                  role="cell"
-                  aria-label={`${STAT_LABELS[key]?.[lang] ?? key}: ${displayVal} ${STAT_UNITS[key] ?? ''}${isBest ? ` (${lang === 'en' ? 'best' : 'meilleur'})` : ''}`}
-                >
-                  <span className="cmp-table__val" style={{ color: isBest ? item.color : undefined }}>{displayVal}</span>
-                  {delta !== 0 && (
-                    <span className={['cmp-table__delta', delta > 0 ? 'cmp-table__delta--up' : 'cmp-table__delta--down'].join(' ')}>
-                      {displayDelta > 0 ? '+' : ''}{displayDelta}
-                    </span>
+            return (
+              <TableRow key={key}>
+                <TableCell component="th" scope="row">
+                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.7rem' }}>{STAT_LABELS[key]?.[lang] ?? String(key)}</Typography>
+                  {STAT_UNITS[key] && (
+                    <Typography component="span" variant="caption" sx={{ color: 'text.disabled', ml: 0.5, fontSize: '.58rem' }}>
+                      {STAT_UNITS[key]}
+                    </Typography>
                   )}
-                </div>
+                </TableCell>
+                {items.map((item) => {
+                  const val = item.projectedStats[key] ?? 0;
+                  const base = item.baseStats[key] ?? 0;
+                  const isBest = val === bestVal && vals.filter(v => v === bestVal).length < vals.length;
+                  const delta = val - base;
+                  const displayVal = formatStatDisplayValue(key, val);
+                  const displayDelta = formatStatDisplayValue(key, delta);
+                  return (
+                    <TableCell key={item.id} align="center">
+                      <Typography
+                        variant="body2"
+                        sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
+                      >
+                        {displayVal}
+                      </Typography>
+                      {delta !== 0 && (
+                        <Typography variant="caption" sx={{ color: delta > 0 ? 'success.main' : 'error.main', fontSize: '.58rem' }}>
+                          {displayDelta > 0 ? '+' : ''}{displayDelta}
+                        </Typography>
+                      )}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            );
+          })}
+
+          {/* Quality score row */}
+          <TableRow sx={{ '& td, & th': { borderBottom: 'none' } }}>
+            <TableCell component="th" scope="row">
+              <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '.7rem' }}>
+                {lang === 'en' ? 'Quality score' : 'Score qualite'}
+              </Typography>
+            </TableCell>
+            {items.map((item) => {
+              const maxScore = Math.max(...items.map(i => i.qualityScore));
+              const isBest = item.qualityScore === maxScore;
+              return (
+                <TableCell key={item.id} align="center">
+                  <Typography
+                    variant="body2"
+                    sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
+                  >
+                    {item.qualityScore}<Typography component="span" sx={{ color: 'text.disabled', fontSize: '.58rem' }}>/100</Typography>
+                  </Typography>
+                </TableCell>
               );
             })}
-          </div>
-        );
-      })}
-
-      <div className="cmp-table__row cmp-table__row--score" role="row">
-        <div className="cmp-table__cell cmp-table__cell--stat" role="rowheader">
-          {lang === 'en' ? 'Quality score' : 'Score qualité'}
-        </div>
-        {items.map((item) => {
-          const maxScore = Math.max(...items.map(i => i.qualityScore));
-          const isBest = item.qualityScore === maxScore;
-          return (
-            <div key={item.id} className={['cmp-table__cell cmp-table__cell--val', isBest && 'cmp-table__cell--best'].join(' ')} role="cell">
-              <span className="cmp-table__val" style={{ color: isBest ? item.color : undefined }}>
-                {item.qualityScore}<span className="cmp-table__stat-unit">/100</span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
@@ -237,20 +261,26 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'f
   if (!bp) return null;
 
   const entries = aggregateBlueprintResources(bp.slots, item.slotAssignments);
-  if (entries.length === 0) return <span className="cmp-mat__empty">—</span>;
+  if (entries.length === 0) return <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>;
 
   return (
-    <ul className="cmp-mat-list" aria-label={`${lang === 'en' ? 'Resources for' : 'Ressources pour'} ${item.blueprintName}`}>
+    <List dense disablePadding aria-label={`${lang === 'en' ? 'Resources for' : 'Ressources pour'} ${item.blueprintName}`}>
       {entries.map((entry) => (
-        <li key={entry.resourceName} className="cmp-mat-item">
-          <span className="cmp-mat-item__name">{entry.resourceName}</span>
-          <span className="cmp-mat-item__quality">
-            {summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
-          </span>
-          <span className="cmp-mat-item__qty">×{entry.totalScu.toFixed(2)} SCU</span>
-        </li>
+        <ListItem key={entry.resourceName} disablePadding sx={{ py: 0.25 }}>
+          <ListItemText
+            primary={entry.resourceName}
+            secondary={summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
+            slotProps={{
+              primary: { variant: 'body2', sx: { fontSize: '.75rem' } },
+              secondary: { variant: 'caption', sx: { fontSize: '.6rem' } },
+            }}
+          />
+          <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', ml: 1, flexShrink: 0 }}>
+            ×{entry.totalScu.toFixed(2)} SCU
+          </Typography>
+        </ListItem>
       ))}
-    </ul>
+    </List>
   );
 }
 
@@ -326,56 +356,71 @@ export function ComparisonModal() {
           </Box>
         ) : (
           <Box>
-            <div className="cmp-chips">
+            {/* Item chips */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 2 }}>
               {comparisonItems.map((item) => (
-                <div key={item.id} className="cmp-chip" style={{ '--chip-color': item.color } as React.CSSProperties}>
-                  <span className="cmp-chip__dot" style={{ background: item.color }} aria-hidden="true" />
-                  <CategoryBadge category={item.category} iconOnly />
-                  <span className="cmp-chip__name">{item.blueprintName}</span>
-                  <span className="cmp-chip__score">{item.qualityScore}/100</span>
-                  <button
-                    className="cmp-chip__remove"
-                    onClick={() => removeFromComparison(item.id)}
-                    aria-label={`${t('Remove', 'Retirer')} ${item.blueprintName}`}
-                  >
-                    ✕
-                  </button>
-                </div>
+                <Chip
+                  key={item.id}
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
+                      <CategoryBadge category={item.category} iconOnly />
+                      <span>{item.blueprintName}</span>
+                      <Typography component="span" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.62rem', color: 'text.secondary' }}>
+                        {item.qualityScore}/100
+                      </Typography>
+                    </Box>
+                  }
+                  variant="outlined"
+                  onDelete={() => removeFromComparison(item.id)}
+                  deleteIcon={<span style={{ fontSize: '.7rem' }}>✕</span>}
+                  sx={{ borderColor: item.color }}
+                />
               ))}
               {comparisonItems.length < 4 && (
-                <div className="cmp-chip cmp-chip--add">
-                  <span>{t('+ Add from Stats panel', '+ Ajouter depuis Stats')}</span>
-                </div>
+                <Chip
+                  label={t('+ Add from Stats panel', '+ Ajouter depuis Stats')}
+                  variant="outlined"
+                  sx={{ borderStyle: 'dashed', color: 'text.secondary' }}
+                />
               )}
-            </div>
+            </Box>
 
-            <div className="cmp-content">
+            {/* Radar + Stats sections */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
               {allStatKeys.length >= 3 && (
-                <div className="cmp-radar">
-                  <h3 className="cmp-section-title">{t('Radar', 'Radar')}</h3>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+                    {t('Radar', 'Radar')}
+                  </Typography>
                   <RadarChart items={comparisonItems} statKeys={allStatKeys} lang={lang} />
-                </div>
+                </Box>
               )}
-              <div className="cmp-stats">
-                <h3 className="cmp-section-title">{t('Stat breakdown', 'Détail des stats')}</h3>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+                  {t('Stat breakdown', 'Detail des stats')}
+                </Typography>
                 <StatTable items={comparisonItems} statKeys={allStatKeys} lang={lang} />
-              </div>
-            </div>
+              </Box>
+            </Box>
 
-            <div className="cmp-materials">
-              <h3 className="cmp-section-title">{t('Required resources', 'Ressources requises')}</h3>
-              <div className="cmp-materials__grid">
-                {comparisonItems.map((item) => (
-                  <div key={item.id} className="cmp-materials__col">
-                    <div className="cmp-materials__col-header" style={{ borderColor: item.color }}>
-                      <span className="cmp-chip__dot" style={{ background: item.color }} aria-hidden="true" />
-                      <span>{item.blueprintName}</span>
-                    </div>
-                    <ResourceSummary item={item} lang={lang} />
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Divider sx={{ my: 2 }} />
+
+            {/* Materials section */}
+            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1.5 }}>
+              {t('Required resources', 'Ressources requises')}
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${Math.min(comparisonItems.length, 2)}, 1fr)`, md: `repeat(${comparisonItems.length}, 1fr)` }, gap: 1.5 }}>
+              {comparisonItems.map((item) => (
+                <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, pb: 0.75, borderBottom: 2, borderColor: item.color }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
+                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.78rem' }}>{item.blueprintName}</Typography>
+                  </Box>
+                  <ResourceSummary item={item} lang={lang} />
+                </Paper>
+              ))}
+            </Box>
           </Box>
         )}
       </DialogContent>

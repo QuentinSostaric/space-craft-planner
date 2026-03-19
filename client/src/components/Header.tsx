@@ -6,6 +6,10 @@ import MuiBadge from '@mui/material/Badge';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
+import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
@@ -128,7 +132,7 @@ export function Header() {
                 }),
               }}
             >
-              Δ
+              <ChangeHistoryIcon sx={{ fontSize: '1.2rem' }} />
             </IconButton>
           )}
 
@@ -144,7 +148,7 @@ export function Header() {
               invisible={goals.length === 0}
               sx={{ '& .MuiBadge-badge': { fontSize: '.55rem', minWidth: 16, height: 16 } }}
             >
-              <span style={{ fontSize: '1.1rem' }}>🎯</span>
+              <TrackChangesIcon sx={{ fontSize: '1.2rem' }} />
             </MuiBadge>
           </IconButton>
 
@@ -158,7 +162,7 @@ export function Header() {
             title={theme === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
             size="small"
           >
-            {theme === 'dark' ? '☀' : '☾'}
+            {theme === 'dark' ? <LightModeIcon sx={{ fontSize: '1.2rem' }} /> : <DarkModeIcon sx={{ fontSize: '1.2rem' }} />}
           </IconButton>
 
           <ToggleButtonGroup

@@ -141,6 +141,8 @@ export type CategoryFilter = ItemCategory | 'all' | 'favorites' | 'obtainable';
 
 export type LibrarySegment = 'all' | 'inventory' | 'favorites' | 'obtainable';
 
+export type LegalityFilter = 'all' | 'lawful' | 'unlawful';
+
 export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
   'fps-weapon': { en: 'FPS Weapon', fr: 'Arme FPS' },
   'fps-magazine': { en: 'Magazine', fr: 'Chargeur' },

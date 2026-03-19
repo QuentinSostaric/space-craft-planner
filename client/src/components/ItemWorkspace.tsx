@@ -1,4 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableRow from '@mui/material/TableRow';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import MuiBadge from '@mui/material/Badge';
@@ -9,6 +23,18 @@ import Slider from '@mui/material/Slider';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import TimerIcon from '@mui/icons-material/Timer';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
+import FlagIcon from '@mui/icons-material/Flag';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import CloseIcon from '@mui/icons-material/Close';
 import { useCraft } from '../store/CraftContext';
 import { useI18n, loc } from '../i18n/I18nContext';
 import { useCraftSimulator, gppModifier } from '../hooks/useCraftSimulator';
@@ -139,7 +165,7 @@ function SlotCard({
               size="small"
               sx={{ fontSize: '.65rem' }}
             >
-              ✕
+              <CloseIcon sx={{ fontSize: '1rem' }} />
             </IconButton>
           </Box>
         </Box>
@@ -169,6 +195,13 @@ function SlotCard({
 
 /* ─── QualityScore ring ─────────────────────────────────────────────────── */
 
+const TIER_COLORS: Record<string, string> = {
+  excellent: tokens.success,
+  good: tokens.blue,
+  fair: tokens.warning,
+  poor: tokens.danger,
+};
+
 function QualityScore({ score }: { score: number }) {
   const { t } = useI18n();
   const tier = score >= 80 ? 'excellent' : score >= 50 ? 'good' : score >= 25 ? 'fair' : 'poor';
@@ -178,21 +211,36 @@ function QualityScore({ score }: { score: number }) {
     fair: t('Fair', 'Moyen'),
     poor: t('Poor', 'Faible'),
   };
+  const tierColor = TIER_COLORS[tier];
+
   return (
-    <div className="quality-score" aria-label={`${t('Build index', 'Indice de build')}: ${score}/100`}>
-      <div className="quality-score__ring" style={{ '--score': score } as React.CSSProperties}>
-        <svg viewBox="0 0 44 44" aria-hidden="true">
-          <circle className="quality-score__track" cx="22" cy="22" r="18" />
-          <circle className={`quality-score__fill quality-score__fill--${tier}`} cx="22" cy="22" r="18"
-            strokeDasharray={`${(score / 100) * 113.1} 113.1`} strokeDashoffset="0" />
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }} aria-label={`${t('Build index', 'Indice de build')}: ${score}/100`}>
+      <Box sx={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
+        <svg viewBox="0 0 44 44" aria-hidden="true" style={{ width: '100%', height: '100%' }}>
+          <circle cx="22" cy="22" r="18" fill="none" stroke={tokens.border} strokeWidth="3" />
+          <circle cx="22" cy="22" r="18" fill="none" stroke={tierColor} strokeWidth="3"
+            strokeDasharray={`${(score / 100) * 113.1} 113.1`} strokeDashoffset="0"
+            strokeLinecap="butt" transform="rotate(-90 22 22)" />
         </svg>
-        <span className="quality-score__value">{score}</span>
-      </div>
-      <div className="quality-score__label">
-        <span className="quality-score__title">{t('Build index', 'Indice de build')}</span>
-        <span className={`quality-score__tier quality-score__tier--${tier}`}>{labels[tier]}</span>
-      </div>
-    </div>
+        <Typography
+          variant="caption"
+          sx={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, fontSize: '.7rem',
+          }}
+        >
+          {score}
+        </Typography>
+      </Box>
+      <Box>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.6rem', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block' }}>
+          {t('Build index', 'Indice de build')}
+        </Typography>
+        <Typography variant="body2" sx={{ fontWeight: 700, color: tierColor, fontSize: '.78rem' }}>
+          {labels[tier]}
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 
@@ -208,25 +256,49 @@ function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { baseSta
       if (base === 0) return null;
       const pct = ((projected as number) / base - 1) * 100;
       const isImproved = STAT_LOWER_IS_BETTER.has(key) ? pct < 0 : pct > 0;
-      return { key, label: STAT_LABELS[key]?.[lang] ?? String(key), pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
+      return { key, label: STAT_LABELS[key]?.[lang] ?? String(key), base, projected: projected as number, pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
     })
-    .filter(Boolean) as Array<{ key: keyof ItemStats; label: string; pct: number; isImproved: boolean; isNeutral: boolean }>;
+    .filter(Boolean) as Array<{ key: keyof ItemStats; label: string; base: number; projected: number; pct: number; isImproved: boolean; isNeutral: boolean }>;
 
   if (rows.length === 0) return null;
   return (
-    <section className="combined-mods">
-      <h3 className="combined-mods__title"><span aria-hidden="true">⚡</span> {t('Final Combined Modifiers', 'Modificateurs combines')}</h3>
-      <div className="combined-mods__list">
-        {rows.map((r) => (
-          <div key={r.key} className="combined-mods__row">
-            <span className="combined-mods__stat">{r.label}</span>
-            <span className={['combined-mods__val', !r.isNeutral && (r.isImproved ? 'combined-mods__val--better' : 'combined-mods__val--worse')].filter(Boolean).join(' ')}>
-              {r.pct > 0 ? '+' : ''}{r.pct.toFixed(2)}%
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
+    <Box component="section">
+      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}>
+        <ElectricBoltIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'text-bottom' }} /> {t('Final Combined Modifiers', 'Modificateurs combines')}
+      </Typography>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small" aria-label={t('Stats modifiers', 'Modificateurs de stats')}>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.key}>
+                <TableCell sx={{ fontSize: '.72rem', py: 0.5, borderBottom: `1px solid ${tokens.border}` }}>
+                  {r.label}
+                </TableCell>
+                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.7rem', py: 0.5, color: 'text.secondary', borderBottom: `1px solid ${tokens.border}` }}>
+                  {r.base.toFixed(2)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.7rem', py: 0.5, borderBottom: `1px solid ${tokens.border}` }}>
+                  {r.projected.toFixed(2)}
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontFamily: "'Share Tech Mono', monospace",
+                    fontWeight: 600,
+                    fontSize: '.7rem',
+                    py: 0.5,
+                    borderBottom: `1px solid ${tokens.border}`,
+                    color: r.isNeutral ? 'text.secondary' : r.isImproved ? 'success.main' : 'error.main',
+                  }}
+                >
+                  {r.pct > 0 ? '+' : ''}{r.pct.toFixed(2)}%
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }
 
@@ -236,19 +308,31 @@ function ResourceSummary({ entries }: { entries: AggregatedResource[] }) {
   const { lang, t } = useI18n();
   if (entries.length === 0) return null;
   return (
-    <section className="sim-resources">
-      <h3 className="sim-resources__title">{t('Required Resources', 'Ressources necessaires')}</h3>
-      <ul className="res-list" aria-label={t('Required resources', 'Ressources necessaires')}>
+    <Box component="section">
+      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}>
+        {t('Required Resources', 'Ressources necessaires')}
+      </Typography>
+      <List dense disablePadding aria-label={t('Required resources', 'Ressources necessaires')}>
         {entries.map((entry) => (
-          <li key={entry.resourceName} className="res-item">
-            <ResourceIcon name={entry.resourceName} size={16} />
-            <span className="res-item__name">{entry.resourceName}</span>
-            <span className="res-item__quality">{summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}</span>
-            <span className="res-item__qty">&times;{entry.totalScu.toFixed(2)} SCU</span>
-          </li>
+          <ListItem key={entry.resourceName} disablePadding sx={{ py: 0.25 }}>
+            <ListItemIcon sx={{ minWidth: 28 }}>
+              <ResourceIcon name={entry.resourceName} size={16} />
+            </ListItemIcon>
+            <ListItemText
+              primary={entry.resourceName}
+              secondary={summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
+              slotProps={{
+                primary: { variant: 'body2', sx: { fontSize: '.78rem' } },
+                secondary: { variant: 'caption', sx: { fontSize: '.6rem' } },
+              }}
+            />
+            <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', ml: 1, flexShrink: 0 }}>
+              ×{entry.totalScu.toFixed(2)} SCU
+            </Typography>
+          </ListItem>
         ))}
-      </ul>
-    </section>
+      </List>
+    </Box>
   );
 }
 
@@ -257,36 +341,57 @@ function ResourceSummary({ entries }: { entries: AggregatedResource[] }) {
 function AcquisitionSources({ contracts, loading }: { contracts: MissionContract[]; loading: boolean }) {
   const { lang, t } = useI18n();
   if (loading) {
-    return <div className="acq-sources"><p className="acq-sources__loading">{t('Loading mission data...', 'Chargement des missions...')}</p></div>;
+    return (
+      <Box sx={{ p: 2, color: 'text.secondary' }}>
+        <Typography>{t('Loading mission data...', 'Chargement des missions...')}</Typography>
+      </Box>
+    );
   }
   if (contracts.length === 0) {
     return (
-      <div className="acq-sources acq-sources--empty">
-        <p className="acq-sources__empty">{t('No known contract reward for this blueprint.', 'Aucune recompense de contrat connue pour ce blueprint.')}</p>
-      </div>
+      <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+        <Typography>{t('No known contract reward for this blueprint.', 'Aucune recompense de contrat connue pour ce blueprint.')}</Typography>
+      </Box>
     );
   }
   return (
-    <div className="acq-sources">
-      <ul className="acq-sources__list">
-        {contracts.map((contract) => (
-          <li key={`${contract.contractFile ?? ''}-${contract.contractDebugName ?? ''}`} className="acq-sources__item">
-            <div className="acq-sources__item-head">
-              <span className="acq-sources__item-name">{contract.contractDebugName ?? 'Unknown contract'}</span>
-              <span className="acq-sources__item-scale">{formatScaleLabel(contract.availability.derivedScale, lang)}</span>
-            </div>
-            <p className="acq-sources__item-meta">
-              {contract.contractorDisplayName ?? contract.faction?.displayName ?? 'Unknown'}{' - '}{formatLocations(contract, lang)}
-            </p>
-            <p className="acq-sources__item-meta">{formatStanding(contract, lang)}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <List disablePadding>
+      {contracts.map((contract) => (
+        <ListItem
+          key={`${contract.contractFile ?? ''}-${contract.contractDebugName ?? ''}`}
+          sx={{ flexDirection: 'column', alignItems: 'stretch', py: 1, borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.25 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.78rem' }}>
+              {contract.contractDebugName ?? 'Unknown contract'}
+            </Typography>
+            <Chip
+              label={formatScaleLabel(contract.availability.derivedScale, lang)}
+              size="small"
+              variant="outlined"
+              color="primary"
+              sx={{ fontSize: '.58rem', height: 20 }}
+            />
+          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.68rem' }}>
+            {contract.contractorDisplayName ?? contract.faction?.displayName ?? 'Unknown'}{' — '}{formatLocations(contract, lang)}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.68rem' }}>
+            {formatStanding(contract, lang)}
+          </Typography>
+        </ListItem>
+      ))}
+    </List>
   );
 }
 
 /* ─── DismantleTab ──────────────────────────────────────────────────────── */
+
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high: tokens.success,
+  medium: tokens.warning,
+  low: tokens.danger,
+};
 
 function DismantleTab() {
   const { dismantlingData } = useCraft();
@@ -295,9 +400,9 @@ function DismantleTab() {
 
   if (!dismantlingData || !dismantling?.blueprint || !dismantling.globalParams) {
     return (
-      <div className="dismantle dismantle--empty">
-        <p>{t('No dismantling data available for this dataset.', 'Aucune donnee de demontage disponible pour ce dataset.')}</p>
-      </div>
+      <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+        <Typography>{t('No dismantling data available for this dataset.', 'Aucune donnee de demontage disponible pour ce dataset.')}</Typography>
+      </Box>
     );
   }
 
@@ -307,72 +412,103 @@ function DismantleTab() {
   const perItemYieldModel = dismantling.perItemYieldModel ?? null;
   const observedFields = perItemYieldModel?.observedRuntimeFields ?? [];
 
+  const stats = [
+    { label: t('Efficiency', 'Efficacite'), value: `${Math.round(dismantleBlueprint.efficiency * 100)}%` },
+    { label: t('Time', 'Temps'), value: `${dismantleBlueprint.dismantleTimeSecs}s` },
+    { label: t('Default quality', 'Qualite par defaut'), value: String(globalParams.defaultCompositionQuality) },
+    { label: t('Quality multiplier', 'Multiplicateur qualite'), value: `×${globalParams.refiningQualityUnitMultiplier}` },
+  ];
+
   return (
-    <div className="dismantle">
-      <section className="dismantle__stats" aria-label={t('Dismantling stats', 'Stats de demontage')}>
-        <div className="dismantle__stat">
-          <span className="dismantle__stat-label">{t('Efficiency', 'Efficacite')}</span>
-          <span className="dismantle__stat-value">{Math.round(dismantleBlueprint.efficiency * 100)}%</span>
-        </div>
-        <div className="dismantle__stat">
-          <span className="dismantle__stat-label">{t('Time', 'Temps')}</span>
-          <span className="dismantle__stat-value">{dismantleBlueprint.dismantleTimeSecs}s</span>
-        </div>
-        <div className="dismantle__stat">
-          <span className="dismantle__stat-label">{t('Default quality', 'Qualite par defaut')}</span>
-          <span className="dismantle__stat-value">{globalParams.defaultCompositionQuality}</span>
-        </div>
-        <div className="dismantle__stat">
-          <span className="dismantle__stat-label">{t('Quality multiplier', 'Multiplicateur qualite')}</span>
-          <span className="dismantle__stat-value">&times;{globalParams.refiningQualityUnitMultiplier}</span>
-        </div>
-      </section>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Stats grid */}
+      <Box component="section" aria-label={t('Dismantling stats', 'Stats de demontage')} sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+        {stats.map((s) => (
+          <Paper key={s.label} variant="outlined" sx={{ p: 1.5, textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.6rem', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block' }}>
+              {s.label}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, fontSize: '.9rem' }}>
+              {s.value}
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
 
       {fabricator && (
-        <section className="dismantle__fabricator">
-          <h3 className="dismantle__section-title">{t('Fabricator', 'Fabricateur')}</h3>
-          <p className="dismantle__meta">{fabricator.displayName} — {fabricator.inventoryOccupancyScu} SCU</p>
+        <Box component="section">
+          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}>
+            {t('Fabricator', 'Fabricateur')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem', mb: 0.5 }}>
+            {fabricator.displayName} — {fabricator.inventoryOccupancyScu} SCU
+          </Typography>
           {fabricator.queues.length > 0 && (
-            <ul className="dismantle__queues">
+            <List dense disablePadding>
               {fabricator.queues.map((q) => (
-                <li key={q.debugName} className="dismantle__queue">
-                  {q.debugName}: {q.maxJobsInProgress} {t('active', 'actifs')}, {q.maxJobsWaiting} {t('queued', 'en attente')}
-                </li>
+                <ListItem key={q.debugName} disablePadding sx={{ py: 0.25 }}>
+                  <ListItemText
+                    primary={`${q.debugName}: ${q.maxJobsInProgress} ${t('active', 'actifs')}, ${q.maxJobsWaiting} ${t('queued', 'en attente')}`}
+                    slotProps={{ primary: { variant: 'caption', sx: { fontSize: '.7rem' } } }}
+                  />
+                </ListItem>
               ))}
-            </ul>
+            </List>
           )}
-        </section>
+        </Box>
       )}
 
       {perItemYieldModel && (
-        <section className="dismantle__yield">
-          <h3 className="dismantle__section-title">{t('Per-item yield model', 'Modele de rendement par item')}</h3>
-          <p className="dismantle__meta">
+        <Box component="section">
+          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}>
+            {t('Per-item yield model', 'Modele de rendement par item')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem' }}>
             {perItemYieldModel.resolved
               ? t('Resolved', 'Resolu')
               : t('Unresolved — yields cannot be predicted per item yet.', 'Non resolu — les rendements par item ne sont pas encore previsibles.')}
-          </p>
-          {perItemYieldModel.reason && <p className="dismantle__meta">{perItemYieldModel.reason}</p>}
-          {observedFields.length > 0 && (
-            <p className="dismantle__meta">{t('Observed fields', 'Champs observes')}: {observedFields.join(', ')}</p>
+          </Typography>
+          {perItemYieldModel.reason && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.68rem' }}>{perItemYieldModel.reason}</Typography>
           )}
-        </section>
+          {observedFields.length > 0 && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.68rem' }}>
+              {t('Observed fields', 'Champs observes')}: {observedFields.join(', ')}
+            </Typography>
+          )}
+        </Box>
       )}
 
       {meta?.confidence && (
-        <section className="dismantle__confidence-section">
-          <h3 className="dismantle__section-title">{t('Extraction confidence', 'Confiance extraction')}</h3>
-          <div className="dismantle__confidence-grid">
-            <span>{t('Global process', 'Processus global')}</span>
-            <span className={`dismantle__confidence dismantle__confidence--${meta.confidence.globalProcess}`}>{meta.confidence.globalProcess}</span>
-            <span>{t('UI shape', 'Forme UI')}</span>
-            <span className={`dismantle__confidence dismantle__confidence--${meta.confidence.uiResultShape}`}>{meta.confidence.uiResultShape}</span>
-            <span>{t('Per-item table', 'Table par item')}</span>
-            <span className={`dismantle__confidence dismantle__confidence--${meta.confidence.perItemYieldTable}`}>{meta.confidence.perItemYieldTable}</span>
-          </div>
-        </section>
+        <Box component="section">
+          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}>
+            {t('Extraction confidence', 'Confiance extraction')}
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 0.5, alignItems: 'center' }}>
+            {([
+              [t('Global process', 'Processus global'), meta.confidence.globalProcess],
+              [t('UI shape', 'Forme UI'), meta.confidence.uiResultShape],
+              [t('Per-item table', 'Table par item'), meta.confidence.perItemYieldTable],
+            ] as [string, string][]).map(([label, level]) => (
+              <Box key={label} sx={{ display: 'contents' }}>
+                <Typography variant="caption" sx={{ fontSize: '.7rem' }}>{label}</Typography>
+                <Chip
+                  label={level}
+                  size="small"
+                  sx={{
+                    fontSize: '.58rem',
+                    height: 18,
+                    color: CONFIDENCE_COLORS[level] ?? 'text.secondary',
+                    borderColor: CONFIDENCE_COLORS[level] ?? tokens.border,
+                  }}
+                  variant="outlined"
+                />
+              </Box>
+            ))}
+          </Box>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -468,7 +604,6 @@ export function ItemWorkspace() {
       {/* Context bar */}
       <Box
         component="header"
-        className="workspace__context"
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -482,7 +617,7 @@ export function ItemWorkspace() {
         }}
       >
         <Button variant="ghost" size="sm" onClick={() => setActiveBlueprint(null)}>
-          ← {t('Library', 'Bibliothèque')}
+          <ArrowBackIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> {t('Library', 'Bibliothèque')}
         </Button>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
           <CategoryBadge category={activeBlueprint.category} iconOnly />
@@ -502,9 +637,12 @@ export function ItemWorkspace() {
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {activeBlueprint.manufacturer}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            ⏱ {craftMinutes}m
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, ml: 1 }}>
+            <TimerIcon sx={{ fontSize: '.8rem', color: 'text.disabled' }} />
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              {craftMinutes}m
+            </Typography>
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <IconButton
@@ -516,7 +654,7 @@ export function ItemWorkspace() {
               ...(isLooted && { color: 'primary.main', backgroundColor: 'rgba(139, 92, 246, 0.1)' }),
             }}
           >
-            {isLooted ? '◉' : '◎'}
+            {isLooted ? <CheckCircleIcon sx={{ fontSize: '1.1rem' }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: '1.1rem' }} />}
           </IconButton>
           <IconButton
             onClick={() => toggleFavorite(activeBlueprint.id)}
@@ -527,7 +665,7 @@ export function ItemWorkspace() {
               ...(isFavorite && { color: 'warning.main' }),
             }}
           >
-            {isFavorite ? '★' : '☆'}
+            {isFavorite ? <StarIcon sx={{ fontSize: '1.2rem' }} /> : <StarBorderIcon sx={{ fontSize: '1.2rem' }} />}
           </IconButton>
         </Box>
       </Box>
@@ -557,99 +695,117 @@ export function ItemWorkspace() {
 
       {/* Tab content */}
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }} role="tabpanel">
-        {effectiveTab === 'overview' && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div className="simulator__score-row">
+        <Container maxWidth="sm" disableGutters>
+          {effectiveTab === 'overview' && (
+            <Stack spacing={2}>
               <QualityScore score={qualityScore} />
-            </div>
-            <CombinedModifiers blueprint={activeBlueprint} projectedStats={projectedStats} />
-            <ResourceSummary entries={requiredResources} />
+              <CombinedModifiers blueprint={activeBlueprint} projectedStats={projectedStats} />
+              <ResourceSummary entries={requiredResources} />
 
-            {/* Acquisition summary in overview */}
-            {acquisitionContracts.length > 0 && (
-              <section className="overview__acq-summary">
-                <h3 className="overview__section-title">
-                  <span aria-hidden="true">⚑</span> {t('Mission Sources', 'Sources de missions')}
-                  <span className="overview__section-count">{acquisitionContracts.length}</span>
-                </h3>
-                <button className="overview__link-btn" onClick={() => setActiveItemTab('acquisition')}>
-                  {t('View all contracts', 'Voir tous les contrats')} →
-                </button>
-              </section>
-            )}
-
-            {/* Actions */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('Qty', 'Qte')}</Typography>
-                <TextField
-                  type="number"
-                  size="small"
-                  value={qty}
-                  onChange={(e) => setQty(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
-                  slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 48, textAlign: 'center', padding: '4px 6px' } } }}
-                  sx={{ width: 64 }}
-                />
-              </Box>
-              <Button variant="gradient" size="md" fullWidth onClick={() => addGoal(qualityScore, projectedStats, qty)}>
-                📋 {t('Add to Planner', 'Ajouter au planificateur')}
-              </Button>
-              <Button variant="secondary" size="md" fullWidth
-                onClick={() => addToComparison(qualityScore, projectedStats)}
-                disabled={!canAddToComparison}
-                style={{ position: 'relative', overflow: 'hidden' } as React.CSSProperties}>
-                {canAddToComparison && <span className="btn-compare__dot" style={{ background: nextColor }} aria-hidden="true" />}
-                ◇ {t('Compare', 'Comparer')}
-                {!canAddToComparison && <span style={{ fontSize: '.7rem', marginLeft: 4, opacity: 0.6 }}>max 4</span>}
-              </Button>
-              {comparisonItems.length > 0 && (
-                <button className="stats-panel__cmp-badge" onClick={openComparison}
-                  aria-label={`${t('Open comparison', 'Ouvrir la comparaison')} (${comparisonItems.length})`}>
-                  {comparisonItems.map((item) => (
-                    <span key={item.id} className="stats-panel__cmp-dot" style={{ background: item.color }} aria-hidden="true" />
-                  ))}
-                  <span>{comparisonItems.length} {t('in comparison', 'en comparaison')}</span>
-                </button>
+              {/* Acquisition summary in overview */}
+              {acquisitionContracts.length > 0 && (
+                <Paper variant="outlined" sx={{ p: 1.5 }} component="section">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                        <FlagIcon sx={{ fontSize: '1rem' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", fontSize: '.85rem', color: 'text.primary' }}>
+                          {t('Mission Sources', 'Sources de missions')}
+                        </Typography>
+                      </Box>
+                      <Chip label={acquisitionContracts.length} size="small" color="primary" sx={{ fontSize: '.6rem', height: 18, minWidth: 18 }} />
+                    </Box>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveItemTab('acquisition')}>
+                      {t('View all contracts', 'Voir tous les contrats')} <ArrowForwardIcon sx={{ fontSize: '.8rem', ml: 0.5 }} />
+                    </Button>
+                  </Box>
+                </Paper>
               )}
-            </Box>
-          </Box>
-        )}
 
-        {effectiveTab === 'craft' && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-              <QualityScore score={qualityScore} />
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <Button variant="ghost" size="sm" onClick={() => fillSlots('max')}>{t('Max quality', 'Qualite max')}</Button>
-                <Button variant="ghost" size="sm" onClick={() => fillSlots('minimum')}>{t('Minimum valid', 'Minimum valide')}</Button>
-                <Button variant="ghost" size="sm" onClick={clearAssignments}>{t('Clear', 'Effacer')}</Button>
+              <Divider />
+
+              {/* Actions */}
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('Qty', 'Qte')}</Typography>
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={qty}
+                    onChange={(e) => setQty(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
+                    slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 48, textAlign: 'center', padding: '4px 6px' } } }}
+                    sx={{ width: 64 }}
+                  />
+                </Box>
+                <Button variant="gradient" size="md" fullWidth onClick={() => addGoal(qualityScore, projectedStats, qty)}>
+                  {t('Add to Planner', 'Ajouter au planificateur')}
+                </Button>
+                <Button variant="secondary" size="md" fullWidth
+                  onClick={() => addToComparison(qualityScore, projectedStats)}
+                  disabled={!canAddToComparison}
+                  style={{ position: 'relative', overflow: 'hidden' } as React.CSSProperties}>
+                  {canAddToComparison && (
+                    <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: nextColor, mr: 0.5 }} aria-hidden="true" />
+                  )}
+                  <CompareArrowsIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> {t('Compare', 'Comparer')}
+                  {!canAddToComparison && <Typography component="span" sx={{ fontSize: '.7rem', ml: 0.5, opacity: 0.6 }}>max 4</Typography>}
+                </Button>
+                {comparisonItems.length > 0 && (
+                  <Chip
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {comparisonItems.map((item) => (
+                          <Box key={item.id} component="span" sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color }} aria-hidden="true" />
+                        ))}
+                        <span>{comparisonItems.length} {t('in comparison', 'en comparaison')}</span>
+                      </Box>
+                    }
+                    variant="outlined"
+                    onClick={openComparison}
+                    aria-label={`${t('Open comparison', 'Ouvrir la comparaison')} (${comparisonItems.length})`}
+                    sx={{ cursor: 'pointer' }}
+                  />
+                )}
+              </Stack>
+            </Stack>
+          )}
+
+          {effectiveTab === 'craft' && (
+            <Stack spacing={2}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <QualityScore score={qualityScore} />
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Button variant="ghost" size="sm" onClick={() => fillSlots('max')}>{t('Max quality', 'Qualite max')}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => fillSlots('minimum')}>{t('Minimum valid', 'Minimum valide')}</Button>
+                  <Button variant="ghost" size="sm" onClick={clearAssignments}>{t('Clear', 'Effacer')}</Button>
+                </Box>
               </Box>
-            </Box>
 
-            <Typography
-              variant="h6"
-              sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em' }}
-            >
-              <span aria-hidden="true">⚙</span> {t('Parts', 'Composants')}
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {activeBlueprint.slots.map((slot) => (
-                <SlotCard key={slot.id} slot={slot} qualityValue={slotAssignments[slot.id]}
-                  onQualityChange={(value) => assignQuality(slot.id, value)} />
-              ))}
-            </Box>
-            <CombinedModifiers blueprint={activeBlueprint} projectedStats={projectedStats} />
-            <ResourceSummary entries={requiredResources} />
-          </Box>
-        )}
+              <Typography
+                variant="h6"
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em' }}
+              >
+                <SettingsIcon sx={{ fontSize: '1rem' }} /> {t('Parts', 'Composants')}
+              </Typography>
+              <Stack spacing={1}>
+                {activeBlueprint.slots.map((slot) => (
+                  <SlotCard key={slot.id} slot={slot} qualityValue={slotAssignments[slot.id]}
+                    onQualityChange={(value) => assignQuality(slot.id, value)} />
+                ))}
+              </Stack>
+              <CombinedModifiers blueprint={activeBlueprint} projectedStats={projectedStats} />
+              <ResourceSummary entries={requiredResources} />
+            </Stack>
+          )}
 
-        {effectiveTab === 'acquisition' && (
-          <AcquisitionSources contracts={acquisitionContracts} loading={missionRewardsLoading} />
-        )}
+          {effectiveTab === 'acquisition' && (
+            <AcquisitionSources contracts={acquisitionContracts} loading={missionRewardsLoading} />
+          )}
 
-        {effectiveTab === 'dismantle' && (
-          <DismantleTab />
-        )}
+          {effectiveTab === 'dismantle' && (
+            <DismantleTab />
+          )}
+        </Container>
       </Box>
     </Box>
   );

@@ -1,9 +1,13 @@
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import Paper from '@mui/material/Paper';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import Drawer from '@mui/material/Drawer';
+import SettingsIcon from '@mui/icons-material/Settings';
 import theme from './theme';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { CraftProvider } from './store/CraftContext';
@@ -53,7 +57,7 @@ function MainContent({ onToggleFilters, filtersOpen }: { onToggleFilters: () => 
             ...(filtersOpen && { color: 'primary.main', backgroundColor: 'rgba(139, 92, 246, 0.1)' }),
           }}
         >
-          ⚙
+          <SettingsIcon sx={{ fontSize: '1.1rem' }} />
         </IconButton>
 
         <Tabs
@@ -86,90 +90,114 @@ function AppShell() {
   const { t } = useI18n();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  const sidebarWidth = 280;
+
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <div className="app">
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
         <a className="skip-link" href="#main-content">
           {t('Skip to main content', 'Aller au contenu principal')}
         </a>
         <Header />
-        <main id="main-content" className="app-status" aria-live="polite">
-          <div className="app-status__panel">
-            <h2 className="app-status__title">
-              {t('Loading published dataset', 'Chargement du dataset publié')}
-            </h2>
-            <p className="app-status__message">
+        <Box component="main" id="main-content" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
+          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
+            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1 }}>
+              {t('Loading published dataset', 'Chargement du dataset publie')}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {t(
                 'The app is connecting to the published MongoDB dataset.',
-                'L\'application se connecte au dataset publié sur MongoDB.',
+                'L\'application se connecte au dataset publie sur MongoDB.',
               )}
-            </p>
-          </div>
-        </main>
-      </div>
+            </Typography>
+          </Paper>
+        </Box>
+      </Box>
     );
   }
 
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <div className="app">
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
         <a className="skip-link" href="#main-content">
           {t('Skip to main content', 'Aller au contenu principal')}
         </a>
         <Header />
-        <main id="main-content" className="app-status" aria-live="assertive">
-          <div className="app-status__panel app-status__panel--error">
-            <h2 className="app-status__title">
-              {t('Published dataset unavailable', 'Dataset publié indisponible')}
-            </h2>
-            <p className="app-status__message">{datasetError}</p>
-            <p className="app-status__hint">
+        <Box component="main" id="main-content" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
+          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
+            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1, color: 'error.main' }}>
+              {t('Published dataset unavailable', 'Dataset publie indisponible')}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
               {t(
                 'This app no longer bundles local dataset snapshots. The runtime API must be available.',
-                'Cette app n\'embarque plus de snapshots locaux. L\'API runtime doit être disponible.',
+                'Cette app n\'embarque plus de snapshots locaux. L\'API runtime doit etre disponible.',
               )}
-            </p>
-          </div>
-        </main>
-      </div>
+            </Typography>
+          </Paper>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="app">
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
       <a className="skip-link" href="#main-content">
         {t('Skip to main content', 'Aller au contenu principal')}
       </a>
       <Header />
-      <div className="app__body">
-        <main id="main-content" className="dashboard">
-          <aside
-            className={['dashboard__col dashboard__col--left', filtersOpen && 'dashboard__col--left--open'].filter(Boolean).join(' ')}
-            aria-label={t('Blueprint filters', 'Filtres blueprints')}
-          >
-            <BlueprintExplorer />
-          </aside>
-          {/* Mobile backdrop */}
-          {filtersOpen && (
-            <div
-              className="filters-backdrop"
-              onClick={() => setFiltersOpen(false)}
-              aria-hidden="true"
-            />
-          )}
-          <section
-            className="dashboard__col dashboard__col--center"
-            aria-label={t('Content', 'Contenu')}
-          >
-            <MainContent onToggleFilters={() => setFiltersOpen((v) => !v)} filtersOpen={filtersOpen} />
-          </section>
-        </main>
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {/* Desktop sidebar */}
+        <Box
+          component="aside"
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            width: sidebarWidth,
+            flexShrink: 0,
+            borderRight: 1,
+            borderColor: 'divider',
+            height: '100%',
+            overflowY: 'auto',
+          }}
+          aria-label={t('Blueprint filters', 'Filtres blueprints')}
+        >
+          <BlueprintExplorer />
+        </Box>
+
+        {/* Mobile sidebar (Drawer) */}
+        <Drawer
+          variant="temporary"
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: sidebarWidth },
+          }}
+          aria-label={t('Blueprint filters', 'Filtres blueprints')}
+        >
+          <BlueprintExplorer />
+        </Drawer>
+
+        <Box
+          component="main"
+          id="main-content"
+          sx={{
+            flex: 1,
+            height: '100%',
+            overflow: 'hidden',
+          }}
+          aria-label={t('Content', 'Contenu')}
+        >
+          <MainContent onToggleFilters={() => setFiltersOpen((v) => !v)} filtersOpen={filtersOpen} />
+        </Box>
         <PlannerDrawer />
-      </div>
+      </Box>
       <Footer />
       <ComparisonModal />
       <DatasetChangelog />
-    </div>
+    </Box>
   );
 }
 

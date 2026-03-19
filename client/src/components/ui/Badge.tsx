@@ -72,15 +72,33 @@ export function CategoryBadge({ category, iconOnly = false, shimmer = false }: C
   const { lang } = useI18n();
   const label = CATEGORY_LABELS[category][lang];
   return (
-    <span className={`badge badge--category badge--category-${category}`} aria-label={label}>
-      <GameIcon
-        name={CAT_GAME_ICON[category]}
-        size={14}
-        shimmer={shimmer}
-        hue={CAT_HUE[category]}
-      />
-      {!iconOnly && <span>{label}</span>}
-    </span>
+    <Chip
+      icon={
+        <GameIcon
+          name={CAT_GAME_ICON[category]}
+          size={14}
+          shimmer={shimmer}
+          hue={CAT_HUE[category]}
+        />
+      }
+      label={!iconOnly ? label : undefined}
+      size="small"
+      variant="outlined"
+      aria-label={label}
+      sx={{
+        borderColor: tokens.border,
+        color: 'text.secondary',
+        height: 24,
+        '& .MuiChip-icon': {
+          ml: 0.5,
+          mr: iconOnly ? 0.5 : 0,
+        },
+        ...(iconOnly && {
+          width: 24,
+          '& .MuiChip-label': { display: 'none' },
+        }),
+      }}
+    />
   );
 }
 

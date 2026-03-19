@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -12,6 +23,7 @@ import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { CategoryBadge } from './ui/Badge';
 import { ResourceIcon } from './ui/ResourceIcon';
 import { Button } from './ui/Button';
+import { tokens } from '../theme';
 import type {
   AggregatedResource,
   CraftGoal,
@@ -132,25 +144,25 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
       </DialogTitle>
 
       <DialogContent dividers>
-        <div className="goal-edit-modal__slots">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {blueprint.slots.map((slot: MaterialSlot) => {
             const assignedValue = assignments[slot.id];
             return (
-              <div key={slot.id} className="goal-edit__slot">
-                <div className="goal-edit__slot-info">
+              <Box key={slot.id} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <ResourceIcon name={slot.requiredResource} size={16} />
-                  <span className="goal-edit__slot-resource">{slot.requiredResource}</span>
-                  <span className="goal-edit__slot-scu">{slot.quantityScu.toFixed(2)} SCU</span>
+                  <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{slot.requiredResource}</Typography>
+                  <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", color: 'text.secondary' }}>
+                    {slot.quantityScu.toFixed(2)} SCU
+                  </Typography>
                   {slot.minQuality != null && slot.minQuality > 0 && (
-                    <span className="goal-edit__slot-min">Min {slot.minQuality}</span>
+                    <Chip label={`Min ${slot.minQuality}`} size="small" variant="outlined" sx={{ fontSize: '.6rem', height: 20, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
                   )}
-                </div>
-                <div className="goal-edit__slot-controls">
-                  <input
-                    className="goal-edit__slot-input"
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <TextField
                     type="number"
-                    min={0}
-                    max={1000}
+                    size="small"
                     value={assignedValue ?? ''}
                     placeholder="0-1000"
                     onChange={(event) =>
@@ -159,28 +171,27 @@ function GoalEditModal({ goal, onClose }: { goal: CraftGoal; onClose: () => void
                         event.target.value === '' ? undefined : Number(event.target.value),
                       )
                     }
+                    slotProps={{ htmlInput: { min: 0, max: 1000, style: { width: 60, textAlign: 'center', padding: '4px 6px' } } }}
                     aria-label={t(
                       `Assigned quality for ${slot.requiredResource}`,
                       `Qualite assignee pour ${slot.requiredResource}`,
                     )}
+                    sx={{ width: 80 }}
                   />
-                  <button
-                    className="goal-edit__slot-btn"
-                    onClick={() => setSlotQuality(slot.id, slot.minQuality ?? 0)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setSlotQuality(slot.id, slot.minQuality ?? 0)}>
                     {t('Min', 'Min')}
-                  </button>
-                  <button className="goal-edit__slot-btn" onClick={() => setSlotQuality(slot.id, 1000)}>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSlotQuality(slot.id, 1000)}>
                     {t('Max', 'Max')}
-                  </button>
-                  <button className="goal-edit__slot-btn" onClick={() => setSlotQuality(slot.id, undefined)}>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSlotQuality(slot.id, undefined)}>
                     {t('Clear', 'Effacer')}
-                  </button>
-                </div>
-              </div>
+                  </Button>
+                </Box>
+              </Box>
             );
           })}
-        </div>
+        </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 1.5 }}>
@@ -226,11 +237,13 @@ function GoalCard({
   };
 
   return (
-    <article
-      className={['goal-card', isActive && 'goal-card--active'].filter(Boolean).join(' ')}
-      aria-label={`${t('Goal', 'Objectif')}: ${goal.blueprintName}`}
-      role="button"
-      tabIndex={0}
+    <Card
+      sx={{
+        cursor: 'pointer',
+        borderColor: isActive ? tokens.violet : tokens.border,
+        backgroundColor: isActive ? tokens.surface2 : tokens.surface1,
+        '&:hover': { borderColor: tokens.borderStrong },
+      }}
       onClick={onSelect}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -238,80 +251,75 @@ function GoalCard({
           onSelect();
         }
       }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${t('Goal', 'Objectif')}: ${goal.blueprintName}`}
     >
-      <div className="goal-card__header">
-        {blueprint && <CategoryBadge category={blueprint.category} iconOnly />}
-        <div className="goal-card__info">
-          <h4 className="goal-card__name">{goal.blueprintName}</h4>
-          <span className="goal-card__score">
-            {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
-          </span>
-        </div>
-        <div className="goal-card__actions">
-          <button
-            className="goal-card__edit"
-            onClick={(event) => {
-              stopPropagation(event);
-              onEdit();
-            }}
-            aria-label={`${t('Edit', 'Modifier')} ${goal.blueprintName}`}
-          >
-            ✎
-          </button>
-          <button
-            className="goal-card__remove"
-            onClick={(event) => {
-              stopPropagation(event);
-              onRemove();
-            }}
-            aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      <div className="goal-card__qty">
-        <label htmlFor={`qty-${goal.id}`} className="goal-card__qty-label">
-          {t('Qty', 'Qte')}
-        </label>
-        <div className="goal-card__qty-ctrl">
-          <button
-            className="goal-card__qty-btn"
-            onClick={(event) => {
-              stopPropagation(event);
-              onQtyChange(Math.max(1, goal.quantity - 1));
-            }}
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          {blueprint && <CategoryBadge category={blueprint.category} iconOnly />}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.85rem', lineHeight: 1.2 }}>
+              {goal.blueprintName}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace", fontSize: '.62rem' }}>
+              {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 0.25 }}>
+            <IconButton
+              size="small"
+              onClick={(event) => { stopPropagation(event); onEdit(); }}
+              aria-label={`${t('Edit', 'Modifier')} ${goal.blueprintName}`}
+              sx={{ fontSize: '.75rem' }}
+            >
+              ✎
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={(event) => { stopPropagation(event); onRemove(); }}
+              aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}
+              sx={{ fontSize: '.7rem', color: 'error.main' }}
+            >
+              ✕
+            </IconButton>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '.65rem' }}>
+            {t('Qty', 'Qte')}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={(event) => { stopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
             aria-label={t('Decrease', 'Reduire')}
+            sx={{ width: 22, height: 22, fontSize: '.7rem' }}
           >
             −
-          </button>
-          <input
-            id={`qty-${goal.id}`}
+          </IconButton>
+          <TextField
             type="number"
-            min={1}
-            max={99}
+            size="small"
             value={goal.quantity}
             onClick={stopPropagation}
             onFocus={stopPropagation}
             onChange={(event) =>
               onQtyChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
             }
-            className="goal-card__qty-input"
+            slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 32, textAlign: 'center', padding: '2px 4px', fontSize: '.75rem' } } }}
+            sx={{ width: 48 }}
           />
-          <button
-            className="goal-card__qty-btn"
-            onClick={(event) => {
-              stopPropagation(event);
-              onQtyChange(Math.min(99, goal.quantity + 1));
-            }}
+          <IconButton
+            size="small"
+            onClick={(event) => { stopPropagation(event); onQtyChange(Math.min(99, goal.quantity + 1)); }}
             aria-label={t('Increase', 'Augmenter')}
+            sx={{ width: 22, height: 22, fontSize: '.7rem' }}
           >
             +
-          </button>
-        </div>
-      </div>
-    </article>
+          </IconButton>
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -319,29 +327,35 @@ function RequiredMaterialsSection({ aggregated }: { aggregated: AggregatedResour
   const { lang, t } = useI18n();
 
   if (aggregated.length === 0) {
-    return <p className="planner__empty">{t('Add goals to see required materials.', 'Ajoutez des objectifs pour voir les materiaux requis.')}</p>;
+    return <Typography variant="body2" sx={{ color: 'text.secondary', py: 1, fontSize: '.78rem' }}>{t('Add goals to see required materials.', 'Ajoutez des objectifs pour voir les materiaux requis.')}</Typography>;
   }
 
   return (
-    <ul className="planner-materials" aria-label={t('Required materials', 'Materiaux requis')}>
+    <List dense disablePadding aria-label={t('Required materials', 'Materiaux requis')}>
       {aggregated.map((entry) => (
-        <li key={entry.resourceName} className="planner-materials__item">
-          <div className="planner-materials__main">
+        <ListItem key={entry.resourceName} disableGutters sx={{ py: 0.5 }}>
+          <ListItemIcon sx={{ minWidth: 28 }}>
             <ResourceIcon name={entry.resourceName} size={16} />
-            <span className="planner-materials__name">{entry.resourceName}</span>
-            <span className="planner-materials__quality">
-              {summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
-            </span>
-          </div>
-          <div className="planner-materials__meta">
+          </ListItemIcon>
+          <ListItemText
+            primary={entry.resourceName}
+            secondary={summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
+            slotProps={{
+              primary: { sx: { fontSize: '.78rem', fontWeight: 600 } },
+              secondary: { sx: { fontSize: '.65rem' } },
+            }}
+          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
             {entry.minRequiredQuality != null && (
-              <span className="planner-materials__min">Min {entry.minRequiredQuality}</span>
+              <Chip label={`Min ${entry.minRequiredQuality}`} size="small" variant="outlined" sx={{ fontSize: '.55rem', height: 16, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
             )}
-            <span className="planner-materials__qty">×{entry.totalScu.toFixed(2)} SCU</span>
-          </div>
-        </li>
+            <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem' }}>
+              ×{entry.totalScu.toFixed(2)} SCU
+            </Typography>
+          </Box>
+        </ListItem>
       ))}
-    </ul>
+    </List>
   );
 }
 
@@ -357,55 +371,65 @@ function BlueprintSourcesSection({
   const { lang, t } = useI18n();
 
   if (loading) {
-    return <p className="planner__empty">{t('Loading mission reward data…', 'Chargement des donnees missions…')}</p>;
+    return <Typography variant="body2" sx={{ color: 'text.secondary', py: 1, fontSize: '.78rem' }}>{t('Loading mission reward data…', 'Chargement des donnees missions…')}</Typography>;
   }
 
   if (error) {
-    return <p className="planner__notice planner__notice--danger">{error}</p>;
+    return <Alert severity="error" variant="outlined" sx={{ fontSize: '.75rem' }}>{error}</Alert>;
   }
 
   if (sources.length === 0) {
-    return <p className="planner__empty">{t('Add goals to inspect blueprint acquisition sources.', 'Ajoutez des objectifs pour consulter les sources des blueprints.')}</p>;
+    return <Typography variant="body2" sx={{ color: 'text.secondary', py: 1, fontSize: '.78rem' }}>{t('Add goals to inspect blueprint acquisition sources.', 'Ajoutez des objectifs pour consulter les sources des blueprints.')}</Typography>;
   }
 
   return (
-    <div className="planner-sources">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       {sources.map((source) => (
-        <article key={source.blueprintName} className="planner-sources__card">
-          <div className="planner-sources__header">
-            <h4 className="planner-sources__title">{source.blueprintName}</h4>
-            <span className="planner-sources__count">
-              {source.contracts.length} {t('contract', 'contrat')}{source.contracts.length > 1 ? 's' : ''}
-            </span>
-          </div>
+        <Paper key={source.blueprintName} elevation={0} sx={{ border: 1, borderColor: 'divider', p: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="body2" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.85rem' }}>
+              {source.blueprintName}
+            </Typography>
+            <Chip
+              label={`${source.contracts.length} ${t('contract', 'contrat')}${source.contracts.length > 1 ? 's' : ''}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: '.55rem', height: 18 }}
+            />
+          </Box>
           {source.contracts.length === 0 ? (
-            <p className="planner__empty">{t('No matching blueprint reward contract found in the published dataset.', 'Aucun contrat correspondant n a ete trouve dans le dataset publie.')}</p>
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem' }}>
+              {t('No matching blueprint reward contract found in the published dataset.', 'Aucun contrat correspondant n a ete trouve dans le dataset publie.')}
+            </Typography>
           ) : (
-            <ul className="planner-sources__list">
+            <List dense disablePadding>
               {source.contracts.map((contract) => (
-                <li
+                <ListItem
                   key={`${contract.contractFile ?? ''}-${contract.contractDebugName ?? ''}`}
-                  className="planner-sources__item"
+                  disableGutters
+                  sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 0.5, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}
                 >
-                  <div className="planner-sources__item-head">
-                    <span className="planner-sources__item-name">{contract.contractDebugName ?? 'Unknown contract'}</span>
-                    <span className="planner-sources__item-scale">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.75rem' }}>
+                      {contract.contractDebugName ?? 'Unknown contract'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '.6rem', textTransform: 'uppercase' }}>
                       {formatScaleLabel(contract.availability.derivedScale, lang)}
-                    </span>
-                  </div>
-                  <p className="planner-sources__item-meta">
-                    {(contract.contractorDisplayName ?? contract.faction?.displayName ?? 'Unknown')}
-                    {' - '}
-                    {formatLocations(contract, lang)}
-                  </p>
-                  <p className="planner-sources__item-meta">{formatStanding(contract, lang)}</p>
-                </li>
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
+                    {contract.contractorDisplayName ?? contract.faction?.displayName ?? 'Unknown'}{' - '}{formatLocations(contract, lang)}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
+                    {formatStanding(contract, lang)}
+                  </Typography>
+                </ListItem>
               ))}
-            </ul>
+            </List>
           )}
-        </article>
+        </Paper>
       ))}
-    </div>
+    </Box>
   );
 }
 
@@ -416,8 +440,8 @@ function ResourceAcquisitionNotes() {
     missionRewards?.summary?.craftResourceRewardContractCount ?? 0;
 
   return (
-    <div className="planner-notes">
-      <p className="planner-notes__line">
+    <Alert severity="info" variant="outlined" sx={{ '& .MuiAlert-message': { fontSize: '.72rem' } }}>
+      <Typography variant="body2" sx={{ fontSize: '.72rem', mb: 0.5 }}>
         {explicitCraftResourceRewards > 0
           ? t(
               'This dataset includes explicit craft-resource contract rewards.',
@@ -427,24 +451,24 @@ function ResourceAcquisitionNotes() {
               'No explicit craft-resource contract rewards were found in the published contract data.',
               'Aucune recompense explicite en ressources de craft n a ete trouvee dans les contrats publies.',
             )}
-      </p>
+      </Typography>
       {dismantlingData?.dismantling?.blueprint && (
-        <p className="planner-notes__line">
+        <Typography variant="body2" sx={{ fontSize: '.72rem', mb: 0.5 }}>
           {t(
             `Dismantling is available globally at ${Math.round(dismantlingData.dismantling.blueprint.efficiency * 100)}% efficiency and ${dismantlingData.dismantling.blueprint.dismantleTimeSecs}s per job.`,
             `Le demontage est disponible globalement a ${Math.round(dismantlingData.dismantling.blueprint.efficiency * 100)}% d efficacite et ${dismantlingData.dismantling.blueprint.dismantleTimeSecs}s par job.`,
           )}
-        </p>
+        </Typography>
       )}
       {dismantlingData?.dismantling?.perItemYieldModel?.resolved === false && (
-        <p className="planner-notes__line">
+        <Typography variant="body2" sx={{ fontSize: '.72rem' }}>
           {t(
             'Exact dismantle yields per item remain unresolved in the current dataset.',
             'Les rendements exacts de demontage par item restent non resolus dans le dataset actuel.',
           )}
-        </p>
+        </Typography>
       )}
-    </div>
+    </Alert>
   );
 }
 
@@ -551,88 +575,110 @@ export function PlannerPanel() {
     : `${goals.length} objectif${goals.length !== 1 ? 's' : ''}`;
 
   return (
-    <div className="planner-panel" aria-label={t('Resource planner', 'Planificateur de ressources')}>
-      <header className="planner-panel__header">
-        <p className="planner-panel__subtitle">
-          {goalWord} · {aggregated.length} {t('material', 'materiau')}{aggregated.length !== 1 ? 'x' : ''}
-        </p>
-      </header>
+    <Box component="section" aria-label={t('Resource planner', 'Planificateur de ressources')} sx={{ p: 2 }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, fontSize: '.75rem' }}>
+        {goalWord} · {aggregated.length} {t('material', 'materiau')}{aggregated.length !== 1 ? 'x' : ''}
+      </Typography>
 
-      <div className="planner-panel__body">
-        <section className="planner-panel__section">
-          <h3 className="planner-panel__section-title">
+      {/* Goals */}
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em' }}>
             {t('Goals', 'Objectifs')}
-            {goals.length > 0 && <span className="planner-panel__count">{goals.length}</span>}
-          </h3>
-          {goals.length === 0 ? (
-            <p className="planner__empty">
-              {t(
-                'No goals yet. Simulate a craft and click "Add to Planner".',
-                'Aucun objectif pour le moment. Simulez un craft puis cliquez sur "Ajouter au planificateur".',
-              )}
-            </p>
-          ) : (
-            <>
-              {unavailableGoalCount > 0 && (
-                <p className="planner__notice">
-                  {t(
-                    `${unavailableGoalCount} saved goal(s) are not available in the current ${activeChannel.toUpperCase()} dataset.`,
-                    `${unavailableGoalCount} objectif(s) enregistres ne sont pas disponibles dans le dataset ${activeChannel.toUpperCase()} actif.`,
-                  )}
-                </p>
-              )}
-              <div className="goal-list">
-                {goals.map((goal) => (
-                  <GoalCard
-                    key={goal.id}
-                    goal={goal}
-                    isActive={activeBlueprint?.id === goal.blueprintId}
-                    onRemove={() => removeGoal(goal.id)}
-                    onQtyChange={(quantity) => updateGoalQuantity(goal.id, quantity)}
-                    onEdit={() => setEditingGoalId(goal.id)}
-                    onSelect={() => selectGoalBlueprint(goal.id)}
-                  />
-                ))}
-              </div>
-            </>
+          </Typography>
+          {goals.length > 0 && (
+            <Chip label={goals.length} size="small" sx={{ height: 18, fontSize: '.6rem' }} />
           )}
-        </section>
+        </Box>
+        {goals.length === 0 ? (
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.78rem' }}>
+            {t(
+              'No goals yet. Simulate a craft and click "Add to Planner".',
+              'Aucun objectif pour le moment. Simulez un craft puis cliquez sur "Ajouter au planificateur".',
+            )}
+          </Typography>
+        ) : (
+          <>
+            {unavailableGoalCount > 0 && (
+              <Alert severity="warning" variant="outlined" sx={{ mb: 1, fontSize: '.72rem' }}>
+                {t(
+                  `${unavailableGoalCount} saved goal(s) are not available in the current ${activeChannel.toUpperCase()} dataset.`,
+                  `${unavailableGoalCount} objectif(s) enregistres ne sont pas disponibles dans le dataset ${activeChannel.toUpperCase()} actif.`,
+                )}
+              </Alert>
+            )}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {goals.map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  isActive={activeBlueprint?.id === goal.blueprintId}
+                  onRemove={() => removeGoal(goal.id)}
+                  onQtyChange={(quantity) => updateGoalQuantity(goal.id, quantity)}
+                  onEdit={() => setEditingGoalId(goal.id)}
+                  onSelect={() => selectGoalBlueprint(goal.id)}
+                />
+              ))}
+            </Box>
+          </>
+        )}
+      </Box>
 
-        <section className="planner-panel__section">
-          <h3 className="planner-panel__section-title">{t('Required Materials', 'Materiaux requis')}</h3>
-          <RequiredMaterialsSection aggregated={aggregated} />
-        </section>
+      <Divider sx={{ my: 2 }} />
 
-        <section className="planner-panel__section">
-          <h3 className="planner-panel__section-title">{t('Blueprint Sources', 'Sources des blueprints')}</h3>
-          <BlueprintSourcesSection
-            sources={goalSources}
-            loading={missionRewardsLoading}
-            error={missionRewardsError}
-          />
-        </section>
+      {/* Required Materials */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+          {t('Required Materials', 'Materiaux requis')}
+        </Typography>
+        <RequiredMaterialsSection aggregated={aggregated} />
+      </Box>
 
-        <section className="planner-panel__section">
-          <h3 className="planner-panel__section-title">{t('Resource Acquisition Notes', 'Notes d acquisition des ressources')}</h3>
-          <ResourceAcquisitionNotes />
-        </section>
+      <Divider sx={{ my: 2 }} />
 
-        {goals.length > 0 && (
-          <section className="planner-panel__section planner-export">
-            <h3 className="planner-panel__section-title">{t('Export', 'Export')}</h3>
-            <div className="planner-export__btns">
+      {/* Blueprint Sources */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+          {t('Blueprint Sources', 'Sources des blueprints')}
+        </Typography>
+        <BlueprintSourcesSection
+          sources={goalSources}
+          loading={missionRewardsLoading}
+          error={missionRewardsError}
+        />
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+
+      {/* Notes */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+          {t('Resource Acquisition Notes', 'Notes d acquisition des ressources')}
+        </Typography>
+        <ResourceAcquisitionNotes />
+      </Box>
+
+      {/* Export */}
+      {goals.length > 0 && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Box>
+            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+              {t('Export', 'Export')}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <Button variant="ghost" size="sm" onClick={handleCopyText}>
                 {t('Copy as text', 'Copier en texte')}
               </Button>
               <Button variant="ghost" size="sm" onClick={handleDownloadJSON}>
                 {t('Download JSON', 'Telecharger JSON')}
               </Button>
-            </div>
-          </section>
-        )}
-      </div>
+            </Box>
+          </Box>
+        </>
+      )}
 
       {editingGoal && <GoalEditModal goal={editingGoal} onClose={() => setEditingGoalId(null)} />}
-    </div>
+    </Box>
   );
 }

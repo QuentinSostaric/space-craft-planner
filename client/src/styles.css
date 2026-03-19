@@ -81,7 +81,7 @@
 
   /* Layout */
   --header-h:   56px;
-  --col-left:   220px;
+  --col-left:   280px;
   --col-right:  360px;
 
   /* Font */
@@ -2784,7 +2784,7 @@ body::after {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   :root {
-    --col-left:  200px;
+    --col-left:  260px;
   }
 }
 

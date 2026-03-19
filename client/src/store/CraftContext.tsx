@@ -20,6 +20,7 @@ import type {
   GameDataset,
   ItemStats,
   ItemTab,
+  LegalityFilter,
   LibrarySegment,
   MissionRewardsData,
 } from '../types';
@@ -71,7 +72,13 @@ interface CraftState {
   categoryFilter: CategoryFilter;
   searchQuery: string;
   librarySegment: LibrarySegment;
+  manufacturerFilter: string | null;
+  legalityFilter: LegalityFilter;
+  locationFilter: string | null;
   setLibrarySegment: (segment: LibrarySegment) => void;
+  setManufacturerFilter: (manufacturer: string | null) => void;
+  setLegalityFilter: (legality: LegalityFilter) => void;
+  setLocationFilter: (location: string | null) => void;
   favoriteIds: string[];
   inventoryIds: string[];
   slotAssignments: Record<string, number | undefined>;
@@ -128,6 +135,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('all');
+  const [manufacturerFilter, setManufacturerFilter] = useState<string | null>(null);
+  const [legalityFilter, setLegalityFilter] = useState<LegalityFilter>('all');
+  const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [slotAssignments, setSlotAssignments] = useState<Record<string, number | undefined>>({});
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
@@ -434,7 +444,13 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         categoryFilter,
         searchQuery,
         librarySegment,
+        manufacturerFilter,
+        legalityFilter,
+        locationFilter,
         setLibrarySegment,
+        setManufacturerFilter,
+        setLegalityFilter,
+        setLocationFilter,
         favoriteIds,
         inventoryIds,
         slotAssignments,
