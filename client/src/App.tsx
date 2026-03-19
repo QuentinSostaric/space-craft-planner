@@ -15,12 +15,11 @@ import { useEffect, useState } from 'react';
 
 type MainView = 'blueprints' | 'missions';
 
-function MainContent() {
+function MainContent({ onToggleFilters, filtersOpen }: { onToggleFilters: () => void; filtersOpen: boolean }) {
   const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
   const { t } = useI18n();
   const [mainView, setMainView] = useState<MainView>('blueprints');
 
-  // Load missions when switching to missions view or when no blueprint is selected
   useEffect(() => {
     if (mainView === 'missions' || !activeBlueprint) {
       void ensureMissionRewardsLoaded();
@@ -33,27 +32,39 @@ function MainContent() {
 
   return (
     <div className="main-content">
-      <nav className="main-tabs" role="tablist" aria-label={t('Main view', 'Vue principale')}>
+      <div className="main-tabs-row">
+        {/* Mobile filter toggle */}
         <button
-          className={['main-tab', mainView === 'blueprints' && 'main-tab--active'].filter(Boolean).join(' ')}
-          role="tab"
-          aria-selected={mainView === 'blueprints'}
-          onClick={() => setMainView('blueprints')}
+          className={['main-filter-toggle', filtersOpen && 'main-filter-toggle--active'].filter(Boolean).join(' ')}
+          onClick={onToggleFilters}
+          aria-expanded={filtersOpen}
+          aria-label={t('Toggle filters', 'Afficher les filtres')}
         >
-          {t('Blueprints', 'Blueprints')}
+          ⚙ {t('Filters', 'Filtres')}
         </button>
-        <button
-          className={['main-tab', mainView === 'missions' && 'main-tab--active'].filter(Boolean).join(' ')}
-          role="tab"
-          aria-selected={mainView === 'missions'}
-          onClick={() => {
-            setMainView('missions');
-            void ensureMissionRewardsLoaded();
-          }}
-        >
-          {t('Missions', 'Missions')}
-        </button>
-      </nav>
+
+        <nav className="main-tabs" role="tablist" aria-label={t('Main view', 'Vue principale')}>
+          <button
+            className={['main-tab', mainView === 'blueprints' && 'main-tab--active'].filter(Boolean).join(' ')}
+            role="tab"
+            aria-selected={mainView === 'blueprints'}
+            onClick={() => setMainView('blueprints')}
+          >
+            {t('Blueprints', 'Blueprints')}
+          </button>
+          <button
+            className={['main-tab', mainView === 'missions' && 'main-tab--active'].filter(Boolean).join(' ')}
+            role="tab"
+            aria-selected={mainView === 'missions'}
+            onClick={() => {
+              setMainView('missions');
+              void ensureMissionRewardsLoaded();
+            }}
+          >
+            {t('Missions', 'Missions')}
+          </button>
+        </nav>
+      </div>
 
       {mainView === 'blueprints' ? (
         <BlueprintGrid />
@@ -67,6 +78,7 @@ function MainContent() {
 function AppShell() {
   const { activeDataset, datasetLoading, datasetError } = useCraft();
   const { t } = useI18n();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
@@ -126,16 +138,24 @@ function AppShell() {
       <div className="app__body">
         <main id="main-content" className="dashboard">
           <aside
-            className="dashboard__col dashboard__col--left"
+            className={['dashboard__col dashboard__col--left', filtersOpen && 'dashboard__col--left--open'].filter(Boolean).join(' ')}
             aria-label={t('Blueprint filters', 'Filtres blueprints')}
           >
             <BlueprintExplorer />
           </aside>
+          {/* Mobile backdrop */}
+          {filtersOpen && (
+            <div
+              className="filters-backdrop"
+              onClick={() => setFiltersOpen(false)}
+              aria-hidden="true"
+            />
+          )}
           <section
             className="dashboard__col dashboard__col--center"
             aria-label={t('Content', 'Contenu')}
           >
-            <MainContent />
+            <MainContent onToggleFilters={() => setFiltersOpen((v) => !v)} filtersOpen={filtersOpen} />
           </section>
         </main>
         <PlannerDrawer />

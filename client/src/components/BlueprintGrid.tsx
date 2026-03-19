@@ -42,6 +42,7 @@ function BlueprintCard({
         `Blueprint ${blueprint.name} par ${blueprint.manufacturer}`,
       )}
     >
+      {/* Top row: category + status badges */}
       <div className="bp-card__header">
         <CategoryBadge category={blueprint.category} />
         <div className="bp-card__badges">
@@ -51,29 +52,36 @@ function BlueprintCard({
           {isInInventory && (
             <span className="bp-card__inv-indicator" aria-label={t('In inventory', 'En inventaire')}>◉</span>
           )}
-          {contractCount > 0 && (
-            <span
-              className="bp-card__mission-badge"
-              title={t(`${contractCount} mission contracts`, `${contractCount} contrats de mission`)}
-            >
-              ⚑ {contractCount}
+        </div>
+      </div>
+
+      {/* Primary: item name */}
+      <h3 className="bp-card__name">{blueprint.name}</h3>
+
+      {/* Secondary: manufacturer */}
+      <p className="bp-card__manufacturer">{blueprint.manufacturer}</p>
+      {/* Footer: contract missions badge + craft meta */}
+      <div className="bp-card__footer">
+        {contractCount > 0 && (
+          <span
+            className="bp-card__mission-badge bp-card__mission-badge--footer"
+            title={t(`${contractCount} mission contracts`, `${contractCount} contrats de mission`)}
+          >
+            ⚑ {contractCount} {t('mission', 'mission')}{contractCount > 1 ? 's' : ''}
+          </span>
+        )}
+        <div className="bp-card__meta">
+          <span className="bp-card__slots">
+            {blueprint.slots.length} {t('mat.', 'mat.')}
+          </span>
+          {blueprint.craftTimeSecs > 0 && (
+            <span className="bp-card__craft-time">
+              {blueprint.craftTimeSecs >= 60
+                ? `${Math.round(blueprint.craftTimeSecs / 60)} min`
+                : `${blueprint.craftTimeSecs}s`}
             </span>
           )}
         </div>
-      </div>
-      <h3 className="bp-card__name">{blueprint.name}</h3>
-      <p className="bp-card__manufacturer">{blueprint.manufacturer}</p>
-      <div className="bp-card__meta">
-        <span className="bp-card__slots">
-          {blueprint.slots.length} {t('material', 'matériau')}{blueprint.slots.length !== 1 ? 's' : ''}
-        </span>
-        {blueprint.craftTimeSecs > 0 && (
-          <span className="bp-card__craft-time">
-            {blueprint.craftTimeSecs >= 60
-              ? `${Math.round(blueprint.craftTimeSecs / 60)} min`
-              : `${blueprint.craftTimeSecs}s`}
-          </span>
-        )}
       </div>
     </article>
   );
