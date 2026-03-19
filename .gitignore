@@ -54,3 +54,4 @@ venv/
 /exporter/source-game-files/*
 !/exporter/source-game-files/README.md
 /.claude/
+.superpowers/
