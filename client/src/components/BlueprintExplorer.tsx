@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
+import { CategoryBadge } from './ui/Badge';
 import type { CategoryFilter, LibrarySegment } from '../types';
 
 const CATEGORY_FILTERS: { value: CategoryFilter; labelEn: string; labelFr: string }[] = [
@@ -22,6 +23,8 @@ const SEGMENTS: { value: LibrarySegment; labelEn: string; labelFr: string }[] = 
 
 export function BlueprintExplorer() {
   const {
+    activeBlueprint,
+    setActiveBlueprint,
     categoryFilter,
     setCategoryFilter,
     searchQuery,
@@ -35,6 +38,21 @@ export function BlueprintExplorer() {
 
   return (
     <section className="explorer" aria-label={t('Blueprint filters', 'Filtres blueprints')}>
+      {/* Active blueprint indicator */}
+      {activeBlueprint && (
+        <div className="explorer__active-bp">
+          <CategoryBadge category={activeBlueprint.category} iconOnly />
+          <span className="explorer__active-bp-name">{activeBlueprint.name}</span>
+          <button
+            className="explorer__active-bp-close"
+            onClick={() => setActiveBlueprint(null)}
+            aria-label={t('Back to library', 'Retour à la bibliothèque')}
+            title={t('Back to library', 'Retour à la bibliothèque')}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {/* Search */}
       <div className="explorer__search">
         <label className="sr-only" htmlFor={searchId}>{t('Search blueprints', 'Rechercher des blueprints')}</label>

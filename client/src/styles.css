@@ -495,6 +495,28 @@ body::after {
   overflow: hidden;
 }
 
+.workspace__back-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.workspace__back-btn:hover {
+  color: var(--c-text);
+  border-color: var(--c-border-strong);
+}
+
 .workspace__context {
   display: flex;
   align-items: center;
@@ -879,6 +901,45 @@ body::after {
 .panel--sunken  { background: rgba(17,24,39,.6); border-color: transparent; }
 .panel--glow    { border-color: var(--c-violet); }
 .panel--no-pad  { padding: 0; }
+
+/* ── Explorer active blueprint indicator ────────────────────────────────────── */
+.explorer__active-bp {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-surface-1);
+  border: 1px solid var(--c-violet);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.explorer__active-bp-name {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--c-text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer__active-bp-close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .7rem;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 150ms;
+}
+.explorer__active-bp-close:hover { color: var(--c-text); }
 
 /* ── Blueprint Explorer (Filter panel only) ─────────────────────────────────── */
 .explorer {

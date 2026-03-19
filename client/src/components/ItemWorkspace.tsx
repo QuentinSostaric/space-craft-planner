@@ -404,6 +404,13 @@ export function ItemWorkspace() {
     <section className="workspace" aria-label={`${t('Item workspace', 'Espace item')} - ${activeBlueprint.name}`}>
       {/* Context bar */}
       <header className="workspace__context">
+        <button
+          className="workspace__back-btn"
+          onClick={() => setActiveBlueprint(null)}
+          aria-label={t('Back to blueprint library', 'Retour à la bibliothèque')}
+        >
+          ← {t('Library', 'Bibliothèque')}
+        </button>
         <div className="workspace__context-info">
           <CategoryBadge category={activeBlueprint.category} iconOnly />
           <h2 className="workspace__bp-name">{activeBlueprint.name}</h2>
