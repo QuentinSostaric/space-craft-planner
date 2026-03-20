@@ -10,17 +10,15 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import SearchIcon from '@mui/icons-material/Search';
-import PlaceIcon from '@mui/icons-material/Place';
-import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
-import GavelIcon from '@mui/icons-material/Gavel';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
+import { ScaleBadge } from './ui/RarityBadge';
+import { StatBar } from './ui/StatBar';
 import { tokens } from '../theme';
 import {
   formatContractName,
-  formatLocations,
   formatScaleLabel,
   formatStanding,
 } from '../utils/crafting';
@@ -198,12 +196,29 @@ function ContractCard({
   onBlueprintClick: (blueprintId: string) => void;
 }) {
   const { lang } = useI18n();
-  const hasStanding = contract.minimumRequiredStandings.length > 0;
   const factionType = group.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
 
+  const maxStanding = Math.max(
+    0,
+    ...contract.minimumRequiredStandings.map((s) => s.minReputation ?? 0),
+  );
+  const standingLabel = contract.minimumRequiredStandings.length > 0
+    ? formatStanding(contract, lang)
+    : null;
+
+  // Max chance across all reward pools
+  const maxChance = Math.max(
+    0,
+    ...contract.rewardedBlueprints.map((bp) => bp.chance ?? 0),
+  );
+
+  const visibleBlueprints = contract.rewardedBlueprints.slice(0, 3);
+  const bpOverflow = contract.rewardedBlueprints.length - 3;
+
   return (
     <Card
+      role="listitem"
       sx={{
         borderColor: tokens.border,
         backgroundColor: tokens.surface1,
@@ -214,66 +229,34 @@ function ContractCard({
         },
       }}
     >
-      <Box sx={{ display: 'flex', minHeight: 80 }}>
-        {/* Left indicator zone */}
-        <Box
-          sx={{
-            width: 6,
-            minWidth: 6,
-            backgroundColor: isUnlawful ? tokens.danger : tokens.success,
-            opacity: 0.6,
-          }}
-          title={factionType || undefined}
-        />
+      <Box sx={{ p: '10px 12px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {/* Row 1: Scale badge + legality dot */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <ScaleBadge
+            scale={contract.availability.derivedScale}
+            label={formatScaleLabel(contract.availability.derivedScale, lang)}
+          />
+          <Box
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: isUnlawful ? tokens.danger : tokens.success,
+            }}
+            title={factionType || undefined}
+          />
+        </Box>
 
-        {/* Content zone */}
-        <Box
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            p: '8px 10px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-          }}
-        >
-          {/* Row 1: Contractor + scale */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <GavelIcon sx={{ fontSize: '.75rem', color: 'text.disabled' }} />
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'text.secondary',
-                  fontSize: '.6rem',
-                  fontWeight: 600,
-                }}
-              >
-                {group.contractorDisplayName}
-              </Typography>
-            </Box>
-            <Chip
-              label={formatScaleLabel(contract.availability.derivedScale, lang)}
-              size="small"
-              variant="outlined"
-              sx={{
-                height: 18,
-                fontSize: '.5rem',
-                borderColor: tokens.border,
-                color: tokens.violet,
-              }}
-            />
-          </Box>
-
-          {/* Row 2: Contract name */}
+        {/* Row 2: Contract name + meta */}
+        <Box>
           <Typography
-            variant="body2"
             sx={{
               fontFamily: "'Khand', sans-serif",
               fontWeight: 700,
-              fontSize: '.85rem',
+              fontSize: '.95rem',
               lineHeight: 1.2,
-              color: 'text.primary',
+              color: tokens.text,
+              textTransform: 'uppercase',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -281,31 +264,55 @@ function ContractCard({
           >
             {formatContractName(contract.contractDebugName)}
           </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: tokens.blueLight,
+              fontSize: '.6rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            {group.contractorDisplayName} // {group.faction?.displayName ?? ''}
+          </Typography>
+        </Box>
 
-          {/* Row 3: Location + standing */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-              <PlaceIcon sx={{ fontSize: '.65rem', color: 'text.disabled' }} />
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.55rem' }}>
-                {formatLocations(contract, lang)}
-              </Typography>
-            </Box>
-            {hasStanding && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                <StarIcon sx={{ fontSize: '.65rem', color: 'text.disabled' }} />
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.55rem' }}>
-                  {formatStanding(contract, lang)}
-                </Typography>
-              </Box>
-            )}
-          </Box>
+        {/* Row 3: Stat bars */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {standingLabel && (
+            <StatBar
+              label={lang === 'fr' ? 'Reputation' : 'Standing'}
+              value={standingLabel.length > 20 ? `Rep ${maxStanding}` : standingLabel}
+              fill={Math.min(100, (maxStanding / 5) * 100)}
+            />
+          )}
+          {maxChance > 0 && (
+            <StatBar
+              label={lang === 'fr' ? 'Chance' : 'Chance'}
+              value={`${Math.round(maxChance * 100)}%`}
+              fill={maxChance * 100}
+            />
+          )}
+        </Box>
 
-          {/* Row 4: Blueprint reward chips */}
-          {contract.rewardedBlueprints.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 'auto', pt: '2px' }}>
-              {contract.rewardedBlueprints.map((bp) => (
+        {/* Row 4: Rewarded blueprints */}
+        {contract.rewardedBlueprints.length > 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '.5rem',
+                color: tokens.textDim,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+            >
+              REWARDED_BLUEPRINTS
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {visibleBlueprints.map((bp, idx) => (
                 <Chip
-                  key={bp.id}
+                  key={`${bp.id}-${idx}`}
                   label={bp.name}
                   icon={bp.category ? <CategoryBadge category={bp.category} iconOnly /> : undefined}
                   size="small"
@@ -322,9 +329,17 @@ function ContractCard({
                   }}
                 />
               ))}
+              {bpOverflow > 0 && (
+                <Chip
+                  label={`+${bpOverflow}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '.55rem' }}
+                />
+              )}
             </Box>
-          )}
-        </Box>
+          </Box>
+        )}
       </Box>
     </Card>
   );
@@ -521,8 +536,16 @@ export function MissionsPanel() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
               gap: 1,
+              '@media (min-width: 480px) and (max-width: 599px)': {
+                gridTemplateColumns: 'repeat(2, 1fr)',
+              },
             }}
             role="list"
             aria-label={t('Contract list', 'Liste des contrats')}
