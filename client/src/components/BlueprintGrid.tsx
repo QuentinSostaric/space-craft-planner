@@ -6,18 +6,19 @@ import CardMedia from '@mui/material/CardMedia';
 import Typography from '@mui/material/Typography';
 import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import FlagIcon from '@mui/icons-material/Flag';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
+import { RarityBadge } from './ui/RarityBadge';
+import { StatBar } from './ui/StatBar';
+import { MaterialChips } from './ui/MaterialChips';
 import { tokens } from '../theme';
-import { buildBlueprintContractCountMap } from '../utils/crafting';
+import { buildBlueprintContractCountMap, CARD_STATS, computeStatMaxima } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
-import type { Blueprint, ItemCategory } from '../types';
+import { STAT_UNITS } from '../types';
+import type { Blueprint, ItemCategory, NumericItemStatKey, Resource } from '../types';
 import type { GameIconName } from './ui/GameIcon';
-
-const THUMB_SIZE = 80;
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon':    'weapons',
@@ -41,7 +42,9 @@ function BlueprintCard({
   isActive,
   isFavorite,
   isInInventory,
-  contractCount,
+  contractCount: _contractCount,
+  statMaxima,
+  resources,
   onClick,
 }: {
   blueprint: Blueprint;
@@ -49,23 +52,25 @@ function BlueprintCard({
   isFavorite: boolean;
   isInInventory: boolean;
   contractCount: number;
+  statMaxima: Map<NumericItemStatKey, number>;
+  resources: Resource[];
   onClick: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { url: thumbUrl, mode: thumbMode } = resolveThumb(blueprint);
   const [imgError, setImgError] = useState(false);
   const showImage = thumbUrl && !imgError;
 
-  const mfrLogoUrl = blueprint.media?.manufacturerLogo?.imageUrl ?? null;
-  // Show inline manufacturer logo only when primaryVisual is present (not when logo IS the thumbnail)
-  const showInlineMfrLogo = thumbMode === 'item' && showImage && mfrLogoUrl;
+  const cardStats = CARD_STATS[blueprint.category] ?? [];
 
   return (
     <Card
+      role="listitem"
       sx={{
         borderColor: isActive ? tokens.violet : isInInventory ? tokens.borderStrong : tokens.border,
         backgroundColor: isActive ? tokens.surface2 : tokens.surface1,
         transition: 'border-color 150ms, background-color 150ms',
+        cursor: 'pointer',
         '&:hover': {
           borderColor: isActive ? tokens.violet : tokens.borderStrong,
           backgroundColor: tokens.surface2,
@@ -76,150 +81,154 @@ function BlueprintCard({
         onClick={onClick}
         aria-pressed={isActive}
         aria-label={t(
-          `Blueprint ${blueprint.name} by ${blueprint.manufacturer}`,
-          `Blueprint ${blueprint.name} par ${blueprint.manufacturer}`,
+          `${blueprint.rarity ? blueprint.rarity + ' ' : ''}Blueprint ${blueprint.name} by ${blueprint.manufacturer}`,
+          `Blueprint ${blueprint.rarity ? blueprint.rarity + ' ' : ''}${blueprint.name} par ${blueprint.manufacturer}`,
         )}
-        sx={{ height: '100%' }}
+        sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
       >
-        <Box sx={{ display: 'flex', height: THUMB_SIZE }}>
-          {/* Thumbnail zone */}
-          <Box
-            sx={{
-              width: THUMB_SIZE,
-              minWidth: THUMB_SIZE,
-              height: THUMB_SIZE,
-              backgroundColor: tokens.bgSubtle,
-              borderRight: `1px solid ${tokens.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              transition: 'filter 150ms',
-              '&:hover': { filter: 'brightness(1.1)' },
-            }}
-          >
-            {showImage ? (
-              <CardMedia
-                component="img"
-                image={thumbUrl}
-                alt=""
-                loading="lazy"
-                onError={() => setImgError(true)}
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: thumbMode === 'item' ? 'contain' : 'contain',
-                  p: thumbMode === 'logo' ? '12px' : '4px',
-                }}
-              />
+        <Box sx={{ p: '10px 12px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Row 1: Rarity badge + status icons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {blueprint.rarity ? (
+              <RarityBadge rarity={blueprint.rarity} />
             ) : (
-              /* Fallback: category icon */
-              <GameIcon
-                name={CAT_ICON[blueprint.category]}
-                size={32}
-                shimmer={false}
-              />
+              <CategoryBadge category={blueprint.category} />
             )}
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+              {isFavorite && (
+                <StarIcon sx={{ color: tokens.warning, fontSize: '.8rem' }} aria-label={t('Favorite', 'Favori')} />
+              )}
+              {isInInventory && (
+                <CheckCircleIcon sx={{ color: tokens.violet, fontSize: '.75rem' }} aria-label={t('In inventory', 'En inventaire')} />
+              )}
+            </Box>
           </Box>
 
-          {/* Content zone */}
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              p: '8px 10px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              gap: '2px',
-            }}
-          >
-            {/* Row 1: category + status icons */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <CategoryBadge category={blueprint.category} />
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                {isFavorite && (
-                  <StarIcon sx={{ color: tokens.warning, fontSize: '.8rem' }} aria-label={t('Favorite', 'Favori')} />
-                )}
-                {isInInventory && (
-                  <CheckCircleIcon sx={{ color: tokens.violet, fontSize: '.75rem' }} aria-label={t('In inventory', 'En inventaire')} />
-                )}
-              </Box>
-            </Box>
-
-            {/* Row 2: item name */}
-            <Typography
-              variant="body2"
+          {/* Row 2: Thumbnail + name */}
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+            <Box
               sx={{
-                fontFamily: "'Khand', sans-serif",
-                fontWeight: 700,
-                fontSize: '.88rem',
-                lineHeight: 1.2,
-                color: 'text.primary',
+                width: 64,
+                minWidth: 64,
+                height: 64,
+                backgroundColor: tokens.bgSubtle,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                border: `1px solid ${tokens.border}`,
               }}
             >
-              {blueprint.name}
-            </Typography>
-
-            {/* Row 3: manufacturer (with optional inline logo) */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
-              {showInlineMfrLogo && (
-                <Box
+              {showImage ? (
+                <CardMedia
                   component="img"
-                  src={mfrLogoUrl}
+                  image={thumbUrl}
                   alt=""
                   loading="lazy"
+                  onError={() => setImgError(true)}
                   sx={{
-                    width: 14,
-                    height: 14,
+                    width: '100%',
+                    height: '100%',
                     objectFit: 'contain',
-                    flexShrink: 0,
-                    opacity: 0.7,
+                    p: thumbMode === 'logo' ? '8px' : '2px',
                   }}
                 />
+              ) : (
+                <GameIcon name={CAT_ICON[blueprint.category]} size={28} shimmer={false} />
               )}
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontFamily: "'Khand', sans-serif",
+                  fontWeight: 700,
+                  fontSize: '.95rem',
+                  lineHeight: 1.2,
+                  color: tokens.text,
+                  textTransform: 'uppercase',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
+                {blueprint.name}
+              </Typography>
               <Typography
                 variant="caption"
                 sx={{
-                  color: 'text.secondary',
+                  color: tokens.blueLight,
                   fontSize: '.6rem',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
                 }}
               >
-                {blueprint.manufacturer}
+                {blueprint.manufacturer} // {blueprint.category.replace('fps-', '')}
               </Typography>
             </Box>
-
-            {/* Row 4: footer meta */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
-              {contractCount > 0 ? (
-                <Box
-                  sx={{ display: 'flex', alignItems: 'center', gap: 0.25, color: 'warning.main' }}
-                  title={t(`${contractCount} mission contracts`, `${contractCount} contrats de mission`)}
-                >
-                  <FlagIcon sx={{ fontSize: '.7rem' }} />
-                  <Typography variant="caption" sx={{ fontSize: '.55rem', fontWeight: 600 }}>
-                    {contractCount}
-                  </Typography>
-                </Box>
-              ) : <span />}
-              <Box sx={{ display: 'flex', gap: 0.75, fontSize: '.55rem', color: 'text.disabled' }}>
-                <span>{blueprint.slots.length} {t('mat.', 'mat.')}</span>
-                {blueprint.craftTimeSecs > 0 && (
-                  <span>
-                    {blueprint.craftTimeSecs >= 60
-                      ? `${Math.round(blueprint.craftTimeSecs / 60)} min`
-                      : `${blueprint.craftTimeSecs}s`}
-                  </span>
-                )}
-              </Box>
-            </Box>
           </Box>
+
+          {/* Row 3: Stat bars */}
+          {cardStats.length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              {cardStats.map(({ key, label }) => {
+                const val = blueprint.baseStats[key];
+                if (typeof val !== 'number' || val === 0) return null;
+                const max = statMaxima.get(key) ?? val;
+                const unit = STAT_UNITS[key] ?? '';
+                const displayVal = unit === '%'
+                  ? `${Math.round(val * 100)}%`
+                  : `${Math.round(val)}${unit ? ` ${unit}` : ''}`;
+                const fill = max > 0 ? (val / max) * 100 : 0;
+                return (
+                  <StatBar
+                    key={key}
+                    label={lang === 'fr' ? label.fr : label.en}
+                    value={displayVal}
+                    fill={fill}
+                  />
+                );
+              })}
+              {/* Ammo type chip for magazines */}
+              {blueprint.category === 'fps-magazine' && blueprint.baseStats.ammoType && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      width: 80,
+                      flexShrink: 0,
+                      fontSize: '.6rem',
+                      color: tokens.textMuted,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {lang === 'fr' ? 'Munition' : 'Ammo'}
+                  </Typography>
+                  <Box
+                    sx={{
+                      backgroundColor: tokens.surface2,
+                      px: 0.75,
+                      py: 0.25,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{ fontSize: '.55rem', color: tokens.textMuted, textTransform: 'uppercase' }}
+                    >
+                      {blueprint.baseStats.ammoType}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* Row 4: Materials */}
+          {blueprint.slots.length > 0 && (
+            <MaterialChips slots={blueprint.slots} resources={resources} />
+          )}
         </Box>
       </CardActionArea>
     </Card>
@@ -240,6 +249,7 @@ export function BlueprintGrid() {
     inventoryIds,
     blueprints: allBlueprints,
     missionRewards,
+    activeDataset,
   } = useCraft();
   const { t } = useI18n();
 
@@ -247,6 +257,9 @@ export function BlueprintGrid() {
     () => buildBlueprintContractCountMap(missionRewards),
     [missionRewards],
   );
+
+  const resources = activeDataset.resources;
+  const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
 
   const obtainableIds = useMemo(() => {
     const ids = new Set<string>();
@@ -370,8 +383,16 @@ export function BlueprintGrid() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
               gap: 1,
+              '@media (min-width: 480px) and (max-width: 599px)': {
+                gridTemplateColumns: 'repeat(2, 1fr)',
+              },
             }}
             role="list"
             aria-label={t('Blueprint list', 'Liste des blueprints')}
@@ -384,6 +405,8 @@ export function BlueprintGrid() {
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
                 contractCount={contractCountMap.get(blueprint.id) ?? 0}
+                statMaxima={statMaxima}
+                resources={resources}
                 onClick={() => setActiveBlueprint(activeBlueprint?.id === blueprint.id ? null : blueprint)}
               />
             ))}
