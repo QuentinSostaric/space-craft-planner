@@ -123,6 +123,7 @@ function BlueprintCard({
                   image={thumbUrl}
                   alt=""
                   loading="lazy"
+                  referrerPolicy="no-referrer"
                   onError={() => setImgError(true)}
                   sx={{
                     width: '100%',

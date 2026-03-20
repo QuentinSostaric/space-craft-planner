@@ -16,6 +16,7 @@ export function Footer() {
         px: 3,
         py: 1.5,
         textAlign: 'center',
+        flexShrink: 0,
       }}
     >
       <Typography
