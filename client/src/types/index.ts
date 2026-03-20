@@ -15,6 +15,9 @@ export interface GppModifier {
   gppId: string;
   modAtMin: number;
   modAtMax: number;
+  qualityStart: number;
+  qualityEnd: number;
+  occurrenceCount: number;
 }
 
 export interface MaterialSlot {
@@ -23,6 +26,7 @@ export interface MaterialSlot {
   requiredResource: string;
   minQuality: number | null;
   quantityScu: number;
+  quantityMultiplier: number | null;
   modifiers: GppModifier[];
 }
 
@@ -389,6 +393,7 @@ export interface MissionRewardSummary {
   blueprintRewardContractCount: number;
   blueprintRewardContractFileCount: number;
   uniqueBlueprintPoolCount: number;
+  uniqueRewardedBlueprintCount: number;
   factionGroupCount: number;
   explicitItemRewardContractCount: number;
   craftResourceRewardContractCount: number;
@@ -459,6 +464,72 @@ export interface MissionRewardsData {
   summary: MissionRewardSummary | null;
   conclusions: MissionRewardConclusions | null;
   factionGroups: MissionRewardFactionGroup[];
+  blueprintAcquisitionGraph: AcquisitionGraphEntry[];
+}
+
+export interface AcquisitionStanding {
+  factionName: string;
+  scopeName: string | null;
+  standingName: string | null;
+  minReputation: number | null;
+}
+
+export interface AcquisitionContract {
+  contractDebugName: string;
+  contractType: string | null;
+  availability: MissionAvailability;
+  minimumRequiredStandings: AcquisitionStanding[];
+  expectedRewardShare: number | null;
+  maxChance: number | null;
+}
+
+export interface AcquisitionFaction {
+  contractorDisplayName: string | null;
+  faction: { slug: string | null; displayName: string | null; factionType: string | null } | null;
+  contractCount: number;
+  localityCount: number;
+  maxReputation: number;
+  derivedScales: string[];
+  localities: string[];
+  standings: AcquisitionStanding[];
+  contracts: AcquisitionContract[];
+}
+
+export interface AcquisitionGraphEntry {
+  blueprint: {
+    id: string;
+    name: string;
+    category: string;
+    manufacturer: string;
+  };
+  contractCount: number;
+  factionCount: number;
+  localityCount: number;
+  dropScore: number;
+  maxReputation: number | null;
+  derivedScales: string[];
+  localities: string[];
+  standings: AcquisitionStanding[];
+  factions: AcquisitionFaction[];
+}
+
+export interface MaterialSourceProvider {
+  providerDisplayName: string;
+  providerType: string;
+  system: string | null;
+  tier: string | null;
+  groupProbabilityPct: number | null;
+  craftOnlyProbabilityPct: number | null;
+  labelConfidence: string;
+}
+
+export interface MaterialSourceEntry {
+  providers: MaterialSourceProvider[];
+}
+
+export interface MaterialSources {
+  resources: Record<string, MaterialSourceEntry>;
+  providers: MaterialSourceProvider[];
 }
 
 export interface GameDataset {
@@ -475,6 +546,7 @@ export interface GameDataset {
   resources: Resource[];
   changelog: DatasetChangelog | null;
   dismantling: DismantlingData | null;
+  materialSources: MaterialSources | null;
   missionRewards: MissionRewardsData | null;
   importedAt: string | null;
   updatedAt: string | null;

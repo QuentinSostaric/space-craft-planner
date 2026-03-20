@@ -46,6 +46,7 @@ const EMPTY_DATASET: GameDataset = {
   resources: [],
   changelog: null,
   dismantling: null,
+  materialSources: null,
   missionRewards: null,
   importedAt: null,
   updatedAt: null,
