@@ -252,7 +252,10 @@ export interface Blueprint {
   baseStats: ItemStats;
   slots: MaterialSlot[];
   media?: BlueprintMedia;
+  rarity?: 'legendary' | 'rare' | 'common';
 }
+
+export type Rarity = 'legendary' | 'rare' | 'common';
 
 export interface Resource {
   id: string;
@@ -421,6 +424,8 @@ export interface MissionRewardBlueprint {
   name: string;
   category: ItemCategory | null;
   manufacturer: string | null;
+  chance?: number;
+  normalizedWeight?: number;
 }
 
 export interface MissionItemAward {
