@@ -19,8 +19,14 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { STAT_LABELS, STAT_PERCENT_KEYS, STAT_UNITS, STAT_LOWER_IS_BETTER } from '../types';
-import type { ComparisonItem, ItemStats } from '../types';
+import {
+  NUMERIC_ITEM_STAT_KEYS,
+  STAT_LABELS,
+  STAT_PERCENT_KEYS,
+  STAT_UNITS,
+  STAT_LOWER_IS_BETTER,
+} from '../types';
+import type { ComparisonItem, NumericItemStatKey } from '../types';
 import { aggregateBlueprintResources, summarizeAssignedQualities } from '../utils/crafting';
 import { Button } from './ui/Button';
 import { CategoryBadge } from './ui/Badge';
@@ -28,7 +34,7 @@ import { CategoryBadge } from './ui/Badge';
 // ─── Radar Chart ─────────────────────────────────────────────────────────────
 interface RadarChartProps {
   items: ComparisonItem[];
-  statKeys: (keyof ItemStats)[];
+  statKeys: NumericItemStatKey[];
   lang: 'en' | 'fr';
 }
 
@@ -57,14 +63,16 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
     return 'middle';
   }
 
-  const maxValues: Partial<Record<keyof ItemStats, number>> = {};
+  const maxValues: Partial<Record<NumericItemStatKey, number>> = {};
   for (const key of statKeys) {
-    const vals = items.map((item) => item.projectedStats[key] ?? 0);
+    const vals = items.map((item) =>
+      typeof item.projectedStats[key] === 'number' ? item.projectedStats[key] : 0,
+    );
     maxValues[key] = Math.max(...vals, 0.001);
   }
 
-  function normalize(item: ComparisonItem, key: keyof ItemStats): number {
-    const val = item.projectedStats[key] ?? 0;
+  function normalize(item: ComparisonItem, key: NumericItemStatKey): number {
+    const val = typeof item.projectedStats[key] === 'number' ? item.projectedStats[key] : 0;
     const max = maxValues[key] ?? 1;
     const norm = val / max;
     return STAT_LOWER_IS_BETTER.has(key) ? 1 - norm * 0.8 : norm;
@@ -158,13 +166,13 @@ function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
-function formatStatDisplayValue(key: keyof ItemStats, value: number): number {
+function formatStatDisplayValue(key: NumericItemStatKey, value: number): number {
   const scaled = STAT_PERCENT_KEYS.has(key) ? value * 100 : value;
   return Number.isInteger(scaled) ? scaled : Math.round(scaled * 100) / 100;
 }
 
 // ─── Stat comparison table ────────────────────────────────────────────────────
-function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: (keyof ItemStats)[]; lang: 'en' | 'fr' }) {
+function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: NumericItemStatKey[]; lang: 'en' | 'fr' }) {
   return (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small" aria-label={lang === 'en' ? 'Stats comparison' : 'Comparaison des statistiques'}>
@@ -183,7 +191,9 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
         </TableHead>
         <TableBody>
           {statKeys.map((key) => {
-            const vals = items.map((i) => i.projectedStats[key] ?? 0);
+            const vals = items.map((item) =>
+              typeof item.projectedStats[key] === 'number' ? item.projectedStats[key] : 0,
+            );
             const maxVal = Math.max(...vals);
             const minVal = Math.min(...vals);
             const isLower = STAT_LOWER_IS_BETTER.has(key);
@@ -200,8 +210,8 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                   )}
                 </TableCell>
                 {items.map((item) => {
-                  const val = item.projectedStats[key] ?? 0;
-                  const base = item.baseStats[key] ?? 0;
+                  const val = typeof item.projectedStats[key] === 'number' ? item.projectedStats[key] : 0;
+                  const base = typeof item.baseStats[key] === 'number' ? item.baseStats[key] : 0;
                   const isBest = val === bestVal && vals.filter(v => v === bestVal).length < vals.length;
                   const delta = val - base;
                   const displayVal = formatStatDisplayValue(key, val);
@@ -289,11 +299,17 @@ export function ComparisonModal() {
   const { comparisonItems, comparisonOpen, closeComparison, removeFromComparison, clearComparison } = useCraft();
   const { lang, t } = useI18n();
 
-  const allStatKeys = useMemo(() => Array.from(
-    new Set(
-      comparisonItems.flatMap((item) => Object.keys(item.projectedStats) as (keyof ItemStats)[]),
-    ),
-  ), [comparisonItems]);
+  const allStatKeys = useMemo<NumericItemStatKey[]>(
+    () =>
+      NUMERIC_ITEM_STAT_KEYS.filter((key) =>
+        comparisonItems.some(
+          (item) =>
+            typeof item.projectedStats[key] === 'number' ||
+            typeof item.baseStats[key] === 'number',
+        ),
+      ),
+    [comparisonItems],
+  );
 
   return (
     <Dialog

@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
-import type { Blueprint, ItemStats } from '../types';
-import { ARMOR_DAMAGE_RESISTANCE_KEYS, DIRECT_GPP_TO_STAT } from '../types';
+import type { Blueprint, ItemStats, NumericItemStatKey } from '../types';
+import {
+  ARMOR_DAMAGE_RESISTANCE_KEYS,
+  DIRECT_GPP_TO_STAT,
+  NUMERIC_ITEM_STAT_KEYS,
+} from '../types';
 
 /**
  * Compute the GPP modifier multiplier for a given numeric quality value.
@@ -13,13 +17,13 @@ export function gppModifier(modAtMin: number, modAtMax: number, qualityValue: nu
   return modAtMin + (modAtMax - modAtMin) * t;
 }
 
-function getModifierTargets(gppId: string, result: Record<string, number>): (keyof ItemStats)[] {
+function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKey[] {
   if (gppId === 'GPP_Armor_DamageMitigation') {
-    return ARMOR_DAMAGE_RESISTANCE_KEYS.filter((key) => key in result);
+    return ARMOR_DAMAGE_RESISTANCE_KEYS.filter((key) => typeof result[key] === 'number');
   }
 
   const statKey = DIRECT_GPP_TO_STAT[gppId];
-  return statKey && statKey in result ? [statKey] : [];
+  return statKey && typeof result[statKey] === 'number' ? [statKey] : [];
 }
 
 function roundStatValue(value: number): number {
@@ -31,7 +35,7 @@ function calcProjectedStats(
   blueprint: Blueprint,
   assignments: Record<string, number | undefined>,
 ): ItemStats {
-  const result: Record<string, number> = { ...blueprint.baseStats };
+  const result: ItemStats = { ...blueprint.baseStats };
 
   for (const slot of blueprint.slots) {
     const qualityValue = assignments[slot.id];
@@ -43,16 +47,21 @@ function calcProjectedStats(
       if (targets.length === 0) continue;
 
       for (const statKey of targets) {
-        result[statKey] *= gppModifier(mod.modAtMin, mod.modAtMax, qualityValue);
+        const currentValue = result[statKey];
+        if (typeof currentValue !== 'number') continue;
+        result[statKey] = currentValue * gppModifier(mod.modAtMin, mod.modAtMax, qualityValue);
       }
     }
   }
 
-  const stats: ItemStats = {};
-  for (const [key, val] of Object.entries(result) as [keyof ItemStats, number][]) {
-    stats[key] = roundStatValue(val) as never;
+  for (const statKey of NUMERIC_ITEM_STAT_KEYS) {
+    const value = result[statKey];
+    if (typeof value === 'number') {
+      result[statKey] = roundStatValue(value);
+    }
   }
-  return stats;
+
+  return result;
 }
 
 /**

@@ -7,10 +7,17 @@ import { Button } from './ui/Button';
 import {
   COMPARISON_COLORS,
   GPP_LABELS,
+  NUMERIC_ITEM_STAT_KEYS,
   STAT_LABELS,
   STAT_LOWER_IS_BETTER,
 } from '../types';
-import type { AggregatedResource, ItemStats, MaterialSlot, MissionContract } from '../types';
+import type {
+  AggregatedResource,
+  ItemStats,
+  MaterialSlot,
+  MissionContract,
+  NumericItemStatKey,
+} from '../types';
 import {
   aggregateBlueprintResources,
   clampQualityValue,
@@ -195,17 +202,18 @@ function CombinedModifiers({
   projectedStats: ItemStats;
 }) {
   const { lang, t } = useI18n();
-  const statKeys = Object.keys(blueprint.baseStats) as (keyof ItemStats)[];
+  const statKeys = NUMERIC_ITEM_STAT_KEYS.filter((key) => typeof blueprint.baseStats[key] === 'number');
 
   const rows = statKeys
     .map((key) => {
-      const base = blueprint.baseStats[key] ?? 0;
-      const projected = projectedStats[key] ?? base;
-      if (base === 0) {
+      const base = blueprint.baseStats[key];
+      if (typeof base !== 'number' || base === 0) {
         return null;
       }
 
-      const pct = ((projected as number) / base - 1) * 100;
+      const projectedValue = projectedStats[key];
+      const projected = typeof projectedValue === 'number' ? projectedValue : base;
+      const pct = (projected / base - 1) * 100;
       const isImproved = STAT_LOWER_IS_BETTER.has(key) ? pct < 0 : pct > 0;
 
       return {
@@ -217,7 +225,7 @@ function CombinedModifiers({
       };
     })
     .filter(Boolean) as Array<{
-      key: keyof ItemStats;
+      key: NumericItemStatKey;
       label: string;
       pct: number;
       isImproved: boolean;
