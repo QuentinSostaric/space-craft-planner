@@ -72,6 +72,7 @@ export function normalizeCoreDataset(doc, channel) {
     resources: doc.resources ?? [],
     changelog: doc.changelog ?? null,
     dismantling: doc.dismantling ?? null,
+    materialSources: doc.materialSources ?? null,
     missionRewards: null,
     importedAt: doc.importedAt ?? null,
     updatedAt: doc.updatedAt ?? doc.importedAt ?? null,
