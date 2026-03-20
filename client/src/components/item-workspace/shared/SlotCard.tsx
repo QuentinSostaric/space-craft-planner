@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Slider from '@mui/material/Slider';
 import TextField from '@mui/material/TextField';
@@ -54,10 +55,15 @@ export function SlotCard({
         const pct = (multiplier - 1) * 100;
         const lowerIsBetter = modifier.gppId.includes('Recoil');
         const isImproved = lowerIsBetter ? pct < 0 : pct > 0;
-        return { gppId: modifier.gppId, label, pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
+        return { gppId: modifier.gppId, label, pct, isImproved, isNeutral: Math.abs(pct) < 0.005, occurrenceCount: modifier.occurrenceCount };
       })
       .filter(Boolean);
   }, [isAssigned, lang, qualityValue, slot.modifiers]);
+
+  const deadZoneEnd = slot.modifiers.length > 0
+    ? Math.min(...slot.modifiers.map((m) => m.qualityStart))
+    : 0;
+  const deadZonePct = (deadZoneEnd / 1000) * 100;
 
   function nudge(delta: number) {
     const next = clampQualityValue(currentQuality + delta);
@@ -110,7 +116,7 @@ export function SlotCard({
             sx={{
               fontFamily: "'Khand', sans-serif",
               fontWeight: 700,
-              fontSize: '.85rem',
+              fontSize: '0.875rem',
               lineHeight: 1.2,
               color: 'text.primary',
               overflow: 'hidden',
@@ -123,11 +129,11 @@ export function SlotCard({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography
               variant="caption"
-              sx={{ fontSize: '.5rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '.1em' }}
+              sx={{ fontSize: '0.7rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '.1em' }}
             >
               {t('Resource', 'Ressource')}
             </Typography>
-            <Typography variant="caption" sx={{ fontSize: '.6rem', color: 'text.secondary', fontWeight: 600 }}>
+            <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 600 }}>
               {slot.requiredResource}
             </Typography>
           </Box>
@@ -139,7 +145,7 @@ export function SlotCard({
           sx={{ p: 0.25, mt: -0.25 }}
           aria-label={t('Clear', 'Effacer')}
         >
-          <CloseIcon sx={{ fontSize: '.8rem' }} />
+          <CloseIcon sx={{ fontSize: '0.85rem' }} />
         </IconButton>
       </Box>
 
@@ -149,7 +155,7 @@ export function SlotCard({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Typography
             variant="caption"
-            sx={{ fontSize: '.5rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '.1em' }}
+            sx={{ fontSize: '0.7rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '.1em' }}
           >
             {t('Quality', 'Qualite')}
           </Typography>
@@ -158,7 +164,7 @@ export function SlotCard({
             sx={{
               fontFamily: "'Share Tech Mono', monospace",
               fontWeight: 700,
-              fontSize: '.85rem',
+              fontSize: '0.875rem',
               color: isAssigned ? tokens.violet : 'text.disabled',
             }}
           >
@@ -175,7 +181,7 @@ export function SlotCard({
             sx={{ p: 0.25 }}
             aria-label={t('Decrease quality', 'Reduire qualite')}
           >
-            <RemoveIcon sx={{ fontSize: '.8rem' }} />
+            <RemoveIcon sx={{ fontSize: '0.85rem' }} />
           </IconButton>
           <Slider
             min={0}
@@ -184,7 +190,16 @@ export function SlotCard({
             onChange={(_e, val) => onQualityChange(clampQualityValue(val as number))}
             aria-label={t(`Quality for ${slot.requiredResource}`, `Qualite pour ${slot.requiredResource}`)}
             size="small"
-            sx={{ flex: 1, mx: 0.5 }}
+            marks={deadZoneEnd > 0 ? [{ value: deadZoneEnd, label: '' }] : undefined}
+            sx={{
+              flex: 1,
+              mx: 0.5,
+              ...(deadZonePct > 0 && {
+                '& .MuiSlider-track': {
+                  background: `linear-gradient(to right, rgba(107,114,128,0.4) 0%, rgba(107,114,128,0.4) ${deadZonePct}%, currentColor ${deadZonePct}%)`,
+                },
+              }),
+            }}
           />
           <IconButton
             onClick={() => nudge(QUALITY_STEP)}
@@ -193,7 +208,7 @@ export function SlotCard({
             sx={{ p: 0.25 }}
             aria-label={t('Increase quality', 'Augmenter qualite')}
           >
-            <AddIcon sx={{ fontSize: '.8rem' }} />
+            <AddIcon sx={{ fontSize: '0.85rem' }} />
           </IconButton>
         </Box>
 
@@ -209,18 +224,26 @@ export function SlotCard({
               htmlInput: {
                 min: 0,
                 max: 1000,
-                style: { textAlign: 'center', padding: '2px 4px', fontSize: '.75rem' },
+                style: { textAlign: 'center', padding: '2px 4px', fontSize: '0.75rem' },
               },
             }}
             sx={{ flex: 1, '& .MuiInputBase-root': { height: 26 } }}
           />
-          <Typography variant="caption" sx={{ fontSize: '.55rem', color: 'text.disabled', flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.disabled', flexShrink: 0 }}>
             {slot.quantityScu} SCU
           </Typography>
+          {slot.quantityMultiplier != null && (
+            <Chip
+              label={`x${slot.quantityMultiplier}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: '0.65rem', height: 20 }}
+            />
+          )}
           {slot.minQuality != null && slot.minQuality > 0 && (
             <Typography
               variant="caption"
-              sx={{ color: 'warning.main', fontFamily: "'Share Tech Mono', monospace", fontSize: '.55rem', flexShrink: 0 }}
+              sx={{ color: 'warning.main', fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', flexShrink: 0 }}
             >
               MIN {slot.minQuality}
             </Typography>
@@ -255,7 +278,7 @@ export function SlotCard({
             >
               <Typography
                 variant="caption"
-                sx={{ fontSize: '.5rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '.05em' }}
+                sx={{ fontSize: '0.7rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '.05em' }}
               >
                 {m.label}
               </Typography>
@@ -263,13 +286,18 @@ export function SlotCard({
                 variant="caption"
                 sx={{
                   fontFamily: "'Share Tech Mono', monospace",
-                  fontSize: '.55rem',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                   color: m.isNeutral ? 'text.secondary' : m.isImproved ? 'success.main' : 'error.main',
                 }}
               >
                 {m.pct > 0 ? '+' : ''}{m.pct.toFixed(1)}%
               </Typography>
+              {m.occurrenceCount > 1 && (
+                <Box component="span" sx={{ ml: 0.5, fontWeight: 700, opacity: 0.7 }}>
+                  x{m.occurrenceCount}
+                </Box>
+              )}
             </Box>
           ))}
         </Box>
