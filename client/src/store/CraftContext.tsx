@@ -22,6 +22,7 @@ import type {
   ItemTab,
   LegalityFilter,
   LibrarySegment,
+  MaterialSources,
   MissionRewardsData,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
@@ -60,6 +61,7 @@ interface CraftState {
   changelogOpen: boolean;
   setChangelogOpen: (open: boolean) => void;
   dismantlingData: DismantlingData | null;
+  materialSources: MaterialSources | null;
   activeBlueprint: Blueprint | null;
   blueprints: Blueprint[];
   activeDataset: GameDataset;
@@ -149,6 +151,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
 
   const activeMissionRewards = activeDataset.missionRewards ?? null;
   const dismantlingData = activeDataset.dismantling ?? null;
+  const materialSources = activeDataset.materialSources ?? null;
 
   const [rawGoals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
   // Migrate legacy goals: coerce qualityScore to number, normalize slot assignments
@@ -432,6 +435,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         changelogOpen,
         setChangelogOpen,
         dismantlingData,
+        materialSources,
         activeBlueprint,
         blueprints,
         activeDataset,

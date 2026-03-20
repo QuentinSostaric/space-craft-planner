@@ -1,10 +1,13 @@
 import type {
+  AcquisitionGraphEntry,
   AggregatedResource,
   Blueprint,
   CraftGoal,
   ItemCategory,
   Lang,
   MaterialSlot,
+  MaterialSourceProvider,
+  MaterialSources,
   MissionContract,
   MissionRewardsData,
   NumericItemStatKey,
@@ -288,4 +291,20 @@ export function computeStatMaxima(blueprints: Blueprint[]): Map<NumericItemStatK
   }
 
   return maxima;
+}
+
+export function getAcquisitionEntry(
+  missionRewards: MissionRewardsData | null,
+  blueprintId: string,
+): AcquisitionGraphEntry | null {
+  return missionRewards?.blueprintAcquisitionGraph?.find(
+    (e) => e.blueprint.id === blueprintId,
+  ) ?? null;
+}
+
+export function getMaterialProviders(
+  materialSources: MaterialSources | null,
+  resourceId: string,
+): MaterialSourceProvider[] {
+  return materialSources?.resources?.[resourceId]?.providers ?? [];
 }
