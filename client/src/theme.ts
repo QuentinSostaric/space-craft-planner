@@ -433,6 +433,10 @@ const theme = createTheme({
   },
 });
 
+const rarityLegendary = '#f59e0b';
+const rarityRare      = '#06b6d4';
+const rarityCommon    = '#6b7280';
+
 // Re-export tokens for use in sx props
 export const tokens = {
   bg, bgSubtle, surface1, surface2, surface3,
@@ -442,6 +446,7 @@ export const tokens = {
   success, warning, danger, info,
   gradient: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 55%, #c084fc 100%)',
   gradientDim: 'linear-gradient(135deg, rgba(59,130,246,.14) 0%, rgba(139,92,246,.14) 55%, rgba(192,132,252,.14) 100%)',
+  rarityLegendary, rarityRare, rarityCommon,
 } as const;
 
 export default theme;
