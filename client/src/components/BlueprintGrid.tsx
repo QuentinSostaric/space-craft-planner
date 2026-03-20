@@ -14,7 +14,7 @@ import { RarityBadge } from './ui/RarityBadge';
 import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
 import { tokens } from '../theme';
-import { buildBlueprintContractCountMap, CARD_STATS, computeStatMaxima } from '../utils/crafting';
+import { CARD_STATS, computeStatMaxima } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { STAT_UNITS } from '../types';
 import type { Blueprint, ItemCategory, NumericItemStatKey, Resource } from '../types';
@@ -42,7 +42,6 @@ function BlueprintCard({
   isActive,
   isFavorite,
   isInInventory,
-  contractCount: _contractCount,
   statMaxima,
   resources,
   onClick,
@@ -51,7 +50,6 @@ function BlueprintCard({
   isActive: boolean;
   isFavorite: boolean;
   isInInventory: boolean;
-  contractCount: number;
   statMaxima: Map<NumericItemStatKey, number>;
   resources: Resource[];
   onClick: () => void;
@@ -253,10 +251,6 @@ export function BlueprintGrid() {
   } = useCraft();
   const { t } = useI18n();
 
-  const contractCountMap = useMemo(
-    () => buildBlueprintContractCountMap(missionRewards),
-    [missionRewards],
-  );
 
   const resources = activeDataset.resources;
   const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
@@ -404,7 +398,6 @@ export function BlueprintGrid() {
                 isActive={activeBlueprint?.id === blueprint.id}
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
-                contractCount={contractCountMap.get(blueprint.id) ?? 0}
                 statMaxima={statMaxima}
                 resources={resources}
                 onClick={() => setActiveBlueprint(activeBlueprint?.id === blueprint.id ? null : blueprint)}
