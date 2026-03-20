@@ -2,11 +2,14 @@ import type {
   AggregatedResource,
   Blueprint,
   CraftGoal,
+  ItemCategory,
   Lang,
   MaterialSlot,
   MissionContract,
   MissionRewardsData,
+  NumericItemStatKey,
 } from '../types';
+import { NUMERIC_ITEM_STAT_KEYS } from '../types';
 
 const SCALE_LABELS: Record<string, { en: string; fr: string }> = {
   universe: { en: 'Universe-wide', fr: 'Univers entier' },
@@ -245,4 +248,44 @@ export function findMissionContractsForBlueprint(
   return matches.sort((left, right) =>
     String(left.contractDebugName ?? '').localeCompare(String(right.contractDebugName ?? '')),
   );
+}
+
+/** Key stats to show on cards per category */
+export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemStatKey; label: { en: string; fr: string } }>>> = {
+  'fps-weapon': [
+    { key: 'damage', label: { en: 'DPS', fr: 'DPS' } },
+    { key: 'effectiveRange', label: { en: 'Range', fr: 'Portee' } },
+  ],
+  'fps-armor': [
+    { key: 'damageResistanceKinetic', label: { en: 'Kinetic', fr: 'Cinetique' } },
+    { key: 'damageResistanceEnergy', label: { en: 'Energy', fr: 'Energie' } },
+  ],
+  'fps-helmet': [
+    { key: 'damageResistanceKinetic', label: { en: 'Kinetic', fr: 'Cinetique' } },
+    { key: 'damageResistanceEnergy', label: { en: 'Energy', fr: 'Energie' } },
+  ],
+  'fps-magazine': [
+    { key: 'magazineSize', label: { en: 'Capacity', fr: 'Capacite' } },
+  ],
+  'fps-undersuit': [
+    { key: 'temperatureMin', label: { en: 'Temp Min', fr: 'Temp Min' } },
+    { key: 'temperatureMax', label: { en: 'Temp Max', fr: 'Temp Max' } },
+  ],
+  // fps-backpack: no storage stat exists in ItemStats yet — deferred until data is available
+};
+
+/** Compute maximum value per stat key across all blueprints, for stat bar normalization. */
+export function computeStatMaxima(blueprints: Blueprint[]): Map<NumericItemStatKey, number> {
+  const maxima = new Map<NumericItemStatKey, number>();
+
+  for (const bp of blueprints) {
+    for (const key of NUMERIC_ITEM_STAT_KEYS) {
+      const val = bp.baseStats[key];
+      if (typeof val === 'number' && val > 0) {
+        maxima.set(key, Math.max(maxima.get(key) ?? 0, val));
+      }
+    }
+  }
+
+  return maxima;
 }
