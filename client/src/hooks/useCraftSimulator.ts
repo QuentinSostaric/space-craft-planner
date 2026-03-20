@@ -8,12 +8,21 @@ import {
 
 /**
  * Compute the GPP modifier multiplier for a given numeric quality value.
- * The game interpolates linearly between startQuality=0 (modAtMin) and
- * endQuality=1000 (modAtMax). At quality 500 the modifier is exactly 1.0
- * (no change), matching the game's neutral midpoint.
+ * Interpolates linearly between qualityStart and qualityEnd.
+ * Values below qualityStart clamp to modAtMin; above qualityEnd clamp to modAtMax.
+ * For curves spanning 0-1000, quality 500 remains the neutral point (modifier 1.0).
+ * Curves starting at 500 are neutral below 500 and apply a bonus above.
  */
-export function gppModifier(modAtMin: number, modAtMax: number, qualityValue: number): number {
-  const t = Math.max(0, Math.min(1, qualityValue / 1000));
+export function gppModifier(
+  modAtMin: number,
+  modAtMax: number,
+  qualityValue: number,
+  qualityStart: number = 0,
+  qualityEnd: number = 1000,
+): number {
+  if (qualityValue <= qualityStart) return modAtMin;
+  if (qualityValue >= qualityEnd) return modAtMax;
+  const t = (qualityValue - qualityStart) / (qualityEnd - qualityStart);
   return modAtMin + (modAtMax - modAtMin) * t;
 }
 
@@ -46,10 +55,19 @@ function calcProjectedStats(
       const targets = getModifierTargets(mod.gppId, result);
       if (targets.length === 0) continue;
 
+      const modifier = gppModifier(
+        mod.modAtMin,
+        mod.modAtMax,
+        qualityValue,
+        mod.qualityStart,
+        mod.qualityEnd,
+      );
+      const appliedModifier = Math.pow(modifier, mod.occurrenceCount);
+
       for (const statKey of targets) {
         const currentValue = result[statKey];
         if (typeof currentValue !== 'number') continue;
-        result[statKey] = currentValue * gppModifier(mod.modAtMin, mod.modAtMax, qualityValue);
+        result[statKey] = currentValue * appliedModifier;
       }
     }
   }
