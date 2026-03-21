@@ -5,14 +5,14 @@ import Typography from '@mui/material/Typography';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FlagIcon from '@mui/icons-material/Flag';
+import { alpha } from '@mui/material/styles';
 import { GameIcon } from './ui/GameIcon';
 import { useI18n } from '../i18n/I18nContext';
-import { tokens } from '../theme';
 
 export type MainView = 'blueprints' | 'missions';
 
-const EXPANDED_WIDTH = 140;
-const COLLAPSED_WIDTH = 36;
+const EXPANDED_WIDTH = 200;
+const COLLAPSED_WIDTH = 64;
 
 interface NavRailProps {
   mainView: MainView;
@@ -40,26 +40,46 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: 2,
         width: '100%',
-        px: collapsed ? '7px' : '10px',
-        py: '8px',
-        boxSizing: 'border-box',
-        borderLeft: `2px solid ${active ? tokens.violet : 'transparent'}`,
-        backgroundColor: active ? 'rgba(139, 92, 246, 0.15)' : 'transparent',
-        transition: 'background-color 150ms, border-color 150ms',
+        height: 48,
+        px: collapsed ? 0 : 2,
+        position: 'relative',
+        transition: 'all 200ms ease',
+        color: active ? 'primary.main' : 'text.secondary',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          left: 0,
+          top: '20%',
+          bottom: '20%',
+          width: 3,
+          backgroundColor: 'primary.main',
+          borderRadius: '0 4px 4px 0',
+          transform: active ? 'scaleX(1)' : 'scaleX(0)',
+          transformOrigin: 'left',
+          transition: 'transform 200ms ease',
+        },
+        backgroundColor: active ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
         '&:hover': {
           backgroundColor: active
-            ? 'rgba(139, 92, 246, 0.2)'
-            : 'rgba(139, 92, 246, 0.08)',
-        },
-        '&:focus-visible': {
-          outline: `2px solid ${tokens.violet}`,
-          outlineOffset: -2,
+            ? (theme) => alpha(theme.palette.primary.main, 0.12)
+            : (theme) => alpha(theme.palette.text.primary, 0.04),
+          color: active ? 'primary.main' : 'text.primary',
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, flexShrink: 0, opacity: active ? 1 : 0.5 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        width: 24, 
+        height: 24,
+        flexShrink: 0,
+        transition: 'transform 200ms ease',
+        transform: active ? 'scale(1.1)' : 'scale(1)',
+      }}>
         {icon}
       </Box>
       {!collapsed && (
@@ -67,13 +87,11 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
           sx={{
             fontFamily: "'Khand', sans-serif",
             fontWeight: 700,
-            fontSize: '.7rem',
+            fontSize: '0.85rem',
             textTransform: 'uppercase',
-            letterSpacing: '.06em',
-            color: active ? tokens.text : tokens.textDim,
+            letterSpacing: '0.04em',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
           }}
         >
           {label}
@@ -84,8 +102,8 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
 
   if (collapsed) {
     return (
-      <Tooltip title={label} placement="right">
-        {button}
+      <Tooltip title={label} placement="right" arrow>
+        <Box sx={{ width: '100%' }}>{button}</Box>
       </Tooltip>
     );
   }
@@ -103,17 +121,41 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       sx={{
         width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
         minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
-        height: '100%',
-        backgroundColor: tokens.bgSubtle,
-        borderRight: `1px solid ${tokens.border}`,
+        alignSelf: 'stretch',
+        backgroundColor: 'background.paper',
+        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
         display: 'flex',
         flexDirection: 'column',
-        transition: 'width 150ms ease, min-width 150ms ease',
+        transition: 'width 250ms cubic-bezier(0.4, 0, 0.2, 1)',
         overflow: 'hidden',
+        zIndex: 5,
       }}
     >
-      {/* Toggle button */}
-      <Box sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end', p: 0.5 }}>
+      {/* Nav items */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, py: 2, flex: 1 }}>
+        <NavItem
+          active={mainView === 'blueprints'}
+          collapsed={collapsed}
+          label={t('Blueprints', 'Blueprints')}
+          icon={<GameIcon name="calculator" size={20} />}
+          onClick={() => onChangeView('blueprints')}
+        />
+        <NavItem
+          active={mainView === 'missions'}
+          collapsed={collapsed}
+          label={t('Missions', 'Missions')}
+          icon={<FlagIcon sx={{ fontSize: '1.2rem' }} />}
+          onClick={() => onChangeView('missions')}
+        />
+      </Box>
+
+      {/* Toggle button at the bottom */}
+      <Box sx={{ 
+        p: 1.5, 
+        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        display: 'flex',
+        justifyContent: collapsed ? 'center' : 'flex-end'
+      }}>
         <IconButton
           onClick={onToggleCollapsed}
           aria-label={collapsed
@@ -121,31 +163,12 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
             : t('Collapse navigation', 'Reduire la navigation')
           }
           size="small"
-          sx={{ width: 24, height: 24 }}
         >
           {collapsed
-            ? <ChevronRightIcon sx={{ fontSize: '.9rem' }} />
-            : <ChevronLeftIcon sx={{ fontSize: '.9rem' }} />
+            ? <ChevronRightIcon />
+            : <ChevronLeftIcon />
           }
         </IconButton>
-      </Box>
-
-      {/* Nav items */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <NavItem
-          active={mainView === 'blueprints'}
-          collapsed={collapsed}
-          label={t('Blueprints', 'Blueprints')}
-          icon={<GameIcon name="calculator" size={16} />}
-          onClick={() => onChangeView('blueprints')}
-        />
-        <NavItem
-          active={mainView === 'missions'}
-          collapsed={collapsed}
-          label={t('Missions', 'Missions')}
-          icon={<FlagIcon sx={{ fontSize: '1rem', color: mainView === 'missions' ? tokens.text : tokens.textDim }} />}
-          onClick={() => onChangeView('missions')}
-        />
       </Box>
     </Box>
   );

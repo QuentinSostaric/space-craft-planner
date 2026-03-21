@@ -54,7 +54,7 @@ function Badge({ label, color }: BadgeProps) {
       <Typography
         variant="caption"
         sx={{
-          fontSize: '.55rem',
+          fontSize: '0.75rem',
           fontWeight: 700,
           letterSpacing: '0.12em',
           color,

@@ -30,17 +30,17 @@ export function QualityScore({ score }: { score: number }) {
           variant="caption"
           sx={{
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, fontSize: '.7rem',
+            fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, fontSize: '0.85rem',
           }}
         >
           {score}
         </Typography>
       </Box>
       <Box>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.6rem', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block' }}>
           {t('Build index', 'Indice de build')}
         </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 700, color: tierColor, fontSize: '.78rem' }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, color: tierColor, fontSize: '0.85rem' }}>
           {labels[tier]}
         </Typography>
       </Box>

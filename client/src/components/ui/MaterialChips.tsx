@@ -34,7 +34,7 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
       <Typography
         variant="caption"
         sx={{
-          fontSize: '.5rem',
+          fontSize: '0.7rem',
           color: tokens.textDim,
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
@@ -68,7 +68,7 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
             <Typography
               variant="caption"
               sx={{
-                fontSize: '.55rem',
+                fontSize: '0.75rem',
                 fontWeight: 600,
                 color: tokens.text,
                 textTransform: 'uppercase',

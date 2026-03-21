@@ -39,13 +39,13 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.key}>
-                <TableCell sx={{ fontSize: '.72rem', py: 0.5 }}>
+                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>
                   {r.label}
                 </TableCell>
-                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.7rem', py: 0.5, color: 'text.secondary' }}>
+                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', py: 0.5, color: 'text.secondary' }}>
                   {r.base.toFixed(2)}
                 </TableCell>
-                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.7rem', py: 0.5 }}>
+                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', py: 0.5 }}>
                   {r.projected.toFixed(2)}
                 </TableCell>
                 <TableCell
@@ -53,7 +53,7 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
                   sx={{
                     fontFamily: "'Share Tech Mono', monospace",
                     fontWeight: 600,
-                    fontSize: '.7rem',
+                    fontSize: '0.75rem',
                     py: 0.5,
                     color: r.isNeutral ? 'text.secondary' : r.isImproved ? theme.palette.success.main : theme.palette.error.main,
                   }}

@@ -19,7 +19,7 @@ import { DatasetChangelog } from './components/DatasetChangelog';
 import { Footer } from './components/Footer';
 import { useCraft } from './store/CraftContext';
 import { LS_KEYS } from './types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { MainView } from './components/NavRail';
 
 function MainContent({ mainView }: { mainView: MainView }) {

@@ -27,7 +27,7 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           width: 80,
           flexShrink: 0,
-          fontSize: '.6rem',
+          fontSize: '0.75rem',
           color: tokens.textMuted,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
@@ -61,7 +61,7 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           minWidth: 40,
           textAlign: 'right',
-          fontSize: '.6rem',
+          fontSize: '0.75rem',
           color: tokens.blueLight,
           fontWeight: 600,
         }}

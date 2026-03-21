@@ -1,452 +1,229 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, alpha } from '@mui/material/styles';
 
-// ─── Design tokens matching styles.css :root ───────────────────────────────────
-const bg       = '#111827';
-const bgSubtle = '#1a2238';
-const surface1 = '#222d47';
-const surface2 = '#2a3656';
-const surface3 = '#324066';
+export type ThemeMode = 'light' | 'dark';
 
-const border       = 'rgba(99, 102, 241, 0.30)';
-const borderStrong = 'rgba(139, 92, 246, 0.55)';
+// ─── Design Tokens ──────────────────────────────────────────────────────────────
 
-const blue      = '#3b82f6';
-const blueLight = '#60a5fa';
-const violet    = '#8b5cf6';
-const violetL   = '#a78bfa';
-const mauve     = '#c084fc';
+const tokensDark = {
+  bg: '#0f172a',
+  bgSubtle: '#1e293b',
+  surface1: '#1e293b',
+  surface2: '#334155',
+  surface3: '#475569',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderStrong: '#8b5cf6',
+  text: '#f8fafc',
+  textMuted: '#94a3b8',
+  textDim: '#64748b',
+  violet: '#8b5cf6',
+  violetL: '#a78bfa',
+  blue: '#3b82f6',
+  blueLight: '#60a5fa',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  info: '#3b82f6',
+  gradient: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+  rarityLegendary: '#f59e0b',
+  rarityRare: '#8b5cf6',
+  rarityCommon: '#64748b',
+};
 
-const text      = '#edf0f9';
-const textMuted = '#a0aeca';
-const textDim   = '#7d8ba8';
+const tokensLight = {
+  bg: '#f8fafc',
+  bgSubtle: '#f1f5f9',
+  surface1: '#ffffff',
+  surface2: '#f1f5f9',
+  surface3: '#e2e8f0',
+  border: 'rgba(0, 0, 0, 0.08)',
+  borderStrong: '#7c3aed',
+  text: '#0f172a',
+  textMuted: '#475569',
+  textDim: '#64748b',
+  violet: '#7c3aed',
+  violetL: '#8b5cf6',
+  blue: '#2563eb',
+  blueLight: '#3b82f6',
+  success: '#059669',
+  warning: '#d97706',
+  danger: '#dc2626',
+  info: '#2563eb',
+  gradient: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+  rarityLegendary: '#d97706',
+  rarityRare: '#7c3aed',
+  rarityCommon: '#64748b',
+};
 
-const success = '#34d399';
-const warning = '#fbbf24';
-const danger  = '#f87171';
-const info    = '#60a5fa';
+export const getTokens = (mode: ThemeMode) => (mode === 'dark' ? tokensDark : tokensLight);
 
 const noShadows = Array(25).fill('none') as unknown as import('@mui/material/styles').Shadows;
 
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    background: {
-      default: bg,
-      paper: surface1,
-    },
-    primary: {
-      main: violet,
-      light: violetL,
-    },
-    secondary: {
-      main: blue,
-      light: blueLight,
-    },
-    error: {
-      main: danger,
-    },
-    warning: {
-      main: warning,
-    },
-    success: {
-      main: success,
-    },
-    info: {
-      main: info,
-    },
-    text: {
-      primary: text,
-      secondary: textMuted,
-      disabled: textDim,
-    },
-    divider: border,
-  },
+export const createAppTheme = (mode: ThemeMode) => {
+  const t = getTokens(mode);
 
-  shape: {
-    borderRadius: 0,
-  },
+  return createTheme({
+    palette: {
+      mode,
+      background: {
+        default: t.bg,
+        paper: t.surface1,
+      },
+      primary: {
+        main: t.violet,
+        light: t.violetL,
+      },
+      secondary: {
+        main: t.blue,
+        light: t.blueLight,
+      },
+      error: {
+        main: t.danger,
+      },
+      warning: {
+        main: t.warning,
+      },
+      success: {
+        main: t.success,
+      },
+      text: {
+        primary: t.text,
+        secondary: t.textMuted,
+        disabled: t.textDim,
+      },
+      divider: t.border,
+    },
 
-  shadows: noShadows,
+    shape: {
+      borderRadius: 4,
+    },
 
-  typography: {
-    fontFamily: "'Khand', 'Segoe UI', system-ui, sans-serif",
-    fontSize: 15,
-    h1: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
-    h2: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
-    h3: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
-    h4: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
-    h5: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
-    h6: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
-    body1: { fontFamily: "'Khand', 'Segoe UI', system-ui, sans-serif" },
-    body2: { fontFamily: "'Khand', 'Segoe UI', system-ui, sans-serif" },
-    button: { fontFamily: "'Khand', sans-serif", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' as const },
-    caption: { fontFamily: "'Share Tech Mono', monospace" },
-    overline: { fontFamily: "'Share Tech Mono', monospace" },
-  },
+    shadows: noShadows,
 
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        // Let styles.css handle global resets — avoid conflicts
-      },
+    typography: {
+      fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+      fontSize: 14,
+      h1: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, textTransform: 'uppercase' },
+      h2: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, textTransform: 'uppercase' },
+      h3: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.1, textTransform: 'uppercase' },
+      h4: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.2, textTransform: 'uppercase' },
+      h5: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.2, textTransform: 'uppercase' },
+      h6: { fontFamily: "'Khand', sans-serif", fontWeight: 700, lineHeight: 1.2, textTransform: 'uppercase' },
+      body1: { lineHeight: 1.5 },
+      body2: { lineHeight: 1.5 },
+      button: { fontFamily: "'Khand', sans-serif", fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' },
+      caption: { fontFamily: "'Share Tech Mono', monospace", letterSpacing: '0.02em' },
+      overline: { fontFamily: "'Share Tech Mono', monospace" },
     },
-    MuiButton: {
-      defaultProps: {
-        disableElevation: true,
-        disableRipple: true,
-      },
-      styleOverrides: {
-        root: {
-          fontFamily: "'Khand', sans-serif",
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase' as const,
-          borderRadius: 0,
-          transition: 'color 150ms, background 150ms, border-color 150ms',
-          '&:active:not(:disabled)': {
-            transform: 'translateY(1px)',
-          },
-        },
-        sizeSmall: {
-          padding: '6px 12px',
-          fontSize: '.78rem',
-        },
-        sizeMedium: {
-          padding: '8px 16px',
-          fontSize: '.85rem',
-        },
-        sizeLarge: {
-          padding: '12px 24px',
-          fontSize: '.95rem',
-        },
-        // Contained = gradient CTA
-        contained: {
-          backgroundColor: violet,
-          color: '#fff',
-          border: `1px solid ${violet}`,
-          '&:hover': {
-            backgroundColor: violetL,
-            borderColor: violetL,
-          },
-        },
-        // Outlined = secondary (border, inverts on hover)
-        outlined: {
-          backgroundColor: 'transparent',
-          color: text,
-          borderColor: textMuted,
-          '&:hover': {
-            backgroundColor: text,
-            color: bg,
-            borderColor: text,
-          },
-        },
-        // Text = primary (animated underline)
-        text: {
-          backgroundColor: 'transparent',
-          color: violet,
-          paddingLeft: 0,
-          paddingRight: 0,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 2,
-            left: 0,
-            right: 0,
-            height: 2,
-            background: violet,
-            transform: 'scaleX(1)',
-            transformOrigin: 'left',
-            transition: 'transform 150ms',
-          },
-          '&:hover::after': {
-            transform: 'scaleX(1.05)',
+
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: {
+            backgroundColor: t.bg,
+            color: t.text,
+            transition: 'background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), color 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+            '&::before': mode === 'dark' ? {
+              content: '""',
+              position: 'fixed',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 0,
+              opacity: 0.03,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            } : {},
           },
         },
       },
-    },
-    MuiPaper: {
-      defaultProps: {
-        elevation: 0,
-      },
-      styleOverrides: {
-        root: {
-          backgroundImage: 'none',
-          borderRadius: 0,
-        },
-      },
-    },
-    MuiChip: {
-      defaultProps: {
-        size: 'small',
-      },
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          fontFamily: "'Khand', sans-serif",
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase' as const,
-          fontSize: '.68rem',
-        },
-      },
-    },
-    MuiTab: {
-      defaultProps: {
-        disableRipple: true,
-      },
-      styleOverrides: {
-        root: {
-          fontFamily: "'Khand', sans-serif",
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase' as const,
-          minHeight: 40,
-          color: textMuted,
-          '&.Mui-selected': {
-            color: text,
+      MuiButton: {
+        defaultProps: { disableElevation: true, disableRipple: true },
+        styleOverrides: {
+          root: {
+            borderRadius: 2,
+            padding: '8px 20px',
+            transition: 'all 150ms ease',
+            '&:active': { transform: 'translateY(1px)' },
           },
-        },
-      },
-    },
-    MuiTabs: {
-      styleOverrides: {
-        indicator: {
-          backgroundColor: violet,
-          height: 2,
-        },
-      },
-    },
-    MuiDialog: {
-      defaultProps: {
-        PaperProps: {
-          elevation: 0,
-        },
-      },
-      styleOverrides: {
-        paper: {
-          backgroundImage: 'none',
-          backgroundColor: surface2,
-          border: `1px solid ${borderStrong}`,
-          borderRadius: 0,
-        },
-      },
-    },
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          backgroundImage: 'none',
-          backgroundColor: surface1,
-          borderLeft: `1px solid ${border}`,
-          borderRadius: 0,
-        },
-      },
-    },
-    MuiTooltip: {
-      defaultProps: {
-        arrow: false,
-      },
-      styleOverrides: {
-        tooltip: {
-          backgroundColor: surface3,
-          border: `1px solid ${borderStrong}`,
-          borderRadius: 0,
-          fontSize: '.75rem',
-          color: text,
-          padding: '8px 12px',
-        },
-      },
-    },
-    MuiTextField: {
-      defaultProps: {
-        size: 'small',
-        variant: 'outlined',
-      },
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: 0,
-            '& fieldset': {
-              borderColor: border,
+          containedPrimary: {
+            background: `linear-gradient(135deg, ${t.blue} 0%, ${t.violet} 100%)`,
+            color: '#fff',
+            border: 'none',
+            '&:hover': {
+              background: `linear-gradient(135deg, ${t.blueLight} 0%, ${t.violetL} 100%)`,
+              boxShadow: `0 4px 12px ${alpha(t.violet, 0.3)}`,
             },
-            '&:hover fieldset': {
-              borderColor: borderStrong,
+          },
+          outlined: {
+            borderColor: t.border,
+            '&:hover': {
+              borderColor: t.violet,
+              backgroundColor: alpha(t.violet, 0.04),
             },
-            '&.Mui-focused fieldset': {
-              borderColor: violet,
+          },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 4,
+            border: `1px solid ${t.border}`,
+            backgroundColor: t.surface1,
+            backgroundImage: 'none',
+            transition: 'transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease',
+            '&:hover': {
+              borderColor: alpha(t.violet, 0.4),
+              boxShadow: mode === 'dark' 
+                ? `0 8px 24px rgba(0,0,0,0.4)`
+                : `0 8px 24px rgba(0,0,0,0.08)`,
+            },
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: 'none',
+            borderRadius: 2,
+          },
+        },
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            backgroundColor: alpha(t.bg, 0.8),
+            backdropFilter: 'blur(12px)',
+            borderBottom: `1px solid ${t.border}`,
+            color: t.text,
+          },
+        },
+      },
+      MuiToolbar: {
+        styleOverrides: {
+          root: {
+            minHeight: '64px !important',
+          },
+        },
+      },
+      MuiToggleButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 2,
+            border: `1px solid ${t.border}`,
+            color: t.textDim,
+            '&.Mui-selected': {
+              color: t.violet,
+              backgroundColor: alpha(t.violet, 0.08),
+              borderColor: t.violet,
+              '&:hover': {
+                backgroundColor: alpha(t.violet, 0.12),
+              },
             },
           },
         },
       },
     },
-    MuiSelect: {
-      defaultProps: {
-        size: 'small',
-        variant: 'outlined',
-      },
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-        },
-      },
-    },
-    MuiAccordion: {
-      defaultProps: {
-        disableGutters: true,
-        elevation: 0,
-      },
-      styleOverrides: {
-        root: {
-          backgroundColor: 'transparent',
-          borderRadius: '0 !important',
-          '&::before': {
-            display: 'none',
-          },
-        },
-      },
-    },
-    MuiAccordionSummary: {
-      styleOverrides: {
-        root: {
-          minHeight: 40,
-          padding: '0 12px',
-          '&.Mui-expanded': {
-            minHeight: 40,
-          },
-        },
-        content: {
-          margin: '8px 0',
-          '&.Mui-expanded': {
-            margin: '8px 0',
-          },
-        },
-      },
-    },
-    MuiCard: {
-      defaultProps: {
-        elevation: 0,
-      },
-      styleOverrides: {
-        root: {
-          backgroundImage: 'none',
-          borderRadius: 0,
-          border: `1px solid ${border}`,
-        },
-      },
-    },
-    MuiToggleButton: {
-      defaultProps: {
-        disableRipple: true,
-      },
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          fontFamily: "'Khand', sans-serif",
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase' as const,
-          fontSize: '.68rem',
-          color: textDim,
-          borderColor: border,
-          '&.Mui-selected': {
-            color: text,
-            backgroundColor: 'rgba(139, 92, 246, 0.15)',
-            borderColor: borderStrong,
-          },
-          '&.Mui-selected:hover': {
-            backgroundColor: 'rgba(139, 92, 246, 0.2)',
-          },
-        },
-      },
-    },
-    MuiToggleButtonGroup: {
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-        },
-      },
-    },
-    MuiSlider: {
-      styleOverrides: {
-        root: {
-          color: violet,
-          borderRadius: 0,
-        },
-        thumb: {
-          borderRadius: 0,
-          width: 12,
-          height: 12,
-        },
-        track: {
-          borderRadius: 0,
-        },
-        rail: {
-          borderRadius: 0,
-          opacity: 0.3,
-        },
-      },
-    },
-    MuiAppBar: {
-      defaultProps: {
-        elevation: 0,
-      },
-      styleOverrides: {
-        root: {
-          backgroundImage: 'none',
-          backgroundColor: bg,
-          borderBottom: `1px solid ${border}`,
-        },
-      },
-    },
-    MuiToolbar: {
-      styleOverrides: {
-        root: {
-          minHeight: '56px !important',
-        },
-      },
-    },
-    MuiIconButton: {
-      defaultProps: {
-        disableRipple: true,
-      },
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          color: textMuted,
-          '&:hover': {
-            color: text,
-            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-          },
-        },
-      },
-    },
-    MuiBadge: {
-      styleOverrides: {
-        badge: {
-          borderRadius: 0,
-          fontFamily: "'Share Tech Mono', monospace",
-          fontWeight: 600,
-          fontSize: '.6rem',
-        },
-      },
-    },
-  },
-});
+  });
+};
 
-const rarityLegendary = '#f59e0b';
-const rarityRare      = '#06b6d4';
-const rarityCommon    = '#6b7280';
-
-// Re-export tokens for use in sx props
-export const tokens = {
-  bg, bgSubtle, surface1, surface2, surface3,
-  border, borderStrong,
-  blue, blueLight, violet, violetL, mauve,
-  text, textMuted, textDim,
-  success, warning, danger, info,
-  gradient: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 55%, #c084fc 100%)',
-  gradientDim: 'linear-gradient(135deg, rgba(59,130,246,.14) 0%, rgba(139,92,246,.14) 55%, rgba(192,132,252,.14) 100%)',
-  rarityLegendary, rarityRare, rarityCommon,
-} as const;
-
-export default theme;
+// Re-export for legacy sx use (careful, these won't change unless we use theme.palette)
+// It's better to use theme => theme.palette... in sx props
+export const tokens = tokensDark; // Keep for fallback, but deprecated

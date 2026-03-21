@@ -1,3 +1,4 @@
+import { alpha, useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -13,7 +14,6 @@ import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
-import { tokens } from '../theme';
 import { CARD_STATS, computeStatMaxima } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { STAT_UNITS } from '../types';
@@ -50,28 +50,36 @@ function BlueprintCard({
   isActive: boolean;
   isFavorite: boolean;
   isInInventory: boolean;
-  statMaxima: Map<NumericItemStatKey, number>;
+  statMaxima: Map<ItemCategory, Map<NumericItemStatKey, number>>;
   resources: Resource[];
   onClick: () => void;
 }) {
   const { t, lang } = useI18n();
+  const theme = useTheme();
   const { url: thumbUrl, mode: thumbMode } = resolveThumb(blueprint);
   const [imgError, setImgError] = useState(false);
   const showImage = thumbUrl && !imgError;
 
   const cardStats = CARD_STATS[blueprint.category] ?? [];
+  const categoryMax = statMaxima.get(blueprint.category);
 
   return (
     <Card
       role="listitem"
       sx={{
-        borderColor: isActive ? tokens.violet : isInInventory ? tokens.borderStrong : tokens.border,
-        backgroundColor: isActive ? tokens.surface2 : tokens.surface1,
-        transition: 'border-color 150ms, background-color 150ms',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        borderColor: isActive ? 'primary.main' : (isInInventory ? 'primary.light' : 'divider'),
+        backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.05) : 'background.paper',
+        transition: 'all 200ms ease',
         cursor: 'pointer',
         '&:hover': {
-          borderColor: isActive ? tokens.violet : tokens.borderStrong,
-          backgroundColor: tokens.surface2,
+          borderColor: 'primary.main',
+          transform: 'translateY(-4px)',
+          boxShadow: theme.palette.mode === 'dark' 
+            ? `0 12px 32px ${alpha('#000', 0.5)}`
+            : `0 12px 32px ${alpha(theme.palette.primary.main, 0.12)}`,
         },
       }}
     >
@@ -84,102 +92,140 @@ function BlueprintCard({
         )}
         sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
       >
-        <Box sx={{ p: '10px 12px', display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {/* Row 1: Rarity badge + status icons */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Top Section: Image with overlays */}
+        <Box
+          sx={{
+            position: 'relative',
+            height: 160,
+            backgroundColor: theme.palette.mode === 'dark' ? alpha('#000', 0.2) : alpha(theme.palette.primary.main, 0.02),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          {/* Rarity / Category Badge Overlay */}
+          <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}>
             {blueprint.rarity ? (
               <RarityBadge rarity={blueprint.rarity} />
             ) : (
               <CategoryBadge category={blueprint.category} />
             )}
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              {isFavorite && (
-                <StarIcon sx={{ color: tokens.warning, fontSize: '.8rem' }} aria-label={t('Favorite', 'Favori')} />
-              )}
-              {isInInventory && (
-                <CheckCircleIcon sx={{ color: tokens.violet, fontSize: '.75rem' }} aria-label={t('In inventory', 'En inventaire')} />
-              )}
-            </Box>
           </Box>
 
-          {/* Row 2: Thumbnail + name */}
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-            <Box
+          {/* Status Icons Overlay */}
+          <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1, display: 'flex', gap: 0.5 }}>
+            {isFavorite && (
+              <StarIcon
+                sx={{
+                  color: 'warning.main',
+                  fontSize: '1.2rem',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                }}
+                aria-label={t('Favorite', 'Favori')}
+              />
+            )}
+            {isInInventory && (
+              <CheckCircleIcon
+                sx={{
+                  color: 'primary.main',
+                  fontSize: '1.1rem',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                }}
+                aria-label={t('In inventory', 'En inventaire')}
+              />
+            )}
+          </Box>
+
+          {/* Large Image / Icon */}
+          <Box sx={{ width: '100%', height: '100%', p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {showImage ? (
+              <CardMedia
+                component="img"
+                image={thumbUrl}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={() => setImgError(true)}
+                sx={{
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                  objectFit: 'contain',
+                  filter: thumbMode === 'item' ? (theme.palette.mode === 'dark' ? 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' : 'drop-shadow(0 8px 16px rgba(0,0,0,0.1))') : 'none',
+                  p: thumbMode === 'logo' ? 2 : 0,
+                  transition: 'transform 300ms ease',
+                  '.MuiCardActionArea-root:hover &': {
+                    transform: 'scale(1.05)',
+                  }
+                }}
+              />
+            ) : (
+              <GameIcon name={CAT_ICON[blueprint.category]} size={56} shimmer={false} />
+            )}
+          </Box>
+        </Box>
+
+        {/* Bottom Section: Content */}
+        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+          {/* Name & Manufacturer */}
+          <Box>
+            <Typography
               sx={{
-                width: 64,
-                minWidth: 64,
-                height: 64,
-                backgroundColor: tokens.bgSubtle,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                fontFamily: "'Khand', sans-serif",
+                fontWeight: 700,
+                fontSize: '1.1rem',
+                lineHeight: 1.1,
+                color: 'text.primary',
+                textTransform: 'uppercase',
                 overflow: 'hidden',
-                border: `1px solid ${tokens.border}`,
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                minHeight: '2.2em',
               }}
             >
-              {showImage ? (
-                <CardMedia
-                  component="img"
-                  image={thumbUrl}
-                  alt=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={() => setImgError(true)}
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    p: thumbMode === 'logo' ? '8px' : '2px',
-                  }}
-                />
-              ) : (
-                <GameIcon name={CAT_ICON[blueprint.category]} size={28} shimmer={false} />
-              )}
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontFamily: "'Khand', sans-serif",
-                  fontWeight: 700,
-                  fontSize: '.95rem',
-                  lineHeight: 1.2,
-                  color: tokens.text,
-                  textTransform: 'uppercase',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                }}
-              >
-                {blueprint.name}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: tokens.blueLight,
-                  fontSize: '.6rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {blueprint.manufacturer} // {blueprint.category.replace('fps-', '')}
-              </Typography>
-            </Box>
+              {blueprint.name}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'secondary.main',
+                fontSize: '0.75rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                fontWeight: 600,
+                mt: 0.5,
+                display: 'block',
+              }}
+            >
+              {blueprint.manufacturer} // {blueprint.category.replace('fps-', '')}
+            </Typography>
           </Box>
 
-          {/* Row 3: Stat bars */}
+          {/* Stat bars */}
           {cardStats.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {cardStats.map(({ key, label }) => {
                 const val = blueprint.baseStats[key];
-                if (typeof val !== 'number' || val === 0) return null;
-                const max = statMaxima.get(key) ?? val;
+                if (typeof val !== 'number') return null;
+
+                const max = categoryMax?.get(key) ?? Math.abs(val);
                 const unit = STAT_UNITS[key] ?? '';
                 const displayVal = unit === '%'
                   ? `${Math.round(val * 100)}%`
                   : `${Math.round(val)}${unit ? ` ${unit}` : ''}`;
-                const fill = max > 0 ? (val / max) * 100 : 0;
+
+                let fill = 0;
+                if (key === 'temperatureMin') {
+                  fill = ((val + 100) / 150) * 100;
+                } else if (key === 'temperatureMax') {
+                  fill = (val / 150) * 100;
+                } else {
+                  fill = max > 0 ? (Math.abs(val) / max) * 100 : 0;
+                }
+
                 return (
                   <StatBar
                     key={key}
@@ -189,45 +235,15 @@ function BlueprintCard({
                   />
                 );
               })}
-              {/* Ammo type chip for magazines */}
-              {blueprint.category === 'fps-magazine' && blueprint.baseStats.ammoType && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      width: 80,
-                      flexShrink: 0,
-                      fontSize: '.6rem',
-                      color: tokens.textMuted,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                    }}
-                  >
-                    {lang === 'fr' ? 'Munition' : 'Ammo'}
-                  </Typography>
-                  <Box
-                    sx={{
-                      backgroundColor: tokens.surface2,
-                      px: 0.75,
-                      py: 0.25,
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: '.55rem', color: tokens.textMuted, textTransform: 'uppercase' }}
-                    >
-                      {blueprint.baseStats.ammoType}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
             </Box>
           )}
 
-          {/* Row 4: Materials */}
-          {blueprint.slots.length > 0 && (
-            <MaterialChips slots={blueprint.slots} resources={resources} />
-          )}
+          {/* Materials */}
+          <Box sx={{ mt: 'auto', pt: 1 }}>
+            {blueprint.slots.length > 0 && (
+              <MaterialChips slots={blueprint.slots} resources={resources} />
+            )}
+          </Box>
         </Box>
       </CardActionArea>
     </Card>
@@ -308,7 +324,7 @@ export function BlueprintGrid() {
   const filteredBlueprints = useMemo(() => {
     let list = allBlueprints;
 
-    // Segment filter
+    // Library Segment
     if (librarySegment === 'inventory') {
       list = list.filter((bp) => inventoryIds.includes(bp.id));
     } else if (librarySegment === 'favorites') {
@@ -317,22 +333,22 @@ export function BlueprintGrid() {
       list = list.filter((bp) => obtainableIds.has(bp.id));
     }
 
-    // Category filter
-    if (categoryFilter !== 'all' && categoryFilter !== 'favorites' && categoryFilter !== 'obtainable') {
+    // Category
+    if (categoryFilter !== 'all') {
       list = list.filter((bp) => bp.category === categoryFilter);
     }
 
-    // Manufacturer filter
+    // Manufacturer
     if (manufacturerFilter) {
       list = list.filter((bp) => bp.manufacturer === manufacturerFilter);
     }
 
-    // Legality filter
+    // Legality
     if (legalityBlueprintIds) {
       list = list.filter((bp) => legalityBlueprintIds.has(bp.id));
     }
 
-    // Location filter
+    // Location
     if (locationBlueprintIds) {
       list = list.filter((bp) => locationBlueprintIds.has(bp.id));
     }
@@ -359,21 +375,23 @@ export function BlueprintGrid() {
         : t('No blueprints found.', 'Aucun blueprint trouvé.');
 
   return (
-    <Box>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
         <BlueprintExplorer />
       </Box>
 
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ mb: 1 }}>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }} aria-live="polite">
+      <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}
           </Typography>
         </Box>
         {filteredBlueprints.length === 0 ? (
-          <Typography sx={{ color: 'text.secondary', py: 3, textAlign: 'center' }} role="status">
-            {emptyMessage}
-          </Typography>
+          <Box sx={{ py: 8, textAlign: 'center' }}>
+            <Typography sx={{ color: 'text.secondary', mb: 1 }} role="status">
+              {emptyMessage}
+            </Typography>
+          </Box>
         ) : (
           <Box
             sx={{
@@ -383,8 +401,9 @@ export function BlueprintGrid() {
                 sm: 'repeat(2, 1fr)',
                 md: 'repeat(3, 1fr)',
                 lg: 'repeat(4, 1fr)',
+                xl: 'repeat(5, 1fr)',
               },
-              gap: 1,
+              gap: 3,
               '@media (min-width: 480px) and (max-width: 599px)': {
                 gridTemplateColumns: 'repeat(2, 1fr)',
               },

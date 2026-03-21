@@ -27,11 +27,11 @@ export function ResourceSummary({ entries }: { entries: AggregatedResource[] }) 
               primary={entry.resourceName}
               secondary={summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
               slotProps={{
-                primary: { variant: 'body2', sx: { fontSize: '.78rem' } },
-                secondary: { variant: 'caption', sx: { fontSize: '.6rem' } },
+                primary: { variant: 'body2', sx: { fontSize: '0.85rem' } },
+                secondary: { variant: 'caption', sx: { fontSize: '0.75rem' } },
               }}
             />
-            <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', ml: 1, flexShrink: 0 }}>
+            <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', ml: 1, flexShrink: 0 }}>
               ×{entry.totalScu.toFixed(2)} SCU
             </Typography>
           </ListItem>

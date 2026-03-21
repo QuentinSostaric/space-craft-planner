@@ -231,20 +231,30 @@ export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemSt
   // fps-backpack: no storage stat exists in ItemStats yet — deferred until data is available
 };
 
-/** Compute maximum value per stat key across all blueprints, for stat bar normalization. */
-export function computeStatMaxima(blueprints: Blueprint[]): Map<NumericItemStatKey, number> {
-  const maxima = new Map<NumericItemStatKey, number>();
+/** Compute maximum value per stat key per category across all blueprints, for stat bar normalization. */
+export function computeStatMaxima(blueprints: Blueprint[]): Map<ItemCategory, Map<NumericItemStatKey, number>> {
+  const categoryMaxima = new Map<ItemCategory, Map<NumericItemStatKey, number>>();
 
   for (const bp of blueprints) {
+    if (!categoryMaxima.has(bp.category)) {
+      categoryMaxima.set(bp.category, new Map<NumericItemStatKey, number>());
+    }
+    const maxima = categoryMaxima.get(bp.category)!;
+
     for (const key of NUMERIC_ITEM_STAT_KEYS) {
       const val = bp.baseStats[key];
-      if (typeof val === 'number' && val > 0) {
-        maxima.set(key, Math.max(maxima.get(key) ?? 0, val));
+      if (typeof val === 'number') {
+        // For temperatures, we might want special handling if they can be negative
+        // but for most stats val > 0 is a good filter.
+        if (val !== 0) {
+          const absoluteVal = Math.abs(val);
+          maxima.set(key, Math.max(maxima.get(key) ?? 0, absoluteVal));
+        }
       }
     }
   }
 
-  return maxima;
+  return categoryMaxima;
 }
 
 export function getAcquisitionEntry(

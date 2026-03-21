@@ -83,7 +83,7 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
   return (
     <svg
       viewBox="0 0 300 300"
-      className="radar-chart"
+      style={{ width: '100%', maxWidth: 300, height: 'auto' }}
       role="img"
       aria-label={
         lang === 'en'

@@ -1,6 +1,6 @@
 {
   "name": "item-fabricator",
-  "version": "0.0.1",
+  "version": "0.4.0",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
@@ -25,7 +25,7 @@
   "engines": {
     "node": ">=22"
   },
-  "keywords": ["react", "vite", "cloudflare-pages", "mongodb", "atlas"],
+  "keywords": ["react", "vite", "mongodb"],
   "author": "TheSamon",
   "license": "MIT"
 }
