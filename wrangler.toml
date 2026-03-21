@@ -3,9 +3,3 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat_v2"]
 
 pages_build_output_dir = "client/dist"
-
-# Replace node:tls with a cloudflare:sockets-backed shim.
-# The node:tls polyfill's TLS handshake hangs against MongoDB Atlas.
-[alias]
-"tls"      = "./functions/_shared/tls-cf-shim"
-"node:tls" = "./functions/_shared/tls-cf-shim"
