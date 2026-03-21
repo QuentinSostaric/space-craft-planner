@@ -3,12 +3,15 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
+import Badge from '@mui/material/Badge';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FlagIcon from '@mui/icons-material/Flag';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { alpha, useTheme } from '@mui/material/styles';
 import { GameIcon } from './ui/GameIcon';
 import { useI18n } from '../i18n/I18nContext';
+import { useCraft } from '../store/CraftContext';
 
 export type MainView = 'blueprints' | 'missions' | 'planner';
 
@@ -117,6 +120,7 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
 
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
+  const { goals } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -130,7 +134,7 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           backgroundColor: 'background.paper',
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
         }}
       >
         <NavItem
@@ -146,6 +150,22 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: '1.1rem' }} />}
           onClick={() => onChangeView('missions')}
+        />
+        <NavItem
+          active={mainView === 'planner'}
+          collapsed={false}
+          label={t('Planner', 'Planificateur')}
+          icon={
+            <Badge
+              badgeContent={goals.length}
+              color="primary"
+              invisible={goals.length === 0}
+              sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
+            >
+              <AssignmentIcon sx={{ fontSize: '1.1rem' }} />
+            </Badge>
+          }
+          onClick={() => onChangeView('planner')}
         />
       </Box>
     );
@@ -185,6 +205,24 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           icon={<FlagIcon sx={{ fontSize: '1.2rem' }} />}
           onClick={() => onChangeView('missions')}
         />
+        <Box sx={{ mt: 'auto' }}>
+          <NavItem
+            active={mainView === 'planner'}
+            collapsed={collapsed}
+            label={t('Planner', 'Planificateur')}
+            icon={
+              <Badge
+                badgeContent={goals.length}
+                color="primary"
+                invisible={goals.length === 0}
+                sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
+              >
+                <AssignmentIcon sx={{ fontSize: '1.2rem' }} />
+              </Badge>
+            }
+            onClick={() => onChangeView('planner')}
+          />
+        </Box>
       </Box>
 
       {/* Toggle button at the bottom */}

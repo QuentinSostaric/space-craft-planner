@@ -3,15 +3,14 @@ import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
-import MuiBadge from '@mui/material/Badge';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { alpha, useTheme as useMuiTheme } from '@mui/material/styles';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
-import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useCraft } from '../store/CraftContext';
@@ -27,13 +26,13 @@ export function Header() {
     datasetLoading,
     setActiveDatasetChannel,
     setActiveDatasetId,
-    goals,
-    openPlanner,
     changelogOpen,
     setChangelogOpen,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const [themeMode, setThemeMode] = useTheme();
+  const theme = useMuiTheme();
+  const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
 
   const availableChannels = new Set(availableDatasets.map((dataset) => dataset.channel));
   const channelDatasets = availableDatasets
@@ -69,57 +68,142 @@ export function Header() {
         },
       }}
     >
-      <Toolbar sx={{ justifyContent: 'space-between', gap: 2, px: { xs: 2, sm: 3 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            width: 36,
-            height: 36,
-            borderRadius: 1,
-            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-            color: 'primary.main'
-          }}>
-            <GameIcon name="calculator" size={24} />
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Typography
-              variant="h6"
+      <Toolbar
+        sx={{
+          px: { xs: 1.5, sm: 2.5, lg: 3 },
+          py: { xs: 1, md: 1.25 },
+          gap: { xs: 1.25, md: 2 },
+          flexWrap: 'wrap',
+          alignItems: { xs: 'stretch', md: 'center' },
+          justifyContent: 'space-between',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+            minWidth: 0,
+            width: { xs: '100%', md: 'auto' },
+            flex: { md: '1 1 auto' },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, md: 2 }, minWidth: 0 }}>
+            <Box
               sx={{
-                letterSpacing: '-0.01em',
-                fontSize: '1.3rem',
-                lineHeight: 0.9,
-                color: 'text.primary'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: { xs: 32, md: 36 },
+                height: { xs: 32, md: 36 },
+                borderRadius: 1,
+                backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                color: 'primary.main',
+                flexShrink: 0,
               }}
             >
-              Item
-              <Box
-                component="span"
+              <GameIcon name="calculator" size={isCompactLayout ? 20 : 24} />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <Typography
+                variant="h6"
                 sx={{
-                  color: 'primary.main',
-                  ml: 0.5
+                  letterSpacing: '-0.01em',
+                  fontSize: { xs: '1.05rem', sm: '1.15rem', md: '1.3rem' },
+                  lineHeight: 0.95,
+                  color: 'text.primary',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                Fabricator
-              </Box>
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: '0.6rem',
-                color: 'text.disabled',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                fontWeight: 600,
-              }}
+                Item
+                <Box component="span" sx={{ color: 'primary.main', ml: 0.5 }}>
+                  Fabricator
+                </Box>
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: { xs: '0.56rem', md: '0.6rem' },
+                  color: 'text.disabled',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Build {activeDataset.version}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              flexShrink: 0,
+              borderLeft: { xs: 'none', md: (theme) => `1px solid ${theme.palette.divider}` },
+              pl: { xs: 0, md: 1.5 },
+            }}
+          >
+            {hasChangelog && (
+              <IconButton
+                onClick={() => setChangelogOpen(!changelogOpen)}
+                aria-pressed={changelogOpen}
+                title={t('PTU Changelog', 'Changelog PTU')}
+                size="small"
+                sx={{
+                  ...(changelogOpen && {
+                    color: 'primary.main',
+                    backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                  }),
+                }}
+              >
+                <ChangeHistoryIcon sx={{ fontSize: '1.25rem' }} />
+              </IconButton>
+            )}
+
+            <IconButton
+              onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+              title={themeMode === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
+              size="small"
             >
-              Build {activeDataset.version}
-            </Typography>
+              {themeMode === 'dark' ? <LightModeIcon sx={{ fontSize: '1.25rem' }} /> : <DarkModeIcon sx={{ fontSize: '1.25rem' }} />}
+            </IconButton>
+
+            <ToggleButtonGroup
+              value={lang}
+              exclusive
+              onChange={(_e, val) => {
+                if (val) setLang(val);
+              }}
+              size="small"
+              aria-label={t('Language', 'Langue')}
+              sx={{ height: 32, ml: 0.5 }}
+            >
+              <ToggleButton value="en" sx={{ px: { xs: 0.85, md: 1 }, fontSize: '0.7rem', fontWeight: 700 }}>
+                EN
+              </ToggleButton>
+              <ToggleButton value="fr" sx={{ px: { xs: 0.85, md: 1 }, fontSize: '0.7rem', fontWeight: 700 }}>
+                FR
+              </ToggleButton>
+            </ToggleButtonGroup>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, position: 'relative', zIndex: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            width: { xs: '100%', md: 'auto' },
+            flexWrap: 'wrap',
+            justifyContent: { xs: 'stretch', md: 'flex-end' },
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
           <ToggleButtonGroup
             value={activeChannel}
             exclusive
@@ -129,12 +213,20 @@ export function Header() {
             size="small"
             aria-label={t('Dataset channel', 'Canal du dataset')}
             disabled={datasetLoading}
-            sx={{ height: 32 }}
+            sx={{
+              height: 32,
+              flexShrink: 0,
+              '& .MuiToggleButton-root': {
+                px: 1.25,
+                fontSize: '0.7rem',
+                fontWeight: 700,
+              },
+            }}
           >
-            <ToggleButton value="live" disabled={!availableChannels.has('live')} sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700 }}>
+            <ToggleButton value="live" disabled={!availableChannels.has('live')}>
               LIVE
             </ToggleButton>
-            <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')} sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700 }}>
+            <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')}>
               PTU
             </ToggleButton>
           </ToggleButtonGroup>
@@ -143,7 +235,8 @@ export function Header() {
             size="small"
             disabled={datasetLoading || channelDatasets.length === 0}
             sx={{
-              minWidth: { xs: 180, md: 260 },
+              minWidth: { xs: 0, md: 240 },
+              flex: { xs: '1 1 180px', md: '0 1 280px' },
               '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' },
             }}
           >
@@ -194,62 +287,6 @@ export function Header() {
               ))}
             </Select>
           </FormControl>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderLeft: (theme) => `1px solid ${theme.palette.divider}`, pl: 1.5 }}>
-            {hasChangelog && (
-              <IconButton
-                onClick={() => setChangelogOpen(!changelogOpen)}
-                aria-pressed={changelogOpen}
-                title={t('PTU Changelog', 'Changelog PTU')}
-                size="small"
-                sx={{
-                  ...(changelogOpen && {
-                    color: 'primary.main',
-                    backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                  }),
-                }}
-              >
-                <ChangeHistoryIcon sx={{ fontSize: '1.25rem' }} />
-              </IconButton>
-            )}
-
-            <IconButton
-              onClick={openPlanner}
-              title={t('Planner', 'Planificateur')}
-              size="small"
-            >
-              <MuiBadge
-                badgeContent={goals.length}
-                color="primary"
-                invisible={goals.length === 0}
-                sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
-              >
-                <TrackChangesIcon sx={{ fontSize: '1.25rem' }} />
-              </MuiBadge>
-            </IconButton>
-
-            <IconButton
-              onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-              title={themeMode === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
-              size="small"
-            >
-              {themeMode === 'dark' ? <LightModeIcon sx={{ fontSize: '1.25rem' }} /> : <DarkModeIcon sx={{ fontSize: '1.25rem' }} />}
-            </IconButton>
-
-            <ToggleButtonGroup
-              value={lang}
-              exclusive
-              onChange={(_e, val) => {
-                if (val) setLang(val);
-              }}
-              size="small"
-              aria-label={t('Language', 'Langue')}
-              sx={{ height: 32, ml: 1 }}
-            >
-              <ToggleButton value="en" sx={{ px: 1, fontSize: '0.7rem', fontWeight: 700 }}>EN</ToggleButton>
-              <ToggleButton value="fr" sx={{ px: 1, fontSize: '0.7rem', fontWeight: 700 }}>FR</ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
         </Box>
       </Toolbar>
     </AppBar>
