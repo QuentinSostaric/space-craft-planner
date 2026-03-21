@@ -57,8 +57,8 @@ export function PlannerPage() {
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
       {/* Page header */}
-      <Box sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, backgroundColor: 'background.paper' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ px: { xs: 1.5, md: 3 }, py: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 1, flexShrink: 0, backgroundColor: 'background.paper' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6">{t('Planner', 'Planificateur')}</Typography>
           {goals.length > 0 && (
             <Chip label={`${goals.length} ${t('goals', 'objectifs')}`} size="small" variant="outlined" />
@@ -70,7 +70,7 @@ export function PlannerPage() {
             <Chip label={`${globalPct}% ${t('collected', 'collecté')}`} size="small" color="primary" variant="outlined" />
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
           <Button variant="outlined" size="small" onClick={handleCopyText} disabled={goals.length === 0}>
             {t('Copy text', 'Copier texte')}
           </Button>
@@ -81,7 +81,7 @@ export function PlannerPage() {
       </Box>
 
       {/* Two-column body */}
-      <Box sx={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, overflow: { xs: 'auto', md: 'hidden' } }}>
         <GoalsList />
         <ResourcesList />
       </Box>

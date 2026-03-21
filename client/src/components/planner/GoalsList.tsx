@@ -24,14 +24,14 @@ export function GoalsList() {
     : `~${Math.round(totalCraftSecs / 60)} min`;
 
   return (
-    <Box sx={{ width: 260, flexShrink: 0, borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ width: { xs: '100%', md: 260 }, flexShrink: 0, borderRight: { xs: 0, md: 1 }, borderBottom: { xs: 1, md: 0 }, borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Column header */}
       <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <Typography variant="overline" sx={{ display: 'block' }}>{t('Goals', 'Objectifs')}</Typography>
       </Box>
 
       {/* Goals list */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, maxHeight: { xs: 240, md: 'none' }, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
         {goals.length === 0 && (
           <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 2, textAlign: 'center' }}>
             {t('No goals yet.', 'Aucun objectif.')}

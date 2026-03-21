@@ -27,7 +27,7 @@ export function ResourcesList() {
   }, [aggregated, resourceProgress]);
 
   return (
-    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: { xs: 'visible', md: 'hidden' } }}>
       {/* Column header + global progress */}
       <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
@@ -46,7 +46,7 @@ export function ResourcesList() {
       </Box>
 
       {/* Resources list */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, overflowY: { xs: 'visible', md: 'auto' }, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
         {aggregated.length === 0 && (
           <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 4, textAlign: 'center' }}>
             {t('Add goals to see required resources.', 'Ajoutez des objectifs pour voir les ressources requises.')}
