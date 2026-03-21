@@ -30,6 +30,8 @@ export async function getDb(env) {
       maxPoolSize: 4,
       minPoolSize: 0,
       serverSelectionTimeoutMS: 10_000,
+      tls: true,
+      directConnection: false,
     });
     clientPromise = client.connect();
   }
