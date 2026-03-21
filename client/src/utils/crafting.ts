@@ -15,18 +15,19 @@ import type {
   NumericItemStatKey,
 } from '../types';
 import { NUMERIC_ITEM_STAT_KEYS } from '../types';
+import { loc } from '../i18n/I18nContext';
 
-const SCALE_LABELS: Record<string, { en: string; fr: string }> = {
-  universe: { en: 'Universe-wide', fr: 'Univers entier' },
-  system: { en: 'System-wide', fr: 'Systeme entier' },
-  'planetary-cluster': { en: 'Planetary cluster', fr: 'Cluster planetaire' },
-  'regional-sector': { en: 'Regional sector', fr: 'Secteur regional' },
-  'specific-location': { en: 'Specific location', fr: 'Lieu specifique' },
-  unknown: { en: 'Unknown scope', fr: 'Portee inconnue' },
+const SCALE_LABELS: Record<string, { en: string; fr: string; de?: string }> = {
+  universe: { en: 'Universe-wide', fr: 'Univers entier', de: 'Universweit' },
+  system: { en: 'System-wide', fr: 'Systeme entier', de: 'Systemweit' },
+  'planetary-cluster': { en: 'Planetary cluster', fr: 'Cluster planetaire', de: 'Planetarer Cluster' },
+  'regional-sector': { en: 'Regional sector', fr: 'Secteur regional', de: 'Regionaler Sektor' },
+  'specific-location': { en: 'Specific location', fr: 'Lieu specifique', de: 'Bestimmter Ort' },
+  unknown: { en: 'Unknown scope', fr: 'Portee inconnue', de: 'Unbekannte Reichweite' },
 };
 
 export function formatScaleLabel(scale: string, lang: Lang): string {
-  return SCALE_LABELS[scale]?.[lang] ?? (lang === 'fr' ? 'Portee inconnue' : 'Unknown scope');
+  return SCALE_LABELS[scale] ? loc(SCALE_LABELS[scale], lang) : loc(SCALE_LABELS.unknown, lang);
 }
 
 const CONTRACT_PREFIXES = [
@@ -66,9 +67,9 @@ export function formatStandingLabel(standing: StandingLike, _lang: Lang): string
 
 export function formatStandingSummary(standings: StandingLike[], lang: Lang): string {
   if (standings.length === 0) {
-    return lang === 'fr'
-      ? 'Aucun seuil explicite dans les contrats extraits'
-      : 'No explicit standing gate in extracted contract data';
+    if (lang === 'fr') return 'Aucun seuil explicite dans les contrats extraits';
+    if (lang === 'de') return 'Keine explizite Rufschwelle in den extrahierten Vertragsdaten';
+    return 'No explicit standing gate in extracted contract data';
   }
 
   const uniqueNames = [...new Set(
@@ -89,9 +90,9 @@ export function formatStandingSummary(standings: StandingLike[], lang: Lang): st
 
 export function formatStanding(contract: MissionContract, lang: Lang): string {
   if (contract.minimumRequiredStandings.length === 0) {
-    return lang === 'fr'
-      ? 'Aucun seuil explicite dans les contrats extraits'
-      : 'No explicit standing gate in extracted contract data';
+    if (lang === 'fr') return 'Aucun seuil explicite dans les contrats extraits';
+    if (lang === 'de') return 'Keine explizite Rufschwelle in den extrahierten Vertragsdaten';
+    return 'No explicit standing gate in extracted contract data';
   }
 
   return contract.minimumRequiredStandings
@@ -109,7 +110,9 @@ export function formatLocations(contract: MissionContract, lang: Lang): string {
     return contract.availability.localities.join(', ');
   }
 
-  return lang === 'fr' ? 'Aucun lieu explicite' : 'No explicit location';
+  if (lang === 'fr') return 'Aucun lieu explicite';
+  if (lang === 'de') return 'Kein expliziter Ort';
+  return 'No explicit location';
 }
 
 
@@ -127,7 +130,9 @@ export function formatQualityToken(value: number): string {
 }
 
 export function formatQualityLabel(value: number, lang: Lang): string {
-  return lang === 'fr' ? `Qualite ${Math.round(value)}` : `Quality ${Math.round(value)}`;
+  if (lang === 'fr') return `Qualite ${Math.round(value)}`;
+  if (lang === 'de') return `Qualitat ${Math.round(value)}`;
+  return `Quality ${Math.round(value)}`;
 }
 
 export function summarizeAssignedQualities(
@@ -137,8 +142,8 @@ export function summarizeAssignedQualities(
 ): string {
   if (qualityValues.length === 0) {
     return unassignedSlotCount > 0
-      ? (lang === 'fr' ? 'Non selectionnee' : 'Unassigned')
-      : (lang === 'fr' ? 'Aucune' : 'None');
+      ? (lang === 'fr' ? 'Non selectionnee' : lang === 'de' ? 'Nicht zugewiesen' : 'Unassigned')
+      : (lang === 'fr' ? 'Aucune' : lang === 'de' ? 'Keine' : 'None');
   }
 
   const sorted = [...qualityValues].sort((left, right) => left - right);
@@ -147,9 +152,9 @@ export function summarizeAssignedQualities(
   const baseLabel = min === max ? formatQualityToken(min) : `${formatQualityToken(min)}-${formatQualityToken(max)}`;
 
   if (unassignedSlotCount > 0) {
-    return lang === 'fr'
-      ? `${baseLabel} (+${unassignedSlotCount} non selectionne)`
-      : `${baseLabel} (+${unassignedSlotCount} unassigned)`;
+    if (lang === 'fr') return `${baseLabel} (+${unassignedSlotCount} non selectionne)`;
+    if (lang === 'de') return `${baseLabel} (+${unassignedSlotCount} nicht zugewiesen)`;
+    return `${baseLabel} (+${unassignedSlotCount} unassigned)`;
   }
 
   return baseLabel;
@@ -243,21 +248,21 @@ export function aggregateGoalResources(
 
 
 /** Key stats to show on cards per category */
-export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemStatKey; label: { en: string; fr: string } }>>> = {
+export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemStatKey; label: { en: string; fr: string; de?: string } }>>> = {
   'fps-weapon': [
-    { key: 'damage', label: { en: 'DPS', fr: 'DPS' } },
-    { key: 'effectiveRange', label: { en: 'Range', fr: 'Portee' } },
+    { key: 'damage', label: { en: 'DPS', fr: 'DPS', de: 'DPS' } },
+    { key: 'effectiveRange', label: { en: 'Range', fr: 'Portee', de: 'Reichweite' } },
   ],
   'fps-armor': [
-    { key: 'damageResistanceKinetic', label: { en: 'Kinetic', fr: 'Cinetique' } },
-    { key: 'damageResistanceEnergy', label: { en: 'Energy', fr: 'Energie' } },
+    { key: 'damageResistanceKinetic', label: { en: 'Kinetic', fr: 'Cinetique', de: 'Kinetik' } },
+    { key: 'damageResistanceEnergy', label: { en: 'Energy', fr: 'Energie', de: 'Energie' } },
   ],
   'fps-helmet': [
-    { key: 'damageResistanceKinetic', label: { en: 'Kinetic', fr: 'Cinetique' } },
-    { key: 'damageResistanceEnergy', label: { en: 'Energy', fr: 'Energie' } },
+    { key: 'damageResistanceKinetic', label: { en: 'Kinetic', fr: 'Cinetique', de: 'Kinetik' } },
+    { key: 'damageResistanceEnergy', label: { en: 'Energy', fr: 'Energie', de: 'Energie' } },
   ],
   'fps-magazine': [
-    { key: 'magazineSize', label: { en: 'Capacity', fr: 'Capacite' } },
+    { key: 'magazineSize', label: { en: 'Capacity', fr: 'Capacite', de: 'Kapazitat' } },
   ],
   'fps-undersuit': [
     { key: 'temperatureMin', label: { en: 'Temp Min', fr: 'Temp Min' } },

@@ -7,6 +7,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { GoalsList } from './planner/GoalsList';
 import { ResourcesList } from './planner/ResourcesList';
+import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { aggregateGoalResources } from '../utils/crafting';
 
 export function PlannerPage() {
@@ -16,7 +17,7 @@ export function PlannerPage() {
     resourceProgress,
     resetResourceProgress,
   } = useCraft();
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
 
   const aggregated = useMemo(() => aggregateGoalResources(goals, blueprints), [goals, blueprints]);
 
@@ -39,7 +40,7 @@ export function PlannerPage() {
       ...aggregated.map((r) => `${r.resourceName} — ${r.totalScu.toFixed(2)} SCU`),
     ];
     navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
-  }, [goals, aggregated, lang]);
+  }, [goals, aggregated]);
 
   const handleDownloadJSON = useCallback(() => {
     const payload = {
@@ -55,9 +56,9 @@ export function PlannerPage() {
   }, [goals, aggregated, resourceProgress]);
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: { xs: 'visible', md: 'hidden' } }}>
       {/* Page header */}
-      <Box sx={{ px: { xs: 1.5, md: 3 }, py: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 1, flexShrink: 0, backgroundColor: 'background.paper' }}>
+      <Box sx={{ px: { xs: 1.25, md: 3 }, py: { xs: 1.1, md: 1.5 }, borderBottom: 1, borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', gap: 1, flexShrink: 0, backgroundColor: 'background.paper' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6">{t('Planner', 'Planificateur')}</Typography>
           {goals.length > 0 && (
@@ -70,30 +71,34 @@ export function PlannerPage() {
             <Chip label={`${globalPct}% ${t('collected', 'collecté')}`} size="small" color="primary" variant="outlined" />
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-          <Button variant="outlined" size="small" onClick={handleCopyText} disabled={goals.length === 0}>
+        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}>
+          <Button variant="outlined" size="small" onClick={handleCopyText} disabled={goals.length === 0} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
             {t('Copy text', 'Copier texte')}
           </Button>
-          <Button variant="outlined" size="small" onClick={handleDownloadJSON} disabled={goals.length === 0}>
-            JSON
+          <Button variant="outlined" size="small" onClick={handleDownloadJSON} disabled={goals.length === 0} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+              <StarCitizenLicensedIcon name="download" size={14} dimmed />
+              <span>JSON</span>
+            </Box>
           </Button>
         </Box>
       </Box>
 
       {/* Two-column body */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, overflow: { xs: 'auto', md: 'hidden' } }}>
+      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, overflow: { xs: 'visible', md: 'hidden' } }}>
         <GoalsList />
-        <ResourcesList />
+        <ResourcesList aggregated={aggregated} />
       </Box>
 
       {/* Footer */}
-      <Box sx={{ px: 3, py: 1, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', flexShrink: 0, backgroundColor: 'background.paper' }}>
+      <Box sx={{ px: { xs: 1.25, md: 3 }, py: 1, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: { xs: 'stretch', md: 'flex-end' }, flexShrink: 0, backgroundColor: 'background.paper' }}>
         <Button
           variant="outlined"
           color="error"
           size="small"
           onClick={resetResourceProgress}
           disabled={totalCollected === 0}
+          sx={{ width: { xs: '100%', md: 'auto' } }}
         >
           {t('Reset progress', 'Réinitialiser la progression')}
         </Button>

@@ -1,15 +1,14 @@
 /**
- * Service de données — lit les JSON statiques générés au moment du build
- * par scripts/fetchGameData.mjs depuis MongoDB Atlas.
+ * Data service — reads static JSON snapshots generated from published MongoDB datasets.
  *
- * Fichiers servis en statique via CDN :
- *   /data/index.json          → liste des datasets publiés
- *   /data/live.json           → dataset live complet (blueprints, resources, dismantling, missionRewards)
- *   /data/ptu.json            → dataset ptu complet
- *   /data/<datasetId>.json    → snapshot complet d'un dataset spécifique quand disponible
+ * Static files served by the app:
+ *   /data/index.json
+ *   /data/live.json
+ *   /data/ptu.json
+ *   /data/<datasetId>.json    when a per-dataset snapshot exists
  *
- * En dev local : lancer `node scripts/devData.mjs` ou
- * `MONGODB_URI=... node scripts/fetchGameData.mjs` pour générer ces fichiers.
+ * Local exporter output is not a supported runtime source.
+ * Refresh these files from MongoDB with `node scripts/fetchGameData.mjs`.
  */
 
 import type { DatasetChannel, DatasetSummary, GameDataset, MissionRewardsData } from '../types';
@@ -72,9 +71,6 @@ export async function fetchPublishedDatasetById(
 export async function fetchPublishedMissionRewards(
   channel: DatasetChannel,
 ): Promise<MissionRewardsData | null> {
-  // Mission rewards are embedded in the full dataset JSON file.
-  // We re-fetch the dataset and extract missionRewards to keep the
-  // lazy-loading contract from CraftContext without requiring a separate endpoint.
   const payload = await staticFetch<{ dataset: GameDataset | null }>(`/data/${channel}.json`);
   return payload.dataset?.missionRewards ?? null;
 }

@@ -4,17 +4,13 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { aggregateGoalResources } from '../../utils/crafting';
+import { StarCitizenLicensedIcon } from '../ui/StarCitizenLicensedIcon';
+import type { AggregatedResource } from '../../types';
 import { ResourceRow } from './ResourceRow';
 
-export function ResourcesList() {
-  const { goals, blueprints, resourceProgress } = useCraft();
+export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[] }) {
+  const { resourceProgress } = useCraft();
   const { t } = useI18n();
-
-  const aggregated = useMemo(
-    () => aggregateGoalResources(goals, blueprints),
-    [goals, blueprints],
-  );
 
   const { totalRequired, totalCollected, globalPct } = useMemo(() => {
     const totalRequired = aggregated.reduce((sum, r) => sum + r.totalScu, 0);
@@ -27,13 +23,16 @@ export function ResourcesList() {
   }, [aggregated, resourceProgress]);
 
   return (
-    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: { xs: 'visible', md: 'hidden' } }}>
+    <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: { xs: 'visible', md: 'hidden' } }}>
       {/* Column header + global progress */}
-      <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+      <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-          <Typography variant="overline" sx={{ display: 'block' }}>
-            {t('Resources', 'Ressources')}
-          </Typography>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+            <StarCitizenLicensedIcon name="asteroid" size={14} dimmed />
+            <Typography variant="overline" sx={{ display: 'block' }}>
+              {t('Resources', 'Ressources')}
+            </Typography>
+          </Box>
           <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace" }}>
             {totalCollected.toFixed(2)} / {totalRequired.toFixed(2)} SCU
           </Typography>
@@ -46,9 +45,9 @@ export function ResourcesList() {
       </Box>
 
       {/* Resources list */}
-      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, overflowY: { xs: 'visible', md: 'auto' }, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, overflowY: { xs: 'visible', md: 'auto' }, p: 1.25, display: 'flex', flexDirection: 'column', gap: 1 }}>
         {aggregated.length === 0 && (
-          <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 4, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 2.5, textAlign: 'center' }}>
             {t('Add goals to see required resources.', 'Ajoutez des objectifs pour voir les ressources requises.')}
           </Typography>
         )}

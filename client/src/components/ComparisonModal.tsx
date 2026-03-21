@@ -18,7 +18,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
-import { useI18n } from '../i18n/I18nContext';
+import { loc, useI18n } from '../i18n/I18nContext';
 import {
   NUMERIC_ITEM_STAT_KEYS,
   STAT_LABELS,
@@ -26,7 +26,7 @@ import {
   STAT_UNITS,
   STAT_LOWER_IS_BETTER,
 } from '../types';
-import type { ComparisonItem, NumericItemStatKey } from '../types';
+import type { ComparisonItem, Lang, NumericItemStatKey } from '../types';
 import { aggregateBlueprintResources, summarizeAssignedQualities } from '../utils/crafting';
 import { Button } from './ui/Button';
 import { CategoryBadge } from './ui/Badge';
@@ -35,7 +35,7 @@ import { CategoryBadge } from './ui/Badge';
 interface RadarChartProps {
   items: ComparisonItem[];
   statKeys: NumericItemStatKey[];
-  lang: 'en' | 'fr';
+  lang: Lang;
 }
 
 function RadarChart({ items, statKeys, lang }: RadarChartProps) {
@@ -86,13 +86,19 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
       style={{ width: '100%', maxWidth: 300, height: 'auto' }}
       role="img"
       aria-label={
-        lang === 'en'
-          ? `Radar chart comparing ${items.length} item${items.length > 1 ? 's' : ''}`
-          : `Radar comparant ${items.length} item${items.length > 1 ? 's' : ''}`
+        lang === 'fr'
+          ? `Radar comparant ${items.length} item${items.length > 1 ? 's' : ''}`
+          : lang === 'de'
+            ? `Radar-Diagramm zum Vergleich von ${items.length} Element${items.length > 1 ? 'en' : ''}`
+            : `Radar chart comparing ${items.length} item${items.length > 1 ? 's' : ''}`
       }
     >
       <title>
-        {lang === 'en' ? 'Stats comparison radar chart' : 'Radar de comparaison des statistiques'}
+        {lang === 'fr'
+          ? 'Radar de comparaison des statistiques'
+          : lang === 'de'
+            ? 'Radar-Diagramm zum Statistikvergleich'
+            : 'Stats comparison radar chart'}
       </title>
 
       {gridRings.map((ring) => {
@@ -129,7 +135,7 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
             textAnchor={textAnchor(i)}
             dominantBaseline={dominantBaseline(i)}
           >
-            {STAT_LABELS[key]?.[lang] ?? String(key)}
+            {loc(STAT_LABELS[key], lang) ?? String(key)}
           </text>
         );
       })}
@@ -172,10 +178,13 @@ function formatStatDisplayValue(key: NumericItemStatKey, value: number): number 
 }
 
 // ─── Stat comparison table ────────────────────────────────────────────────────
-function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: NumericItemStatKey[]; lang: 'en' | 'fr' }) {
+function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: NumericItemStatKey[]; lang: Lang }) {
   return (
     <TableContainer component={Paper} variant="outlined">
-      <Table size="small" aria-label={lang === 'en' ? 'Stats comparison' : 'Comparaison des statistiques'}>
+      <Table
+        size="small"
+        aria-label={lang === 'fr' ? 'Comparaison des statistiques' : lang === 'de' ? 'Statistikvergleich' : 'Stats comparison'}
+      >
         <TableHead>
           <TableRow>
             <TableCell sx={{ fontWeight: 600, fontSize: '.7rem', textTransform: 'uppercase', letterSpacing: '.06em' }}>Stat</TableCell>
@@ -202,7 +211,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
             return (
               <TableRow key={key}>
                 <TableCell component="th" scope="row">
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.7rem' }}>{STAT_LABELS[key]?.[lang] ?? String(key)}</Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.7rem' }}>{loc(STAT_LABELS[key], lang) ?? String(key)}</Typography>
                   {STAT_UNITS[key] && (
                     <Typography component="span" variant="caption" sx={{ color: 'text.disabled', ml: 0.5, fontSize: '.58rem' }}>
                       {STAT_UNITS[key]}
@@ -240,7 +249,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
           <TableRow sx={{ '& td, & th': { borderBottom: 'none' } }}>
             <TableCell component="th" scope="row">
               <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '.7rem' }}>
-                {lang === 'en' ? 'Quality score' : 'Score qualite'}
+                {lang === 'fr' ? 'Score qualite' : lang === 'de' ? 'Qualitatswert' : 'Quality score'}
               </Typography>
             </TableCell>
             {items.map((item) => {
@@ -265,7 +274,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
 }
 
 // ─── Resource summary per item ────────────────────────────────────────────────
-function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'fr' }) {
+function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: Lang }) {
   const { blueprints } = useCraft();
   const bp = blueprints.find((blueprint) => blueprint.id === item.blueprintId);
   if (!bp) return null;
@@ -274,7 +283,11 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: 'en' | 'f
   if (entries.length === 0) return <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>;
 
   return (
-    <List dense disablePadding aria-label={`${lang === 'en' ? 'Resources for' : 'Ressources pour'} ${item.blueprintName}`}>
+    <List
+      dense
+      disablePadding
+      aria-label={`${lang === 'fr' ? 'Ressources pour' : lang === 'de' ? 'Ressourcen fur' : 'Resources for'} ${item.blueprintName}`}
+    >
       {entries.map((entry) => (
         <ListItem key={entry.resourceName} disablePadding sx={{ py: 0.25 }}>
           <ListItemText

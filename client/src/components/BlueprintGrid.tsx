@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import StarIcon from '@mui/icons-material/Star';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useCraft } from '../store/CraftContext';
-import { useI18n } from '../i18n/I18nContext';
+import { loc, useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
@@ -149,6 +149,7 @@ export const BlueprintCard = memo(function BlueprintCard({
         aria-label={t(
           `${blueprint.rarity ? blueprint.rarity + ' ' : ''}Blueprint ${blueprint.name} by ${blueprint.manufacturer}`,
           `Blueprint ${blueprint.rarity ? blueprint.rarity + ' ' : ''}${blueprint.name} par ${blueprint.manufacturer}`,
+          `${blueprint.rarity ? blueprint.rarity + ' ' : ''}Bauplan ${blueprint.name} von ${blueprint.manufacturer}`,
         )}
         sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
       >
@@ -292,7 +293,7 @@ export const BlueprintCard = memo(function BlueprintCard({
                 return (
                   <StatBar
                     key={key}
-                    label={lang === 'fr' ? label.fr : label.en}
+                    label={loc(label, lang)}
                     value={displayVal}
                     fill={fill}
                   />
@@ -582,6 +583,25 @@ export function BlueprintGrid() {
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
+        <Typography
+          sx={{
+            fontFamily: "'Khand', sans-serif",
+            fontWeight: 700,
+            fontSize: { xs: '1.9rem', md: '2.2rem' },
+            textTransform: 'uppercase',
+            lineHeight: 1,
+          }}
+        >
+          {t('Blueprints', 'Blueprints')}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+          {t(
+            'Browse craftable items, simulate quality builds and plan your material runs.',
+            'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
+          )}
+        </Typography>
+      </Box>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
         <BlueprintExplorer />
       </Box>

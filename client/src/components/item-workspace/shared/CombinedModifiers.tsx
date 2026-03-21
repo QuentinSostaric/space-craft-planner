@@ -8,7 +8,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
-import { useI18n } from '../../../i18n/I18nContext';
+import { loc, useI18n } from '../../../i18n/I18nContext';
 import { NUMERIC_ITEM_STAT_KEYS, STAT_LABELS, STAT_LOWER_IS_BETTER } from '../../../types';
 import type { ItemStats, NumericItemStatKey } from '../../../types';
 
@@ -24,7 +24,7 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
       const projected = typeof projectedValue === 'number' ? projectedValue : base;
       const pct = (projected / base - 1) * 100;
       const isImproved = STAT_LOWER_IS_BETTER.has(key) ? pct < 0 : pct > 0;
-      return { key, label: STAT_LABELS[key]?.[lang] ?? String(key), base, projected, pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
+      return { key, label: loc(STAT_LABELS[key], lang) ?? String(key), base, projected, pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
     })
     .filter(Boolean) as Array<{ key: NumericItemStatKey; label: string; base: number; projected: number; pct: number; isImproved: boolean; isNeutral: boolean }>;
 

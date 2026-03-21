@@ -53,6 +53,7 @@ const EMPTY_DATASET: GameDataset = {
   resourceCount: 0,
   blueprints: [],
   resources: [],
+  resourceInsights: null,
   changelog: null,
   dismantling: null,
   materialSources: null,

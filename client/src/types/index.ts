@@ -1,5 +1,9 @@
-export type Lang = 'en' | 'fr';
-export type LocalizedString = Record<Lang, string>;
+export type Lang = 'en' | 'fr' | 'de';
+export interface LocalizedString {
+  en: string;
+  fr: string;
+  de?: string;
+}
 
 export const LS_KEYS = {
   GOALS: 'sc-craft-goals',
@@ -122,48 +126,48 @@ export const DIRECT_GPP_TO_STAT: Partial<Record<string, NumericItemStatKey>> = {
 };
 
 export const GPP_LABELS: Record<string, LocalizedString> = {
-  GPP_Weapon_Damage: { en: 'Damage', fr: 'Degats' },
-  GPP_Weapon_FireRate: { en: 'Rate of Fire', fr: 'Cadence' },
-  GPP_Weapon_Recoil_Smoothness: { en: 'Recoil Smoothness', fr: 'Fluidite recul' },
-  GPP_Weapon_Recoil_Handling: { en: 'Recoil Handling', fr: 'Gestion recul' },
-  GPP_Weapon_Recoil_Kick: { en: 'Recoil Kick', fr: 'Recul' },
-  GPP_Armor_DamageMitigation: { en: 'Damage Resistance', fr: 'Resistance' },
-  GPP_Armor_TemperatureMin: { en: 'Min Temperature', fr: 'Temperature min' },
-  GPP_Armor_TemperatureMax: { en: 'Max Temperature', fr: 'Temperature max' },
-  GPP_Armor_RadiationDissipation: { en: 'Radiation Dissipation', fr: 'Dissipation radiation' },
+  GPP_Weapon_Damage: { en: 'Damage', fr: 'Degats', de: 'Schaden' },
+  GPP_Weapon_FireRate: { en: 'Rate of Fire', fr: 'Cadence', de: 'Feuerrate' },
+  GPP_Weapon_Recoil_Smoothness: { en: 'Recoil Smoothness', fr: 'Fluidite recul', de: 'Rückstoßglätte' },
+  GPP_Weapon_Recoil_Handling: { en: 'Recoil Handling', fr: 'Gestion recul', de: 'Rückstoßkontrolle' },
+  GPP_Weapon_Recoil_Kick: { en: 'Recoil Kick', fr: 'Recul', de: 'Rückstoß' },
+  GPP_Armor_DamageMitigation: { en: 'Damage Resistance', fr: 'Resistance', de: 'Schadensresistenz' },
+  GPP_Armor_TemperatureMin: { en: 'Min Temperature', fr: 'Temperature min', de: 'Min. Temperatur' },
+  GPP_Armor_TemperatureMax: { en: 'Max Temperature', fr: 'Temperature max', de: 'Max. Temperatur' },
+  GPP_Armor_RadiationDissipation: { en: 'Radiation Dissipation', fr: 'Dissipation radiation', de: 'Strahlungsableitung' },
 };
 
 export const STAT_LABELS: Record<keyof ItemStats, LocalizedString> = {
-  damage: { en: 'Damage', fr: 'Degats' },
-  rateOfFire: { en: 'Rate of Fire', fr: 'Cadence' },
-  magazineSize: { en: 'Magazine', fr: 'Chargeur' },
-  effectiveRange: { en: 'Range', fr: 'Portee' },
-  recoilSmoothness: { en: 'Recoil Smoothness', fr: 'Fluidite recul' },
-  recoilHandling: { en: 'Recoil Handling', fr: 'Gestion recul' },
-  recoilKick: { en: 'Recoil Kick', fr: 'Recul' },
-  damageResistanceKinetic: { en: 'Kinetic Resist.', fr: 'Resist. cinetique' },
-  damageResistanceEnergy: { en: 'Energy Resist.', fr: 'Resist. energie' },
-  damageResistanceThermal: { en: 'Thermal Resist.', fr: 'Resist. thermique' },
-  damageResistanceDistortion: { en: 'Distortion Resist.', fr: 'Resist. distortion' },
-  damageResistanceBiochemical: { en: 'Biochemical Resist.', fr: 'Resist. biochimique' },
-  damageResistanceStun: { en: 'Stun Resist.', fr: 'Resist. etourdissement' },
-  temperatureMin: { en: 'Temp. Min', fr: 'Temp. min' },
-  temperatureMax: { en: 'Temp. Max', fr: 'Temp. max' },
-  radiationDissipation: { en: 'Radiation Dissip.', fr: 'Dissip. radiation' },
-  
-  weaponType: { en: 'Weapon Type', fr: 'Type d\'arme' },
-  ammoType: { en: 'Ammo Type', fr: 'Type de munition' },
-  ammoFlavor: { en: 'Ammo Flavor', fr: 'Saveur munition' },
-  projectileSpeed: { en: 'Muzzle Velocity', fr: 'Vitesse de sortie' },
-  idealCombatRange: { en: 'Ideal Range', fr: 'Portee ideale' },
-  
-  armorType: { en: 'Armor Type', fr: 'Type d\'armure' },
-  armorSlot: { en: 'Armor Slot', fr: 'Slot d\'armure' },
-  wearMovementMultiplier: { en: 'Movement Multiplier', fr: 'Mult. mouvement' },
-  wearSprintMultiplier: { en: 'Sprint Multiplier', fr: 'Mult. sprint' },
-  wearAimingMultiplier: { en: 'Aiming Multiplier', fr: 'Mult. visee' },
-  radiationCapacity: { en: 'Radiation Capacity', fr: 'Capacite radiation' },
-  impactForceResistance: { en: 'Impact Resistance', fr: 'Resist. impact' },
+  damage: { en: 'Damage', fr: 'Degats', de: 'Schaden' },
+  rateOfFire: { en: 'Rate of Fire', fr: 'Cadence', de: 'Feuerrate' },
+  magazineSize: { en: 'Magazine', fr: 'Chargeur', de: 'Magazin' },
+  effectiveRange: { en: 'Range', fr: 'Portee', de: 'Reichweite' },
+  recoilSmoothness: { en: 'Recoil Smoothness', fr: 'Fluidite recul', de: 'Rückstoßglätte' },
+  recoilHandling: { en: 'Recoil Handling', fr: 'Gestion recul', de: 'Rückstoßkontrolle' },
+  recoilKick: { en: 'Recoil Kick', fr: 'Recul', de: 'Rückstoß' },
+  damageResistanceKinetic: { en: 'Kinetic Resist.', fr: 'Resist. cinetique', de: 'Kinet. Resist.' },
+  damageResistanceEnergy: { en: 'Energy Resist.', fr: 'Resist. energie', de: 'Energie-Resist.' },
+  damageResistanceThermal: { en: 'Thermal Resist.', fr: 'Resist. thermique', de: 'Therm. Resist.' },
+  damageResistanceDistortion: { en: 'Distortion Resist.', fr: 'Resist. distortion', de: 'Verzerr.-Resist.' },
+  damageResistanceBiochemical: { en: 'Biochemical Resist.', fr: 'Resist. biochimique', de: 'Bioch. Resist.' },
+  damageResistanceStun: { en: 'Stun Resist.', fr: 'Resist. etourdissement', de: 'Betäub.-Resist.' },
+  temperatureMin: { en: 'Temp. Min', fr: 'Temp. min', de: 'Temp. Min' },
+  temperatureMax: { en: 'Temp. Max', fr: 'Temp. max', de: 'Temp. Max' },
+  radiationDissipation: { en: 'Radiation Dissip.', fr: 'Dissip. radiation', de: 'Strahl.-Ableit.' },
+
+  weaponType: { en: 'Weapon Type', fr: 'Type d\'arme', de: 'Waffentyp' },
+  ammoType: { en: 'Ammo Type', fr: 'Type de munition', de: 'Munitionstyp' },
+  ammoFlavor: { en: 'Ammo Flavor', fr: 'Saveur munition', de: 'Munitionsart' },
+  projectileSpeed: { en: 'Muzzle Velocity', fr: 'Vitesse de sortie', de: 'Mündungsgeschw.' },
+  idealCombatRange: { en: 'Ideal Range', fr: 'Portee ideale', de: 'Ideale Reichweite' },
+
+  armorType: { en: 'Armor Type', fr: 'Type d\'armure', de: 'Rüstungstyp' },
+  armorSlot: { en: 'Armor Slot', fr: 'Slot d\'armure', de: 'Rüstungsslot' },
+  wearMovementMultiplier: { en: 'Movement Multiplier', fr: 'Mult. mouvement', de: 'Bewegungsfaktor' },
+  wearSprintMultiplier: { en: 'Sprint Multiplier', fr: 'Mult. sprint', de: 'Sprintfaktor' },
+  wearAimingMultiplier: { en: 'Aiming Multiplier', fr: 'Mult. visee', de: 'Zielfaktor' },
+  radiationCapacity: { en: 'Radiation Capacity', fr: 'Capacite radiation', de: 'Strahlungskapazität' },
+  impactForceResistance: { en: 'Impact Resistance', fr: 'Resist. impact', de: 'Aufprallresistenz' },
 };
 
 export const STAT_UNITS: Record<keyof ItemStats, string> = {
@@ -264,12 +268,12 @@ export type MissionSort =
   | 'chance-desc';
 
 export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
-  'fps-weapon': { en: 'FPS Weapon', fr: 'Arme FPS' },
-  'fps-magazine': { en: 'Magazine', fr: 'Chargeur' },
-  'fps-armor': { en: 'FPS Armor', fr: 'Armure FPS' },
-  'fps-helmet': { en: 'Helmet', fr: 'Casque' },
-  'fps-undersuit': { en: 'Undersuit', fr: 'Combinaison' },
-  'fps-backpack': { en: 'Backpack', fr: 'Sac a dos' },
+  'fps-weapon': { en: 'FPS Weapon', fr: 'Arme FPS', de: 'FPS-Waffe' },
+  'fps-magazine': { en: 'Magazine', fr: 'Chargeur', de: 'Magazin' },
+  'fps-armor': { en: 'FPS Armor', fr: 'Armure FPS', de: 'FPS-Rüstung' },
+  'fps-helmet': { en: 'Helmet', fr: 'Casque', de: 'Helm' },
+  'fps-undersuit': { en: 'Undersuit', fr: 'Combinaison', de: 'Unteranzug' },
+  'fps-backpack': { en: 'Backpack', fr: 'Sac a dos', de: 'Rucksack' },
 };
 
 export interface BlueprintMediaAsset {
@@ -347,6 +351,26 @@ export interface Resource {
   name: string;
   description: string;
   color: string;
+  visualKind: ResourceVisualKind | null;
+  visual: BlueprintMediaAsset | null;
+  visualStatus: string | null;
+  visualNotes: string | null;
+}
+
+export type ResourceVisualKind = 'metal' | 'mineral' | 'crystal' | 'ice';
+
+export interface ResourceInsight {
+  resourceId: string;
+  providerCount: number;
+  systems: string[];
+  providerTypes: Array<'planetary' | 'asteroid' | 'other'>;
+  missionObjectiveContractCount: number;
+  missionEmployers: string[];
+  missionLocations: string[];
+  blueprintUsageCount: number;
+  blueprintCategoryCounts: Partial<Record<ItemCategory, number>>;
+  blueprintIds: string[];
+  totalScuPerCraftSum: number;
 }
 
 export type DatasetChannel = 'live' | 'ptu';
@@ -528,8 +552,8 @@ export interface MissionResourceObjective {
 export interface MissionEmployerRef {
   displayName: string | null;
   canonicalEmployer: string | null;
-  logo: string | null;
-  icon: string | null;
+  logo: BlueprintMediaAsset | null;
+  icon: BlueprintMediaAsset | null;
   sourcePageUrl: string | null;
   status: string | null;
   notes: string | null;
@@ -657,6 +681,7 @@ export interface GameDataset {
   resourceCount: number;
   blueprints: Blueprint[];
   resources: Resource[];
+  resourceInsights: ResourceInsight[] | null;
   changelog: DatasetChangelog | null;
   dismantling: DismantlingData | null;
   materialSources: MaterialSources | null;

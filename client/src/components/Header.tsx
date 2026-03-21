@@ -1,6 +1,7 @@
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
@@ -18,6 +19,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
 import { GameIcon } from './ui/GameIcon';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
+import { navigateToPath } from '../utils/slug';
 
 export function Header() {
   const {
@@ -34,6 +36,8 @@ export function Header() {
   const [themeMode, setThemeMode] = useTheme();
   const theme = useMuiTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
+  const isHeaderStacked = useMediaQuery('(max-width:430px)');
+  const isNarrowHeader = useMediaQuery('(max-width:720px)');
 
   const availableChannels = new Set(availableDatasets.map((dataset) => dataset.channel));
   const channelDatasets = availableDatasets
@@ -71,11 +75,11 @@ export function Header() {
     >
       <Toolbar
         sx={{
-          px: { xs: 1.5, sm: 2.5, lg: 3 },
-          py: { xs: 1, md: 1.25 },
-          gap: { xs: 1.25, md: 2 },
-          flexWrap: 'wrap',
-          alignItems: { xs: 'stretch', md: 'center' },
+          px: { xs: 1, sm: 2.5, lg: 3 },
+          py: { xs: 0.75, md: 1.25 },
+          gap: { xs: 0.5, md: 2 },
+          flexWrap: isHeaderStacked ? 'wrap' : 'nowrap',
+          alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
@@ -84,20 +88,30 @@ export function Header() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 1.5,
+            gap: { xs: 0.5, md: 1.5 },
             minWidth: 0,
-            width: { xs: '100%', md: 'auto' },
-            flex: { md: '1 1 auto' },
+            width: isHeaderStacked ? '100%' : 'auto',
+            flex: '1 1 auto',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, md: 2 }, minWidth: 0 }}>
+          <ButtonBase
+            onClick={() => navigateToPath('/')}
+            sx={{
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 0.85, md: 2 },
+              minWidth: 0,
+              maxWidth: isHeaderStacked ? 'calc(100% - 124px)' : 'none',
+            }}
+          >
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: { xs: 32, md: 36 },
-                height: { xs: 32, md: 36 },
+                width: { xs: 30, md: 36 },
+                height: { xs: 30, md: 36 },
                 borderRadius: 1,
                 backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
                 color: 'primary.main',
@@ -111,7 +125,7 @@ export function Header() {
                 variant="h6"
                 sx={{
                   letterSpacing: '-0.01em',
-                  fontSize: { xs: '1.05rem', sm: '1.15rem', md: '1.3rem' },
+                  fontSize: { xs: '0.9rem', sm: '1.1rem', md: '1.3rem' },
                   lineHeight: 0.95,
                   color: 'text.primary',
                   whiteSpace: 'nowrap',
@@ -125,18 +139,19 @@ export function Header() {
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: { xs: '0.56rem', md: '0.6rem' },
+                fontSize: { xs: '0.54rem', md: '0.6rem' },
                   color: 'text.disabled',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
+                  display: { xs: 'none', sm: 'block' },
                 }}
               >
                 Build {activeDataset.version}
               </Typography>
             </Box>
-          </Box>
+          </ButtonBase>
 
           <Box
             sx={{
@@ -144,8 +159,8 @@ export function Header() {
               alignItems: 'center',
               gap: 0.5,
               flexShrink: 0,
-              borderLeft: { xs: 'none', md: (theme) => `1px solid ${theme.palette.divider}` },
-              pl: { xs: 0, md: 1.5 },
+              borderLeft: { xs: 'none', lg: (theme) => `1px solid ${theme.palette.divider}` },
+              pl: { xs: 0, lg: 1.5 },
             }}
           >
             {hasChangelog && (
@@ -181,13 +196,16 @@ export function Header() {
               }}
               size="small"
               aria-label={t('Language', 'Langue')}
-              sx={{ height: 32, ml: 0.5 }}
+              sx={{ height: 32, ml: { xs: 0.25, sm: 0.5 } }}
             >
-              <ToggleButton value="en" sx={{ px: { xs: 0.85, md: 1 }, fontSize: '0.7rem', fontWeight: 700 }}>
+              <ToggleButton value="en" sx={{ px: { xs: 0.55, md: 1 }, fontSize: '0.66rem', fontWeight: 700, minWidth: { xs: 32, md: 40 } }}>
                 EN
               </ToggleButton>
-              <ToggleButton value="fr" sx={{ px: { xs: 0.85, md: 1 }, fontSize: '0.7rem', fontWeight: 700 }}>
+              <ToggleButton value="fr" sx={{ px: { xs: 0.55, md: 1 }, fontSize: '0.66rem', fontWeight: 700, minWidth: { xs: 32, md: 40 } }}>
                 FR
+              </ToggleButton>
+              <ToggleButton value="de" sx={{ px: { xs: 0.55, md: 1 }, fontSize: '0.66rem', fontWeight: 700, minWidth: { xs: 32, md: 40 } }}>
+                DE
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
@@ -195,14 +213,16 @@ export function Header() {
 
         <Box
           sx={{
-            display: 'flex',
             alignItems: 'center',
-            gap: 1,
-            width: { xs: '100%', md: 'auto' },
-            flexWrap: 'wrap',
-            justifyContent: { xs: 'stretch', md: 'flex-end' },
+            gap: { xs: 0.75, md: 1 },
+            width: isHeaderStacked ? '100%' : 'auto',
+            flexWrap: 'nowrap',
+            justifyContent: isHeaderStacked ? 'stretch' : 'flex-end',
             position: 'relative',
             zIndex: 1,
+            flexShrink: 0,
+            display: 'grid',
+            gridTemplateColumns: isHeaderStacked ? '88px minmax(0, 1fr)' : 'none',
           }}
         >
           <ToggleButtonGroup
@@ -217,9 +237,10 @@ export function Header() {
             sx={{
               height: 32,
               flexShrink: 0,
+              width: isHeaderStacked ? '100%' : 'auto',
               '& .MuiToggleButton-root': {
-                px: 1.25,
-                fontSize: '0.7rem',
+                px: { xs: 0.5, md: 1.25 },
+                fontSize: { xs: '0.64rem', md: '0.7rem' },
                 fontWeight: 700,
               },
             }}
@@ -239,9 +260,10 @@ export function Header() {
             size="small"
             disabled={datasetLoading || channelDatasets.length === 0}
             sx={{
-              minWidth: { xs: 0, md: 240 },
-              flex: { xs: '1 1 180px', md: '0 1 280px' },
-              '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' },
+              minWidth: 0,
+              width: isHeaderStacked ? '100%' : isNarrowHeader ? 'min(100%, 208px)' : 'clamp(200px, 26vw, 280px)',
+              flex: isHeaderStacked ? '1 1 100%' : '0 1 auto',
+              '& .MuiInputBase-root': { height: 32, fontSize: { xs: '0.7rem', md: '0.75rem' } },
             }}
           >
             <Select

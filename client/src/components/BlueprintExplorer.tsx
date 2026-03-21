@@ -16,6 +16,7 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
@@ -24,86 +25,96 @@ import FlagIcon from '@mui/icons-material/Flag';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
+import { PageStatCard } from './ui/PageStatCard';
 import type {
   BlueprintSort,
   CategoryFilter,
   CraftTimeBucket,
   LegalityFilter,
+  Lang,
   LibrarySegment,
   RarityFilter,
   SlotCountFilter,
   StandingBucket,
 } from '../types';
 
-const CATEGORY_FILTERS: { value: CategoryFilter; labelEn: string; labelFr: string }[] = [
-  { value: 'all', labelEn: 'All', labelFr: 'Tous' },
-  { value: 'fps-weapon', labelEn: 'Weapons', labelFr: 'Armes' },
-  { value: 'fps-armor', labelEn: 'Armor', labelFr: 'Armures' },
-  { value: 'fps-helmet', labelEn: 'Helmets', labelFr: 'Casques' },
-  { value: 'fps-undersuit', labelEn: 'Undersuits', labelFr: 'Combis' },
-  { value: 'fps-backpack', labelEn: 'Backpacks', labelFr: 'Sacs' },
-  { value: 'fps-magazine', labelEn: 'Magazines', labelFr: 'Chargeurs' },
+type LocalizedOption = { labelEn: string; labelFr: string; labelDe: string };
+
+function getOptionText(option: LocalizedOption, lang: Lang): string {
+  if (lang === 'fr') return option.labelFr;
+  if (lang === 'de') return option.labelDe;
+  return option.labelEn;
+}
+
+const CATEGORY_FILTERS: Array<{ value: CategoryFilter } & LocalizedOption> = [
+  { value: 'all', labelEn: 'All', labelFr: 'Tous', labelDe: 'Alle' },
+  { value: 'fps-weapon', labelEn: 'Weapons', labelFr: 'Armes', labelDe: 'Waffen' },
+  { value: 'fps-armor', labelEn: 'Armor', labelFr: 'Armures', labelDe: 'Rüstungen' },
+  { value: 'fps-helmet', labelEn: 'Helmets', labelFr: 'Casques', labelDe: 'Helme' },
+  { value: 'fps-undersuit', labelEn: 'Undersuits', labelFr: 'Combis', labelDe: 'Unteranzüge' },
+  { value: 'fps-backpack', labelEn: 'Backpacks', labelFr: 'Sacs', labelDe: 'Rucksäcke' },
+  { value: 'fps-magazine', labelEn: 'Magazines', labelFr: 'Chargeurs', labelDe: 'Magazine' },
 ];
 
-const SEGMENTS: { value: LibrarySegment; labelEn: string; labelFr: string; icon: any }[] = [
-  { value: 'all', labelEn: 'All', labelFr: 'Tous', icon: null },
-  { value: 'inventory', labelEn: 'Inventory', labelFr: 'Inventaire', icon: null },
-  { value: 'favorites', labelEn: 'Favs', labelFr: 'Favoris', icon: StarIcon },
-  { value: 'obtainable', labelEn: 'Obtainable', labelFr: 'Obtenables', icon: FlagIcon },
+const SEGMENTS: Array<{ value: LibrarySegment; icon: any } & LocalizedOption> = [
+  { value: 'all', labelEn: 'All', labelFr: 'Tous', labelDe: 'Alle', icon: null },
+  { value: 'inventory', labelEn: 'Inventory', labelFr: 'Inventaire', labelDe: 'Inventar', icon: null },
+  { value: 'favorites', labelEn: 'Favs', labelFr: 'Favoris', labelDe: 'Favoriten', icon: StarIcon },
+  { value: 'obtainable', labelEn: 'Obtainable', labelFr: 'Obtenables', labelDe: 'Erhältlich', icon: FlagIcon },
 ];
 
-const SORT_OPTIONS: { value: BlueprintSort; labelEn: string; labelFr: string }[] = [
-  { value: 'name-asc', labelEn: 'Name', labelFr: 'Nom' },
-  { value: 'manufacturer-asc', labelEn: 'Manufacturer', labelFr: 'Fabricant' },
-  { value: 'craft-time-asc', labelEn: 'Craft time: fast', labelFr: 'Craft: rapide' },
-  { value: 'craft-time-desc', labelEn: 'Craft time: long', labelFr: 'Craft: long' },
-  { value: 'slot-count-desc', labelEn: 'Slot count', labelFr: 'Nombre de slots' },
-  { value: 'rarity-desc', labelEn: 'Rarity', labelFr: 'Rareté' },
-  { value: 'acquisition-desc', labelEn: 'Acquisition ease', labelFr: 'Facilité d’obtention' },
-  { value: 'damage-desc', labelEn: 'Damage', labelFr: 'Dégâts' },
-  { value: 'range-desc', labelEn: 'Range', labelFr: 'Portée' },
-  { value: 'rate-of-fire-desc', labelEn: 'Rate of fire', labelFr: 'Cadence' },
-  { value: 'magazine-desc', labelEn: 'Magazine', labelFr: 'Chargeur' },
-  { value: 'kinetic-desc', labelEn: 'Kinetic resist.', labelFr: 'Résist. cinétique' },
-  { value: 'energy-desc', labelEn: 'Energy resist.', labelFr: 'Résist. énergie' },
-  { value: 'temp-max-desc', labelEn: 'Temp max', labelFr: 'Temp max' },
+const SORT_OPTIONS: Array<{ value: BlueprintSort } & LocalizedOption> = [
+  { value: 'name-asc', labelEn: 'Name', labelFr: 'Nom', labelDe: 'Name' },
+  { value: 'manufacturer-asc', labelEn: 'Manufacturer', labelFr: 'Fabricant', labelDe: 'Hersteller' },
+  { value: 'craft-time-asc', labelEn: 'Craft time: fast', labelFr: 'Craft: rapide', labelDe: 'Fertigungszeit: schnell' },
+  { value: 'craft-time-desc', labelEn: 'Craft time: long', labelFr: 'Craft: long', labelDe: 'Fertigungszeit: lang' },
+  { value: 'slot-count-desc', labelEn: 'Slot count', labelFr: 'Nombre de slots', labelDe: 'Slot-Anzahl' },
+  { value: 'rarity-desc', labelEn: 'Rarity', labelFr: 'Rareté', labelDe: 'Seltenheit' },
+  { value: 'acquisition-desc', labelEn: 'Acquisition ease', labelFr: 'Facilité d’obtention', labelDe: 'Erwerbsleichtigkeit' },
+  { value: 'damage-desc', labelEn: 'Damage', labelFr: 'Dégâts', labelDe: 'Schaden' },
+  { value: 'range-desc', labelEn: 'Range', labelFr: 'Portée', labelDe: 'Reichweite' },
+  { value: 'rate-of-fire-desc', labelEn: 'Rate of fire', labelFr: 'Cadence', labelDe: 'Feuerrate' },
+  { value: 'magazine-desc', labelEn: 'Magazine', labelFr: 'Chargeur', labelDe: 'Magazin' },
+  { value: 'kinetic-desc', labelEn: 'Kinetic resist.', labelFr: 'Résist. cinétique', labelDe: 'Kinet. Resist.' },
+  { value: 'energy-desc', labelEn: 'Energy resist.', labelFr: 'Résist. énergie', labelDe: 'Energie-Resist.' },
+  { value: 'temp-max-desc', labelEn: 'Temp max', labelFr: 'Temp max', labelDe: 'Temp. Max' },
 ];
 
-const RARITY_OPTIONS: { value: RarityFilter; labelEn: string; labelFr: string }[] = [
-  { value: 'all', labelEn: 'Any rarity', labelFr: 'Toute rareté' },
-  { value: 'legendary', labelEn: 'Legendary', labelFr: 'Légendaire' },
-  { value: 'rare', labelEn: 'Rare', labelFr: 'Rare' },
-  { value: 'common', labelEn: 'Common', labelFr: 'Commune' },
-  { value: 'unknown', labelEn: 'Unknown', labelFr: 'Inconnue' },
+const RARITY_OPTIONS: Array<{ value: RarityFilter } & LocalizedOption> = [
+  { value: 'all', labelEn: 'Any rarity', labelFr: 'Toute rareté', labelDe: 'Beliebige Seltenheit' },
+  { value: 'legendary', labelEn: 'Legendary', labelFr: 'Légendaire', labelDe: 'Legendär' },
+  { value: 'rare', labelEn: 'Rare', labelFr: 'Rare', labelDe: 'Selten' },
+  { value: 'common', labelEn: 'Common', labelFr: 'Commune', labelDe: 'Gewöhnlich' },
+  { value: 'unknown', labelEn: 'Unknown', labelFr: 'Inconnue', labelDe: 'Unbekannt' },
 ];
 
-const SLOT_COUNT_OPTIONS: { value: SlotCountFilter; labelEn: string; labelFr: string }[] = [
-  { value: 'all', labelEn: 'Any slots', labelFr: 'Tous les slots' },
-  { value: '1', labelEn: '1 slot', labelFr: '1 slot' },
-  { value: '2', labelEn: '2 slots', labelFr: '2 slots' },
-  { value: '3', labelEn: '3 slots', labelFr: '3 slots' },
+const SLOT_COUNT_OPTIONS: Array<{ value: SlotCountFilter } & LocalizedOption> = [
+  { value: 'all', labelEn: 'Any slots', labelFr: 'Tous les slots', labelDe: 'Beliebige Slot-Anzahl' },
+  { value: '1', labelEn: '1 slot', labelFr: '1 slot', labelDe: '1 Slot' },
+  { value: '2', labelEn: '2 slots', labelFr: '2 slots', labelDe: '2 Slots' },
+  { value: '3', labelEn: '3 slots', labelFr: '3 slots', labelDe: '3 Slots' },
 ];
 
-const CRAFT_TIME_OPTIONS: { value: CraftTimeBucket; labelEn: string; labelFr: string }[] = [
-  { value: 'all', labelEn: 'Any duration', labelFr: 'Toute durée' },
-  { value: '<=60', labelEn: '≤ 1 min', labelFr: '≤ 1 min' },
-  { value: '61-120', labelEn: '1-2 min', labelFr: '1-2 min' },
-  { value: '121-180', labelEn: '2-3 min', labelFr: '2-3 min' },
-  { value: '180+', labelEn: '3+ min', labelFr: '3+ min' },
+const CRAFT_TIME_OPTIONS: Array<{ value: CraftTimeBucket } & LocalizedOption> = [
+  { value: 'all', labelEn: 'Any duration', labelFr: 'Toute durée', labelDe: 'Beliebige Dauer' },
+  { value: '<=60', labelEn: '≤ 1 min', labelFr: '≤ 1 min', labelDe: '≤ 1 Min' },
+  { value: '61-120', labelEn: '1-2 min', labelFr: '1-2 min', labelDe: '1-2 Min' },
+  { value: '121-180', labelEn: '2-3 min', labelFr: '2-3 min', labelDe: '2-3 Min' },
+  { value: '180+', labelEn: '3+ min', labelFr: '3+ min', labelDe: '3+ Min' },
 ];
 
-const STANDING_OPTIONS: { value: StandingBucket; labelEn: string; labelFr: string }[] = [
-  { value: 'all', labelEn: 'Any standing', labelFr: 'Toute réputation' },
-  { value: 'none', labelEn: 'No standing gate', labelFr: 'Sans prérequis' },
-  { value: '1-999', labelEn: '1-999', labelFr: '1-999' },
-  { value: '1000-4999', labelEn: '1k-4.9k', labelFr: '1k-4,9k' },
-  { value: '5000-14999', labelEn: '5k-14.9k', labelFr: '5k-14,9k' },
-  { value: '15000+', labelEn: '15k+', labelFr: '15k+' },
+const STANDING_OPTIONS: Array<{ value: StandingBucket } & LocalizedOption> = [
+  { value: 'all', labelEn: 'Any standing', labelFr: 'Toute réputation', labelDe: 'Beliebiger Ruf' },
+  { value: 'none', labelEn: 'No standing gate', labelFr: 'Sans prérequis', labelDe: 'Keine Rufschwelle' },
+  { value: '1-999', labelEn: '1-999', labelFr: '1-999', labelDe: '1-999' },
+  { value: '1000-4999', labelEn: '1k-4.9k', labelFr: '1k-4,9k', labelDe: '1k-4,9k' },
+  { value: '5000-14999', labelEn: '5k-14.9k', labelFr: '5k-14,9k', labelDe: '5k-14,9k' },
+  { value: '15000+', labelEn: '15k+', labelFr: '15k+', labelDe: '15k+' },
 ];
 
-function getStandingLabel(value: StandingBucket, lang: 'en' | 'fr'): string {
+function getStandingLabel(value: StandingBucket, lang: Lang): string {
   const option = STANDING_OPTIONS.find((entry) => entry.value === value);
-  return option ? (lang === 'fr' ? option.labelFr : option.labelEn) : value;
+  return option ? getOptionText(option, lang) : value;
 }
 
 function getActiveCount(flags: boolean[]): number {
@@ -158,6 +169,7 @@ export function BlueprintExplorer() {
   } = useCraft();
   const { lang, t } = useI18n();
   const theme = useTheme();
+  const isCompactMobile = useMediaQuery('(max-width:430px)');
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>();
@@ -255,6 +267,16 @@ export function BlueprintExplorer() {
     return [...set].sort();
   }, [missionRewards]);
 
+  const blueprintStats = useMemo(
+    () => ({
+      blueprintCount: blueprints.length,
+      manufacturerCount: manufacturers.length,
+      missionLinkedCount: missionRewards?.blueprintAcquisitionGraph.length ?? 0,
+      materialCount: materials.length,
+    }),
+    [blueprints.length, manufacturers.length, materials.length, missionRewards],
+  );
+
   const hasActiveFilters =
     manufacturerFilter !== null ||
     legalityFilter !== 'all' ||
@@ -315,6 +337,31 @@ export function BlueprintExplorer() {
         gap: 1,
       }}
     >
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
+          gap: 1,
+        }}
+      >
+        <PageStatCard
+          label={t('Blueprints', 'Blueprints')}
+          value={String(blueprintStats.blueprintCount)}
+        />
+        <PageStatCard
+          label={t('Manufacturers', 'Fabricants')}
+          value={String(blueprintStats.manufacturerCount)}
+        />
+        <PageStatCard
+          label={t('Mission-linked', 'Liees aux missions')}
+          value={String(blueprintStats.missionLinkedCount)}
+        />
+        <PageStatCard
+          label={t('Required materials', 'Materiaux requis')}
+          value={String(blueprintStats.materialCount)}
+        />
+      </Box>
+
       <Box
         sx={{
           display: 'grid',
@@ -384,7 +431,7 @@ export function BlueprintExplorer() {
             >
               {segment.icon && <segment.icon sx={{ fontSize: '.72rem', flexShrink: 0 }} />}
               <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {lang === 'en' ? segment.labelEn : segment.labelFr}
+                {getOptionText(segment, lang)}
               </Box>
               {segment.value === 'inventory' && inventoryIds.length > 0 && (
                 <Box component="span" sx={{ fontSize: '.52rem', opacity: 0.7, flexShrink: 0 }}>
@@ -411,7 +458,7 @@ export function BlueprintExplorer() {
           >
             {SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
-                {lang === 'fr' ? option.labelFr : option.labelEn}
+                {getOptionText(option, lang)}
               </MenuItem>
             ))}
           </Select>
@@ -457,7 +504,162 @@ export function BlueprintExplorer() {
         )}
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+      {isCompactMobile && (
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{
+            backgroundColor: 'transparent',
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            '&::before': { display: 'none' },
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 40 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                {t('Filters', 'Filtres')}
+              </Typography>
+              {hasActiveFilters && (
+                <Chip
+                  size="small"
+                  label={t('Active', 'Actifs')}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '.62rem' }}
+                />
+              )}
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Box
+                component="nav"
+                aria-label={t('Category filter', 'Filtre categorie')}
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 0.5,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                {CATEGORY_FILTERS.map(({ value, ...option }) => (
+                  <Chip
+                    key={value}
+                    label={getOptionText(option, lang)}
+                    size="small"
+                    variant={categoryFilter === value ? 'filled' : 'outlined'}
+                    onClick={() => setCategoryFilter(value)}
+                    sx={{
+                      fontSize: '.65rem',
+                      height: 26,
+                      maxWidth: 'calc(50% - 4px)',
+                      '& .MuiChip-label': {
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      },
+                      ...(categoryFilter === value && {
+                        backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                        color: 'text.primary',
+                        borderColor: 'primary.main',
+                      }),
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 1, alignItems: 'center' }}>
+              <Autocomplete
+                size="small"
+                options={manufacturers}
+                value={manufacturerFilter}
+                onChange={(_e, val) => setManufacturerFilter(val)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={t('Manufacturer', 'Fabricant')}
+                    sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
+                  />
+                )}
+                sx={{ minWidth: 0 }}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+
+              <Autocomplete
+                size="small"
+                options={materials}
+                value={materialFilter}
+                onChange={(_e, val) => setMaterialFilter(val)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={t('Required material', 'Materiau requis')}
+                    sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
+                  />
+                )}
+                sx={{ minWidth: 0 }}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+
+              <ToggleButtonGroup
+                value={legalityFilter}
+                exclusive
+                onChange={(_e, val) => {
+                  if (val) setLegalityFilter(val as LegalityFilter);
+                }}
+                size="small"
+                sx={{
+                  height: 32,
+                  width: '100%',
+                  '& .MuiToggleButton-root': {
+                    fontSize: '.56rem',
+                    px: 0.5,
+                    flex: 1,
+                    lineHeight: 1.1,
+                  },
+                }}
+              >
+                <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
+                <ToggleButton value="lawful">{t('Lawful', 'Legal')}</ToggleButton>
+                <ToggleButton value="unlawful">{t('Unlawful', 'Illegal')}</ToggleButton>
+              </ToggleButtonGroup>
+
+              <Autocomplete
+                size="small"
+                options={locations}
+                value={locationFilter}
+                onChange={(_e, val) => setLocationFilter(val)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={t('Mission location', 'Lieu de mission')}
+                    sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
+                  />
+                )}
+                sx={{ minWidth: 0 }}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+
+              {hasActiveFilters && (
+                <Chip
+                  label={t('Clear filters', 'Effacer les filtres')}
+                  onDelete={clearAllFilters}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    height: 28,
+                    fontSize: '.7rem',
+                    justifySelf: 'start',
+                  }}
+                />
+              )}
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      )}
+
+      <Box sx={{ display: isCompactMobile ? 'none' : 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
         <Box
           component="nav"
           aria-label={t('Category filter', 'Filtre categorie')}
@@ -469,10 +671,10 @@ export function BlueprintExplorer() {
             minWidth: 0,
           }}
         >
-          {CATEGORY_FILTERS.map(({ value, labelEn, labelFr }) => (
+          {CATEGORY_FILTERS.map(({ value, ...option }) => (
             <Chip
               key={value}
-              label={lang === 'en' ? labelEn : labelFr}
+              label={getOptionText(option, lang)}
               size="small"
               variant={categoryFilter === value ? 'filled' : 'outlined'}
               onClick={() => setCategoryFilter(value)}
@@ -497,7 +699,7 @@ export function BlueprintExplorer() {
 
       <Box
         sx={{
-          display: 'grid',
+          display: isCompactMobile ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             md: 'repeat(2, minmax(0, 1fr))',
@@ -676,7 +878,7 @@ export function BlueprintExplorer() {
               <Select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value as RarityFilter)}>
                 {RARITY_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {lang === 'fr' ? option.labelFr : option.labelEn}
+                    {getOptionText(option, lang)}
                   </MenuItem>
                 ))}
               </Select>
@@ -685,7 +887,7 @@ export function BlueprintExplorer() {
               <Select value={slotCountFilter} onChange={(event) => setSlotCountFilter(event.target.value as SlotCountFilter)}>
                 {SLOT_COUNT_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {lang === 'fr' ? option.labelFr : option.labelEn}
+                    {getOptionText(option, lang)}
                   </MenuItem>
                 ))}
               </Select>
@@ -694,7 +896,7 @@ export function BlueprintExplorer() {
               <Select value={craftTimeFilter} onChange={(event) => setCraftTimeFilter(event.target.value as CraftTimeBucket)}>
                 {CRAFT_TIME_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {lang === 'fr' ? option.labelFr : option.labelEn}
+                    {getOptionText(option, lang)}
                   </MenuItem>
                 ))}
               </Select>
@@ -723,7 +925,7 @@ export function BlueprintExplorer() {
               >
                 {STANDING_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {lang === 'fr' ? option.labelFr : option.labelEn}
+                    {getOptionText(option, lang)}
                   </MenuItem>
                 ))}
               </Select>
@@ -737,7 +939,7 @@ export function BlueprintExplorer() {
               {ammoFlavorFilter && <Chip label={`${t('Flavor', 'Famille')}: ${ammoFlavorFilter}`} size="small" />}
               {armorTypeFilter && <Chip label={`${t('Armor', 'Armure')}: ${armorTypeFilter}`} size="small" />}
               {armorSlotFilter && <Chip label={`${t('Slot', 'Slot')}: ${armorSlotFilter}`} size="small" />}
-              {rarityFilter !== 'all' && <Chip label={`${t('Rarity', 'Rareté')}: ${lang === 'fr' ? RARITY_OPTIONS.find((option) => option.value === rarityFilter)?.labelFr : RARITY_OPTIONS.find((option) => option.value === rarityFilter)?.labelEn}`} size="small" />}
+              {rarityFilter !== 'all' && <Chip label={`${t('Rarity', 'Rareté')}: ${getOptionText(RARITY_OPTIONS.find((option) => option.value === rarityFilter) ?? RARITY_OPTIONS[0], lang)}`} size="small" />}
               {slotCountFilter !== 'all' && <Chip label={`${t('Slots', 'Slots')}: ${slotCountFilter}`} size="small" />}
               {craftTimeFilter !== 'all' && <Chip label={`${t('Craft time', 'Temps de craft')}: ${craftTimeFilter}`} size="small" />}
               {acquisitionEmployerFilter && <Chip label={`${t('Employer', 'Employeur')}: ${acquisitionEmployerFilter}`} size="small" />}

@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import type { DatasetChangelogSection, DatasetDiffEntry } from '../types';
+import type { DatasetChangelogSection, DatasetDiffEntry, Lang } from '../types';
 
 function renderDiffLabel(entry: DatasetDiffEntry) {
   return entry.nameAfter ?? entry.name ?? entry.id;
@@ -83,7 +83,7 @@ function DiffCard({
   title: string;
   subtitle: string;
   section: DatasetChangelogSection;
-  lang: 'en' | 'fr';
+  lang: Lang;
 }) {
   const theme = useTheme();
   
@@ -94,9 +94,9 @@ function DiffCard({
   };
 
   const counts = [
-    { key: 'added', label: lang === 'en' ? 'Added' : 'Ajoutes', value: section.added.length },
-    { key: 'changed', label: lang === 'en' ? 'Changed' : 'Modifies', value: section.changed.length },
-    { key: 'removed', label: lang === 'en' ? 'Removed' : 'Retires', value: section.removed.length },
+    { key: 'added', label: lang === 'fr' ? 'Ajoutes' : lang === 'de' ? 'Hinzugefugt' : 'Added', value: section.added.length },
+    { key: 'changed', label: lang === 'fr' ? 'Modifies' : lang === 'de' ? 'Geandert' : 'Changed', value: section.changed.length },
+    { key: 'removed', label: lang === 'fr' ? 'Retires' : lang === 'de' ? 'Entfernt' : 'Removed', value: section.removed.length },
   ];
 
   return (
@@ -124,20 +124,20 @@ function DiffCard({
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <DiffList
-            title={lang === 'en' ? 'Added' : 'Ajoutes'}
-            emptyLabel={lang === 'en' ? 'No additions.' : 'Aucun ajout.'}
+            title={lang === 'fr' ? 'Ajoutes' : lang === 'de' ? 'Hinzugefugt' : 'Added'}
+            emptyLabel={lang === 'fr' ? 'Aucun ajout.' : lang === 'de' ? 'Keine Erganzungen.' : 'No additions.'}
             entries={section.added}
             type="added"
           />
           <DiffList
-            title={lang === 'en' ? 'Changed' : 'Modifies'}
-            emptyLabel={lang === 'en' ? 'No changes.' : 'Aucune modification.'}
+            title={lang === 'fr' ? 'Modifies' : lang === 'de' ? 'Geandert' : 'Changed'}
+            emptyLabel={lang === 'fr' ? 'Aucune modification.' : lang === 'de' ? 'Keine Anderungen.' : 'No changes.'}
             entries={section.changed}
             type="changed"
           />
           <DiffList
-            title={lang === 'en' ? 'Removed' : 'Retires'}
-            emptyLabel={lang === 'en' ? 'No removals.' : 'Aucun retrait.'}
+            title={lang === 'fr' ? 'Retires' : lang === 'de' ? 'Entfernt' : 'Removed'}
+            emptyLabel={lang === 'fr' ? 'Aucun retrait.' : lang === 'de' ? 'Keine Entfernungen.' : 'No removals.'}
             entries={section.removed}
             type="removed"
           />
@@ -154,7 +154,7 @@ export function DatasetChangelog() {
   const generatedAtLabel = useMemo(() => {
     if (!activeDataset.changelog?.generatedAt) return null;
     return new Date(activeDataset.changelog.generatedAt).toLocaleString(
-      lang === 'fr' ? 'fr-FR' : 'en-US',
+      lang === 'fr' ? 'fr-FR' : lang === 'de' ? 'de-DE' : 'en-US',
     );
   }, [activeDataset.changelog?.generatedAt, lang]);
 
@@ -212,6 +212,7 @@ export function DatasetChangelog() {
             {t(
               `Compared against ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
               `Compare a ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
+              `Verglichen mit ${changelog.comparedAgainstVersion} (${changelog.comparedAgainstDatasetId})`,
             )}
           </Typography>
         </Box>
@@ -228,13 +229,13 @@ export function DatasetChangelog() {
       <DialogContent dividers>
         <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
           <Chip
-            label={<><Typography component="span" variant="caption" sx={{ mr: 0.5 }}>{lang === 'en' ? 'Delta entries' : 'Entrees modifiees'}</Typography><strong>{totalDelta}</strong></>}
+            label={<><Typography component="span" variant="caption" sx={{ mr: 0.5 }}>{lang === 'fr' ? 'Entrees modifiees' : lang === 'de' ? 'Geanderte Eintrage' : 'Delta entries'}</Typography><strong>{totalDelta}</strong></>}
             variant="outlined"
             size="small"
           />
           {generatedAtLabel && (
             <Chip
-              label={<><Typography component="span" variant="caption" sx={{ mr: 0.5 }}>{lang === 'en' ? 'Generated' : 'Genere'}</Typography><strong>{generatedAtLabel}</strong></>}
+              label={<><Typography component="span" variant="caption" sx={{ mr: 0.5 }}>{lang === 'fr' ? 'Genere' : lang === 'de' ? 'Erstellt' : 'Generated'}</Typography><strong>{generatedAtLabel}</strong></>}
               variant="outlined"
               size="small"
             />
@@ -243,13 +244,13 @@ export function DatasetChangelog() {
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
           <DiffCard
-            title={lang === 'en' ? 'Blueprints' : 'Blueprints'}
+            title={lang === 'de' ? 'Bauplane' : lang === 'fr' ? 'Blueprints' : 'Blueprints'}
             subtitle={t('Craftable items changed between PTU and LIVE.', 'Items craftables modifies entre PTU et LIVE.')}
             section={changelog.blueprints}
             lang={lang}
           />
           <DiffCard
-            title={lang === 'en' ? 'Resources' : 'Ressources'}
+            title={lang === 'fr' ? 'Ressources' : lang === 'de' ? 'Ressourcen' : 'Resources'}
             subtitle={t('Material list changes between PTU and LIVE.', 'Changements de materiaux entre PTU et LIVE.')}
             section={changelog.resources}
             lang={lang}

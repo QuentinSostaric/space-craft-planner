@@ -8,7 +8,8 @@ import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { formatScaleLabel } from '../../utils/crafting';
+import { StarCitizenLicensedIcon, getLocationIconName, getMaterialProviderIconName } from '../ui/StarCitizenLicensedIcon';
+import { formatScaleLabel, getMaterialProviders } from '../../utils/crafting';
 import type { ResourceMethod } from '../../types';
 
 interface ResourceMethodDetailProps {
@@ -17,8 +18,10 @@ interface ResourceMethodDetailProps {
 }
 
 export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDetailProps) {
-  const { missionRewards, missionRewardsLoading, ensureMissionRewardsLoaded } = useCraft();
+  const { missionRewards, missionRewardsLoading, ensureMissionRewardsLoaded, materialSources } = useCraft();
   const { lang, t } = useI18n();
+
+  const miningProviders = getMaterialProviders(materialSources, resourceName);
 
   useEffect(() => {
     if (method === 'mission') {
@@ -28,9 +31,44 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
 
   if (method === 'mining') {
     return (
-      <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-        {t('⛏ Manual collection — move the slider or type the quantity collected.', '⛏ Collecte manuelle — déplacez le slider ou saisissez la quantité récoltée.')}
-      </Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <StarCitizenLicensedIcon name="asteroid" size={14} dimmed />
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+            {t('Manual collection — move the slider or type the quantity collected.', 'Collecte manuelle — déplacez le slider ou saisissez la quantité récoltée.')}
+          </Typography>
+        </Box>
+        {miningProviders.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {miningProviders.slice(0, 5).map((provider, index) => {
+              const iconName = getMaterialProviderIconName(
+                provider.providerType,
+                provider.providerDisplayName,
+                provider.system,
+              );
+
+              return (
+                <Chip
+                  key={`${provider.providerDisplayName}-${index}`}
+                  size="small"
+                  variant="outlined"
+                  icon={iconName ? <StarCitizenLicensedIcon name={iconName} size={12} dimmed /> : undefined}
+                  label={provider.providerDisplayName}
+                  sx={{ fontSize: '0.62rem', height: 20 }}
+                />
+              );
+            })}
+            {miningProviders.length > 5 && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`+${miningProviders.length - 5}`}
+                sx={{ fontSize: '0.62rem', height: 20 }}
+              />
+            )}
+          </Box>
+        )}
+      </Box>
     );
   }
 
@@ -60,13 +98,13 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     );
   }
 
-  const nameNorm = resourceName.trim().toLowerCase();
+  const resourceIdNorm = resourceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const matchingContracts: Array<{ contractDebugName: string | null; contractorDisplayName: string | null; derivedScale: string; localities: string[] }> = [];
 
   for (const group of missionRewards?.factionGroups ?? []) {
     for (const contract of group.contracts) {
       const hasObjective = contract.resourceObjectives.some(
-        (obj) => obj.displayName.trim().toLowerCase() === nameNorm,
+        (obj) => obj.resourceId === resourceIdNorm,
       );
       if (hasObjective) {
         matchingContracts.push({
@@ -95,10 +133,31 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
         <ListItem key={i} disableGutters sx={{ py: 0.25, gap: 1 }}>
           <ListItemText
             primary={contract.contractDebugName ?? t('Unknown contract', 'Contrat inconnu')}
-            secondary={[contract.contractorDisplayName, ...contract.localities].filter(Boolean).join(' · ')}
+            secondary={
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                {contract.contractorDisplayName && (
+                  <Typography component="span" variant="caption" sx={{ fontSize: '0.65rem' }}>
+                    {contract.contractorDisplayName}
+                  </Typography>
+                )}
+                {contract.localities.slice(0, 2).map((location) => {
+                  const iconName = getLocationIconName(location);
+                  return (
+                    <Chip
+                      key={location}
+                      size="small"
+                      variant="outlined"
+                      icon={iconName ? <StarCitizenLicensedIcon name={iconName} size={12} dimmed /> : undefined}
+                      label={location}
+                      sx={{ fontSize: '0.6rem', height: 18 }}
+                    />
+                  );
+                })}
+              </Box>
+            }
             slotProps={{
               primary: { sx: { fontSize: '0.75rem', fontWeight: 600 } },
-              secondary: { sx: { fontSize: '0.65rem' } },
+              secondary: { component: 'div', sx: { fontSize: '0.65rem' } },
             }}
           />
           <Chip

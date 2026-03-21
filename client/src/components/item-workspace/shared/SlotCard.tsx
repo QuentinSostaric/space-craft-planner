@@ -51,7 +51,7 @@ export function SlotCard({
     if (!isAssigned || qualityValue === undefined) return [];
     return slot.modifiers
       .map((modifier) => {
-        const label = GPP_LABELS[modifier.gppId]?.[lang] ?? modifier.gppId;
+        const label = loc(GPP_LABELS[modifier.gppId] ?? { en: modifier.gppId, fr: modifier.gppId }, lang);
         const multiplier = gppModifier(modifier.modAtMin, modifier.modAtMax, qualityValue);
         const pct = (multiplier - 1) * 100;
         const lowerIsBetter = modifier.gppId.includes('Recoil');
@@ -189,7 +189,11 @@ export function SlotCard({
             max={1000}
             value={currentQuality}
             onChange={(_e, val) => onQualityChange(clampQualityValue(val as number))}
-            aria-label={t(`Quality for ${slot.requiredResource}`, `Qualite pour ${slot.requiredResource}`)}
+            aria-label={t(
+              `Quality for ${slot.requiredResource}`,
+              `Qualite pour ${slot.requiredResource}`,
+              `Qualitat fur ${slot.requiredResource}`,
+            )}
             size="small"
             marks={deadZoneEnd > 0 ? [{ value: deadZoneEnd, label: '' }] : undefined}
             sx={{

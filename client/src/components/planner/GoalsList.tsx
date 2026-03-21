@@ -31,9 +31,9 @@ export function GoalsList() {
       </Box>
 
       {/* Goals list */}
-      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, maxHeight: { xs: 240, md: 'none' }, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, maxHeight: { xs: 196, md: 'none' }, overflowY: 'auto', p: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
         {goals.length === 0 && (
-          <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 2, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 1.5, textAlign: 'center' }}>
             {t('No goals yet.', 'Aucun objectif.')}
           </Typography>
         )}
@@ -52,7 +52,7 @@ export function GoalsList() {
 
       {/* Craft time */}
       {goals.length > 0 && (
-        <Box sx={{ mx: 1.5, mb: 1.5, px: 1.5, py: 1, border: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <Box sx={{ mx: 1.25, mb: 1.25, px: 1.25, py: 1, border: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {t('Total craft time', 'Temps de craft total')}
           </Typography>

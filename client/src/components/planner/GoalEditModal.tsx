@@ -44,7 +44,11 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
     <Dialog
       open
       onClose={onClose}
-      aria-label={t(`Edit goal ${goal.blueprintName}`, `Modifier l objectif ${goal.blueprintName}`)}
+      aria-label={t(
+        `Edit goal ${goal.blueprintName}`,
+        `Modifier l objectif ${goal.blueprintName}`,
+        `Ziel ${goal.blueprintName} bearbeiten`,
+      )}
       maxWidth="sm"
       fullWidth
     >

@@ -3,7 +3,7 @@ import Chip from '@mui/material/Chip';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { ItemCategory } from '../../types';
 import { CATEGORY_LABELS } from '../../types';
-import { useI18n } from '../../i18n/I18nContext';
+import { loc, useI18n } from '../../i18n/I18nContext';
 import { GameIcon } from './GameIcon';
 import type { GameIconName } from './GameIcon';
 
@@ -75,7 +75,7 @@ interface CategoryBadgeProps { category: ItemCategory; iconOnly?: boolean; shimm
 export function CategoryBadge({ category, iconOnly = false, shimmer = false }: CategoryBadgeProps) {
   const { lang } = useI18n();
   const theme = useTheme();
-  const label = CATEGORY_LABELS[category][lang];
+  const label = loc(CATEGORY_LABELS[category], lang);
   return (
     <Chip
       icon={

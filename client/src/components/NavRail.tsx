@@ -5,15 +5,16 @@ import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import Badge from '@mui/material/Badge';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
-import { GameIcon } from './ui/GameIcon';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 
-export type MainView = 'blueprints' | 'missions' | 'planner';
+export type MainView = 'blueprints' | 'missions' | 'resources' | 'planner';
 
 const EXPANDED_WIDTH = 200;
 const COLLAPSED_WIDTH = 64;
@@ -118,6 +119,68 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
   return button;
 }
 
+function MobileNavItem({
+  active,
+  label,
+  icon,
+  onClick,
+}: Omit<NavItemProps, 'collapsed'>) {
+  return (
+    <ButtonBase
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      sx={{
+        minWidth: 0,
+        minHeight: 58,
+        px: 0.5,
+        py: 0.75,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 0.45,
+        position: 'relative',
+        color: active ? 'primary.main' : 'text.secondary',
+        backgroundColor: active ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          left: 8,
+          right: 8,
+          bottom: 0,
+          height: 2,
+          borderRadius: '2px 2px 0 0',
+          backgroundColor: 'primary.main',
+          opacity: active ? 1 : 0,
+          transform: active ? 'scaleX(1)' : 'scaleX(0.6)',
+          transition: 'opacity 160ms ease, transform 160ms ease',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 20 }}>
+        {icon}
+      </Box>
+      <Typography
+        sx={{
+          fontFamily: "'Khand', sans-serif",
+          fontWeight: 700,
+          fontSize: '0.7rem',
+          lineHeight: 0.9,
+          letterSpacing: '0.03em',
+          textTransform: 'uppercase',
+          textAlign: 'center',
+          maxWidth: '100%',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {label}
+      </Typography>
+    </ButtonBase>
+  );
+}
+
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
   const { goals } = useCraft();
@@ -134,26 +197,29 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           backgroundColor: 'background.paper',
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
         }}
       >
-        <NavItem
+        <MobileNavItem
           active={mainView === 'blueprints'}
-          collapsed={false}
           label={t('Blueprints', 'Blueprints')}
-          icon={<GameIcon name="calculator" size={18} />}
+          icon={<DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
           onClick={() => onChangeView('blueprints')}
         />
-        <NavItem
+        <MobileNavItem
           active={mainView === 'missions'}
-          collapsed={false}
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: '1.1rem' }} />}
           onClick={() => onChangeView('missions')}
         />
-        <NavItem
+        <MobileNavItem
+          active={mainView === 'resources'}
+          label={t('Resources', 'Ressources')}
+          icon={<ScienceOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
+          onClick={() => onChangeView('resources')}
+        />
+        <MobileNavItem
           active={mainView === 'planner'}
-          collapsed={false}
           label={t('Planner', 'Planificateur')}
           icon={
             <Badge
@@ -195,7 +261,7 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           active={mainView === 'blueprints'}
           collapsed={collapsed}
           label={t('Blueprints', 'Blueprints')}
-          icon={<GameIcon name="calculator" size={20} />}
+          icon={<DescriptionOutlinedIcon sx={{ fontSize: '1.2rem' }} />}
           onClick={() => onChangeView('blueprints')}
         />
         <NavItem
@@ -204,6 +270,13 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: '1.2rem' }} />}
           onClick={() => onChangeView('missions')}
+        />
+        <NavItem
+          active={mainView === 'resources'}
+          collapsed={collapsed}
+          label={t('Resources', 'Ressources')}
+          icon={<ScienceOutlinedIcon sx={{ fontSize: '1.2rem' }} />}
+          onClick={() => onChangeView('resources')}
         />
         <Box sx={{ mt: 'auto' }}>
           <NavItem
@@ -250,7 +323,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
             name="chevron-right"
             size={16}
             dimmed
-            rotateDeg={collapsed ? 0 : 180}
           />
         </IconButton>
       </Box>

@@ -1,10 +1,15 @@
 import { ThemeProvider } from '@mui/material/styles';
 import GlobalStyles from '@mui/material/GlobalStyles';
 import CssBaseline from '@mui/material/CssBaseline';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Fade from '@mui/material/Fade';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
+import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { createAppTheme } from './theme';
@@ -14,73 +19,484 @@ import { CraftProvider } from './store/CraftContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { NavRail } from './components/NavRail';
-import { BlueprintGrid } from './components/BlueprintGrid';
-import { ItemWorkspace } from './components/ItemWorkspace';
-import { MissionsPanel } from './components/MissionsPanel';
-import { PlannerPage } from './components/PlannerPage';
-import { ComparisonModal } from './components/ComparisonModal';
-import { DatasetChangelog } from './components/DatasetChangelog';
 import { Footer } from './components/Footer';
 import { useCraft } from './store/CraftContext';
 import { LS_KEYS } from './types';
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
 import { mainViewFromPathname, navigateToPath } from './utils/slug';
+
+const LazyBlueprintsView = lazy(() =>
+  import('./components/BlueprintGrid').then(({ BlueprintGrid }) => ({
+    default: function BlueprintsView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <BlueprintGrid />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyWorkspaceView = lazy(() =>
+  import('./components/ItemWorkspace').then(({ ItemWorkspace }) => ({
+    default: function WorkspaceView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <ItemWorkspace />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyMissionsView = lazy(() =>
+  import('./components/MissionsPanel').then(({ MissionsPanel }) => ({
+    default: function MissionsView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <MissionsPanel />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyResourcesView = lazy(() =>
+  import('./components/ResourcesPage').then(({ ResourcesPage }) => ({
+    default: function ResourcesView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <ResourcesPage />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyPlannerView = lazy(() =>
+  import('./components/PlannerPage').then(({ PlannerPage }) => ({
+    default: function PlannerView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <PlannerPage />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyComparisonModal = lazy(() =>
+  import('./components/ComparisonModal').then(({ ComparisonModal }) => ({
+    default: ComparisonModal,
+  })),
+);
+
+const LazyDatasetChangelog = lazy(() =>
+  import('./components/DatasetChangelog').then(({ DatasetChangelog }) => ({
+    default: DatasetChangelog,
+  })),
+);
+
+type ResolvedMainView = 'blueprints' | 'workspace' | 'missions' | 'resources' | 'planner';
+
+function BlueprintGridFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper', p: { xs: 1.25, sm: 1.5 } }}>
+        <Stack spacing={1.25}>
+          <Skeleton variant="rounded" height={36} />
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={120} height={32} />
+            <Skeleton variant="rounded" width={120} height={32} />
+            <Skeleton variant="rounded" width={120} height={32} />
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={96} height={28} />
+            <Skeleton variant="rounded" width={110} height={28} />
+            <Skeleton variant="rounded" width={140} height={28} />
+            <Skeleton variant="rounded" width={100} height={28} />
+          </Stack>
+        </Stack>
+      </Box>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+              lg: 'repeat(4, 1fr)',
+              xl: 'repeat(5, 1fr)',
+            },
+            gap: { xs: 1.5, sm: 2, lg: 3 },
+          }}
+        >
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Paper key={index} variant="outlined" sx={{ p: 2 }}>
+              <Skeleton variant="rounded" height={152} sx={{ mb: 2 }} />
+              <Skeleton width="72%" height={32} />
+              <Skeleton width="48%" height={20} sx={{ mb: 1.5 }} />
+              <Stack spacing={1}>
+                <Skeleton height={18} />
+                <Skeleton height={18} />
+              </Stack>
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 2 }}>
+                <Skeleton variant="rounded" width={96} height={24} />
+                <Skeleton variant="rounded" width={88} height={24} />
+              </Stack>
+            </Paper>
+          ))}
+        </Box>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
+function WorkspaceFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          p: { xs: 1.25, sm: 2, md: 3 },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' },
+          gap: { xs: 2, md: 3 },
+          flex: 1,
+        }}
+      >
+        <Stack spacing={2}>
+          <Skeleton variant="rounded" width={124} height={32} />
+          <Paper variant="outlined" sx={{ p: 2.5 }}>
+            <Skeleton width="28%" height={18} sx={{ mb: 1.5 }} />
+            <Skeleton width="76%" height={54} sx={{ mb: 1.25 }} />
+            <Skeleton width="34%" height={24} sx={{ mb: 2 }} />
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Skeleton variant="rounded" width={140} height={36} />
+              <Skeleton variant="rounded" width={140} height={36} />
+            </Stack>
+            <Skeleton variant="rounded" height={220} />
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2.25 }}>
+            <Skeleton width="26%" height={18} sx={{ mb: 1.5 }} />
+            <Skeleton height={18} sx={{ mb: 1 }} />
+            <Skeleton height={18} sx={{ mb: 1 }} />
+            <Skeleton width="84%" height={18} />
+          </Paper>
+        </Stack>
+
+        <Stack spacing={2}>
+          <Paper variant="outlined" sx={{ p: 2.25 }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+              <Skeleton variant="rounded" height={88} sx={{ flex: 1 }} />
+              <Skeleton variant="rounded" height={88} sx={{ flex: 1 }} />
+              <Skeleton variant="rounded" height={88} sx={{ flex: 1 }} />
+            </Stack>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2.25 }}>
+            <Skeleton width="18%" height={18} sx={{ mb: 1.5 }} />
+            <Stack spacing={1.25}>
+              <Skeleton variant="rounded" height={120} />
+              <Skeleton variant="rounded" height={120} />
+            </Stack>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2.25 }}>
+            <Skeleton width="22%" height={18} sx={{ mb: 1.5 }} />
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+              <Skeleton variant="rounded" height={180} sx={{ flex: 1 }} />
+              <Skeleton variant="rounded" height={180} sx={{ flex: 1 }} />
+            </Stack>
+          </Paper>
+        </Stack>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
+function MissionsFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper', p: 1.5 }}>
+        <Stack spacing={1.25}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+            <Skeleton variant="rounded" height={32} sx={{ flex: 1 }} />
+            <Skeleton variant="rounded" width={180} height={32} />
+            <Skeleton variant="rounded" width={220} height={32} />
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={160} height={32} />
+            <Skeleton variant="rounded" width={160} height={32} />
+            <Skeleton variant="rounded" width={160} height={32} />
+            <Skeleton variant="rounded" width={160} height={32} />
+          </Stack>
+          <Skeleton variant="rounded" height={44} />
+        </Stack>
+      </Box>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: { xs: 1.25, sm: 1.5, md: 2 },
+          }}
+        >
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Paper key={index} variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1.25}>
+                <Stack direction="row" justifyContent="space-between">
+                  <Skeleton variant="rounded" width={110} height={24} />
+                  <Skeleton variant="circular" width={12} height={12} />
+                </Stack>
+                <Skeleton width="74%" height={28} />
+                <Skeleton width="56%" height={18} />
+                <Skeleton height={18} />
+                <Skeleton height={18} />
+                <Stack direction="row" spacing={0.75}>
+                  <Skeleton variant="rounded" width={96} height={24} />
+                  <Skeleton variant="rounded" width={84} height={24} />
+                </Stack>
+              </Stack>
+            </Paper>
+          ))}
+        </Box>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
+function ResourcesFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper', p: 1.5 }}>
+        <Stack spacing={1.25}>
+          <Skeleton width={180} height={36} />
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={120} height={70} />
+            <Skeleton variant="rounded" width={120} height={70} />
+            <Skeleton variant="rounded" width={120} height={70} />
+            <Skeleton variant="rounded" width={120} height={70} />
+          </Stack>
+        </Stack>
+      </Box>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper', p: 1.5 }}>
+        <Stack spacing={1.25}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1}>
+            <Skeleton variant="rounded" height={38} sx={{ flex: 1 }} />
+            <Skeleton variant="rounded" width={220} height={38} />
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={92} height={32} />
+            <Skeleton variant="rounded" width={92} height={32} />
+            <Skeleton variant="rounded" width={92} height={32} />
+            <Skeleton variant="rounded" width={92} height={32} />
+          </Stack>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+            <Skeleton variant="rounded" height={40} sx={{ flex: 1 }} />
+            <Skeleton variant="rounded" height={40} sx={{ flex: 1 }} />
+            <Skeleton variant="rounded" height={40} sx={{ flex: 1 }} />
+            <Skeleton variant="rounded" height={40} sx={{ flex: 1 }} />
+          </Stack>
+        </Stack>
+      </Box>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)', xl: 'repeat(4, 1fr)' },
+            gap: { xs: 1.25, sm: 1.5, xl: 2 },
+          }}
+        >
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Paper key={index} variant="outlined" sx={{ p: 2 }}>
+              <Skeleton variant="rounded" height={164} sx={{ mb: 2 }} />
+              <Skeleton width="56%" height={28} />
+              <Skeleton height={18} sx={{ mb: 1.5 }} />
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Skeleton variant="rounded" width={92} height={56} />
+                <Skeleton variant="rounded" width={92} height={56} />
+                <Skeleton variant="rounded" width={92} height={56} />
+              </Stack>
+            </Paper>
+          ))}
+        </Box>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
+function PlannerFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <Box
+        sx={{
+          px: 3,
+          py: 1.5,
+          borderBottom: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+          <Skeleton width={120} height={30} />
+          <Skeleton variant="rounded" width={96} height={24} />
+          <Skeleton variant="rounded" width={120} height={24} />
+        </Stack>
+        <Stack direction="row" spacing={1}>
+          <Skeleton variant="rounded" width={108} height={32} />
+          <Skeleton variant="rounded" width={84} height={32} />
+        </Stack>
+      </Box>
+      <Box
+        sx={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: '320px minmax(0, 1fr)' },
+          minHeight: 0,
+        }}
+      >
+        <Box sx={{ p: 2, borderRight: { lg: 1 }, borderColor: 'divider' }}>
+          <Stack spacing={1.25}>
+            <Skeleton width="34%" height={22} />
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} variant="rounded" height={92} />
+            ))}
+          </Stack>
+        </Box>
+        <Box sx={{ p: 2 }}>
+          <Stack spacing={1.5}>
+            <Skeleton width="28%" height={22} />
+            <Skeleton variant="rounded" height={220} />
+            <Skeleton variant="rounded" height={180} />
+          </Stack>
+        </Box>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
+function MainContentFallback({ view }: { view: ResolvedMainView }) {
+  switch (view) {
+    case 'missions':
+      return <MissionsFallback />;
+    case 'resources':
+      return <ResourcesFallback />;
+    case 'planner':
+      return <PlannerFallback />;
+    case 'workspace':
+      return <WorkspaceFallback />;
+    case 'blueprints':
+    default:
+      return <BlueprintGridFallback />;
+  }
+}
+
+function ComparisonModalFallback() {
+  return (
+    <Dialog open fullWidth maxWidth="lg" aria-label="Loading comparison">
+      <DialogTitle>
+        <Skeleton width={180} height={28} />
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={120} height={28} />
+            <Skeleton variant="rounded" width={120} height={28} />
+          </Stack>
+          <Skeleton variant="rounded" height={260} />
+          <Skeleton variant="rounded" height={220} />
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DatasetChangelogFallback() {
+  return (
+    <Dialog open fullWidth maxWidth="md" aria-label="Loading changelog">
+      <DialogTitle>
+        <Skeleton width={220} height={28} />
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={96} height={28} />
+            <Skeleton variant="rounded" width={96} height={28} />
+            <Skeleton variant="rounded" width={96} height={28} />
+          </Stack>
+          <Skeleton variant="rounded" height={200} />
+          <Skeleton variant="rounded" height={200} />
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function MainContent({ mainView }: { mainView: MainView }) {
   const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
 
   useEffect(() => {
-    if (mainView === 'missions' || !activeBlueprint) {
+    if (mainView === 'missions' || mainView === 'resources' || !activeBlueprint) {
       void ensureMissionRewardsLoaded();
     }
   }, [mainView, activeBlueprint, ensureMissionRewardsLoaded]);
 
-  if (mainView === 'missions') {
-    return (
-      <Fade in timeout={180}>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <MissionsPanel />
-          <Footer />
-        </Box>
-      </Fade>
-    );
-  }
+  const resolvedView: ResolvedMainView =
+    mainView === 'missions'
+      ? 'missions'
+      : mainView === 'resources'
+        ? 'resources'
+      : mainView === 'planner'
+        ? 'planner'
+        : activeBlueprint
+          ? 'workspace'
+          : 'blueprints';
 
-  if (mainView === 'planner') {
-    return (
-      <Fade in timeout={180}>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <PlannerPage />
-          <Footer />
-        </Box>
-      </Fade>
-    );
-  }
-
-  if (activeBlueprint) {
-    return (
-      <Fade in timeout={200}>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <ItemWorkspace />
-          <Footer />
-        </Box>
-      </Fade>
-    );
-  }
+  const SelectedView =
+    resolvedView === 'missions'
+      ? LazyMissionsView
+      : resolvedView === 'resources'
+        ? LazyResourcesView
+      : resolvedView === 'planner'
+        ? LazyPlannerView
+        : resolvedView === 'workspace'
+          ? LazyWorkspaceView
+          : LazyBlueprintsView;
 
   return (
-    <Fade in timeout={180}>
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <BlueprintGrid />
-        <Footer />
-      </Box>
-    </Fade>
+    <Suspense fallback={<MainContentFallback view={resolvedView} />}>
+      <Fade in timeout={resolvedView === 'workspace' ? 200 : 180}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <SelectedView />
+        </Box>
+      </Fade>
+    </Suspense>
   );
 }
 
 function AppShell() {
-  const { activeDataset, datasetLoading, datasetError, ensureMissionRewardsLoaded } = useCraft();
+  const {
+    activeDataset,
+    datasetLoading,
+    datasetError,
+    ensureMissionRewardsLoaded,
+    comparisonOpen,
+    changelogOpen,
+  } = useCraft();
   const { t } = useI18n();
   const [themeMode] = useTheme();
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
@@ -106,7 +522,7 @@ function AppShell() {
       startTransition(() => {
         setMainView(nextView);
       });
-      if (nextView === 'missions') {
+      if (nextView === 'missions' || nextView === 'resources') {
         void ensureMissionRewardsLoaded();
       }
     };
@@ -117,7 +533,14 @@ function AppShell() {
   }, [ensureMissionRewardsLoaded]);
 
   const handleChangeView = useCallback((view: MainView) => {
-    const path = view === 'missions' ? '/missions' : view === 'planner' ? '/planner' : '/';
+    const path =
+      view === 'missions'
+        ? '/missions'
+        : view === 'resources'
+          ? '/resources'
+          : view === 'planner'
+            ? '/planner'
+            : '/';
     navigateToPath(path, { mainView: view });
   }, []);
 
@@ -206,8 +629,16 @@ function AppShell() {
           <MainContent mainView={mainView} />
         </Box>
       </Box>
-      <ComparisonModal />
-      <DatasetChangelog />
+      {comparisonOpen && (
+        <Suspense fallback={<ComparisonModalFallback />}>
+          <LazyComparisonModal />
+        </Suspense>
+      )}
+      {changelogOpen && (
+        <Suspense fallback={<DatasetChangelogFallback />}>
+          <LazyDatasetChangelog />
+        </Suspense>
+      )}
     </Box>
   );
 }

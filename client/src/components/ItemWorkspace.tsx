@@ -13,6 +13,7 @@ import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '..
 
 export function ItemWorkspace() {
   const {
+    activeDataset,
     activeBlueprint,
     setActiveBlueprint,
     slotAssignments,
@@ -109,6 +110,7 @@ export function ItemWorkspace() {
           qualityScore={qualityScore}
           projectedStats={projectedStats}
           requiredResources={requiredResources}
+          resources={activeDataset.resources}
         />
 
         <Divider />

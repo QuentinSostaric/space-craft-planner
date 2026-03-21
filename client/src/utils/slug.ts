@@ -23,8 +23,15 @@ export function missionSlugFromPathname(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
-export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' | 'planner' {
+/** Extract a resource slug from a pathname like /resources/some-slug. Returns null if no match. */
+export function resourceSlugFromPathname(pathname: string): string | null {
+  const match = /^\/resources\/(.+)$/.exec(pathname);
+  return match ? match[1] : null;
+}
+
+export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' | 'resources' | 'planner' {
   if (pathname === '/missions' || pathname.startsWith('/missions/')) return 'missions';
+  if (pathname === '/resources' || pathname.startsWith('/resources/')) return 'resources';
   if (pathname === '/planner' || pathname.startsWith('/planner/')) return 'planner';
   return 'blueprints';
 }
@@ -39,6 +46,10 @@ export function missionSlugFromContract(
 
 export function missionPathFromSlug(slug: string | null | undefined): string {
   return slug ? `/missions/${slug}` : '/missions';
+}
+
+export function resourcePathFromSlug(slug: string | null | undefined): string {
+  return slug ? `/resources/${slug}` : '/resources';
 }
 
 export function navigateToPath(path: string, state?: Record<string, unknown>): void {
