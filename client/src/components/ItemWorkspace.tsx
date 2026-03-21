@@ -64,9 +64,8 @@ export function ItemWorkspace() {
       sx={{
         display: 'flex',
         flexDirection: { xs: 'column', md: 'row' },
+        alignItems: { md: 'flex-start' },
         gap: 3,
-        flex: 1,
-        minHeight: 0,
         p: 2,
       }}
     >
@@ -79,6 +78,7 @@ export function ItemWorkspace() {
           maxHeight: { md: '100vh' },
           overflowY: { md: 'auto' },
           flexShrink: 0,
+          alignSelf: { md: 'flex-start' },
         }}
       >
         <ItemIdentity

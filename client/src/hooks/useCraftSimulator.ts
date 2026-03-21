@@ -62,7 +62,7 @@ function calcProjectedStats(
         mod.qualityStart,
         mod.qualityEnd,
       );
-      const appliedModifier = Math.pow(modifier, mod.occurrenceCount);
+      const appliedModifier = Math.pow(modifier, mod.occurrenceCount ?? 1);
 
       for (const statKey of targets) {
         const currentValue = result[statKey];
