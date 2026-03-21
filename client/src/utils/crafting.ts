@@ -77,22 +77,7 @@ export function formatLocations(contract: MissionContract, lang: Lang): string {
   return lang === 'fr' ? 'Aucun lieu explicite' : 'No explicit location';
 }
 
-export function buildBlueprintContractCountMap(
-  missionRewards: MissionRewardsData | null,
-): Map<string, number> {
-  const map = new Map<string, number>();
-  if (!missionRewards) return map;
 
-  for (const group of missionRewards.factionGroups) {
-    for (const contract of group.contracts) {
-      for (const bp of contract.rewardedBlueprints) {
-        map.set(bp.id, (map.get(bp.id) ?? 0) + 1);
-      }
-    }
-  }
-
-  return map;
-}
 
 export function clampQualityValue(value: number | undefined): number | undefined {
   if (value === undefined || Number.isNaN(value)) {
@@ -221,37 +206,6 @@ export function aggregateGoalResources(
   return aggregateResourceEntries(entries);
 }
 
-export function findMissionContractsForBlueprint(
-  missionRewards: MissionRewardsData | null,
-  blueprintId: string,
-): MissionContract[] {
-  if (!missionRewards) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const matches: MissionContract[] = [];
-
-  for (const group of missionRewards.factionGroups) {
-    for (const contract of group.contracts) {
-      if (!contract.rewardedBlueprints.some((blueprint) => blueprint.id === blueprintId)) {
-        continue;
-      }
-
-      const key = `${contract.contractFile ?? ''}|${contract.contractDebugName ?? ''}`;
-      if (seen.has(key)) {
-        continue;
-      }
-
-      seen.add(key);
-      matches.push(contract);
-    }
-  }
-
-  return matches.sort((left, right) =>
-    String(left.contractDebugName ?? '').localeCompare(String(right.contractDebugName ?? '')),
-  );
-}
 
 /** Key stats to show on cards per category */
 export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemStatKey; label: { en: string; fr: string } }>>> = {

@@ -19,7 +19,6 @@ import type {
   DismantlingData,
   GameDataset,
   ItemStats,
-  ItemTab,
   LegalityFilter,
   LibrarySegment,
   MaterialSources,
@@ -56,8 +55,6 @@ const EMPTY_DATASET: GameDataset = {
 interface CraftState {
   appMode: AppMode;
   setAppMode: (mode: AppMode) => void;
-  activeItemTab: ItemTab;
-  setActiveItemTab: (tab: ItemTab) => void;
   changelogOpen: boolean;
   setChangelogOpen: (open: boolean) => void;
   dismantlingData: DismantlingData | null;
@@ -146,7 +143,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('craft');
-  const [activeItemTab, setActiveItemTab] = useState<ItemTab>('overview');
   const [changelogOpen, setChangelogOpen] = useState(false);
 
   const activeMissionRewards = activeDataset.missionRewards ?? null;
@@ -430,8 +426,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       value={{
         appMode,
         setAppMode,
-        activeItemTab,
-        setActiveItemTab,
         changelogOpen,
         setChangelogOpen,
         dismantlingData,

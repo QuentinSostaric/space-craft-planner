@@ -332,8 +332,6 @@ export interface DatasetChangelog {
 
 export type AppMode = 'craft' | 'dismantle' | 'missions';
 
-export type ItemTab = 'overview' | 'craft' | 'acquisition' | 'dismantle';
-
 export interface DismantlingMeta {
   extractedAt: string | null;
   confidence: {
