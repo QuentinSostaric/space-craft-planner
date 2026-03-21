@@ -6,6 +6,7 @@
  *   /data/index.json          → liste des datasets publiés
  *   /data/live.json           → dataset live complet (blueprints, resources, dismantling, missionRewards)
  *   /data/ptu.json            → dataset ptu complet
+ *   /data/<datasetId>.json    → snapshot complet d'un dataset spécifique quand disponible
  *
  * En dev local : lancer `node scripts/devData.mjs` ou
  * `MONGODB_URI=... node scripts/fetchGameData.mjs` pour générer ces fichiers.
@@ -50,6 +51,24 @@ export async function fetchPublishedDataset(channel: DatasetChannel): Promise<Ga
   return payload.dataset;
 }
 
+export async function fetchPublishedDatasetById(
+  datasetId: string,
+  channelHint?: DatasetChannel,
+): Promise<GameDataset> {
+  try {
+    const payload = await staticFetch<{ dataset: GameDataset | null }>(`/data/${datasetId}.json`);
+    if (!payload.dataset) {
+      throw new Error(`No published dataset for id "${datasetId}".`);
+    }
+    return payload.dataset;
+  } catch (error) {
+    if (channelHint) {
+      return fetchPublishedDataset(channelHint);
+    }
+    throw error;
+  }
+}
+
 export async function fetchPublishedMissionRewards(
   channel: DatasetChannel,
 ): Promise<MissionRewardsData | null> {
@@ -58,4 +77,19 @@ export async function fetchPublishedMissionRewards(
   // lazy-loading contract from CraftContext without requiring a separate endpoint.
   const payload = await staticFetch<{ dataset: GameDataset | null }>(`/data/${channel}.json`);
   return payload.dataset?.missionRewards ?? null;
+}
+
+export async function fetchPublishedMissionRewardsById(
+  datasetId: string,
+  channelHint?: DatasetChannel,
+): Promise<MissionRewardsData | null> {
+  try {
+    const payload = await staticFetch<{ dataset: GameDataset | null }>(`/data/${datasetId}.json`);
+    return payload.dataset?.missionRewards ?? null;
+  } catch (error) {
+    if (channelHint) {
+      return fetchPublishedMissionRewards(channelHint);
+    }
+    throw error;
+  }
 }

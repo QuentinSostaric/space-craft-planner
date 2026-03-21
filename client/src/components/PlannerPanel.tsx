@@ -17,13 +17,13 @@ import ListItemText from '@mui/material/ListItemText';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { CategoryBadge } from './ui/Badge';
 import { ResourceIcon } from './ui/ResourceIcon';
 import { Button } from './ui/Button';
-import { tokens } from '../theme';
 import type {
   AcquisitionGraphEntry,
   AggregatedResource,
@@ -230,6 +230,7 @@ function GoalCard({
 }) {
   const { blueprints } = useCraft();
   const { t } = useI18n();
+  const theme = useTheme();
   const blueprint = blueprints.find((candidate) => candidate.id === goal.blueprintId);
 
   const stopPropagation = (event: SyntheticEvent) => {
@@ -240,9 +241,10 @@ function GoalCard({
     <Card
       sx={{
         cursor: 'pointer',
-        borderColor: isActive ? tokens.violet : tokens.border,
-        backgroundColor: isActive ? tokens.surface2 : tokens.surface1,
-        '&:hover': { borderColor: tokens.borderStrong },
+        borderColor: isActive ? theme.palette.primary.main : theme.palette.ui.border,
+        backgroundColor: isActive ? theme.palette.ui.surface2 : theme.palette.ui.surface1,
+        transition: 'all 150ms ease',
+        '&:hover': { borderColor: theme.palette.ui.borderStrong },
       }}
       onClick={onSelect}
       onKeyDown={(event) => {

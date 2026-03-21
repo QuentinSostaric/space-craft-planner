@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { toSlug, slugFromPathname } from '../utils/slug';
+import { itemSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import type {
   AppMode,
   Blueprint,
@@ -28,9 +28,9 @@ import type {
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
 import {
-  fetchPublishedDataset,
+  fetchPublishedDatasetById,
   fetchPublishedDatasetIndex,
-  fetchPublishedMissionRewards,
+  fetchPublishedMissionRewardsById,
 } from '../hooks/gameDataApi';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 
@@ -90,8 +90,9 @@ interface CraftState {
   comparisonOpen: boolean;
   setActiveBlueprint: (bp: Blueprint | null) => void;
   setActiveDatasetChannel: (channel: DatasetChannel) => Promise<void>;
+  setActiveDatasetId: (datasetId: string) => Promise<void>;
   refreshDatasets: () => Promise<void>;
-  ensureMissionRewardsLoaded: (channel?: DatasetChannel) => Promise<void>;
+  ensureMissionRewardsLoaded: (datasetId?: string) => Promise<void>;
   setCategoryFilter: (cat: CategoryFilter) => void;
   setSearchQuery: (q: string) => void;
   toggleFavorite: (blueprintId: string) => void;
@@ -119,23 +120,74 @@ interface CraftState {
 
 const CraftContext = createContext<CraftState | null>(null);
 
+function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
+  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
+  if (dateA !== dateB) {
+    return dateB - dateA;
+  }
+
+  const buildA = Number(a.buildNumber ?? 0);
+  const buildB = Number(b.buildNumber ?? 0);
+  if (buildA !== buildB) {
+    return buildB - buildA;
+  }
+
+  return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function pickDatasetForChannel(
+  channel: DatasetChannel,
+  datasets: DatasetSummary[],
+  preferredDatasetIds: Partial<Record<DatasetChannel, string>>,
+  activeDatasetId: string | null,
+): DatasetSummary | null {
+  const channelDatasets = datasets
+    .filter((dataset) => dataset.channel === channel)
+    .sort(compareDatasetSummaries);
+
+  if (channelDatasets.length === 0) {
+    return null;
+  }
+
+  const preferred = preferredDatasetIds[channel];
+  if (preferred) {
+    const preferredDataset = channelDatasets.find((dataset) => dataset.datasetId === preferred);
+    if (preferredDataset) {
+      return preferredDataset;
+    }
+  }
+
+  if (activeDatasetId) {
+    const activeMatch = channelDatasets.find((dataset) => dataset.datasetId === activeDatasetId);
+    if (activeMatch) {
+      return activeMatch;
+    }
+  }
+
+  return channelDatasets[0];
+}
+
 export function CraftProvider({ children }: { children: ReactNode }) {
-  const [preferredChannel, setPreferredChannel] = useLocalPersist<DatasetChannel>(
+  const [, setPreferredChannel] = useLocalPersist<DatasetChannel>(
     LS_KEYS.DATASET_CHANNEL,
     'ptu',
   );
+  const [preferredDatasetIds, setPreferredDatasetIds] = useLocalPersist<
+    Partial<Record<DatasetChannel, string>>
+  >(LS_KEYS.DATASET_SELECTIONS, {});
   const [activeDataset, setActiveDataset] = useState<GameDataset>(EMPTY_DATASET);
   const [availableDatasets, setAvailableDatasets] = useState<DatasetSummary[]>([]);
   const [datasetLoading, setDatasetLoading] = useState(true);
   const [datasetError, setDatasetError] = useState<string | null>(null);
-  const [missionRewardsByChannel, setMissionRewardsByChannel] = useState<
-    Partial<Record<DatasetChannel, MissionRewardsData | null>>
+  const [missionRewardsByDatasetId, setMissionRewardsByDatasetId] = useState<
+    Record<string, MissionRewardsData | null>
   >({});
   const [missionRewardsLoading, setMissionRewardsLoading] = useState(false);
   const [missionRewardsError, setMissionRewardsError] = useState<string | null>(null);
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
   // Slug from URL on initial mount — resolved once blueprints load
-  const pendingSlugRef = useRef<string | null>(slugFromPathname(window.location.pathname));
+  const pendingSlugRef = useRef<string | null>(itemSlugFromPathname(window.location.pathname));
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('all');
@@ -182,7 +234,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       datasets: DatasetSummary[],
       errorMessage: string | null,
     ) => {
-      const cachedMissionRewards = missionRewardsByChannel[dataset.channel];
+      const cachedMissionRewards = missionRewardsByDatasetId[dataset.datasetId];
       startTransition(() => {
         setActiveDataset({
           ...dataset,
@@ -195,18 +247,29 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setDatasetError(errorMessage);
         setMissionRewardsError(null);
         setPreferredChannel(dataset.channel);
+        setPreferredDatasetIds((previous) => ({
+          ...previous,
+          [dataset.channel]: dataset.datasetId,
+        }));
+        if (dataset.missionRewards !== undefined) {
+          setMissionRewardsByDatasetId((previous) =>
+            Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
+              ? previous
+              : { ...previous, [dataset.datasetId]: dataset.missionRewards ?? null },
+          );
+        }
         setSlotAssignments({});
         setActiveBlueprintRaw((previous) =>
           previous ? dataset.blueprints.find((blueprint) => blueprint.id === previous.id) ?? null : null,
         );
       });
     },
-    [missionRewardsByChannel, setPreferredChannel],
+    [missionRewardsByDatasetId, setPreferredChannel, setPreferredDatasetIds],
   );
 
-  const loadChannel = useCallback(
-    async (channel: DatasetChannel, datasets: DatasetSummary[]) => {
-      const dataset = await fetchPublishedDataset(channel);
+  const loadDataset = useCallback(
+    async (summary: DatasetSummary, datasets: DatasetSummary[]) => {
+      const dataset = await fetchPublishedDatasetById(summary.datasetId, summary.channel);
       applyDataset(dataset, datasets, null);
       return dataset;
     },
@@ -225,33 +288,38 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const availableChannels = new Set(index.datasets.map((dataset) => dataset.channel));
-      const channelToLoad = availableChannels.has(preferredChannel)
-        ? preferredChannel
-        : index.defaultChannel;
+      const sortedDatasets = [...index.datasets].sort(compareDatasetSummaries);
+      const currentDataset = activeDataset.datasetId
+        ? sortedDatasets.find((dataset) => dataset.datasetId === activeDataset.datasetId) ?? null
+        : null;
+      const targetDataset = currentDataset ?? sortedDatasets[0] ?? null;
 
-      await loadChannel(channelToLoad, index.datasets);
+      if (!targetDataset) {
+        throw new Error('No published dataset is available.');
+      }
+
+      await loadDataset(targetDataset, sortedDatasets);
     } catch (error) {
       setDatasetError(error instanceof Error ? error.message : 'Failed to load published datasets.');
     } finally {
       setDatasetLoading(false);
     }
-  }, [loadChannel, preferredChannel]);
+  }, [activeDataset.datasetId, loadDataset]);
 
   useEffect(() => {
     void refreshDatasets();
   }, [refreshDatasets]);
 
   const ensureMissionRewardsLoaded = useCallback(
-    async (requestedChannel?: DatasetChannel) => {
-      const channel = requestedChannel ?? activeDataset.channel;
-      const summary = availableDatasets.find((dataset) => dataset.channel === channel);
+    async (requestedDatasetId?: string) => {
+      const datasetId = requestedDatasetId ?? activeDataset.datasetId;
+      const summary = availableDatasets.find((dataset) => dataset.datasetId === datasetId);
 
       if (!summary?.hasMissionRewards) {
         return;
       }
 
-      if (Object.prototype.hasOwnProperty.call(missionRewardsByChannel, channel)) {
+      if (Object.prototype.hasOwnProperty.call(missionRewardsByDatasetId, datasetId)) {
         return;
       }
 
@@ -259,11 +327,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       setMissionRewardsError(null);
 
       try {
-        const missionRewards = await fetchPublishedMissionRewards(channel);
+        const missionRewards = await fetchPublishedMissionRewardsById(summary.datasetId, summary.channel);
         startTransition(() => {
-          setMissionRewardsByChannel((previous) => ({ ...previous, [channel]: missionRewards }));
+          setMissionRewardsByDatasetId((previous) => ({ ...previous, [datasetId]: missionRewards }));
           setActiveDataset((previous) =>
-            previous.channel === channel
+            previous.datasetId === datasetId
               ? { ...previous, missionRewards }
               : previous,
           );
@@ -276,7 +344,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setMissionRewardsLoading(false);
       }
     },
-    [activeDataset.channel, availableDatasets, missionRewardsByChannel],
+    [activeDataset.datasetId, availableDatasets, missionRewardsByDatasetId],
   );
 
   const setActiveDatasetChannel = useCallback(
@@ -285,27 +353,73 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const datasets = availableDatasets.length > 0 ? availableDatasets : await fetchPublishedDatasetIndex().then((index) => index.datasets);
+      const datasets = availableDatasets.length > 0
+        ? [...availableDatasets].sort(compareDatasetSummaries)
+        : await fetchPublishedDatasetIndex().then((index) => [...index.datasets].sort(compareDatasetSummaries));
+
+      const targetDataset = pickDatasetForChannel(
+        channel,
+        datasets,
+        preferredDatasetIds,
+        activeDataset.datasetId || null,
+      );
+
+      if (!targetDataset) {
+        setDatasetError(`No published dataset is available for channel "${channel}".`);
+        return;
+      }
 
       setDatasetLoading(true);
       try {
-        await loadChannel(channel, datasets);
+        await loadDataset(targetDataset, datasets);
       } catch (error) {
         setDatasetError(error instanceof Error ? error.message : 'Failed to switch dataset.');
       } finally {
         setDatasetLoading(false);
       }
     },
-    [activeDataset.channel, availableDatasets, datasetError, loadChannel],
+    [activeDataset.channel, activeDataset.datasetId, availableDatasets, datasetError, loadDataset, preferredDatasetIds],
+  );
+
+  const setActiveDatasetId = useCallback(
+    async (datasetId: string) => {
+      if (!datasetId) {
+        return;
+      }
+
+      if (datasetId === activeDataset.datasetId && availableDatasets.length > 0 && !datasetError) {
+        return;
+      }
+
+      const datasets = availableDatasets.length > 0
+        ? [...availableDatasets].sort(compareDatasetSummaries)
+        : await fetchPublishedDatasetIndex().then((index) => [...index.datasets].sort(compareDatasetSummaries));
+      const targetDataset = datasets.find((dataset) => dataset.datasetId === datasetId);
+
+      if (!targetDataset) {
+        setDatasetError(`Unknown dataset "${datasetId}".`);
+        return;
+      }
+
+      setDatasetLoading(true);
+      try {
+        await loadDataset(targetDataset, datasets);
+      } catch (error) {
+        setDatasetError(error instanceof Error ? error.message : 'Failed to switch dataset.');
+      } finally {
+        setDatasetLoading(false);
+      }
+    },
+    [activeDataset.datasetId, availableDatasets, datasetError, loadDataset],
   );
 
   const setActiveBlueprint = useCallback((bp: Blueprint | null) => {
     setActiveBlueprintRaw(bp);
     setSlotAssignments({});
     if (bp) {
-      window.history.pushState({ blueprintId: bp.id }, '', `/item/${toSlug(bp.name)}`);
-    } else if (slugFromPathname(window.location.pathname)) {
-      window.history.pushState(null, '', '/');
+      navigateToPath(`/item/${toSlug(bp.name)}`, { blueprintId: bp.id });
+    } else if (itemSlugFromPathname(window.location.pathname)) {
+      navigateToPath('/');
     }
   }, []);
 
@@ -442,7 +556,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   // Handle browser back/forward
   useEffect(() => {
     const handlePopState = () => {
-      const slug = slugFromPathname(window.location.pathname);
+      const slug = itemSlugFromPathname(window.location.pathname);
       if (!slug) {
         setActiveBlueprintRaw(null);
         setSlotAssignments({});
@@ -496,6 +610,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         comparisonOpen,
         setActiveBlueprint,
         setActiveDatasetChannel,
+        setActiveDatasetId,
         refreshDatasets,
         ensureMissionRewardsLoaded,
         setCategoryFilter,

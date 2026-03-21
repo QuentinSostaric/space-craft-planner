@@ -1,5 +1,8 @@
 import { ThemeProvider } from '@mui/material/styles';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import CssBaseline from '@mui/material/CssBaseline';
+import Fade from '@mui/material/Fade';
+import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -19,8 +22,9 @@ import { DatasetChangelog } from './components/DatasetChangelog';
 import { Footer } from './components/Footer';
 import { useCraft } from './store/CraftContext';
 import { LS_KEYS } from './types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
+import { mainViewFromPathname, navigateToPath } from './utils/slug';
 
 function MainContent({ mainView }: { mainView: MainView }) {
   const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
@@ -31,24 +35,35 @@ function MainContent({ mainView }: { mainView: MainView }) {
     }
   }, [mainView, activeBlueprint, ensureMissionRewardsLoaded]);
 
+  if (mainView === 'missions') {
+    return (
+      <Fade in timeout={180}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <MissionsPanel />
+          <Footer />
+        </Box>
+      </Fade>
+    );
+  }
+
   if (activeBlueprint) {
     return (
-      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <ItemWorkspace />
-        <Footer />
-      </Box>
+      <Fade in timeout={200}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <ItemWorkspace />
+          <Footer />
+        </Box>
+      </Fade>
     );
   }
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-      {mainView === 'blueprints' ? (
+    <Fade in timeout={180}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <BlueprintGrid />
-      ) : (
-        <MissionsPanel />
-      )}
-      <Footer />
-    </Box>
+        <Footer />
+      </Box>
+    </Fade>
   );
 }
 
@@ -56,10 +71,11 @@ function AppShell() {
   const { activeDataset, datasetLoading, datasetError, ensureMissionRewardsLoaded } = useCraft();
   const { t } = useI18n();
 
-  const [mainView, setMainView] = useState<MainView>('blueprints');
+  const [mainView, setMainView] = useState<MainView>(() => mainViewFromPathname(window.location.pathname));
   const [navCollapsed, setNavCollapsed] = useState(() => {
     try { return localStorage.getItem(LS_KEYS.NAV_COLLAPSED) === 'true'; } catch { return false; }
   });
+  const [isPending, startTransition] = useTransition();
 
   const toggleNavCollapsed = useCallback(() => {
     setNavCollapsed((prev) => {
@@ -69,22 +85,36 @@ function AppShell() {
     });
   }, []);
 
-  const handleChangeView = useCallback((view: MainView) => {
-    setMainView(view);
-    if (view === 'missions') void ensureMissionRewardsLoaded();
+  useEffect(() => {
+    const syncViewFromPath = () => {
+      const nextView = mainViewFromPathname(window.location.pathname);
+      startTransition(() => {
+        setMainView(nextView);
+      });
+      if (nextView === 'missions') {
+        void ensureMissionRewardsLoaded();
+      }
+    };
+
+    syncViewFromPath();
+    window.addEventListener('popstate', syncViewFromPath);
+    return () => window.removeEventListener('popstate', syncViewFromPath);
   }, [ensureMissionRewardsLoaded]);
+
+  const handleChangeView = useCallback((view: MainView) => {
+    const path = view === 'missions' ? '/missions' : '/';
+    navigateToPath(path, { mainView: view });
+  }, []);
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <>
-        <a className="skip-link" href="#main-content">
-          {t('Skip to main content', 'Aller au contenu principal')}
-        </a>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
-        <Box component="main" id="main-content" sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <LinearProgress sx={{ height: 2 }} />
+        <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
             <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
-              <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
                 {t('Loading published dataset', 'Chargement du dataset publie')}
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -97,21 +127,18 @@ function AppShell() {
           </Box>
           <Footer />
         </Box>
-      </>
+      </Box>
     );
   }
 
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <>
-        <a className="skip-link" href="#main-content">
-          {t('Skip to main content', 'Aller au contenu principal')}
-        </a>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
-        <Box component="main" id="main-content" sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
             <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
-              <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1, color: 'error.main' }}>
+              <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
                 {t('Published dataset unavailable', 'Dataset publie indisponible')}
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
@@ -125,16 +152,14 @@ function AppShell() {
           </Box>
           <Footer />
         </Box>
-      </>
+      </Box>
     );
   }
 
   return (
-    <>
-      <a className="skip-link" href="#main-content">
-        {t('Skip to main content', 'Aller au contenu principal')}
-      </a>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
+      {isPending && <LinearProgress sx={{ height: 2 }} />}
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <NavRail
           mainView={mainView}
@@ -147,10 +172,10 @@ function AppShell() {
           id="main-content"
           sx={{
             flex: 1,
-            minHeight: 0,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
+            overflowY: 'auto',
           }}
           aria-label={t('Content', 'Contenu')}
         >
@@ -160,7 +185,7 @@ function AppShell() {
       </Box>
       <ComparisonModal />
       <DatasetChangelog />
-    </>
+    </Box>
   );
 }
 
@@ -171,6 +196,10 @@ function AppContent() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline enableColorScheme />
+      <GlobalStyles styles={{
+        'html, body': { height: '100%', margin: 0, padding: 0 },
+        '#root': { height: '100%', display: 'flex', flexDirection: 'column' },
+      }} />
       <I18nProvider>
         <CraftProvider>
           <AppShell />

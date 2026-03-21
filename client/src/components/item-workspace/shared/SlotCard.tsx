@@ -6,6 +6,7 @@ import IconButton from '@mui/material/IconButton';
 import Slider from '@mui/material/Slider';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useTheme, alpha } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import CloseIcon from '@mui/icons-material/Close';
@@ -14,7 +15,6 @@ import { gppModifier } from '../../../hooks/useCraftSimulator';
 import { ResourceIcon } from '../../ui/ResourceIcon';
 import { GameIcon } from '../../ui/GameIcon';
 import { GPP_LABELS } from '../../../types';
-import { tokens } from '../../../theme';
 import type { MaterialSlot, ItemCategory } from '../../../types';
 import type { GameIconName } from '../../ui/GameIcon';
 import { clampQualityValue } from '../../../utils/crafting';
@@ -42,6 +42,7 @@ export function SlotCard({
   category?: ItemCategory;
 }) {
   const { lang, t } = useI18n();
+  const theme = useTheme();
 
   const currentQuality = qualityValue ?? 0;
   const isAssigned = qualityValue !== undefined;
@@ -73,8 +74,8 @@ export function SlotCard({
   return (
     <Card
       sx={{
-        backgroundColor: tokens.surface1,
-        borderColor: isAssigned ? tokens.violet : tokens.border,
+        backgroundColor: theme.palette.ui.surface1,
+        borderColor: isAssigned ? theme.palette.primary.main : theme.palette.ui.border,
         transition: 'border-color 150ms',
         display: 'flex',
         flexDirection: 'column',
@@ -88,8 +89,8 @@ export function SlotCard({
           alignItems: 'flex-start',
           gap: 1,
           p: '10px 12px 8px',
-          borderBottom: `1px solid ${tokens.border}`,
-          backgroundColor: isAssigned ? 'rgba(139, 92, 246, 0.06)' : 'transparent',
+          borderBottom: (theme) => `1px solid ${theme.palette.ui.border}`,
+          backgroundColor: isAssigned ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
         }}
       >
         <Box
@@ -100,8 +101,8 @@ export function SlotCard({
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            border: `1px solid ${tokens.border}`,
-            backgroundColor: tokens.bgSubtle,
+            border: (theme) => `1px solid ${theme.palette.ui.border}`,
+            backgroundColor: theme.palette.ui.surface2,
           }}
         >
           {category ? (
@@ -165,7 +166,7 @@ export function SlotCard({
               fontFamily: "'Share Tech Mono', monospace",
               fontWeight: 700,
               fontSize: '0.875rem',
-              color: isAssigned ? tokens.violet : 'text.disabled',
+              color: isAssigned ? theme.palette.primary.main : 'text.disabled',
             }}
           >
             {isAssigned ? Math.round(currentQuality) : '—'}
@@ -259,7 +260,7 @@ export function SlotCard({
             flexWrap: 'wrap',
             gap: 0.5,
             p: '6px 12px 8px',
-            borderTop: `1px solid ${tokens.border}`,
+            borderTop: (theme) => `1px solid ${theme.palette.ui.border}`,
           }}
         >
           {modifiers.map((m) => (
@@ -269,11 +270,11 @@ export function SlotCard({
                 px: 0.75,
                 py: 0.25,
                 border: 1,
-                borderColor: 'divider',
+                borderColor: (theme) => theme.palette.ui.border,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.5,
-                backgroundColor: tokens.bgSubtle,
+                backgroundColor: theme.palette.ui.surface2,
               }}
             >
               <Typography
@@ -285,7 +286,6 @@ export function SlotCard({
               <Typography
                 variant="caption"
                 sx={{
-                  fontFamily: "'Share Tech Mono', monospace",
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   color: m.isNeutral ? 'text.secondary' : m.isImproved ? 'success.main' : 'error.main',

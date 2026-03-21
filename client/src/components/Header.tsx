@@ -1,8 +1,11 @@
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
+import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import MuiBadge from '@mui/material/Badge';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
@@ -23,6 +26,7 @@ export function Header() {
     activeChannel,
     datasetLoading,
     setActiveDatasetChannel,
+    setActiveDatasetId,
     goals,
     openPlanner,
     changelogOpen,
@@ -31,14 +35,26 @@ export function Header() {
   const { lang, setLang, t } = useI18n();
   const [themeMode, setThemeMode] = useTheme();
 
-  const showChannelToggle = availableDatasets.length > 1;
+  const availableChannels = new Set(availableDatasets.map((dataset) => dataset.channel));
+  const channelDatasets = availableDatasets
+    .filter((dataset) => dataset.channel === activeChannel)
+    .sort((a, b) => {
+      const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+      const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
+      if (dateA !== dateB) return dateB - dateA;
+      const buildA = Number(a.buildNumber ?? 0);
+      const buildB = Number(b.buildNumber ?? 0);
+      if (buildA !== buildB) return buildB - buildA;
+      return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
+    });
   const hasChangelog = activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog);
 
   return (
     <AppBar
-      position="relative"
+      position="static"
       sx={{
-        zIndex: 10,
+        position: 'relative',
+        zIndex: (theme) => theme.zIndex.drawer + 1,
         boxShadow: 'none',
         '&::after': {
           content: '""',
@@ -46,9 +62,10 @@ export function Header() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 1,
-          background: (theme) => `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          height: '1px',
+          background: (theme) => `linear-gradient(to right, ${theme.palette.brand.violet}, ${theme.palette.brand.blue})`,
           opacity: 0.3,
+          pointerEvents: 'none',
         },
       }}
     >
@@ -70,10 +87,7 @@ export function Header() {
             <Typography
               variant="h6"
               sx={{
-                fontFamily: "'Khand', sans-serif",
-                fontWeight: 700,
                 letterSpacing: '-0.01em',
-                textTransform: 'uppercase',
                 fontSize: '1.3rem',
                 lineHeight: 0.9,
                 color: 'text.primary'
@@ -98,7 +112,6 @@ export function Header() {
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
                 fontWeight: 600,
-                fontFamily: "'Share Tech Mono', monospace",
               }}
             >
               Build {activeDataset.version}
@@ -106,30 +119,81 @@ export function Header() {
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {showChannelToggle && (
-            <ToggleButtonGroup
-              value={activeChannel}
-              exclusive
-              onChange={(_e, val) => {
-                if (val) void setActiveDatasetChannel(val);
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, position: 'relative', zIndex: 1 }}>
+          <ToggleButtonGroup
+            value={activeChannel}
+            exclusive
+            onChange={(_e, val) => {
+              if (val) void setActiveDatasetChannel(val);
+            }}
+            size="small"
+            aria-label={t('Dataset channel', 'Canal du dataset')}
+            disabled={datasetLoading}
+            sx={{ height: 32 }}
+          >
+            <ToggleButton value="live" disabled={!availableChannels.has('live')} sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700 }}>
+              LIVE
+            </ToggleButton>
+            <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')} sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700 }}>
+              PTU
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <FormControl
+            size="small"
+            disabled={datasetLoading || channelDatasets.length === 0}
+            sx={{
+              minWidth: { xs: 180, md: 260 },
+              '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' },
+            }}
+          >
+            <Select
+              value={channelDatasets.some((dataset) => dataset.datasetId === activeDataset.datasetId) ? activeDataset.datasetId : ''}
+              displayEmpty
+              inputProps={{ 'aria-label': t('Dataset build', 'Build du dataset') }}
+              MenuProps={{
+                slotProps: {
+                  paper: {
+                    sx: {
+                      zIndex: (theme) => theme.zIndex.modal + 10,
+                    },
+                  },
+                },
               }}
-              size="small"
-              aria-label={t('Dataset channel', 'Canal du dataset')}
-              disabled={datasetLoading}
-              sx={{ height: 32 }}
+              onChange={(event) => {
+                const datasetId = event.target.value;
+                if (datasetId) {
+                  void setActiveDatasetId(datasetId);
+                }
+              }}
+              sx={{
+                backgroundColor: (theme) => alpha(theme.palette.background.default, 0.2),
+              }}
+              renderValue={(selected) => {
+                const dataset = channelDatasets.find((entry) => entry.datasetId === selected);
+                if (!dataset) {
+                  return t('Select dataset', 'Selectionner un dataset');
+                }
+
+                return dataset.buildNumber
+                  ? `${dataset.version} • #${dataset.buildNumber}`
+                  : dataset.label;
+              }}
             >
-              {availableDatasets.map((dataset) => (
-                <ToggleButton
-                  key={dataset.channel}
-                  value={dataset.channel}
-                  sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700 }}
-                >
-                  {dataset.channel.toUpperCase()}
-                </ToggleButton>
+              {channelDatasets.map((dataset) => (
+                <MenuItem key={dataset.datasetId} value={dataset.datasetId}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.1 }}>
+                      {dataset.buildNumber ? `#${dataset.buildNumber}` : dataset.label}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.1 }}>
+                      {dataset.version}
+                    </Typography>
+                  </Box>
+                </MenuItem>
               ))}
-            </ToggleButtonGroup>
-          )}
+            </Select>
+          </FormControl>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderLeft: (theme) => `1px solid ${theme.palette.divider}`, pl: 1.5 }}>
             {hasChangelog && (

@@ -4,7 +4,7 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ShieldIcon from '@mui/icons-material/Shield';
 import ThermostatIcon from '@mui/icons-material/Thermostat';
@@ -18,7 +18,6 @@ import { QualityScore } from './shared/QualityScore';
 import { CombinedModifiers } from './shared/CombinedModifiers';
 import { ResourceSummary } from './shared/ResourceSummary';
 import { ModifierSparkline } from './shared/ModifierSparkline';
-import { tokens } from '../../theme';
 import { STAT_LABELS, ARMOR_DAMAGE_RESISTANCE_KEYS, GPP_LABELS } from '../../types';
 import type { Blueprint, ItemStats, AggregatedResource, GppModifier } from '../../types';
 
@@ -26,13 +25,12 @@ import type { Blueprint, ItemStats, AggregatedResource, GppModifier } from '../.
 
 function StatBox({ label, value, unit, color, highlight }: { label: string; value: string | number; unit?: string; color?: string; highlight?: boolean }) {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
   return (
     <Paper
       variant="outlined"
       sx={{
         p: 1.5, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        backgroundColor: highlight ? (isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.04)') : 'transparent',
+        backgroundColor: highlight ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
         borderColor: highlight ? 'primary.main' : 'divider',
       }}
     >
@@ -85,7 +83,6 @@ export function CraftSection({
 }: CraftSectionProps) {
   const { lang, t } = useI18n();
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   const isWeapon = blueprint.category === 'fps-weapon';
   const isMagazine = blueprint.category === 'fps-magazine';
@@ -107,7 +104,7 @@ export function CraftSection({
       </Typography>
 
       {/* Stats panel */}
-      <Paper sx={{ p: 2, backgroundColor: isDark ? 'rgba(26, 34, 56, 0.4)' : 'rgba(0, 0, 0, 0.02)', border: `1px solid ${tokens.border}` }}>
+      <Paper sx={{ p: 2, backgroundColor: theme.palette.ui.surface2, border: `1px solid ${theme.palette.ui.border}` }}>
         {isWeapon && (
           <Grid container spacing={1.5}>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -199,7 +196,7 @@ export function CraftSection({
                       {ARMOR_DAMAGE_RESISTANCE_KEYS.map((key) => {
                         const val = projectedStats[key] ?? 0;
                         return (
-                          <Paper key={key} variant="outlined" sx={{ p: 0.5, textAlign: 'center', borderColor: val > 0 ? tokens.borderStrong : tokens.border, backgroundColor: val > 0 ? 'rgba(52, 211, 153, 0.05)' : 'transparent' }}>
+                          <Paper key={key} variant="outlined" sx={{ p: 0.5, textAlign: 'center', borderColor: val > 0 ? theme.palette.ui.borderStrong : theme.palette.ui.border, backgroundColor: val > 0 ? alpha(theme.palette.success.main, 0.05) : 'transparent' }}>
                             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                               {STAT_LABELS[key]?.[lang].replace(' Resist.', '')}
                             </Typography>
@@ -291,8 +288,7 @@ export function CraftSection({
           variant="h6"
           sx={{
             display: 'flex', alignItems: 'center', gap: 0.5,
-            fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem',
-            textTransform: 'uppercase', letterSpacing: '.06em', mb: 1,
+            fontSize: '.9rem', letterSpacing: '.06em', mb: 1,
           }}
         >
           <SettingsIcon sx={{ fontSize: '1rem' }} /> {t('Parts', 'Composants')}
@@ -325,7 +321,11 @@ export function CraftSection({
       <Box
         sx={{
           display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2,
-          '& > *': { p: 1.5, border: `1px solid ${tokens.border}`, backgroundColor: tokens.surface1 },
+          '& > *': { 
+            p: 1.5, 
+            border: (theme) => `1px solid ${theme.palette.ui.border}`, 
+            backgroundColor: theme.palette.ui.surface1 
+          },
         }}
       >
         <CombinedModifiers blueprint={blueprint} projectedStats={projectedStats} />

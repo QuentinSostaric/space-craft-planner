@@ -1,3 +1,4 @@
+import { alpha, useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import Chip from '@mui/material/Chip';
@@ -17,7 +18,6 @@ import FlagIcon from '@mui/icons-material/Flag';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
-import { tokens } from '../theme';
 import type { CategoryFilter, LegalityFilter, LibrarySegment } from '../types';
 
 const CATEGORY_FILTERS: { value: CategoryFilter; labelEn: string; labelFr: string }[] = [
@@ -58,6 +58,9 @@ export function BlueprintExplorer() {
     missionRewards,
   } = useCraft();
   const { lang, t } = useI18n();
+  const theme = useTheme();
+
+  // ... (rest of manufacturers and locations logic remains same)
 
   // Derive unique manufacturers from loaded blueprints
   const manufacturers = useMemo(() => {
@@ -151,8 +154,8 @@ export function BlueprintExplorer() {
               gap: 1,
               px: 1,
               height: 32,
-              backgroundColor: tokens.surface1,
-              border: `1px solid ${tokens.violet}`,
+              backgroundColor: 'background.paper',
+              border: (theme) => `1px solid ${theme.palette.primary.main}`,
               borderRadius: 1,
             }}
           >
@@ -193,9 +196,9 @@ export function BlueprintExplorer() {
                 fontSize: '.65rem',
                 height: 24,
                 ...(categoryFilter === value && {
-                  backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.15),
                   color: 'text.primary',
-                  borderColor: tokens.violet,
+                  borderColor: 'primary.main',
                 }),
               }}
             />

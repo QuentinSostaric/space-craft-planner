@@ -1,50 +1,87 @@
-import type { CSSProperties } from 'react';
+import { styled, keyframes } from '@mui/material/styles';
+import { Box } from '@mui/material';
+
+// ─── Animations ──────────────────────────────────────────────────────────────
+
+const shimmerAnim = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
+const pulseAnim = keyframes`
+  0% { filter: brightness(1) drop-shadow(0 0 0 rgba(129, 140, 248, 0)); }
+  50% { filter: brightness(1.3) drop-shadow(0 0 8px rgba(129, 140, 248, 0.5)); }
+  100% { filter: brightness(1) drop-shadow(0 0 0 rgba(129, 140, 248, 0)); }
+`;
 
 // ─── Icon registry ─────────────────────────────────────────────────────────────
+
 export type GameIconName =
-  // FPS gear (notre mapping catégorie)
-  | 'weapons'       // fps-weapon
-  | 'ammos'         // fps-magazine
-  | 'armor'         // fps-armor + fps-helmet
-  | 'utilities'     // fps-undersuit + fps-backpack
-  // Ship components
+  | 'weapons' | 'ammos' | 'armor' | 'utilities'
   | 'shields' | 'missiles' | 'bombs' | 'engines' | 'gimbal'
   | 'turrets' | 'mounts' | 'thrusters' | 'power-plants' | 'coolers'
   | 'radars' | 'qeds' | 'emps'
-  // Activités de farm
   | 'mining-gadget' | 'mining-lasers' | 'salvage' | 'tractor-beams'
-  // UI
   | 'shopping-cart' | 'info' | 'add' | 'calculator' | 'computer'
   | 'hangar' | 'ships' | 'shop';
 
-/** Icones disponibles au format SVG (le reste est PNG) */
 const SVG_ICONS = new Set<GameIconName>(['mining-lasers', 'hangar', 'ships', 'shop']);
 
-/** Variantes de gradient iridescent par icone (hue-rotate offset en degrés).
- *  Permet de différencier visuellement les catégories qui partagent le même fichier. */
 export const ICON_HUE_OFFSET: Partial<Record<GameIconName, number>> = {
-  'weapons':      0,    // amber → violet → blue (base)
-  'ammos':        25,   // décalé chaud (orange-cuivré)
-  'armor':        260,  // décalé vers le bleu-acier
-  'utilities':    130,  // teal-vert pour utilities
-  'shields':      220,  // bleu profond
-  'thrusters':    -30,  // chaud orange
-  'power-plants': 40,   // jaune-or
-  'missiles':     -10,  // rouge-orange
-  'mining-gadget':110,  // vert-teal
-  'salvage':      55,   // jaune-vert
-  'shop':         200,  // cyan
+  'weapons':      0,
+  'ammos':        25,
+  'armor':        260,
+  'utilities':    130,
+  'shields':      220,
+  'thrusters':    -30,
+  'power-plants': 40,
+  'missiles':     -10,
+  'mining-gadget':110,
+  'salvage':      55,
+  'shop':         200,
 };
+
+// ─── Styled Component ────────────────────────────────────────────────────────
+
+const IconBase = styled('span', {
+  shouldForwardProp: (prop) => !['size', 'shimmer', 'pulse', 'hue', 'url'].includes(prop as string),
+})<{ size: number; shimmer?: boolean; pulse?: boolean; hue: number; url: string }>(
+  ({ size, shimmer, pulse, hue, url, theme }) => ({
+    display: 'inline-block',
+    width: size,
+    height: size,
+    backgroundColor: theme.palette.text.primary,
+    maskImage: `url(${url})`,
+    WebkitMaskImage: `url(${url})`,
+    maskSize: 'contain',
+    WebkitMaskSize: 'contain',
+    maskRepeat: 'no-repeat',
+    WebkitMaskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    WebkitMaskPosition: 'center',
+    filter: `hue-rotate(${hue}deg)`,
+    flexShrink: 0,
+
+    ...(shimmer && {
+      background: `linear-gradient(90deg, 
+        ${theme.palette.text.primary} 0%, 
+        ${theme.palette.primary.light} 50%, 
+        ${theme.palette.text.primary} 100%)`,
+      backgroundSize: '200% 100%',
+      animation: `${shimmerAnim} 3s infinite linear`,
+    }),
+
+    ...(pulse && {
+      animation: `${pulseAnim} 2s infinite ease-in-out`,
+    }),
+  })
+);
 
 export interface GameIconProps {
   name: GameIconName;
-  /** Hauteur en px. La largeur suit le ratio naturel de l'icone (contain). */
   size?: number;
-  /** Active l'animation de déplacement du gradient iridescent. */
   shimmer?: boolean;
-  /** Pulse lumineux — pour états actifs/sélectionnés. */
   pulse?: boolean;
-  /** Applique un hue-rotate personnalisé (écrase ICON_HUE_OFFSET). */
   hue?: number;
   className?: string;
 }
@@ -61,22 +98,17 @@ export function GameIcon({
   const url  = `/icons/game/${name}.${ext}`;
   const deg  = hue ?? ICON_HUE_OFFSET[name] ?? 0;
 
-  const style: CSSProperties = {
-    '--gi-url':  `url(${url})`,
-    '--gi-size': `${size}px`,
-    '--gi-hue':  `${deg}deg`,
-  } as CSSProperties;
-
   return (
-    <span
-      className={[
-        'game-icon',
-        shimmer && 'game-icon--shimmer',
-        pulse   && 'game-icon--pulse',
-        className,
-      ].filter(Boolean).join(' ')}
-      style={style}
-      aria-hidden="true"
-    />
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+      <IconBase
+        size={size}
+        shimmer={shimmer}
+        pulse={pulse}
+        hue={deg}
+        url={url}
+        className={className}
+        aria-hidden="true"
+      />
+    </Box>
   );
 }

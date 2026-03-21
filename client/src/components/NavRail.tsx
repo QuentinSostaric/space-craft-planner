@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ButtonBase from '@mui/material/ButtonBase';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FlagIcon from '@mui/icons-material/Flag';
 import { alpha } from '@mui/material/styles';
@@ -31,22 +31,19 @@ interface NavItemProps {
 
 function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
   const button = (
-    <Box
-      component="button"
+    <ButtonBase
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       sx={{
-        all: 'unset',
-        cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'flex-start',
+        justifyContent: 'flex-start',
         gap: 2,
         width: '100%',
         height: 48,
-        px: collapsed ? 0 : 2,
+        px: 2,
         position: 'relative',
-        transition: 'all 200ms ease',
+        transition: 'background-color 160ms ease, color 160ms ease',
         color: active ? 'primary.main' : 'text.secondary',
         '&::before': {
           content: '""',
@@ -68,6 +65,7 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
             : (theme) => alpha(theme.palette.text.primary, 0.04),
           color: active ? 'primary.main' : 'text.primary',
         },
+        zIndex: 1,
       }}
     >
       <Box sx={{ 
@@ -77,27 +75,32 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
         width: 24, 
         height: 24,
         flexShrink: 0,
-        transition: 'transform 200ms ease',
-        transform: active ? 'scale(1.1)' : 'scale(1)',
+        transition: 'transform 180ms ease',
+        transform: `translateX(${collapsed ? '4px' : '0px'}) scale(${active ? 1.1 : 1})`,
       }}>
         {icon}
       </Box>
-      {!collapsed && (
-        <Typography
-          sx={{
-            fontFamily: "'Khand', sans-serif",
-            fontWeight: 700,
-            fontSize: '0.85rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-          }}
-        >
-          {label}
-        </Typography>
-      )}
-    </Box>
+      <Typography
+        aria-hidden={collapsed}
+        sx={{
+          fontFamily: "'Khand', sans-serif",
+          fontWeight: 700,
+          fontSize: '0.85rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          width: collapsed ? 0 : 'auto',
+          maxWidth: collapsed ? 0 : 160,
+          overflow: 'hidden',
+          opacity: collapsed ? 0 : 1,
+          transform: `translateX(${collapsed ? '-8px' : '0px'})`,
+          transition: 'opacity 160ms ease, transform 180ms ease, max-width 180ms ease',
+        }}
+      >
+        {label}
+      </Typography>
+    </ButtonBase>
   );
 
   if (collapsed) {
@@ -126,9 +129,10 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         borderRight: (theme) => `1px solid ${theme.palette.divider}`,
         display: 'flex',
         flexDirection: 'column',
-        transition: 'width 250ms cubic-bezier(0.4, 0, 0.2, 1)',
         overflow: 'hidden',
         zIndex: 5,
+        flexShrink: 0,
+        contain: 'layout paint',
       }}
     >
       {/* Nav items */}
@@ -150,11 +154,13 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       </Box>
 
       {/* Toggle button at the bottom */}
-      <Box sx={{ 
-        p: 1.5, 
+      <Box sx={{
+        p: 1.5,
         borderTop: (theme) => `1px solid ${theme.palette.divider}`,
         display: 'flex',
-        justifyContent: collapsed ? 'center' : 'flex-end'
+        justifyContent: collapsed ? 'center' : 'flex-end',
+        flexShrink: 0,
+        transition: 'justify-content 0s linear',
       }}>
         <IconButton
           onClick={onToggleCollapsed}
@@ -163,11 +169,12 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
             : t('Collapse navigation', 'Reduire la navigation')
           }
           size="small"
+          sx={{
+            transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+          }}
         >
-          {collapsed
-            ? <ChevronRightIcon />
-            : <ChevronLeftIcon />
-          }
+          <ChevronRightIcon />
         </IconButton>
       </Box>
     </Box>

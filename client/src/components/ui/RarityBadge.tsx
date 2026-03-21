@@ -1,52 +1,51 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { tokens } from '../../theme';
+import { useTheme, alpha } from '@mui/material/styles';
 import type { Rarity } from '../../types';
 
-const RARITY_COLORS: Record<Rarity, string> = {
-  legendary: tokens.rarityLegendary,
-  rare: tokens.rarityRare,
-  common: tokens.rarityCommon,
-};
-
-const SCALE_COLORS: Record<string, string> = {
-  system: tokens.blue,
-  'planetary-cluster': tokens.violet,
-  'regional-sector': tokens.rarityLegendary,
-  'specific-location': tokens.rarityRare,
-};
-
-interface BadgeProps {
-  label: string;
-  color: string;
-}
-
 export function RarityBadge({ rarity }: { rarity: Rarity }) {
+  const theme = useTheme();
+  
+  const colors: Record<Rarity, string> = {
+    legendary: theme.palette.warning.main,
+    rare: theme.palette.primary.main,
+    common: theme.palette.text.disabled,
+  };
+
   return (
     <Badge
       label={rarity.toUpperCase()}
-      color={RARITY_COLORS[rarity]}
+      color={colors[rarity]}
     />
   );
 }
 
 export function ScaleBadge({ scale, label }: { scale: string; label: string }) {
+  const theme = useTheme();
+  
+  const colors: Record<string, string> = {
+    system: theme.palette.secondary.main,
+    'planetary-cluster': theme.palette.primary.main,
+    'regional-sector': theme.palette.warning.main,
+    'specific-location': theme.palette.info.main,
+  };
+
   return (
     <Badge
       label={label}
-      color={SCALE_COLORS[scale] ?? tokens.textDim}
+      color={colors[scale] ?? theme.palette.text.disabled}
     />
   );
 }
 
-function Badge({ label, color }: BadgeProps) {
+function Badge({ label, color }: { label: string; color: string }) {
   return (
     <Box
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
         borderLeft: `3px solid ${color}`,
-        backgroundColor: `${color}22`,
+        backgroundColor: alpha(color, 0.15),
         px: 1,
         py: 0.25,
       }}

@@ -270,5 +270,33 @@ export function getMaterialProviders(
   materialSources: MaterialSources | null,
   resourceId: string,
 ): MaterialSourceProvider[] {
-  return materialSources?.resources?.[resourceId]?.providers ?? [];
+  if (!materialSources?.resources || !resourceId) {
+    return [];
+  }
+
+  const normalizedLookup = String(resourceId)
+    .trim()
+    .toLowerCase();
+
+  const candidates = [
+    resourceId,
+    normalizedLookup,
+    normalizedLookup.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+    normalizedLookup.replace(/[^a-z0-9]+/g, ''),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const providers = materialSources.resources[candidate]?.providers;
+    if (providers?.length) {
+      return providers;
+    }
+  }
+
+  const matchedEntry = Object.values(materialSources.resources).find((entry) => {
+    const displayName = entry?.displayName?.trim().toLowerCase();
+    const id = entry?.id?.trim().toLowerCase();
+    return displayName === normalizedLookup || id === normalizedLookup;
+  });
+
+  return matchedEntry?.providers ?? [];
 }

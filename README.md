@@ -20,6 +20,42 @@ React + TypeScript app for Star Citizen crafting, dismantling analysis, mission 
 
 ## Architecture
 
+### Component Map
+
+```mermaid
+graph TD
+    App[App.tsx] --> Providers[Providers: Theme, I18n, Craft]
+    Providers --> AppShell[AppShell]
+    
+    AppShell --> Header[Header.tsx]
+    AppShell --> NavRail[NavRail.tsx]
+    AppShell --> MainContent[MainContent]
+    AppShell --> PlannerDrawer[PlannerDrawer.tsx]
+    AppShell --> Modals[Modals: Comparison, Changelog]
+    
+    MainContent --> ItemWorkspace[ItemWorkspace.tsx]
+    MainContent --> BlueprintGrid[BlueprintGrid.tsx]
+    MainContent --> MissionsPanel[MissionsPanel.tsx]
+    
+    ItemWorkspace --> OverviewTab[OverviewTab.tsx]
+    ItemWorkspace --> CraftTab[CraftTab.tsx]
+    ItemWorkspace --> AcquisitionTab[AcquisitionTab.tsx]
+    ItemWorkspace --> DismantleTab[DismantleTab.tsx]
+    
+    BlueprintGrid --> BlueprintExplorer[BlueprintExplorer.tsx]
+    BlueprintGrid --> BlueprintCard[BlueprintCard]
+    
+    PlannerDrawer --> PlannerPanel[PlannerPanel.tsx]
+    
+    subgraph State
+        CraftContext[CraftContext.tsx]
+        GameDataAPI[gameDataApi.ts]
+    end
+    
+    CraftContext -.->|Provides State| AppShell
+    GameDataAPI -->|Fetches Data| CraftContext
+```
+
 Production data is runtime-driven:
 
 - Browser

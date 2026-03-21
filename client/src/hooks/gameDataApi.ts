@@ -5,6 +5,8 @@
 export {
   fetchPublishedDatasetIndex,
   fetchPublishedDataset,
+  fetchPublishedDatasetById,
   fetchPublishedMissionRewards,
+  fetchPublishedMissionRewardsById,
 } from '../services/mongoDbService';
 export type { DatasetIndexResponse } from '../services/mongoDbService';

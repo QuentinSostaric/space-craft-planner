@@ -1,7 +1,6 @@
 import type { ReactNode, HTMLAttributes } from 'react';
 import Paper from '@mui/material/Paper';
-import type { SxProps, Theme } from '@mui/material/styles';
-import { tokens } from '../../theme';
+import { useTheme } from '@mui/material/styles';
 
 interface PanelProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -10,30 +9,33 @@ interface PanelProps extends HTMLAttributes<HTMLDivElement> {
   noPad?: boolean;
 }
 
-const VARIANT_SX: Record<string, SxProps<Theme>> = {
-  default: {
-    backgroundColor: tokens.surface1,
-    border: `1px solid ${tokens.border}`,
-  },
-  raised: {
-    backgroundColor: tokens.surface2,
-    border: `1px solid ${tokens.borderStrong}`,
-  },
-  sunken: {
-    backgroundColor: 'rgba(17,24,39,.6)',
-    border: '1px solid transparent',
-  },
-};
-
 export function Panel({ children, variant = 'default', glow = false, noPad = false, className, ...rest }: PanelProps) {
+  const theme = useTheme();
+
+  const VARIANT_SX = {
+    default: {
+      backgroundColor: theme.palette.ui.surface1,
+      border: `1px solid ${theme.palette.ui.border}`,
+    },
+    raised: {
+      backgroundColor: theme.palette.ui.surface2,
+      border: `1px solid ${theme.palette.ui.borderStrong}`,
+    },
+    sunken: {
+      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(17,24,39,.6)' : 'rgba(0,0,0,.03)',
+      border: '1px solid transparent',
+    },
+  };
+
   return (
     <Paper
       elevation={0}
       className={className}
       sx={{
         ...VARIANT_SX[variant],
-        ...(glow && { borderColor: tokens.violet }),
+        ...(glow && { borderColor: theme.palette.primary.main }),
         padding: noPad ? 0 : '16px',
+        transition: 'all 200ms ease',
       }}
       {...rest}
     >

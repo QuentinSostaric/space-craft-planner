@@ -11,9 +11,9 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { tokens } from '../theme';
 import type { DatasetChangelogSection, DatasetDiffEntry } from '../types';
 
 function renderDiffLabel(entry: DatasetDiffEntry) {
@@ -39,7 +39,7 @@ function DiffList({
         <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: '.65rem' }}>
           {title}
         </Typography>
-        <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ fontWeight: 600 }}>
           {entries.length}
         </Typography>
       </Box>
@@ -74,12 +74,6 @@ function DiffList({
   );
 }
 
-const COUNT_COLORS: Record<string, string> = {
-  added: tokens.success,
-  changed: tokens.warning,
-  removed: tokens.danger,
-};
-
 function DiffCard({
   title,
   subtitle,
@@ -91,6 +85,14 @@ function DiffCard({
   section: DatasetChangelogSection;
   lang: 'en' | 'fr';
 }) {
+  const theme = useTheme();
+  
+  const COUNT_COLORS: Record<string, string> = {
+    added: theme.palette.success.main,
+    changed: theme.palette.warning.main,
+    removed: theme.palette.error.main,
+  };
+
   const counts = [
     { key: 'added', label: lang === 'en' ? 'Added' : 'Ajoutes', value: section.added.length },
     { key: 'changed', label: lang === 'en' ? 'Changed' : 'Modifies', value: section.changed.length },
@@ -98,9 +100,9 @@ function DiffCard({
   ];
 
   return (
-    <Card component="article">
+    <Card component="article" sx={{ backgroundColor: theme.palette.ui.surface1, borderColor: theme.palette.ui.border }}>
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1rem', mb: 0.25 }}>
+        <Typography variant="h6" sx={{ fontSize: '1rem', mb: 0.25 }}>
           {title}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem', mb: 1.5 }}>
@@ -109,7 +111,7 @@ function DiffCard({
 
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           {counts.map((c) => (
-            <Box key={c.key} sx={{ flex: 1, textAlign: 'center', py: 0.75, border: `1px solid ${tokens.border}` }}>
+            <Box key={c.key} sx={{ flex: 1, textAlign: 'center', py: 0.75, border: (theme) => `1px solid ${theme.palette.ui.border}` }}>
               <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.6rem', display: 'block' }}>
                 {c.label}
               </Typography>
@@ -200,8 +202,6 @@ export function DatasetChangelog() {
           <Typography
             variant="h6"
             sx={{
-              fontFamily: "'Khand', sans-serif",
-              fontWeight: 700,
               fontSize: '1.2rem',
               lineHeight: 1.2,
             }}

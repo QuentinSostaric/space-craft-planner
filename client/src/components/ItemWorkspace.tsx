@@ -9,6 +9,7 @@ import { CraftSection } from './item-workspace/CraftSection';
 import { MaterialSourcesSection } from './item-workspace/MaterialSourcesSection';
 import { AcquisitionSection } from './item-workspace/AcquisitionSection';
 import { DismantleSection } from './item-workspace/DismantleSection';
+import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '../utils/slug';
 
 export function ItemWorkspace() {
   const {
@@ -72,7 +73,7 @@ export function ItemWorkspace() {
       {/* Left column — sticky on desktop */}
       <Box
         sx={{
-          width: { xs: '100%', md: '40%' },
+          width: { xs: '100%', md: '36%' },
           position: { md: 'sticky' },
           top: { md: 0 },
           maxHeight: { md: '100vh' },
@@ -89,19 +90,12 @@ export function ItemWorkspace() {
           onToggleFavorite={() => toggleFavorite(activeBlueprint.id)}
           onToggleInventory={() => toggleInventory(activeBlueprint.id)}
         />
-
-        <Divider sx={{ my: 2 }} />
-
-        <AcquisitionSection
-          entry={acquisitionEntry}
-          loading={missionRewardsLoading}
-        />
       </Box>
 
       {/* Right column — scrollable */}
       <Box
         sx={{
-          width: { xs: '100%', md: '60%' },
+          width: { xs: '100%', md: '64%' },
           display: 'flex',
           flexDirection: 'column',
           gap: 3,
@@ -115,6 +109,18 @@ export function ItemWorkspace() {
           qualityScore={qualityScore}
           projectedStats={projectedStats}
           requiredResources={requiredResources}
+        />
+
+        <Divider />
+
+        <AcquisitionSection
+          entry={acquisitionEntry}
+          loading={missionRewardsLoading}
+          onMissionClick={(contractDebugName, contractorDisplayName) => {
+            const missionSlug = missionSlugFromContract(contractDebugName, contractorDisplayName);
+            navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
+            setActiveBlueprint(null);
+          }}
         />
 
         <Divider />

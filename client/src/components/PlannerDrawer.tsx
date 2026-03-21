@@ -41,9 +41,6 @@ export function PlannerDrawer() {
         <Typography
           variant="h6"
           sx={{
-            fontFamily: "'Khand', sans-serif",
-            fontWeight: 700,
-            textTransform: 'uppercase',
             letterSpacing: '0.06em',
             fontSize: '1.1rem',
           }}

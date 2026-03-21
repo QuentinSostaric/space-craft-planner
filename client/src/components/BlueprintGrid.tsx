@@ -1,5 +1,5 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -37,7 +37,7 @@ function resolveThumb(bp: Blueprint): { url: string | null; mode: 'item' | 'logo
   return { url: null, mode: 'item' };
 }
 
-function BlueprintCard({
+export const BlueprintCard = memo(function BlueprintCard({
   blueprint,
   isActive,
   isFavorite,
@@ -248,7 +248,14 @@ function BlueprintCard({
       </CardActionArea>
     </Card>
   );
-}
+}, (prev, next) =>
+  prev.blueprint === next.blueprint &&
+  prev.isActive === next.isActive &&
+  prev.isFavorite === next.isFavorite &&
+  prev.isInInventory === next.isInInventory &&
+  prev.statMaxima === next.statMaxima &&
+  prev.resources === next.resources
+);
 
 export function BlueprintGrid() {
   const {

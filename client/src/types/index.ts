@@ -7,6 +7,7 @@ export const LS_KEYS = {
   LANG: 'sc-craft-lang',
   THEME: 'sc-craft-theme',
   DATASET_CHANNEL: 'sc-craft-dataset-channel',
+  DATASET_SELECTIONS: 'sc-craft-dataset-selections',
   INVENTORY: 'sc-craft-inventory',
   NAV_COLLAPSED: 'sc-craft-nav-collapsed',
 } as const;
@@ -247,6 +248,49 @@ export interface BlueprintMedia {
   primaryVisual: BlueprintMediaAsset | null;
 }
 
+export interface BlueprintIdentityFact {
+  id?: string;
+  label?: string;
+  value?: string;
+}
+
+export interface BlueprintInventoryOccupancy {
+  microScu?: number;
+  dimensions?: {
+    x?: number;
+    y?: number;
+    z?: number;
+  };
+  gridSize?: {
+    x?: number;
+    y?: number;
+  };
+}
+
+export interface BlueprintAttachDef {
+  type?: string;
+  subType?: string;
+  size?: number;
+  grade?: number;
+  tags?: string[];
+  requiredTags?: string[];
+}
+
+export interface BlueprintIdentity {
+  entitySlug?: string;
+  entityPath?: string;
+  displayNameKey?: string;
+  shortName?: string;
+  shortNameKey?: string;
+  description?: string;
+  descriptionKey?: string;
+  descriptionBody?: string;
+  descriptionFacts?: BlueprintIdentityFact[];
+  displayIcon?: string;
+  inventoryOccupancy?: BlueprintInventoryOccupancy;
+  attachDef?: BlueprintAttachDef;
+}
+
 export interface Blueprint {
   id: string;
   name: string;
@@ -255,6 +299,7 @@ export interface Blueprint {
   craftTimeSecs: number;
   baseStats: ItemStats;
   slots: MaterialSlot[];
+  identity?: BlueprintIdentity;
   media?: BlueprintMedia;
   rarity?: 'legendary' | 'rare' | 'common';
 }
@@ -436,22 +481,43 @@ export interface MissionItemAward {
   entitySlug: string | null;
 }
 
+export interface MissionResourceObjective {
+  resourceId: string;
+  displayName: string;
+  minScu: number;
+  maxScu: number;
+  maxContainerSize: number;
+}
+
+export interface MissionEmployerRef {
+  displayName: string | null;
+  canonicalEmployer: string | null;
+  logo: string | null;
+  icon: string | null;
+  sourcePageUrl: string | null;
+  status: string | null;
+  notes: string | null;
+}
+
 export interface MissionContract {
   contractFile: string | null;
   handlerDebugName: string | null;
   contractDebugName: string | null;
   contractType: string | null;
   contractorDisplayName: string | null;
+  employer?: MissionEmployerRef | null;
   faction: MissionRewardFaction | null;
   reputationScope: MissionReputationScope | null;
   minimumRequiredStandings: MissionRequiredStanding[];
   availability: MissionAvailability;
   rewardedBlueprints: MissionRewardBlueprint[];
   itemAwards: MissionItemAward[];
+  resourceObjectives: MissionResourceObjective[];
 }
 
 export interface MissionRewardFactionGroup {
   contractorDisplayName: string;
+  employer?: MissionEmployerRef | null;
   faction: MissionRewardFaction | null;
   reputationScopes: MissionReputationScope[];
   contractCount: number;
@@ -512,22 +578,35 @@ export interface AcquisitionGraphEntry {
 }
 
 export interface MaterialSourceProvider {
+  providerId?: string;
   providerDisplayName: string;
   providerType: string;
   system: string | null;
   tier: string | null;
+  rawRelativeProbability?: number | null;
   groupProbabilityPct: number | null;
   craftOnlyProbabilityPct: number | null;
   labelConfidence: string;
+  providerPath?: string | null;
 }
 
 export interface MaterialSourceEntry {
+  id?: string;
+  displayName?: string;
   providers: MaterialSourceProvider[];
 }
 
 export interface MaterialSources {
   resources: Record<string, MaterialSourceEntry>;
   providers: MaterialSourceProvider[];
+  summary?: {
+    providerCount?: number;
+    resourceCount?: number;
+    localizedProviderCount?: number;
+    technicalProviderCount?: number;
+    providerTypes?: Record<string, number>;
+    systems?: string[];
+  };
 }
 
 export interface GameDataset {

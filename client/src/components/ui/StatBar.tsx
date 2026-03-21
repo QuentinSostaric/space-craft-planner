@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { tokens } from '../../theme';
+import { useTheme, alpha } from '@mui/material/styles';
 
 interface StatBarProps {
   label: string;
@@ -11,6 +11,7 @@ interface StatBarProps {
 }
 
 export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
+  const theme = useTheme();
   const clampedFill = Math.max(0, Math.min(100, fill));
 
   return (
@@ -27,10 +28,11 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           width: 80,
           flexShrink: 0,
-          fontSize: '0.75rem',
-          color: tokens.textMuted,
+          fontSize: '0.72rem',
+          color: 'text.secondary',
           textTransform: 'uppercase',
-          letterSpacing: '0.08em',
+          letterSpacing: '0.06em',
+          fontWeight: 600,
         }}
       >
         {label}
@@ -39,9 +41,10 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           flex: 1,
           height: 6,
-          backgroundColor: tokens.surface2,
+          backgroundColor: alpha(theme.palette.text.primary, 0.05),
           position: 'relative',
           overflow: 'hidden',
+          borderRadius: 0.5,
         }}
       >
         <Box
@@ -51,19 +54,19 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
             left: 0,
             height: '100%',
             width: `${clampedFill}%`,
-            background: tokens.gradient,
-            transition: 'width 300ms ease',
+            background: `linear-gradient(90deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.main} 100%)`,
+            transition: 'width 400ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
       </Box>
       <Typography
         variant="caption"
         sx={{
-          minWidth: 40,
+          minWidth: 45,
           textAlign: 'right',
-          fontSize: '0.75rem',
-          color: tokens.blueLight,
-          fontWeight: 600,
+          fontSize: '0.72rem',
+          color: 'primary.main',
+          fontWeight: 700,
         }}
       >
         {value}

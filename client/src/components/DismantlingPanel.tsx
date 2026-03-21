@@ -3,10 +3,10 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
+import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
-import { tokens } from '../theme';
 
 function ConfidenceBadge({ level }: { level: string }) {
   const color = level === 'high' ? 'success' : level === 'medium' ? 'warning' : 'error';
@@ -30,6 +30,7 @@ function ConfidenceBadge({ level }: { level: string }) {
 export function DismantlingPanel() {
   const { dismantlingData, activeBlueprint } = useCraft();
   const { t } = useI18n();
+  const theme = useTheme();
   const dismantling = dismantlingData?.dismantling ?? null;
 
   if (!dismantlingData || !dismantling?.blueprint || !dismantling.globalParams) {
@@ -55,7 +56,11 @@ export function DismantlingPanel() {
       </Typography>
 
       {activeBlueprint ? (
-        <Paper variant="outlined" sx={{ p: 2, backgroundColor: tokens.surface2, borderColor: tokens.borderStrong }}>
+        <Paper variant="outlined" sx={{ 
+          p: 2, 
+          backgroundColor: theme.palette.ui.surface2, 
+          borderColor: theme.palette.ui.borderStrong 
+        }}>
           <Stack direction="row" spacing={2} alignItems="center">
             <CategoryBadge category={activeBlueprint.category} />
             <Box>
@@ -87,11 +92,15 @@ export function DismantlingPanel() {
           { label: t('Output Quality', 'Qualite de sortie'), value: globalParams.defaultCompositionQuality },
           { label: t('Fabricator SCU', 'SCU fabricateur'), value: fabricator?.inventoryOccupancyScu ?? '—' },
         ].map((stat) => (
-          <Paper key={stat.label} variant="outlined" sx={{ p: 1.5, textAlign: 'center', backgroundColor: tokens.surface1 }}>
+          <Paper key={stat.label} variant="outlined" sx={{ 
+            p: 1.5, 
+            textAlign: 'center', 
+            backgroundColor: theme.palette.ui.surface1 
+          }}>
             <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', textTransform: 'uppercase', mb: 0.5, fontSize: '0.7rem' }}>
               {stat.label}
             </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: tokens.blueLight }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.light' }}>
               {stat.value}
             </Typography>
           </Paper>
@@ -100,12 +109,17 @@ export function DismantlingPanel() {
 
       {fabricator?.queues?.length ? (
         <Box>
-          <Typography variant="overline" sx={{ color: tokens.violet, fontWeight: 700 }}>
+          <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
             {t('Available Queues', 'Files disponibles')}
           </Typography>
           <Stack spacing={0.5} sx={{ mt: 1 }}>
             {fabricator.queues.map((queue) => (
-              <Box key={queue.debugName} sx={{ display: 'flex', justifyContent: 'space-between', p: 1, borderBottom: `1px solid ${tokens.border}` }}>
+              <Box key={queue.debugName} sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                p: 1, 
+                borderBottom: (theme) => `1px solid ${theme.palette.divider}` 
+              }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{queue.debugName}</Typography>
                 <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace" }}>
                   {queue.maxJobsInProgress}/{queue.maxJobsWaiting}
@@ -117,10 +131,10 @@ export function DismantlingPanel() {
       ) : null}
 
       <Box>
-        <Typography variant="overline" sx={{ color: tokens.violet, fontWeight: 700 }}>
+        <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
           {t('Per-item Yields', 'Rendements par item')}
         </Typography>
-        <Paper variant="outlined" sx={{ p: 2, mt: 1, backgroundColor: tokens.surface1 }}>
+        <Paper variant="outlined" sx={{ p: 2, mt: 1, backgroundColor: theme.palette.ui.surface1 }}>
           {perItemYieldModel?.resolved ? (
             <Typography variant="body2">
               {t(
@@ -138,7 +152,7 @@ export function DismantlingPanel() {
               </Typography>
               {observedFields.length > 0 && (
                 <Box>
-                  <Typography variant="caption" sx={{ textTransform: 'uppercase', color: tokens.textDim, display: 'block', mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ textTransform: 'uppercase', color: 'text.disabled', display: 'block', mb: 0.5 }}>
                     {t('Observed runtime result fields:', 'Champs observes dans les resultats runtime :')}
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -154,10 +168,10 @@ export function DismantlingPanel() {
       </Box>
 
       <Box>
-        <Typography variant="overline" sx={{ color: tokens.violet, fontWeight: 700 }}>
+        <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
           {t('Data Confidence', 'Fiabilite des donnees')}
         </Typography>
-        <Paper variant="outlined" sx={{ p: 2, mt: 1, backgroundColor: tokens.surface1 }}>
+        <Paper variant="outlined" sx={{ p: 2, mt: 1, backgroundColor: theme.palette.ui.surface1 }}>
           <Stack spacing={1.5}>
             {[
               { label: t('Global Process', 'Processus global'), level: meta?.confidence?.globalProcess },
