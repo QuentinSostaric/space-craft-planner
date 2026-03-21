@@ -35,14 +35,13 @@ function MainContent({ mainView }: { mainView: MainView }) {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
-        {mainView === 'blueprints' ? (
-          <BlueprintGrid />
-        ) : (
-          <MissionsPanel />
-        )}
-      </Box>
+    <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      {mainView === 'blueprints' ? (
+        <BlueprintGrid />
+      ) : (
+        <MissionsPanel />
+      )}
+      <Footer />
     </Box>
   );
 }
@@ -71,55 +70,61 @@ function AppShell() {
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
+      <>
         <a className="skip-link" href="#main-content">
           {t('Skip to main content', 'Aller au contenu principal')}
         </a>
         <Header />
-        <Box component="main" id="main-content" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
-          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
-            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1 }}>
-              {t('Loading published dataset', 'Chargement du dataset publie')}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t(
-                'The app is connecting to the published MongoDB dataset.',
-                'L\'application se connecte au dataset publie sur MongoDB.',
-              )}
-            </Typography>
-          </Paper>
+        <Box component="main" id="main-content" sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
+              <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1 }}>
+                {t('Loading published dataset', 'Chargement du dataset publie')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {t(
+                  'The app is connecting to the published MongoDB dataset.',
+                  'L\'application se connecte au dataset publie sur MongoDB.',
+                )}
+              </Typography>
+            </Paper>
+          </Box>
+          <Footer />
         </Box>
-      </Box>
+      </>
     );
   }
 
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
+      <>
         <a className="skip-link" href="#main-content">
           {t('Skip to main content', 'Aller au contenu principal')}
         </a>
         <Header />
-        <Box component="main" id="main-content" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
-          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
-            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1, color: 'error.main' }}>
-              {t('Published dataset unavailable', 'Dataset publie indisponible')}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
-            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-              {t(
-                'This app no longer bundles local dataset snapshots. The runtime API must be available.',
-                'Cette app n\'embarque plus de snapshots locaux. L\'API runtime doit etre disponible.',
-              )}
-            </Typography>
-          </Paper>
+        <Box component="main" id="main-content" sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
+              <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, mb: 1, color: 'error.main' }}>
+                {t('Published dataset unavailable', 'Dataset publie indisponible')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                {t(
+                  'This app no longer bundles local dataset snapshots. The runtime API must be available.',
+                  'Cette app n\'embarque plus de snapshots locaux. L\'API runtime doit etre disponible.',
+                )}
+              </Typography>
+            </Paper>
+          </Box>
+          <Footer />
         </Box>
-      </Box>
+      </>
     );
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+    <>
       <a className="skip-link" href="#main-content">
         {t('Skip to main content', 'Aller au contenu principal')}
       </a>
@@ -136,9 +141,10 @@ function AppShell() {
           id="main-content"
           sx={{
             flex: 1,
-            height: '100%',
-            overflow: 'hidden',
+            minHeight: 0,
             minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
           }}
           aria-label={t('Content', 'Contenu')}
         >
@@ -146,10 +152,9 @@ function AppShell() {
         </Box>
         <PlannerDrawer />
       </Box>
-      <Footer />
       <ComparisonModal />
       <DatasetChangelog />
-    </Box>
+    </>
   );
 }
 
