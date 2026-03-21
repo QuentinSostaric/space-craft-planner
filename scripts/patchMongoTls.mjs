@@ -19,11 +19,13 @@ if (!existsSync(connectJsPath)) {
 let content = readFileSync(connectJsPath, 'utf8');
 
 // Relative from node_modules/mongodb/lib/cmap/ → project root → functions/_shared/
-const shimPath = '../../../../functions/_shared/tls-cf-shim.cjs';
+// Use the ESM shim (.js) so esbuild lifts `import 'cloudflare:sockets'` to a
+// top-level native import; the CJS shim uses require() which fails for CF built-ins.
+const shimPath = '../../../../functions/_shared/tls-cf-shim.js';
 const original = 'const tls = require("tls");';
 const patched  = `const tls = require("${shimPath}");`;
 
-if (content.includes(patched)) {
+if (content.includes(patched) || content.includes('tls-cf-shim')) {
   console.log('[patchMongoTls] Already patched — skipping.');
   process.exit(0);
 }
