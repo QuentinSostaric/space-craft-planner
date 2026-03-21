@@ -91,7 +91,7 @@ function MissionsFilterBar({
           }}
           sx={{
             flex: { xs: '1 1 100%', sm: '1 1 200px' },
-            '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
+            '& .MuiInputBase-root': { fontSize: '0.875rem', height: 32 },
           }}
         />
 
@@ -103,7 +103,7 @@ function MissionsFilterBar({
           }}
           size="small"
           aria-label={t('Legality filter', 'Filtre legalite')}
-          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: '.65rem', px: 1.5 } }}
+          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: '0.75rem', px: 1.5 } }}
         >
           <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
           <ToggleButton value="lawful" sx={{ '&.Mui-selected': { color: tokens.success } }}>
@@ -127,10 +127,10 @@ function MissionsFilterBar({
               <TextField
                 {...params}
                 placeholder={t('Contractor', 'Contractant')}
-                sx={{ width: 160, '& .MuiInputBase-root': { fontSize: '.75rem', height: 28 } }}
+                sx={{ width: 160, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }}
               />
             )}
-            slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
 
           <Autocomplete
@@ -142,10 +142,10 @@ function MissionsFilterBar({
               <TextField
                 {...params}
                 placeholder={t('Location', 'Lieu')}
-                sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '.75rem', height: 28 } }}
+                sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }}
               />
             )}
-            slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
 
           <Autocomplete
@@ -158,10 +158,10 @@ function MissionsFilterBar({
               <TextField
                 {...params}
                 placeholder={t('Scale', 'Echelle')}
-                sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '.75rem', height: 28 } }}
+                sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }}
               />
             )}
-            slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
 
           {hasActiveFilters && (
@@ -268,7 +268,7 @@ function ContractCard({
             variant="caption"
             sx={{
               color: tokens.blueLight,
-              fontSize: '.6rem',
+              fontSize: '0.75rem',
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
             }}
@@ -301,7 +301,7 @@ function ContractCard({
             <Typography
               variant="caption"
               sx={{
-                fontSize: '.5rem',
+                fontSize: '0.7rem',
                 color: tokens.textDim,
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em',
@@ -323,8 +323,8 @@ function ContractCard({
                   }}
                   sx={{
                     cursor: 'pointer',
-                    height: 20,
-                    fontSize: '.55rem',
+                    height: 24,
+                    fontSize: '0.75rem',
                     '& .MuiChip-icon': { ml: '4px', mr: '-2px' },
                   }}
                 />
@@ -334,7 +334,7 @@ function ContractCard({
                   label={`+${bpOverflow}`}
                   size="small"
                   variant="outlined"
-                  sx={{ height: 20, fontSize: '.55rem' }}
+                  sx={{ height: 24, fontSize: '0.75rem' }}
                 />
               )}
             </Box>
@@ -359,7 +359,6 @@ export function MissionsPanel() {
     missionRewardsError,
     blueprints,
     setActiveBlueprint,
-    setActiveItemTab,
   } = useCraft();
   const { t } = useI18n();
 
@@ -454,7 +453,6 @@ export function MissionsPanel() {
     const bp = blueprints.find((b) => b.id === blueprintId);
     if (bp) {
       setActiveBlueprint(bp);
-      setActiveItemTab('acquisition');
     }
   }
 

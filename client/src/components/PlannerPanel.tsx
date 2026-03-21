@@ -25,26 +25,24 @@ import { ResourceIcon } from './ui/ResourceIcon';
 import { Button } from './ui/Button';
 import { tokens } from '../theme';
 import type {
+  AcquisitionGraphEntry,
   AggregatedResource,
   CraftGoal,
   Lang,
   MaterialSlot,
-  MissionContract,
 } from '../types';
 import {
   aggregateGoalResources,
   clampQualityValue,
-  findMissionContractsForBlueprint,
-  formatLocations,
   formatScaleLabel,
-  formatStanding,
+  getAcquisitionEntry,
   summarizeAssignedQualities,
 } from '../utils/crafting';
 
 function buildTextExport(
   goals: CraftGoal[],
   aggregated: AggregatedResource[],
-  goalSources: Array<{ blueprintName: string; contracts: MissionContract[] }>,
+  goalSources: Array<{ blueprintName: string; acquisitionEntry: AcquisitionGraphEntry | null }>,
   lang: Lang,
   hasExplicitCraftResourceRewards: boolean,
 ): string {
@@ -73,15 +71,17 @@ function buildTextExport(
   lines.push(heading(lang === 'fr' ? 'SOURCES DE BLUEPRINTS' : 'BLUEPRINT SOURCES'));
   for (const goalSource of goalSources) {
     lines.push(goalSource.blueprintName);
-    if (goalSource.contracts.length === 0) {
+    if (!goalSource.acquisitionEntry || goalSource.acquisitionEntry.contractCount === 0) {
       lines.push(lang === 'fr' ? '  Aucun contrat trouve dans le dataset.' : '  No matching contract found in the dataset.');
       continue;
     }
 
-    for (const contract of goalSource.contracts) {
-      lines.push(
-        `  - ${contract.contractDebugName ?? 'Unknown'} | ${contract.contractorDisplayName ?? 'Unknown'} | ${formatScaleLabel(contract.availability.derivedScale, lang)}`,
-      );
+    for (const faction of goalSource.acquisitionEntry.factions) {
+      for (const contract of faction.contracts) {
+        lines.push(
+          `  - ${contract.contractDebugName ?? 'Unknown'} | ${faction.contractorDisplayName ?? 'Unknown'} | ${formatScaleLabel(contract.availability.derivedScale, lang)}`,
+        );
+      }
     }
   }
   lines.push('');
@@ -364,7 +364,7 @@ function BlueprintSourcesSection({
   loading,
   error,
 }: {
-  sources: Array<{ blueprintName: string; contracts: MissionContract[] }>;
+  sources: Array<{ blueprintName: string; acquisitionEntry: AcquisitionGraphEntry | null }>;
   loading: boolean;
   error: string | null;
 }) {
@@ -384,51 +384,65 @@ function BlueprintSourcesSection({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      {sources.map((source) => (
-        <Paper key={source.blueprintName} elevation={0} sx={{ border: 1, borderColor: 'divider', p: 1.5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="body2" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.85rem' }}>
-              {source.blueprintName}
-            </Typography>
-            <Chip
-              label={`${source.contracts.length} ${t('contract', 'contrat')}${source.contracts.length > 1 ? 's' : ''}`}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '.55rem', height: 18 }}
-            />
-          </Box>
-          {source.contracts.length === 0 ? (
-            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem' }}>
-              {t('No matching blueprint reward contract found in the published dataset.', 'Aucun contrat correspondant n a ete trouve dans le dataset publie.')}
-            </Typography>
-          ) : (
-            <List dense disablePadding>
-              {source.contracts.map((contract) => (
-                <ListItem
-                  key={`${contract.contractFile ?? ''}-${contract.contractDebugName ?? ''}`}
-                  disableGutters
-                  sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 0.5, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.75rem' }}>
-                      {contract.contractDebugName ?? 'Unknown contract'}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '.6rem', textTransform: 'uppercase' }}>
-                      {formatScaleLabel(contract.availability.derivedScale, lang)}
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
-                    {contract.contractorDisplayName ?? contract.faction?.displayName ?? 'Unknown'}{' - '}{formatLocations(contract, lang)}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
-                    {formatStanding(contract, lang)}
-                  </Typography>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Paper>
-      ))}
+      {sources.map((source) => {
+        const count = source.acquisitionEntry?.contractCount ?? 0;
+        return (
+          <Paper key={source.blueprintName} elevation={0} sx={{ border: 1, borderColor: 'divider', p: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="body2" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.85rem' }}>
+                {source.blueprintName}
+              </Typography>
+              <Chip
+                label={`${count} ${t('contract', 'contrat')}${count > 1 ? 's' : ''}`}
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: '.55rem', height: 18 }}
+              />
+            </Box>
+            {count === 0 ? (
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.75rem' }}>
+                {t('No matching blueprint reward contract found in the published dataset.', 'Aucun contrat correspondant n a ete trouve dans le dataset publie.')}
+              </Typography>
+            ) : (
+              <List dense disablePadding>
+                {(source.acquisitionEntry?.factions ?? []).map((faction, fIdx) =>
+                  faction.contracts.map((contract, cIdx) => (
+                    <ListItem
+                      key={`${fIdx}-${cIdx}`}
+                      disableGutters
+                      sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 0.5, borderBottom: 1, borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.75rem' }}>
+                          {contract.contractDebugName ?? 'Unknown contract'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '.6rem', textTransform: 'uppercase' }}>
+                          {formatScaleLabel(contract.availability.derivedScale, lang)}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
+                        {faction.contractorDisplayName ?? 'Unknown'}{' - '}
+                        {contract.availability.localities.length > 0
+                          ? contract.availability.localities.join(', ')
+                          : contract.availability.explicitLocations.length > 0
+                            ? contract.availability.explicitLocations.join(', ')
+                            : t('No explicit location', 'Aucun lieu explicite')}
+                      </Typography>
+                      {contract.minimumRequiredStandings.length > 0 && (
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.62rem' }}>
+                          {contract.minimumRequiredStandings
+                            .map((s) => [s.factionName, s.scopeName, s.standingName].filter(Boolean).join(' — '))
+                            .join(' | ')}
+                        </Typography>
+                      )}
+                    </ListItem>
+                  )),
+                )}
+              </List>
+            )}
+          </Paper>
+        );
+      })}
     </Box>
   );
 }
@@ -517,7 +531,7 @@ export function PlannerPanel() {
       })
       .map((goal) => ({
         blueprintName: goal.blueprintName,
-        contracts: findMissionContractsForBlueprint(missionRewards, goal.blueprintId),
+        acquisitionEntry: getAcquisitionEntry(missionRewards, goal.blueprintId),
       }))
       .sort((left, right) => left.blueprintName.localeCompare(right.blueprintName));
   }, [goals, missionRewards]);
@@ -551,12 +565,15 @@ export function PlannerPanel() {
       })),
       blueprintSources: goalSources.map((source) => ({
         blueprintName: source.blueprintName,
-        contracts: source.contracts.map((contract) => ({
-          contractDebugName: contract.contractDebugName,
-          contractorDisplayName: contract.contractorDisplayName,
-          factionDisplayName: contract.faction?.displayName ?? null,
-          availability: contract.availability,
-          minimumRequiredStandings: contract.minimumRequiredStandings,
+        contractCount: source.acquisitionEntry?.contractCount ?? 0,
+        factions: (source.acquisitionEntry?.factions ?? []).map((faction) => ({
+          contractorDisplayName: faction.contractorDisplayName,
+          factionDisplayName: faction.faction?.displayName ?? null,
+          contracts: faction.contracts.map((contract) => ({
+            contractDebugName: contract.contractDebugName,
+            availability: contract.availability,
+            minimumRequiredStandings: contract.minimumRequiredStandings,
+          })),
         })),
       })),
     };
