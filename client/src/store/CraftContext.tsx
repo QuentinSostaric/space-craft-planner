@@ -5,9 +5,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { toSlug, slugFromPathname } from '../utils/slug';
 import type {
   AppMode,
   Blueprint,
@@ -132,6 +134,8 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [missionRewardsLoading, setMissionRewardsLoading] = useState(false);
   const [missionRewardsError, setMissionRewardsError] = useState<string | null>(null);
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
+  // Slug from URL on initial mount — resolved once blueprints load
+  const pendingSlugRef = useRef<string | null>(slugFromPathname(window.location.pathname));
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('all');
@@ -298,6 +302,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const setActiveBlueprint = useCallback((bp: Blueprint | null) => {
     setActiveBlueprintRaw(bp);
     setSlotAssignments({});
+    if (bp) {
+      window.history.pushState({ blueprintId: bp.id }, '', `/item/${toSlug(bp.name)}`);
+    } else if (slugFromPathname(window.location.pathname)) {
+      window.history.pushState(null, '', '/');
+    }
   }, []);
 
   const toggleFavorite = useCallback(
@@ -420,6 +429,34 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const closeComparison = useCallback(() => setComparisonOpen(false), []);
   const openPlanner = useCallback(() => setPlannerOpen(true), []);
   const closePlanner = useCallback(() => setPlannerOpen(false), []);
+
+  // Resolve initial URL slug once blueprints are available
+  useEffect(() => {
+    if (blueprints.length === 0 || !pendingSlugRef.current) return;
+    const slug = pendingSlugRef.current;
+    pendingSlugRef.current = null;
+    const bp = blueprints.find((b) => toSlug(b.name) === slug) ?? null;
+    if (bp) setActiveBlueprintRaw(bp);
+  }, [blueprints]);
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      const slug = slugFromPathname(window.location.pathname);
+      if (!slug) {
+        setActiveBlueprintRaw(null);
+        setSlotAssignments({});
+        return;
+      }
+      const bp = blueprints.find((b) => toSlug(b.name) === slug) ?? null;
+      if (bp) {
+        setActiveBlueprintRaw(bp);
+        setSlotAssignments({});
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [blueprints]);
 
   return (
     <CraftContext.Provider
