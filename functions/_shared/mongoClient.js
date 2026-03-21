@@ -26,6 +26,7 @@ export async function getDb(env) {
 
   if (!clientPromise || cachedUri !== uri) {
     cachedUri = uri;
+    console.log('[mongo] creating client, uri prefix:', uri.slice(0, 30));
     const client = new MongoClient(uri, {
       maxPoolSize: 1,
       minPoolSize: 0,
@@ -33,7 +34,15 @@ export async function getDb(env) {
       tls: true,
       directConnection: false,
     });
-    clientPromise = client.connect();
+    clientPromise = client.connect().then((c) => {
+      console.log('[mongo] connected');
+      return c;
+    }).catch((e) => {
+      console.error('[mongo] connect error:', e.message);
+      clientPromise = null;
+      cachedUri = null;
+      throw e;
+    });
   }
 
   const client = await clientPromise;
