@@ -286,7 +286,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
           ...previous,
           [dataset.channel]: dataset.datasetId,
         }));
-        if (dataset.missionRewards !== undefined) {
+        if (dataset.missionRewards != null) {
           setMissionRewardsByDatasetId((previous) =>
             Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
               ? previous
