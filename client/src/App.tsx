@@ -6,6 +6,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { createAppTheme } from './theme';
 import { useTheme } from './hooks/useTheme';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
@@ -16,7 +17,7 @@ import { NavRail } from './components/NavRail';
 import { BlueprintGrid } from './components/BlueprintGrid';
 import { ItemWorkspace } from './components/ItemWorkspace';
 import { MissionsPanel } from './components/MissionsPanel';
-import { PlannerDrawer } from './components/PlannerDrawer';
+import { PlannerPage } from './components/PlannerPage';
 import { ComparisonModal } from './components/ComparisonModal';
 import { DatasetChangelog } from './components/DatasetChangelog';
 import { Footer } from './components/Footer';
@@ -40,6 +41,17 @@ function MainContent({ mainView }: { mainView: MainView }) {
       <Fade in timeout={180}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <MissionsPanel />
+          <Footer />
+        </Box>
+      </Fade>
+    );
+  }
+
+  if (mainView === 'planner') {
+    return (
+      <Fade in timeout={180}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <PlannerPage />
           <Footer />
         </Box>
       </Fade>
@@ -70,6 +82,9 @@ function MainContent({ mainView }: { mainView: MainView }) {
 function AppShell() {
   const { activeDataset, datasetLoading, datasetError, ensureMissionRewardsLoaded } = useCraft();
   const { t } = useI18n();
+  const [themeMode] = useTheme();
+  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
+  const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
 
   const [mainView, setMainView] = useState<MainView>(() => mainViewFromPathname(window.location.pathname));
   const [navCollapsed, setNavCollapsed] = useState(() => {
@@ -102,7 +117,7 @@ function AppShell() {
   }, [ensureMissionRewardsLoaded]);
 
   const handleChangeView = useCallback((view: MainView) => {
-    const path = view === 'missions' ? '/missions' : '/';
+    const path = view === 'missions' ? '/missions' : view === 'planner' ? '/planner' : '/';
     navigateToPath(path, { mainView: view });
   }, []);
 
@@ -160,7 +175,15 @@ function AppShell() {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
       {isPending && <LinearProgress sx={{ height: 2 }} />}
-      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flex: 1,
+          minHeight: 0,
+          flexDirection: { xs: 'column', md: 'row' },
+          overflow: isCompactLayout ? 'visible' : 'hidden',
+        }}
+      >
         <NavRail
           mainView={mainView}
           onChangeView={handleChangeView}
@@ -176,12 +199,12 @@ function AppShell() {
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'auto',
+            overflowX: 'hidden',
           }}
           aria-label={t('Content', 'Contenu')}
         >
           <MainContent mainView={mainView} />
         </Box>
-        <PlannerDrawer />
       </Box>
       <ComparisonModal />
       <DatasetChangelog />

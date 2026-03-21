@@ -23,10 +23,10 @@ export function missionSlugFromPathname(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
-export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' {
-  return pathname === '/missions' || pathname.startsWith('/missions/')
-    ? 'missions'
-    : 'blueprints';
+export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' | 'planner' {
+  if (pathname === '/missions' || pathname.startsWith('/missions/')) return 'missions';
+  if (pathname === '/planner' || pathname.startsWith('/planner/')) return 'planner';
+  return 'blueprints';
 }
 
 export function missionSlugFromContract(

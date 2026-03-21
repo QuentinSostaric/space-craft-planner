@@ -3,13 +3,14 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FlagIcon from '@mui/icons-material/Flag';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { GameIcon } from './ui/GameIcon';
 import { useI18n } from '../i18n/I18nContext';
 
-export type MainView = 'blueprints' | 'missions';
+export type MainView = 'blueprints' | 'missions' | 'planner';
 
 const EXPANDED_WIDTH = 200;
 const COLLAPSED_WIDTH = 64;
@@ -116,6 +117,39 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
 
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
+  const theme = useTheme();
+  const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
+
+  if (isCompactLayout) {
+    return (
+      <Box
+        component="nav"
+        aria-label={t('Main navigation', 'Navigation principale')}
+        sx={{
+          width: '100%',
+          backgroundColor: 'background.paper',
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        }}
+      >
+        <NavItem
+          active={mainView === 'blueprints'}
+          collapsed={false}
+          label={t('Blueprints', 'Blueprints')}
+          icon={<GameIcon name="calculator" size={18} />}
+          onClick={() => onChangeView('blueprints')}
+        />
+        <NavItem
+          active={mainView === 'missions'}
+          collapsed={false}
+          label={t('Missions', 'Missions')}
+          icon={<FlagIcon sx={{ fontSize: '1.1rem' }} />}
+          onClick={() => onChangeView('missions')}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
