@@ -20,16 +20,19 @@ export function PlannerPage() {
 
   const aggregated = useMemo(() => aggregateGoalResources(goals, blueprints), [goals, blueprints]);
 
-  const totalRequired = aggregated.reduce((sum, r) => sum + r.totalScu, 0);
-  const totalCollected = aggregated.reduce((sum, r) => {
-    const prog = resourceProgress[r.resourceName];
-    return sum + Math.min(prog?.collected ?? 0, r.totalScu);
-  }, 0);
-  const globalPct = totalRequired > 0 ? Math.round((totalCollected / totalRequired) * 100) : 0;
+  const { totalRequired, totalCollected, globalPct } = useMemo(() => {
+    const totalRequired = aggregated.reduce((sum, r) => sum + r.totalScu, 0);
+    const totalCollected = aggregated.reduce((sum, r) => {
+      const prog = resourceProgress[r.resourceName];
+      return sum + Math.min(prog?.collected ?? 0, r.totalScu);
+    }, 0);
+    const globalPct = totalRequired > 0 ? Math.round((totalCollected / totalRequired) * 100) : 0;
+    return { totalRequired, totalCollected, globalPct };
+  }, [aggregated, resourceProgress]);
 
   const handleCopyText = useCallback(() => {
     const lines = [
-      `ITEM FABRICATOR — ${lang === 'fr' ? 'Plan' : 'Plan'}`,
+      'ITEM FABRICATOR — Plan',
       '',
       ...goals.map((g) => `${g.quantity}× ${g.blueprintName} (${g.qualityScore}/100)`),
       '',
