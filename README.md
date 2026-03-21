@@ -6,17 +6,18 @@ React + TypeScript app for Star Citizen crafting, dismantling analysis, mission 
 
 ## Features
 
-- **Blueprint Library** — filter bar with search, segmented control (All / Inventory / Favorites / Obtainable), category chips, manufacturer/legality/location filters. Compact horizontal cards with item thumbnails (wiki images), manufacturer logos, and category icon fallbacks
-- **Item Workspace** — tabbed item view (Overview / Craft / Acquisition / Dismantle) centered on the selected blueprint
-- **Craft Simulator** — horizontal grid of slot cards with quality sliders (+/− controls), per-slot modifier chips, side-by-side combined modifiers table and resource summary
-- **Acquisition Sources** — per-blueprint mission contracts with faction, standing, location, and scale details
-- **Dismantling** — contextual dismantling metadata (efficiency, queues, global parameters) as an item tab
-- **Mission Directory** — flat grid of contract cards with search, contractor, location, scale, and legality filters. Lawful/unlawful color indicators, blueprint reward chips
-- **Left Navigation** — collapsible sidebar (140px expanded / 36px collapsed) for Blueprints and Missions views, state persisted in localStorage
-- **Resource Planner** — collapsible drawer with crafting goals, aggregated materials, blueprint sources, and plan export
-- **Comparison** — compare up to 4 builds side-by-side with projected stat deltas
-- **Dataset Changelog** — PTU vs LIVE diff accessible via header button
-- **External Media** — blueprint images and manufacturer logos resolved from starcitizen.tools wiki (93% coverage)
+- **Blueprint Library** — search, segmented control (All / Inventory / Favorites / Obtainable), category accordions, manufacturer / legality / rarity / slot / craft-time filters. Compact cards with item thumbnails, manufacturer logos, and category icon fallbacks.
+- **Item Workspace** — two-column layout: identity + acquisition left (sticky), craft simulator + material sources + dismantling right (scrollable).
+- **Craft Simulator** — slot quality picker with +/− controls, per-category stat panel (weapons / armor / magazines), GPP modifier sparkline, stat impact radar, material resource summary.
+- **Acquisition Sources** — per-blueprint mission contracts with employer, faction, standing, location, and availability scale.
+- **Dismantling** — contextual dismantling metadata (efficiency, queues, global parameters).
+- **Mission Directory** — faction accordions, contract cards, filters by location / scale / standing / text search. Blueprint reward chips navigate to the Item Workspace.
+- **Resources** — resource card grid with filters (family, source type, system, mission demand, blueprint category) and an inline detail panel (identity, best sources, mission demand, blueprint usage).
+- **Planner** — full-page crafting plan: goal list with quality assignments, aggregated resources with per-resource method selector (Mission / Mining / Dismantle / Buy), SCU slider, mission contract accordion, copy text / JSON export.
+- **NavRail** — 4-item side rail (Blueprints / Missions / Resources / Planner). Desktop: collapsible 200 px / 64 px. Mobile: 4-column tab bar.
+- **Comparison** — side-by-side stat comparison for up to 4 blueprints with color-coded deltas.
+- **Dataset Changelog** — PTU vs LIVE diff accessible via the header Δ button.
+- **External Media** — blueprint images and manufacturer logos resolved from starcitizen.tools wiki.
 
 ## Architecture
 
@@ -26,34 +27,34 @@ React + TypeScript app for Star Citizen crafting, dismantling analysis, mission 
 graph TD
     App[App.tsx] --> Providers[Providers: Theme, I18n, Craft]
     Providers --> AppShell[AppShell]
-    
+
     AppShell --> Header[Header.tsx]
     AppShell --> NavRail[NavRail.tsx]
-    AppShell --> MainContent[MainContent]
-    AppShell --> PlannerDrawer[PlannerDrawer.tsx]
+    AppShell --> Views[Lazy Views — Suspense / useTransition]
     AppShell --> Modals[Modals: Comparison, Changelog]
-    
-    MainContent --> ItemWorkspace[ItemWorkspace.tsx]
-    MainContent --> BlueprintGrid[BlueprintGrid.tsx]
-    MainContent --> MissionsPanel[MissionsPanel.tsx]
-    
-    ItemWorkspace --> OverviewTab[OverviewTab.tsx]
-    ItemWorkspace --> CraftTab[CraftTab.tsx]
-    ItemWorkspace --> AcquisitionTab[AcquisitionTab.tsx]
-    ItemWorkspace --> DismantleTab[DismantleTab.tsx]
-    
-    BlueprintGrid --> BlueprintExplorer[BlueprintExplorer.tsx]
-    BlueprintGrid --> BlueprintCard[BlueprintCard]
-    
-    PlannerDrawer --> PlannerPanel[PlannerPanel.tsx]
-    
+
+    Views --> BlueprintExplorer[BlueprintExplorer.tsx]
+    Views --> BlueprintGrid[BlueprintGrid.tsx]
+    Views --> ItemWorkspace[ItemWorkspace.tsx]
+    Views --> MissionsPanel[MissionsPanel.tsx]
+    Views --> ResourcesPage[ResourcesPage.tsx]
+    Views --> PlannerPage[PlannerPage.tsx]
+
+    ItemWorkspace --> CraftSection[CraftSection.tsx]
+    ItemWorkspace --> AcquisitionSection[AcquisitionSection.tsx]
+    ItemWorkspace --> DismantleSection[DismantleSection.tsx]
+    ItemWorkspace --> MaterialSourcesSection[MaterialSourcesSection.tsx]
+
+    PlannerPage --> GoalsList[GoalsList.tsx]
+    PlannerPage --> ResourcesList[ResourcesList.tsx]
+
     subgraph State
         CraftContext[CraftContext.tsx]
-        GameDataAPI[gameDataApi.ts]
+        mongoDbService[mongoDbService.ts]
     end
-    
+
     CraftContext -.->|Provides State| AppShell
-    GameDataAPI -->|Fetches Data| CraftContext
+    mongoDbService -->|Fetches Data| CraftContext
 ```
 
 Production data is runtime-driven:
@@ -72,15 +73,7 @@ Runtime endpoints:
 - `GET /api/game-data/public/:channel`
 - `GET /api/game-data/public/:channel/mission-rewards`
 
-`/api/game-data/public/:channel` returns the core dataset used by the app:
-
-- `resources`
-- `blueprints`
-- `dismantling`
-- `changelog`
-- dataset metadata and counters
-
-`missionRewards` is loaded separately on demand to avoid downloading the heaviest block on initial load.
+`missionRewards` is loaded lazily (separate endpoint, heaviest block).
 
 ## Quick Start
 
@@ -115,9 +108,7 @@ This starts:
 - Vite on `http://localhost:5173`
 - a local Node API server on `http://127.0.0.1:8788`
 
-Use `http://localhost:5173` as the dev app URL. The client proxies `/api/*` to the local Mongo-backed API server, so dev still runs only on Mongo data.
-
-If `npm run dev` stops immediately, free ports `5173` and `8788` first. The command now fails fast instead of silently switching ports.
+Use `http://localhost:5173` as the dev app URL. The client proxies `/api/*` to the local Mongo-backed API server.
 
 ### Build
 
@@ -131,7 +122,9 @@ npm run build
 npm run deploy
 ```
 
-This builds the client and deploys `client/dist` to Cloudflare Pages. Runtime data is fetched from MongoDB through Cloudflare Pages Functions.
+This builds the client and deploys `client/dist` to Cloudflare Pages.
+
+CI also runs `node scripts/patchMongoTls.mjs` before the build. This patches the MongoDB driver to use a `cloudflare:sockets` TLS shim (`functions/_shared/tls-cf-shim.js`) instead of the `node:tls` polyfill, which hangs against MongoDB Atlas in Workers.
 
 ## Game Data Rules
 
@@ -178,21 +171,15 @@ Place a copied dataset under `exporter/source-game-files/PTU` or `exporter/sourc
 powershell -ExecutionPolicy Bypass -File .\exporter\extract-game-data.ps1 -SourcePath .\exporter\source-game-files\PTU
 ```
 
-The script detects:
-
-- channel (`PTU` or `LIVE`)
-- version
-- build number
-- output label
-
-It then runs:
+The script detects channel, version, build number, and output label, then runs:
 
 1. blueprint extraction
 2. localization and item stat extraction
 3. mission reward extraction
 4. dismantling extraction
-5. resource image extraction
-6. optional MongoDB publication prompt
+5. material sources extraction
+6. resource image extraction
+7. optional MongoDB publication prompt
 
 ### Main exported files
 
@@ -201,6 +188,7 @@ It then runs:
 - `exporter/output/<label>-item-stats.json`
 - `exporter/output/<label>-mission-rewards.json`
 - `exporter/output/<label>-dismantling.json`
+- `exporter/output/<label>-material-sources.json`
 - `exporter/output/<label>-resource-images.json`
 
 ### Publish to MongoDB
@@ -216,65 +204,15 @@ npm run import:live
 
 ### Dataset index
 
-`GET /api/game-data/public` returns lightweight summaries:
-
-- `channel`
-- `datasetId`
-- `label`
-- `version`
-- `branch`
-- `buildNumber`
-- `published`
-- `blueprintCount`
-- `resourceCount`
-- `hasDismantling`
-- `hasMissionRewards`
-- `missionRewardContractCount`
-- `missionRewardFactionGroupCount`
-- `importedAt`
-- `updatedAt`
-- `hasChangelog`
+`GET /api/game-data/public` returns lightweight summaries per channel.
 
 ### Core dataset
 
-`GET /api/game-data/public/:channel` returns:
-
-- `resources`
-- `blueprints`
-- `dismantling`
-- `changelog`
-- dataset metadata
+`GET /api/game-data/public/:channel` returns `resources`, `blueprints`, `dismantling`, `changelog`, `materialSources`, optional `resourceInsights`, and dataset metadata.
 
 ### Mission rewards dataset
 
-`GET /api/game-data/public/:channel/mission-rewards` returns:
-
-- `summary`
-- `conclusions`
-- `factionGroups`
-
-Useful frontend fields:
-
-- `factionGroups[].contractorDisplayName`
-- `factionGroups[].faction`
-- `factionGroups[].reputationScopes`
-- `factionGroups[].contractCount`
-- `factionGroups[].contracts[]`
-
-Useful contract fields:
-
-- `availability.derivedScale`
-- `availability.localities`
-- `availability.explicitLocations`
-- `minimumRequiredStandings`
-- `rewardedBlueprints`
-
-Observed availability scales in PTU 4.7:
-
-- `system`
-- `planetary-cluster`
-- `regional-sector`
-- `specific-location`
+`GET /api/game-data/public/:channel/mission-rewards` returns `summary`, `conclusions`, and `factionGroups`.
 
 ## Scripts
 
@@ -290,21 +228,26 @@ Observed availability scales in PTU 4.7:
 
 | File | Purpose |
 | --- | --- |
+| `client/src/App.tsx` | root shell — lazy views, Suspense/useTransition, view routing |
 | `client/src/store/CraftContext.tsx` | central frontend state and dataset loading |
 | `client/src/services/mongoDbService.ts` | runtime fetch client for published datasets |
-| `client/src/theme.ts` | MUI theme and design tokens |
-| `client/src/components/NavRail.tsx` | collapsible left sidebar navigation (Blueprints / Missions) |
-| `client/src/components/BlueprintGrid.tsx` | blueprint card grid with media thumbnails |
-| `client/src/components/BlueprintExplorer.tsx` | blueprint filter bar (search, segments, categories) |
-| `client/src/components/ItemWorkspace.tsx` | tabbed item workspace (Overview, Craft, Acquisition, Dismantle) |
-| `client/src/components/item-workspace/CraftTab.tsx` | craft simulator with horizontal slot grid |
-| `client/src/components/MissionsPanel.tsx` | mission contract grid with filters |
-| `client/src/components/PlannerPanel.tsx` | goals, materials, mission sources, export |
-| `client/src/components/PlannerDrawer.tsx` | collapsible planner drawer shell |
+| `client/src/components/NavRail.tsx` | side nav (Blueprints / Missions / Resources / Planner) |
+| `client/src/components/Header.tsx` | top bar |
+| `client/src/components/BlueprintExplorer.tsx` | blueprint library sidebar (search, filters, sort) |
+| `client/src/components/BlueprintGrid.tsx` | responsive blueprint card grid |
+| `client/src/components/ItemWorkspace.tsx` | two-column item detail view |
+| `client/src/components/item-workspace/CraftSection.tsx` | craft simulator |
+| `client/src/components/MissionsPanel.tsx` | mission directory (faction accordions, contract cards, filters) |
+| `client/src/components/ResourcesPage.tsx` | resource explorer (card grid + detail panel) |
+| `client/src/components/PlannerPage.tsx` | full-page planner (goals + resource tracking) |
+| `client/src/components/planner/` | planner sub-components (GoalsList, ResourcesList, ResourceRow, …) |
+| `client/src/components/item-workspace/` | item workspace sub-components |
 | `functions/_shared/mongoClient.js` | Cloudflare Pages MongoDB client |
+| `functions/_shared/tls-cf-shim.js` | cloudflare:sockets TLS shim — replaces node:tls for MongoDB in Workers |
 | `functions/api/game-data/public.js` | dataset index endpoint |
 | `functions/api/game-data/public/[channel].js` | core dataset endpoint |
 | `functions/api/game-data/public/[channel]/mission-rewards.js` | mission rewards endpoint |
+| `scripts/patchMongoTls.mjs` | CI script — patches MongoDB driver to use tls-cf-shim.js |
 | `exporter/extract-game-data.ps1` | main extraction entry point |
 | `exporter/dataset-builder.mjs` | normalized dataset builder |
 | `exporter/importToMongo.mjs` | Atlas import pipeline |
