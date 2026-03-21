@@ -27,7 +27,7 @@ export async function getDb(env) {
   if (!clientPromise || cachedUri !== uri) {
     cachedUri = uri;
     const client = new MongoClient(uri, {
-      maxPoolSize: 4,
+      maxPoolSize: 1,
       minPoolSize: 0,
       serverSelectionTimeoutMS: 10_000,
       tls: true,
