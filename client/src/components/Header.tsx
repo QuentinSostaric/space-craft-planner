@@ -17,6 +17,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
 import { GameIcon } from './ui/GameIcon';
+import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 
 export function Header() {
   const {
@@ -224,7 +225,10 @@ export function Header() {
             }}
           >
             <ToggleButton value="live" disabled={!availableChannels.has('live')}>
-              LIVE
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                <StarCitizenLicensedIcon name="live" size={14} />
+                <span>LIVE</span>
+              </Box>
             </ToggleButton>
             <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')}>
               PTU

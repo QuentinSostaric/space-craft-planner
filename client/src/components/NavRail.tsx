@@ -5,11 +5,11 @@ import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import Badge from '@mui/material/Badge';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import { alpha, useTheme } from '@mui/material/styles';
 import { GameIcon } from './ui/GameIcon';
+import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 
@@ -246,7 +246,12 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
             transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
           }}
         >
-          <ChevronRightIcon />
+          <StarCitizenLicensedIcon
+            name="chevron-right"
+            size={16}
+            dimmed
+            rotateDeg={collapsed ? 0 : 180}
+          />
         </IconButton>
       </Box>
     </Box>

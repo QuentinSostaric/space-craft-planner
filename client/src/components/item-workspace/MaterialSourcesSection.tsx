@@ -12,6 +12,7 @@ import TableRow from '@mui/material/TableRow';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useI18n } from '../../i18n/I18nContext';
 import { Button } from '../ui/Button';
+import { StarCitizenLicensedIcon, getMaterialProviderIconName } from '../ui/StarCitizenLicensedIcon';
 import { getMaterialProviders } from '../../utils/crafting';
 import type { AggregatedResource, MaterialSources } from '../../types';
 
@@ -36,11 +37,18 @@ export function MaterialSourcesSection({ resources, materialSources, qty, setQty
 
       {resources.map((res) => {
         const providers = getMaterialProviders(materialSources, res.resourceName);
+        const leadProvider = providers[0];
+        const leadProviderIcon = leadProvider
+          ? getMaterialProviderIconName(leadProvider.providerType, leadProvider.providerDisplayName, leadProvider.system)
+          : null;
 
         return (
           <Accordion key={res.resourceName} disableGutters>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                {leadProviderIcon && (
+                  <StarCitizenLicensedIcon name={leadProviderIcon} size={16} dimmed />
+                )}
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {res.resourceName}
                 </Typography>
@@ -72,7 +80,18 @@ export function MaterialSourcesSection({ resources, materialSources, qty, setQty
                   <TableBody>
                     {providers.map((p, idx) => (
                       <TableRow key={idx}>
-                        <TableCell>{p.providerDisplayName}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                            {getMaterialProviderIconName(p.providerType, p.providerDisplayName, p.system) && (
+                              <StarCitizenLicensedIcon
+                                name={getMaterialProviderIconName(p.providerType, p.providerDisplayName, p.system)!}
+                                size={14}
+                                dimmed
+                              />
+                            )}
+                            <span>{p.providerDisplayName}</span>
+                          </Box>
+                        </TableCell>
                         <TableCell>{p.providerType}</TableCell>
                         <TableCell>{p.system ?? '—'}</TableCell>
                         <TableCell>{p.groupProbabilityPct != null ? `${p.groupProbabilityPct}%` : '—'}</TableCell>

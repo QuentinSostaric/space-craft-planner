@@ -66,8 +66,8 @@ export function ItemWorkspace() {
         display: 'flex',
         flexDirection: { xs: 'column', md: 'row' },
         alignItems: { md: 'flex-start' },
-        gap: 3,
-        p: 2,
+        gap: { xs: 2, md: 3 },
+        p: { xs: 1.25, sm: 1.5, md: 2 },
       }}
     >
       {/* Left column — sticky on desktop */}
@@ -75,7 +75,7 @@ export function ItemWorkspace() {
         sx={{
           width: { xs: '100%', md: '36%' },
           position: { md: 'sticky' },
-          top: { md: 0 },
+          top: { md: 16 },
           maxHeight: { md: '100vh' },
           overflowY: { md: 'auto' },
           flexShrink: 0,
@@ -98,7 +98,7 @@ export function ItemWorkspace() {
           width: { xs: '100%', md: '64%' },
           display: 'flex',
           flexDirection: 'column',
-          gap: 3,
+          gap: { xs: 2, md: 3 },
         }}
       >
         <CraftSection

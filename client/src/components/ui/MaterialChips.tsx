@@ -9,6 +9,18 @@ interface MaterialChipsProps {
   maxVisible?: number;
 }
 
+function formatMaterialQuantity(total: number): string {
+  if (total >= 10) {
+    return Math.round(total).toString();
+  }
+
+  if (total >= 1) {
+    return total.toFixed(1).replace(/\.0$/, '');
+  }
+
+  return total.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChipsProps) {
   const theme = useTheme();
   const aggregated = new Map<string, { name: string; total: number; color: string }>();
@@ -80,7 +92,10 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
                 letterSpacing: '0.04em',
               }}
             >
-              {mat.name} <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>({Math.round(mat.total)})</Box>
+              {mat.name}{' '}
+              <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>
+                ({formatMaterialQuantity(mat.total)} SCU)
+              </Box>
             </Typography>
           </Box>
         ))}

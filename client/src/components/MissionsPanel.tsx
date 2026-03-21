@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { alpha, useTheme } from '@mui/material/styles';
+import Accordion from '@mui/material/Accordion';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -7,9 +10,12 @@ import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -18,6 +24,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlagIcon from '@mui/icons-material/Flag';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
@@ -30,19 +37,54 @@ import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import { BlueprintCard } from './BlueprintGrid';
 import { CategoryBadge } from './ui/Badge';
 import { ScaleBadge } from './ui/RarityBadge';
+import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLicensedIcon';
 import { StatBar } from './ui/StatBar';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { computeStatMaxima, formatContractName, formatScaleLabel, formatStanding } from '../utils/crafting';
+import {
+  computeStatMaxima,
+  formatContractName,
+  formatScaleLabel,
+  formatStandingLabel,
+  formatStandingSummary,
+} from '../utils/crafting';
 import { missionPathFromSlug, missionSlugFromContract, missionSlugFromPathname, navigateToPath } from '../utils/slug';
 import type {
   Blueprint,
+  ItemCategory,
   MissionContract,
   MissionEmployerRef,
+  MissionSort,
   MissionRequiredStanding,
   MissionRewardFactionGroup,
   Resource,
+  StandingBucket,
 } from '../types';
+
+const MISSION_SORT_OPTIONS: { value: MissionSort; labelEn: string; labelFr: string }[] = [
+  { value: 'name-asc', labelEn: 'Mission name', labelFr: 'Nom de mission' },
+  { value: 'employer-asc', labelEn: 'Employer', labelFr: 'Employeur' },
+  { value: 'standing-asc', labelEn: 'Lowest standing', labelFr: 'Réputation croissante' },
+  { value: 'standing-desc', labelEn: 'Highest standing', labelFr: 'Réputation décroissante' },
+  { value: 'scale-asc', labelEn: 'Scale', labelFr: 'Portée' },
+  { value: 'location-asc', labelEn: 'Location', labelFr: 'Lieu' },
+  { value: 'chance-desc', labelEn: 'Best chance', labelFr: 'Meilleure chance' },
+];
+
+const STANDING_OPTIONS: { value: StandingBucket; labelEn: string; labelFr: string }[] = [
+  { value: 'all', labelEn: 'Any standing', labelFr: 'Toute réputation' },
+  { value: 'none', labelEn: 'No standing gate', labelFr: 'Sans prérequis' },
+  { value: '1-999', labelEn: '1-999', labelFr: '1-999' },
+  { value: '1000-4999', labelEn: '1k-4.9k', labelFr: '1k-4,9k' },
+  { value: '5000-14999', labelEn: '5k-14.9k', labelFr: '5k-14,9k' },
+  { value: '15000+', labelEn: '15k+', labelFr: '15k+' },
+];
+
+const RESOURCE_OBJECTIVE_OPTIONS = [
+  { value: 'all', labelEn: 'All missions', labelFr: 'Toutes les missions' },
+  { value: 'with', labelEn: 'With resource goals', labelFr: 'Avec objectifs ressource' },
+  { value: 'without', labelEn: 'Without resource goals', labelFr: 'Sans objectifs ressource' },
+] as const;
 
 interface FlatContract {
   contract: MissionContract;
@@ -75,6 +117,10 @@ function getMissionEmployer(contract: MissionContract, group: MissionRewardFacti
   return contract.employer ?? group.employer ?? null;
 }
 
+function getMissionEmployerName(contract: MissionContract, group: MissionRewardFactionGroup): string {
+  return getMissionEmployer(contract, group)?.displayName ?? group.contractorDisplayName;
+}
+
 function getMissionSlug(contract: MissionContract, group: MissionRewardFactionGroup): string {
   return missionSlugFromContract(contract.contractDebugName, group.contractorDisplayName);
 }
@@ -101,6 +147,39 @@ function dedupeMissionBlueprints(contract: MissionContract, blueprints: Blueprin
   }
 
   return results;
+}
+
+function getMissionMaxStanding(contract: MissionContract): number {
+  return Math.max(0, ...contract.minimumRequiredStandings.map((standing) => standing.minReputation ?? 0));
+}
+
+function getMissionMaxChance(contract: MissionContract): number {
+  return Math.max(0, ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.chance ?? 0));
+}
+
+function getStandingBucket(value: number | null | undefined): StandingBucket {
+  if (value == null || value <= 0) return 'none';
+  if (value <= 999) return '1-999';
+  if (value <= 4999) return '1000-4999';
+  if (value <= 14999) return '5000-14999';
+  return '15000+';
+}
+
+function getScaleRank(scale: string): number {
+  switch (scale) {
+    case 'specific-location':
+      return 0;
+    case 'regional-sector':
+      return 1;
+    case 'planetary-cluster':
+      return 2;
+    case 'system':
+      return 3;
+    case 'universe':
+      return 4;
+    default:
+      return 5;
+  }
 }
 
 function MissionFact({
@@ -145,29 +224,77 @@ function MissionsFilterBar({
   locations,
   scales,
   contractors,
+  employers,
+  factions,
+  rewardCategories,
+  rewardManufacturers,
+  rewardBlueprints,
+  resourceObjectiveResources,
   selectedLocation: locationFilter,
   selectedScale: scaleFilter,
   selectedLegality: legalityFilter,
   selectedContractor: contractorFilter,
+  selectedEmployer: employerFilter,
+  selectedFaction: factionFilter,
+  selectedStandingBucket: standingBucketFilter,
+  selectedRewardCategory: rewardCategoryFilter,
+  selectedRewardManufacturer: rewardManufacturerFilter,
+  selectedRewardBlueprint: rewardBlueprintFilter,
+  selectedResourceObjectiveResource: resourceObjectiveResourceFilter,
+  selectedResourceObjectiveMode: resourceObjectiveMode,
+  selectedSort: sortBy,
   search,
   onLocationChange,
   onScaleChange,
   onLegalityChange,
   onContractorChange,
+  onEmployerChange,
+  onFactionChange,
+  onStandingBucketChange,
+  onRewardCategoryChange,
+  onRewardManufacturerChange,
+  onRewardBlueprintChange,
+  onResourceObjectiveResourceChange,
+  onResourceObjectiveModeChange,
+  onSortChange,
   onSearchChange,
 }: {
   locations: string[];
   scales: string[];
   contractors: string[];
+  employers: string[];
+  factions: string[];
+  rewardCategories: ItemCategory[];
+  rewardManufacturers: string[];
+  rewardBlueprints: string[];
+  resourceObjectiveResources: string[];
   selectedLocation: string | null;
   selectedScale: string | null;
   selectedLegality: string;
   selectedContractor: string | null;
+  selectedEmployer: string | null;
+  selectedFaction: string | null;
+  selectedStandingBucket: StandingBucket;
+  selectedRewardCategory: ItemCategory | 'all';
+  selectedRewardManufacturer: string | null;
+  selectedRewardBlueprint: string | null;
+  selectedResourceObjectiveResource: string | null;
+  selectedResourceObjectiveMode: 'all' | 'with' | 'without';
+  selectedSort: MissionSort;
   search: string;
   onLocationChange: (v: string | null) => void;
   onScaleChange: (v: string | null) => void;
   onLegalityChange: (v: string) => void;
   onContractorChange: (v: string | null) => void;
+  onEmployerChange: (v: string | null) => void;
+  onFactionChange: (v: string | null) => void;
+  onStandingBucketChange: (v: StandingBucket) => void;
+  onRewardCategoryChange: (v: ItemCategory | 'all') => void;
+  onRewardManufacturerChange: (v: string | null) => void;
+  onRewardBlueprintChange: (v: string | null) => void;
+  onResourceObjectiveResourceChange: (v: string | null) => void;
+  onResourceObjectiveModeChange: (v: 'all' | 'with' | 'without') => void;
+  onSortChange: (v: MissionSort) => void;
   onSearchChange: (v: string) => void;
 }) {
   const { t } = useI18n();
@@ -176,7 +303,25 @@ function MissionsFilterBar({
     locationFilter !== null ||
     scaleFilter !== null ||
     contractorFilter !== null ||
-    legalityFilter !== 'all';
+    employerFilter !== null ||
+    factionFilter !== null ||
+    legalityFilter !== 'all' ||
+    standingBucketFilter !== 'all' ||
+    rewardCategoryFilter !== 'all' ||
+    rewardManufacturerFilter !== null ||
+    rewardBlueprintFilter !== null ||
+    resourceObjectiveResourceFilter !== null ||
+    resourceObjectiveMode !== 'all';
+
+  const advancedFilterCount = [
+    factionFilter !== null,
+    standingBucketFilter !== 'all',
+    rewardCategoryFilter !== 'all',
+    rewardManufacturerFilter !== null,
+    rewardBlueprintFilter !== null,
+    resourceObjectiveResourceFilter !== null,
+    resourceObjectiveMode !== 'all',
+  ].filter(Boolean).length;
 
   return (
     <Box component="section" aria-label={t('Mission filters', 'Filtres de mission')} sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -198,6 +343,18 @@ function MissionsFilterBar({
           }}
           sx={{ flex: { xs: '1 1 100%', sm: '1 1 200px' }, '& .MuiInputBase-root': { fontSize: '0.875rem', height: 32 } }}
         />
+        <FormControl
+          size="small"
+          sx={{ minWidth: { xs: '100%', sm: 210 }, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' } }}
+        >
+          <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)}>
+            {MISSION_SORT_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {t(option.labelEn, option.labelFr)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <ToggleButtonGroup
           value={legalityFilter}
           exclusive
@@ -216,13 +373,26 @@ function MissionsFilterBar({
         </ToggleButtonGroup>
       </Box>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
+        <Stack
+          direction={{ xs: 'column', lg: 'row' }}
+          spacing={1}
+          alignItems={{ xs: 'stretch', lg: 'center' }}
+          sx={{ width: { xs: '100%', lg: 'auto' } }}
+        >
           <Autocomplete
             size="small"
             options={contractors}
             value={contractorFilter}
             onChange={(_event, value) => onContractorChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Contractor', 'Employeur')} sx={{ width: 160, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }} />}
+            renderInput={(params) => <TextField {...params} placeholder={t('Contractor label', 'Label contractant')} sx={{ width: { xs: '100%', md: 180 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
+            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+          />
+          <Autocomplete
+            size="small"
+            options={employers}
+            value={employerFilter}
+            onChange={(_event, value) => onEmployerChange(value)}
+            renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ width: { xs: '100%', md: 180 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
             slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
           <Autocomplete
@@ -230,7 +400,7 @@ function MissionsFilterBar({
             options={locations}
             value={locationFilter}
             onChange={(_event, value) => onLocationChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }} />}
+            renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
             slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
           <Autocomplete
@@ -239,7 +409,7 @@ function MissionsFilterBar({
             getOptionLabel={(scale) => formatScaleLabel(scale, 'en')}
             value={scaleFilter}
             onChange={(_event, value) => onScaleChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Scale', 'Echelle')} sx={{ width: 150, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }} />}
+            renderInput={(params) => <TextField {...params} placeholder={t('Scale', 'Echelle')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
             slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
           {hasActiveFilters && (
@@ -251,13 +421,109 @@ function MissionsFilterBar({
                 onLocationChange(null);
                 onScaleChange(null);
                 onContractorChange(null);
+                onEmployerChange(null);
+                onFactionChange(null);
                 onLegalityChange('all');
+                onStandingBucketChange('all');
+                onRewardCategoryChange('all');
+                onRewardManufacturerChange(null);
+                onRewardBlueprintChange(null);
+                onResourceObjectiveResourceChange(null);
+                onResourceObjectiveModeChange('all');
               }}
               sx={{ height: 24, fontSize: '.6rem' }}
             />
           )}
         </Stack>
       </Box>
+
+      <Accordion
+        disableGutters
+        elevation={0}
+        sx={{
+          backgroundColor: 'transparent',
+          border: (theme) => `1px solid ${theme.palette.divider}`,
+          '&::before': { display: 'none' },
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {t('Advanced mission filters', 'Filtres mission avancés')}
+            </Typography>
+            {advancedFilterCount > 0 && (
+              <Chip label={`${advancedFilterCount} ${t('active', 'actifs')}`} size="small" variant="outlined" color="primary" sx={{ height: 20, fontSize: '.65rem' }} />
+            )}
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('Rewards, faction, standing, resources', 'Récompenses, faction, réputation, ressources')}
+            </Typography>
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+            <Autocomplete
+              size="small"
+              options={factions}
+              value={factionFilter}
+              onChange={(_event, value) => onFactionChange(value)}
+              renderInput={(params) => <TextField {...params} placeholder={t('Faction / jurisdiction', 'Faction / juridiction')} />}
+              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+            />
+            <FormControl size="small">
+              <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)}>
+                {STANDING_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {t(option.labelEn, option.labelFr)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small">
+              <Select value={rewardCategoryFilter} onChange={(event) => onRewardCategoryChange(event.target.value as ItemCategory | 'all')}>
+                <MenuItem value="all">{t('Any reward category', 'Toute catégorie de récompense')}</MenuItem>
+                {rewardCategories.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Autocomplete
+              size="small"
+              options={rewardManufacturers}
+              value={rewardManufacturerFilter}
+              onChange={(_event, value) => onRewardManufacturerChange(value)}
+              renderInput={(params) => <TextField {...params} placeholder={t('Reward manufacturer', 'Fabricant récompensé')} />}
+              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+            />
+            <Autocomplete
+              size="small"
+              options={rewardBlueprints}
+              value={rewardBlueprintFilter}
+              onChange={(_event, value) => onRewardBlueprintChange(value)}
+              renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint récompensé')} />}
+              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+            />
+            <Autocomplete
+              size="small"
+              options={resourceObjectiveResources}
+              value={resourceObjectiveResourceFilter}
+              onChange={(_event, value) => onResourceObjectiveResourceChange(value)}
+              renderInput={(params) => <TextField {...params} placeholder={t('Resource objective', 'Objectif ressource')} />}
+              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+            />
+            <FormControl size="small">
+              <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')}>
+                {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {t(option.labelEn, option.labelFr)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
     </Box>
   );
 }
@@ -277,9 +543,9 @@ function ContractCard({
   const theme = useTheme();
   const factionType = group.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
-  const maxStanding = Math.max(0, ...contract.minimumRequiredStandings.map((standing) => standing.minReputation ?? 0));
-  const standingLabel = contract.minimumRequiredStandings.length > 0 ? formatStanding(contract, lang) : null;
-  const maxChance = Math.max(0, ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.chance ?? 0));
+  const maxStanding = getMissionMaxStanding(contract);
+  const standingLabel = contract.minimumRequiredStandings.length > 0 ? formatStandingSummary(contract.minimumRequiredStandings, lang) : null;
+  const maxChance = getMissionMaxChance(contract);
   const visibleBlueprints = contract.rewardedBlueprints.slice(0, 3);
   const blueprintOverflow = contract.rewardedBlueprints.length - 3;
   const primaryLocation = getPrimaryMissionLocation(contract);
@@ -348,7 +614,7 @@ function ContractCard({
             {standingLabel && (
               <StatBar
                 label={lang === 'fr' ? 'Reputation' : 'Standing'}
-                value={standingLabel.length > 20 ? `Rep ${maxStanding}` : standingLabel}
+                value={standingLabel}
                 fill={Math.min(100, (maxStanding / 5) * 100)}
               />
             )}
@@ -434,9 +700,9 @@ function MissionHero({
       variant="outlined"
       sx={{
         position: 'relative',
-        minHeight: 320,
+        minHeight: { xs: 240, md: 320 },
         overflow: 'hidden',
-        p: 3,
+        p: { xs: 2, md: 3 },
         background: isUnlawful
           ? `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.2)} 0%, ${alpha(theme.palette.background.paper, 0.96)} 48%, ${alpha(theme.palette.background.default, 0.98)} 100%)`
           : `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.18)} 0%, ${alpha(theme.palette.primary.main, 0.12)} 42%, ${alpha(theme.palette.background.paper, 0.96)} 100%)`,
@@ -466,8 +732,8 @@ function MissionHero({
             position: 'absolute',
             right: { xs: -20, md: -8 },
             bottom: { xs: -20, md: -12 },
-            width: { xs: 180, md: 220 },
-            height: { xs: 180, md: 220 },
+            width: { xs: 140, md: 220 },
+            height: { xs: 140, md: 220 },
             objectFit: 'contain',
             opacity: 0.18,
             filter: 'drop-shadow(0 16px 32px rgba(0,0,0,0.35))',
@@ -511,11 +777,21 @@ function MissionHero({
         </Stack>
 
         <Stack spacing={1.25}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-            {locations.map((location) => (
-              <Chip key={location} label={location} size="small" variant="outlined" />
-            ))}
-          </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+              {locations.map((location) => (
+                <Chip
+                  key={location}
+                  label={location}
+                  size="small"
+                  variant="outlined"
+                  icon={
+                    getLocationIconName(location) ? (
+                      <StarCitizenLicensedIcon name={getLocationIconName(location)!} size={14} dimmed />
+                    ) : undefined
+                  }
+                />
+              ))}
+            </Box>
           <Box>
             <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               {t('Employer', 'Employeur')}
@@ -557,7 +833,7 @@ function MissionDetail({
   const missionBlueprints = useMemo(() => dedupeMissionBlueprints(contract, blueprints), [contract, blueprints]);
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 3, alignItems: 'start' }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
       <Stack spacing={2}>
         <Button variant="outlined" color="inherit" startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ alignSelf: 'flex-start' }}>
           {t('Back to missions', 'Retour aux missions')}
@@ -609,7 +885,17 @@ function MissionDetail({
               value={
                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                   {localities.length > 0 ? localities.map((location) => (
-                    <Chip key={location} label={location} size="small" variant="outlined" />
+                    <Chip
+                      key={location}
+                      label={location}
+                      size="small"
+                      variant="outlined"
+                      icon={
+                        getLocationIconName(location) ? (
+                          <StarCitizenLicensedIcon name={getLocationIconName(location)!} size={14} dimmed />
+                        ) : undefined
+                      }
+                    />
                   )) : (
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {t('No locality data', 'Aucune localisation')}
@@ -627,7 +913,7 @@ function MissionDetail({
                     {contract.minimumRequiredStandings.map((standing: MissionRequiredStanding, index) => (
                       <Chip
                         key={`${standing.factionName ?? 'standing'}-${index}`}
-                        label={[standing.standingName, standing.minReputation != null ? `${standing.minReputation}` : null].filter(Boolean).join(' - ')}
+                        label={formatStandingLabel(standing, lang)}
                         size="small"
                         variant="outlined"
                       />
@@ -695,7 +981,18 @@ function MissionDetail({
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
               <Chip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
               <Chip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
-              {localities[0] && <Chip label={localities[0]} size="small" variant="outlined" />}
+              {localities[0] && (
+                <Chip
+                  label={localities[0]}
+                  size="small"
+                  variant="outlined"
+                  icon={
+                    getLocationIconName(localities[0]) ? (
+                      <StarCitizenLicensedIcon name={getLocationIconName(localities[0])!} size={14} dimmed />
+                    ) : undefined
+                  }
+                />
+              )}
             </Stack>
           </Stack>
         </Paper>
@@ -755,6 +1052,15 @@ export function MissionsPanel() {
   const [scaleFilter, setScaleFilter] = useState<string | null>(null);
   const [legalityFilter, setLegalityFilter] = useState('all');
   const [contractorFilter, setContractorFilter] = useState<string | null>(null);
+  const [employerFilter, setEmployerFilter] = useState<string | null>(null);
+  const [factionFilter, setFactionFilter] = useState<string | null>(null);
+  const [standingBucketFilter, setStandingBucketFilter] = useState<StandingBucket>('all');
+  const [rewardCategoryFilter, setRewardCategoryFilter] = useState<ItemCategory | 'all'>('all');
+  const [rewardManufacturerFilter, setRewardManufacturerFilter] = useState<string | null>(null);
+  const [rewardBlueprintFilter, setRewardBlueprintFilter] = useState<string | null>(null);
+  const [resourceObjectiveResourceFilter, setResourceObjectiveResourceFilter] = useState<string | null>(null);
+  const [resourceObjectiveMode, setResourceObjectiveMode] = useState<'all' | 'with' | 'without'>('all');
+  const [sortBy, setSortBy] = useState<MissionSort>('name-asc');
   const [search, setSearch] = useState('');
   const [selectedMissionSlug, setSelectedMissionSlug] = useState<string | null>(() =>
     missionSlugFromPathname(window.location.pathname),
@@ -804,10 +1110,81 @@ export function MissionsPanel() {
     return [...set].sort();
   }, [allContracts]);
 
+  const allEmployers = useMemo(() => {
+    const set = new Set<string>();
+    for (const { contract, group } of allContracts) {
+      set.add(getMissionEmployerName(contract, group));
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
+  const allFactions = useMemo(() => {
+    const set = new Set<string>();
+    for (const { group, contract } of allContracts) {
+      const label = group.faction?.displayName ?? contract.faction?.displayName;
+      if (label) {
+        set.add(label);
+      }
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
+  const allRewardCategories = useMemo(() => {
+    const set = new Set<ItemCategory>();
+    for (const { contract } of allContracts) {
+      for (const blueprint of contract.rewardedBlueprints) {
+        if (blueprint.category) {
+          set.add(blueprint.category);
+        }
+      }
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
+  const allRewardManufacturers = useMemo(() => {
+    const set = new Set<string>();
+    for (const { contract } of allContracts) {
+      for (const blueprint of contract.rewardedBlueprints) {
+        if (blueprint.manufacturer) {
+          set.add(blueprint.manufacturer);
+        }
+      }
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
+  const allRewardBlueprints = useMemo(() => {
+    const set = new Set<string>();
+    for (const { contract } of allContracts) {
+      for (const blueprint of contract.rewardedBlueprints) {
+        if (blueprint.name) {
+          set.add(blueprint.name);
+        }
+      }
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
+  const allResourceObjectiveResources = useMemo(() => {
+    const set = new Set<string>();
+    for (const { contract } of allContracts) {
+      for (const objective of contract.resourceObjectives) {
+        if (objective.displayName) {
+          set.add(objective.displayName);
+        }
+      }
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
   const searchLower = search.toLowerCase().trim();
 
   const filteredContracts = useMemo<FlatContract[]>(() => {
-    return allContracts.filter(({ contract, group }) => {
+    const filtered = allContracts.filter(({ contract, group }) => {
+      const employerName = getMissionEmployerName(contract, group);
+      const factionName = group.faction?.displayName ?? contract.faction?.displayName ?? null;
+      const maxStanding = getMissionMaxStanding(contract);
+
       if (legalityFilter !== 'all') {
         const factionType = group.faction?.factionType?.toLowerCase() ?? '';
         if (factionType !== legalityFilter) {
@@ -817,10 +1194,51 @@ export function MissionsPanel() {
       if (contractorFilter && group.contractorDisplayName !== contractorFilter) {
         return false;
       }
+      if (employerFilter && employerName !== employerFilter) {
+        return false;
+      }
+      if (factionFilter && factionName !== factionFilter) {
+        return false;
+      }
       if (locationFilter && !getMissionLocalities(contract).includes(locationFilter)) {
         return false;
       }
       if (scaleFilter && contract.availability.derivedScale !== scaleFilter) {
+        return false;
+      }
+      if (standingBucketFilter !== 'all' && getStandingBucket(maxStanding) !== standingBucketFilter) {
+        return false;
+      }
+      if (
+        rewardCategoryFilter !== 'all' &&
+        !contract.rewardedBlueprints.some((rewardedBlueprint) => rewardedBlueprint.category === rewardCategoryFilter)
+      ) {
+        return false;
+      }
+      if (
+        rewardManufacturerFilter &&
+        !contract.rewardedBlueprints.some((rewardedBlueprint) => rewardedBlueprint.manufacturer === rewardManufacturerFilter)
+      ) {
+        return false;
+      }
+      if (
+        rewardBlueprintFilter &&
+        !contract.rewardedBlueprints.some((rewardedBlueprint) => rewardedBlueprint.name === rewardBlueprintFilter)
+      ) {
+        return false;
+      }
+      if (resourceObjectiveResourceFilter) {
+        const hasResource = contract.resourceObjectives.some(
+          (objective) => objective.displayName === resourceObjectiveResourceFilter,
+        );
+        if (!hasResource) {
+          return false;
+        }
+      }
+      if (resourceObjectiveMode === 'with' && contract.resourceObjectives.length === 0) {
+        return false;
+      }
+      if (resourceObjectiveMode === 'without' && contract.resourceObjectives.length > 0) {
         return false;
       }
       if (!searchLower) {
@@ -830,13 +1248,62 @@ export function MissionsPanel() {
         contract.contractDebugName ?? '',
         contract.contractorDisplayName ?? '',
         group.contractorDisplayName,
-        contract.faction?.displayName ?? '',
+        employerName,
+        factionName ?? '',
         ...getMissionLocalities(contract),
         ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.name),
+        ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.manufacturer ?? ''),
+        ...contract.resourceObjectives.map((objective) => objective.displayName),
       ].join(' ').toLowerCase();
       return haystack.includes(searchLower);
     });
-  }, [allContracts, legalityFilter, contractorFilter, locationFilter, scaleFilter, searchLower]);
+
+    return filtered.sort((left, right) => {
+      switch (sortBy) {
+        case 'employer-asc':
+          return getMissionEmployerName(left.contract, left.group).localeCompare(getMissionEmployerName(right.contract, right.group), undefined, { numeric: true, sensitivity: 'base' })
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'standing-asc':
+          return getMissionMaxStanding(left.contract) - getMissionMaxStanding(right.contract)
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'standing-desc':
+          return getMissionMaxStanding(right.contract) - getMissionMaxStanding(left.contract)
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'scale-asc':
+          return getScaleRank(left.contract.availability.derivedScale) - getScaleRank(right.contract.availability.derivedScale)
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'location-asc':
+          return String(getPrimaryMissionLocation(left.contract) ?? '').localeCompare(String(getPrimaryMissionLocation(right.contract) ?? ''), undefined, { numeric: true, sensitivity: 'base' })
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'chance-desc':
+          return getMissionMaxChance(right.contract) - getMissionMaxChance(left.contract)
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'name-asc':
+        default:
+          return formatContractName(left.contract.contractDebugName).localeCompare(
+            formatContractName(right.contract.contractDebugName),
+            undefined,
+            { numeric: true, sensitivity: 'base' },
+          );
+      }
+    });
+  }, [
+    allContracts,
+    contractorFilter,
+    employerFilter,
+    factionFilter,
+    legalityFilter,
+    locationFilter,
+    resourceObjectiveMode,
+    resourceObjectiveResourceFilter,
+    rewardBlueprintFilter,
+    rewardCategoryFilter,
+    rewardManufacturerFilter,
+    scaleFilter,
+    searchLower,
+    sortBy,
+    standingBucketFilter,
+  ]);
 
   useEffect(() => {
     const syncSelectedMissionFromPath = () => {
@@ -901,20 +1368,44 @@ export function MissionsPanel() {
             locations={allLocations}
             scales={allScales}
             contractors={allContractors}
+            employers={allEmployers}
+            factions={allFactions}
+            rewardCategories={allRewardCategories}
+            rewardManufacturers={allRewardManufacturers}
+            rewardBlueprints={allRewardBlueprints}
+            resourceObjectiveResources={allResourceObjectiveResources}
             selectedLocation={locationFilter}
             selectedScale={scaleFilter}
             selectedLegality={legalityFilter}
             selectedContractor={contractorFilter}
+            selectedEmployer={employerFilter}
+            selectedFaction={factionFilter}
+            selectedStandingBucket={standingBucketFilter}
+            selectedRewardCategory={rewardCategoryFilter}
+            selectedRewardManufacturer={rewardManufacturerFilter}
+            selectedRewardBlueprint={rewardBlueprintFilter}
+            selectedResourceObjectiveResource={resourceObjectiveResourceFilter}
+            selectedResourceObjectiveMode={resourceObjectiveMode}
+            selectedSort={sortBy}
             search={search}
             onLocationChange={setLocationFilter}
             onScaleChange={setScaleFilter}
             onLegalityChange={setLegalityFilter}
             onContractorChange={setContractorFilter}
+            onEmployerChange={setEmployerFilter}
+            onFactionChange={setFactionFilter}
+            onStandingBucketChange={setStandingBucketFilter}
+            onRewardCategoryChange={setRewardCategoryFilter}
+            onRewardManufacturerChange={setRewardManufacturerFilter}
+            onRewardBlueprintChange={setRewardBlueprintFilter}
+            onResourceObjectiveResourceChange={setResourceObjectiveResourceFilter}
+            onResourceObjectiveModeChange={setResourceObjectiveMode}
+            onSortChange={setSortBy}
             onSearchChange={setSearch}
           />
         </Box>
       )}
-      <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
         {selectedMission ? (
           <MissionDetail
             selection={selectedMission}
@@ -951,10 +1442,7 @@ export function MissionsPanel() {
                 sx={{
                   display: 'grid',
                   gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
-                  gap: 1.5,
-                  '@media (min-width: 480px) and (max-width: 599px)': {
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                  },
+                  gap: { xs: 1.25, sm: 1.5, md: 2 },
                 }}
                 role="list"
                 aria-label={t('Contract list', 'Liste des contrats')}

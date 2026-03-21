@@ -13,7 +13,8 @@ import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
-import { formatContractName, formatScaleLabel } from '../../utils/crafting';
+import { StarCitizenLicensedIcon, getLocationIconName } from '../ui/StarCitizenLicensedIcon';
+import { formatContractName, formatScaleLabel, formatStandingLabel } from '../../utils/crafting';
 import type { AcquisitionGraphEntry } from '../../types';
 
 interface AcquisitionSectionProps {
@@ -73,7 +74,17 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
               {entry.localities.length > 0 && (
                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                   {entry.localities.map((loc) => (
-                    <Chip key={loc} label={loc} size="small" sx={{ fontSize: '0.65rem', height: 20 }} />
+                    <Chip
+                      key={loc}
+                      label={loc}
+                      size="small"
+                      icon={
+                        getLocationIconName(loc) ? (
+                          <StarCitizenLicensedIcon name={getLocationIconName(loc)!} size={13} dimmed />
+                        ) : undefined
+                      }
+                      sx={{ fontSize: '0.65rem', height: 20 }}
+                    />
                   ))}
                 </Box>
               )}
@@ -92,8 +103,7 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
                       variant="caption"
                       sx={{ color: 'text.secondary', display: 'block', fontSize: '0.75rem' }}
                     >
-                      {[standing.factionName, standing.scopeName, standing.standingName].filter(Boolean).join(' - ')}
-                      {standing.minReputation != null && ` (${standing.minReputation})`}
+                      {formatStandingLabel(standing, lang)}
                     </Typography>
                   ))}
                 </Box>
@@ -136,7 +146,17 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
                 {faction.localities.length > 0 && (
                   <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
                     {faction.localities.map((loc) => (
-                      <Chip key={loc} label={loc} size="small" sx={{ fontSize: '0.6rem', height: 18 }} />
+                      <Chip
+                        key={loc}
+                        label={loc}
+                        size="small"
+                        icon={
+                          getLocationIconName(loc) ? (
+                            <StarCitizenLicensedIcon name={getLocationIconName(loc)!} size={12} dimmed />
+                          ) : undefined
+                        }
+                        sx={{ fontSize: '0.6rem', height: 18 }}
+                      />
                     ))}
                   </Box>
                 )}
@@ -149,8 +169,7 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
                         variant="caption"
                         sx={{ color: 'text.secondary', display: 'block', fontSize: '0.7rem' }}
                       >
-                        {[standing.factionName, standing.scopeName, standing.standingName].filter(Boolean).join(' - ')}
-                        {standing.minReputation != null && ` (${standing.minReputation})`}
+                        {formatStandingLabel(standing, lang)}
                       </Typography>
                     ))}
                   </Box>

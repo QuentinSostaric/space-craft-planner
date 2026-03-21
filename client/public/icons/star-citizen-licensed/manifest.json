@@ -1,0 +1,74 @@
+[
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/asteroidnav.svg",
+    "fileName": "Asteroidnav.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Asteroidnav.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/1/19/Asteroidnav.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/chevron-left.svg",
+    "fileName": "Chevron-left.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Chevron-left.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/b/b7/Chevron-left.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/chevron-right.svg",
+    "fileName": "Chevron-right.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Chevron-right.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/7/70/Chevron-right.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/download.svg",
+    "fileName": "Download.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Download.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/4/40/Download.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/jumppointnav.svg",
+    "fileName": "Jumppointnav.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Jumppointnav.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/6/64/Jumppointnav.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/moonnav.svg",
+    "fileName": "Moonnav.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Moonnav.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/5/54/Moonnav.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-3.0/planetnav.svg",
+    "fileName": "Planetnav.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Planetnav.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/9/90/Planetnav.svg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "sourceSite": "starcitizen.tools"
+  },
+  {
+    "localPath": "/icons/star-citizen-licensed/cc-by-sa-3.0/icon-live.svg",
+    "fileName": "Icon live.svg",
+    "sourcePageUrl": "https://starcitizen.tools/File:Icon_live.svg",
+    "sourceAssetUrl": "https://media.starcitizen.tools/7/74/Icon_live.svg",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceSite": "starcitizen.tools"
+  }
+]

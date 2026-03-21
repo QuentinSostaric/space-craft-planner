@@ -13,7 +13,7 @@ export function Footer() {
       sx={{
         borderTop: 1,
         borderColor: 'divider',
-        px: 3,
+        px: { xs: 1.5, sm: 3 },
         py: 1.5,
         textAlign: 'center',
         flexShrink: 0,
@@ -35,7 +35,7 @@ export function Footer() {
           'sont des marques deposees de Cloud Imperium Rights LLC.',
         )}
       </Typography>
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: '.65rem' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: '.65rem', flexWrap: 'wrap' }}>
         <Link
           href="https://robertsspaceindustries.com"
           target="_blank"

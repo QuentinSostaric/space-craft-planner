@@ -150,6 +150,7 @@ interface CraftState {
   clearComparison: () => void;
   openComparison: () => void;
   closeComparison: () => void;
+  openPlanner: () => void;
 }
 
 const CraftContext = createContext<CraftState | null>(null);
@@ -615,6 +616,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const clearComparison = useCallback(() => setComparisonItems([]), []);
   const openComparison = useCallback(() => setComparisonOpen(true), []);
   const closeComparison = useCallback(() => setComparisonOpen(false), []);
+  const openPlanner = useCallback(() => {
+    navigateToPath('/planner', { mainView: 'planner' });
+  }, []);
 
   // Resolve initial URL slug once blueprints are available
   useEffect(() => {
@@ -730,6 +734,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         clearComparison,
         openComparison,
         closeComparison,
+        openPlanner,
       }}
     >
       {children}

@@ -17,7 +17,7 @@ import { MaterialChips } from './ui/MaterialChips';
 import { CARD_STATS, computeStatMaxima } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { STAT_UNITS } from '../types';
-import type { Blueprint, ItemCategory, NumericItemStatKey, Resource } from '../types';
+import type { AcquisitionGraphEntry, Blueprint, ItemCategory, NumericItemStatKey, Resource, StandingBucket } from '../types';
 import type { GameIconName } from './ui/GameIcon';
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
@@ -35,6 +35,66 @@ function resolveThumb(bp: Blueprint): { url: string | null; mode: 'item' | 'logo
   if (m?.primaryVisual?.imageUrl) return { url: m.primaryVisual.imageUrl, mode: 'item' };
   if (m?.manufacturerLogo?.imageUrl) return { url: m.manufacturerLogo.imageUrl, mode: 'logo' };
   return { url: null, mode: 'item' };
+}
+
+function getCraftTimeBucket(craftTimeSecs: number): string {
+  if (craftTimeSecs <= 60) return '<=60';
+  if (craftTimeSecs <= 120) return '61-120';
+  if (craftTimeSecs <= 180) return '121-180';
+  return '180+';
+}
+
+function getStandingBucket(value: number | null | undefined): StandingBucket {
+  if (value == null || value <= 0) return 'none';
+  if (value <= 999) return '1-999';
+  if (value <= 4999) return '1000-4999';
+  if (value <= 14999) return '5000-14999';
+  return '15000+';
+}
+
+function getRarityRank(rarity?: Blueprint['rarity']): number {
+  if (rarity === 'legendary') return 3;
+  if (rarity === 'rare') return 2;
+  if (rarity === 'common') return 1;
+  return 0;
+}
+
+function getBlueprintSearchHaystack(blueprint: Blueprint): string {
+  const factText = (blueprint.identity?.descriptionFacts ?? [])
+    .flatMap((fact) => [fact.label, fact.value])
+    .filter(Boolean)
+    .join(' ');
+
+  return [
+    blueprint.name,
+    blueprint.manufacturer,
+    blueprint.category,
+    blueprint.identity?.shortName,
+    blueprint.identity?.descriptionBody,
+    factText,
+    blueprint.baseStats.weaponType,
+    blueprint.baseStats.ammoType,
+    blueprint.baseStats.ammoFlavor,
+    blueprint.baseStats.armorType,
+    blueprint.baseStats.armorSlot,
+    ...blueprint.slots.map((slot) => slot.requiredResource),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function compareText(left: string | null | undefined, right: string | null | undefined): number {
+  return String(left ?? '').localeCompare(String(right ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function compareNumberDesc(left: number | null | undefined, right: number | null | undefined): number {
+  const leftValue = left ?? Number.NEGATIVE_INFINITY;
+  const rightValue = right ?? Number.NEGATIVE_INFINITY;
+  if (leftValue === rightValue) {
+    return 0;
+  }
+  return rightValue - leftValue;
 }
 
 export const BlueprintCard = memo(function BlueprintCard({
@@ -96,7 +156,7 @@ export const BlueprintCard = memo(function BlueprintCard({
         <Box
           sx={{
             position: 'relative',
-            height: 160,
+            height: { xs: 132, sm: 152, md: 160 },
             backgroundColor: theme.palette.mode === 'dark' ? alpha('#000', 0.2) : alpha(theme.palette.primary.main, 0.02),
             display: 'flex',
             alignItems: 'center',
@@ -198,6 +258,9 @@ export const BlueprintCard = memo(function BlueprintCard({
                 fontWeight: 600,
                 mt: 0.5,
                 display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
               {blueprint.manufacturer} // {blueprint.category.replace('fps-', '')}
@@ -267,6 +330,19 @@ export function BlueprintGrid() {
     manufacturerFilter,
     legalityFilter,
     locationFilter,
+    materialFilter,
+    rarityFilter,
+    slotCountFilter,
+    craftTimeFilter,
+    weaponTypeFilter,
+    ammoTypeFilter,
+    ammoFlavorFilter,
+    armorTypeFilter,
+    armorSlotFilter,
+    acquisitionEmployerFilter,
+    acquisitionScaleFilter,
+    acquisitionStandingFilter,
+    blueprintSort,
     favoriteIds,
     inventoryIds,
     blueprints: allBlueprints,
@@ -278,6 +354,13 @@ export function BlueprintGrid() {
 
   const resources = activeDataset.resources;
   const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
+  const acquisitionByBlueprintId = useMemo(() => {
+    const map = new Map<string, AcquisitionGraphEntry>();
+    for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
+      map.set(entry.blueprint.id, entry);
+    }
+    return map;
+  }, [missionRewards]);
 
   const obtainableIds = useMemo(() => {
     const ids = new Set<string>();
@@ -350,6 +433,10 @@ export function BlueprintGrid() {
       list = list.filter((bp) => bp.manufacturer === manufacturerFilter);
     }
 
+    if (materialFilter) {
+      list = list.filter((bp) => bp.slots.some((slot) => slot.requiredResource === materialFilter));
+    }
+
     // Legality
     if (legalityBlueprintIds) {
       list = list.filter((bp) => legalityBlueprintIds.has(bp.id));
@@ -360,16 +447,128 @@ export function BlueprintGrid() {
       list = list.filter((bp) => locationBlueprintIds.has(bp.id));
     }
 
-    // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (bp) => bp.name.toLowerCase().includes(q) || bp.manufacturer.toLowerCase().includes(q),
+    if (rarityFilter !== 'all') {
+      list = list.filter((bp) =>
+        rarityFilter === 'unknown' ? !bp.rarity : bp.rarity === rarityFilter,
       );
     }
 
-    return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [allBlueprints, librarySegment, categoryFilter, searchQuery, favoriteIds, inventoryIds, obtainableIds, manufacturerFilter, legalityBlueprintIds, locationBlueprintIds]);
+    if (slotCountFilter !== 'all') {
+      list = list.filter((bp) => String(bp.slots.length) === slotCountFilter);
+    }
+
+    if (craftTimeFilter !== 'all') {
+      list = list.filter((bp) => getCraftTimeBucket(bp.craftTimeSecs) === craftTimeFilter);
+    }
+
+    if (weaponTypeFilter) {
+      list = list.filter((bp) => bp.baseStats.weaponType === weaponTypeFilter);
+    }
+
+    if (ammoTypeFilter) {
+      list = list.filter((bp) => bp.baseStats.ammoType === ammoTypeFilter);
+    }
+
+    if (ammoFlavorFilter) {
+      list = list.filter((bp) => bp.baseStats.ammoFlavor === ammoFlavorFilter);
+    }
+
+    if (armorTypeFilter) {
+      list = list.filter((bp) => bp.baseStats.armorType === armorTypeFilter);
+    }
+
+    if (armorSlotFilter) {
+      list = list.filter((bp) => bp.baseStats.armorSlot === armorSlotFilter);
+    }
+
+    if (acquisitionEmployerFilter || acquisitionScaleFilter || acquisitionStandingFilter !== 'all') {
+      list = list.filter((bp) => {
+        const entry = acquisitionByBlueprintId.get(bp.id);
+        if (!entry) return false;
+        if (
+          acquisitionEmployerFilter &&
+          !entry.factions.some((faction) => faction.contractorDisplayName === acquisitionEmployerFilter)
+        ) {
+          return false;
+        }
+        if (acquisitionScaleFilter && !entry.derivedScales.includes(acquisitionScaleFilter)) {
+          return false;
+        }
+        if (acquisitionStandingFilter !== 'all' && getStandingBucket(entry.maxReputation) !== acquisitionStandingFilter) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((bp) => getBlueprintSearchHaystack(bp).includes(q));
+    }
+
+    return list.sort((left, right) => {
+      const leftAcquisition = acquisitionByBlueprintId.get(left.id);
+      const rightAcquisition = acquisitionByBlueprintId.get(right.id);
+
+      switch (blueprintSort) {
+        case 'manufacturer-asc':
+          return compareText(left.manufacturer, right.manufacturer) || compareText(left.name, right.name);
+        case 'craft-time-asc':
+          return left.craftTimeSecs - right.craftTimeSecs || compareText(left.name, right.name);
+        case 'craft-time-desc':
+          return right.craftTimeSecs - left.craftTimeSecs || compareText(left.name, right.name);
+        case 'slot-count-desc':
+          return right.slots.length - left.slots.length || compareText(left.name, right.name);
+        case 'rarity-desc':
+          return getRarityRank(right.rarity) - getRarityRank(left.rarity) || compareText(left.name, right.name);
+        case 'acquisition-desc':
+          return compareNumberDesc(leftAcquisition?.dropScore, rightAcquisition?.dropScore) || compareText(left.name, right.name);
+        case 'damage-desc':
+          return compareNumberDesc(left.baseStats.damage, right.baseStats.damage) || compareText(left.name, right.name);
+        case 'range-desc':
+          return compareNumberDesc(left.baseStats.effectiveRange, right.baseStats.effectiveRange) || compareText(left.name, right.name);
+        case 'rate-of-fire-desc':
+          return compareNumberDesc(left.baseStats.rateOfFire, right.baseStats.rateOfFire) || compareText(left.name, right.name);
+        case 'magazine-desc':
+          return compareNumberDesc(left.baseStats.magazineSize, right.baseStats.magazineSize) || compareText(left.name, right.name);
+        case 'kinetic-desc':
+          return compareNumberDesc(left.baseStats.damageResistanceKinetic, right.baseStats.damageResistanceKinetic) || compareText(left.name, right.name);
+        case 'energy-desc':
+          return compareNumberDesc(left.baseStats.damageResistanceEnergy, right.baseStats.damageResistanceEnergy) || compareText(left.name, right.name);
+        case 'temp-max-desc':
+          return compareNumberDesc(left.baseStats.temperatureMax, right.baseStats.temperatureMax) || compareText(left.name, right.name);
+        case 'name-asc':
+        default:
+          return compareText(left.name, right.name);
+      }
+    });
+  }, [
+    acquisitionByBlueprintId,
+    acquisitionEmployerFilter,
+    acquisitionScaleFilter,
+    acquisitionStandingFilter,
+    allBlueprints,
+    ammoFlavorFilter,
+    ammoTypeFilter,
+    armorSlotFilter,
+    armorTypeFilter,
+    blueprintSort,
+    categoryFilter,
+    craftTimeFilter,
+    favoriteIds,
+    inventoryIds,
+    legalityBlueprintIds,
+    librarySegment,
+    locationBlueprintIds,
+    manufacturerFilter,
+    materialFilter,
+    obtainableIds,
+    rarityFilter,
+    searchQuery,
+    slotCountFilter,
+    weaponTypeFilter,
+  ]);
 
   const emptyMessage = librarySegment === 'inventory'
     ? (inventoryIds.length === 0
@@ -387,8 +586,8 @@ export function BlueprintGrid() {
         <BlueprintExplorer />
       </Box>
 
-      <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}
           </Typography>
@@ -410,10 +609,7 @@ export function BlueprintGrid() {
                 lg: 'repeat(4, 1fr)',
                 xl: 'repeat(5, 1fr)',
               },
-              gap: 3,
-              '@media (min-width: 480px) and (max-width: 599px)': {
-                gridTemplateColumns: 'repeat(2, 1fr)',
-              },
+              gap: { xs: 1.5, sm: 2, lg: 3 },
             }}
             role="list"
             aria-label={t('Blueprint list', 'Liste des blueprints')}

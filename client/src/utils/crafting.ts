@@ -1,5 +1,6 @@
 import type {
   AcquisitionGraphEntry,
+  AcquisitionStanding,
   AggregatedResource,
   Blueprint,
   CraftGoal,
@@ -9,6 +10,7 @@ import type {
   MaterialSourceProvider,
   MaterialSources,
   MissionContract,
+  MissionRequiredStanding,
   MissionRewardsData,
   NumericItemStatKey,
 } from '../types';
@@ -48,6 +50,43 @@ export function formatContractName(debugName: string | null): string {
   return name.replace(/_/g, ' ').trim();
 }
 
+type StandingLike = MissionRequiredStanding | AcquisitionStanding;
+
+function getStandingNameOnly(standing: StandingLike): string | null {
+  return standing.standingName?.trim() || null;
+}
+
+export function formatStandingLabel(standing: StandingLike, _lang: Lang): string {
+  const segments = [standing.factionName, standing.scopeName, standing.standingName]
+    .map((segment) => segment?.trim())
+    .filter(Boolean);
+
+  return segments.join(' - ');
+}
+
+export function formatStandingSummary(standings: StandingLike[], lang: Lang): string {
+  if (standings.length === 0) {
+    return lang === 'fr'
+      ? 'Aucun seuil explicite dans les contrats extraits'
+      : 'No explicit standing gate in extracted contract data';
+  }
+
+  const uniqueNames = [...new Set(
+    standings
+      .map(getStandingNameOnly)
+      .filter((value): value is string => Boolean(value)),
+  )];
+
+  if (uniqueNames.length > 0) {
+    return uniqueNames.join(' | ');
+  }
+
+  return standings
+    .map((standing) => formatStandingLabel(standing, lang))
+    .filter(Boolean)
+    .join(' | ');
+}
+
 export function formatStanding(contract: MissionContract, lang: Lang): string {
   if (contract.minimumRequiredStandings.length === 0) {
     return lang === 'fr'
@@ -56,12 +95,8 @@ export function formatStanding(contract: MissionContract, lang: Lang): string {
   }
 
   return contract.minimumRequiredStandings
-    .map((standing) => {
-      const base = [standing.factionName, standing.scopeName, standing.standingName]
-        .filter(Boolean)
-        .join(' - ');
-      return standing.minReputation != null ? `${base} (${standing.minReputation})` : base;
-    })
+    .map((standing) => formatStandingLabel(standing, lang))
+    .filter(Boolean)
     .join(' | ');
 }
 
