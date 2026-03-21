@@ -1,17 +1,19 @@
 {
   "name": "item-fabricator",
-  "version": "0.4.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
     "client"
   ],
   "scripts": {
-    "dev":         "concurrently -n vite,cf -c blue,yellow \"npm run dev:vite\" \"npm run dev:cf\"",
-    "dev:vite":    "npm run dev --workspace client",
-    "dev:cf":      "wrangler pages dev --proxy 5173 --port 8788",
+    "predev":      "node scripts/checkDevPorts.mjs",
+    "dev":         "concurrently -k -n vite,api -c blue,yellow \"npm run dev:vite\" \"npm run dev:api\"",
+    "dev:vite":    "npm run dev --workspace client -- --port 5173 --strictPort",
+    "dev:api":     "node scripts/devApiServer.mjs",
+    "dev:cf":      "wrangler pages dev client/dist --port 8788",
     "build":       "npm run build --workspace client",
-    "deploy":      "node scripts/fetchGameData.mjs && npm run build && wrangler pages deploy client/dist",
+    "deploy":      "npm run build && wrangler pages deploy client/dist",
     "import:ptu":  "npm run import:ptu  --prefix exporter",
     "import:live": "npm run import:live --prefix exporter"
   },

@@ -1,8 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootPackageJson = JSON.parse(
+  readFileSync(resolve(__dirname, '../package.json'), 'utf8'),
+) as { version?: string };
+const appVersion = rootPackageJson.version ?? '0.0.0';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   build: {
     rollupOptions: {
       output: {
@@ -37,6 +49,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Pas de proxy — le client contacte directement MongoDB Atlas Data API (HTTPS)
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8788',
+        changeOrigin: true,
+      },
+    },
   },
 });

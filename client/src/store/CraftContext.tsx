@@ -175,8 +175,6 @@ function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
 function pickDatasetForChannel(
   channel: DatasetChannel,
   datasets: DatasetSummary[],
-  preferredDatasetIds: Partial<Record<DatasetChannel, string>>,
-  activeDatasetId: string | null,
 ): DatasetSummary | null {
   const channelDatasets = datasets
     .filter((dataset) => dataset.channel === channel)
@@ -184,21 +182,6 @@ function pickDatasetForChannel(
 
   if (channelDatasets.length === 0) {
     return null;
-  }
-
-  const preferred = preferredDatasetIds[channel];
-  if (preferred) {
-    const preferredDataset = channelDatasets.find((dataset) => dataset.datasetId === preferred);
-    if (preferredDataset) {
-      return preferredDataset;
-    }
-  }
-
-  if (activeDatasetId) {
-    const activeMatch = channelDatasets.find((dataset) => dataset.datasetId === activeDatasetId);
-    if (activeMatch) {
-      return activeMatch;
-    }
   }
 
   return channelDatasets[0];
@@ -209,7 +192,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     LS_KEYS.DATASET_CHANNEL,
     'ptu',
   );
-  const [preferredDatasetIds, setPreferredDatasetIds] = useLocalPersist<
+  const [, setPreferredDatasetIds] = useLocalPersist<
     Partial<Record<DatasetChannel, string>>
   >(LS_KEYS.DATASET_SELECTIONS, {});
   const [activeDataset, setActiveDataset] = useState<GameDataset>(EMPTY_DATASET);
@@ -334,7 +317,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     try {
       const index = await fetchPublishedDatasetIndex();
 
-      if (index.datasets.length === 0 || !index.defaultChannel) {
+      if (index.datasets.length === 0) {
         setDatasetError('No published dataset is available yet.');
         setDatasetLoading(false);
         return;
@@ -412,8 +395,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const targetDataset = pickDatasetForChannel(
         channel,
         datasets,
-        preferredDatasetIds,
-        activeDataset.datasetId || null,
       );
 
       if (!targetDataset) {
@@ -430,7 +411,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setDatasetLoading(false);
       }
     },
-    [activeDataset.channel, activeDataset.datasetId, availableDatasets, datasetError, loadDataset, preferredDatasetIds],
+    [activeDataset.channel, availableDatasets, datasetError, loadDataset],
   );
 
   const setActiveDatasetId = useCallback(

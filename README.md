@@ -62,7 +62,7 @@ Production data is runtime-driven:
 - Cloudflare Pages Functions
 - MongoDB Atlas
 
-The frontend must not read local dataset snapshots. The published MongoDB dataset is the source of truth.
+The frontend must not read or generate local dataset snapshots. The published MongoDB dataset is the source of truth.
 
 Production URL: [itemfab.space](https://itemfab.space) (Cloudflare Pages + custom domain)
 
@@ -110,7 +110,14 @@ Then run:
 npm run dev
 ```
 
-The app is served through `wrangler pages dev`, so local dev uses the same runtime API shape as production.
+This starts:
+
+- Vite on `http://localhost:5173`
+- a local Node API server on `http://127.0.0.1:8788`
+
+Use `http://localhost:5173` as the dev app URL. The client proxies `/api/*` to the local Mongo-backed API server, so dev still runs only on Mongo data.
+
+If `npm run dev` stops immediately, free ports `5173` and `8788` first. The command now fails fast instead of silently switching ports.
 
 ### Build
 
@@ -124,7 +131,7 @@ npm run build
 npm run deploy
 ```
 
-This builds the client and deploys `client/dist` to Cloudflare Pages. It does not generate or bundle local JSON dataset files.
+This builds the client and deploys `client/dist` to Cloudflare Pages. Runtime data is fetched from MongoDB through Cloudflare Pages Functions.
 
 ## Game Data Rules
 

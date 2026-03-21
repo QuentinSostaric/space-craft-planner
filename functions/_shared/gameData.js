@@ -70,6 +70,7 @@ export function normalizeCoreDataset(doc, channel) {
     resourceCount: doc.resourceCount ?? doc.resources?.length ?? 0,
     blueprints: doc.blueprints ?? [],
     resources: doc.resources ?? [],
+    resourceInsights: doc.resourceInsights ?? null,
     changelog: doc.changelog ?? null,
     dismantling: doc.dismantling ?? null,
     materialSources: doc.materialSources ?? null,

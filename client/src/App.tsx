@@ -582,8 +582,8 @@ function AppShell() {
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 {t(
-                  'This app no longer bundles local dataset snapshots. The runtime API must be available.',
-                  'Cette app n\'embarque plus de snapshots locaux. L\'API runtime doit etre disponible.',
+                  'This app reads published datasets directly from MongoDB through the runtime API. The API must be available.',
+                  'Cette app lit les datasets publies directement depuis MongoDB via l API runtime. L API doit etre disponible.',
                 )}
               </Typography>
             </Paper>

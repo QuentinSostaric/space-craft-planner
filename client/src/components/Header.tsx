@@ -26,7 +26,6 @@ export function Header() {
     activeDataset,
     availableDatasets,
     activeChannel,
-    datasetLoading,
     setActiveDatasetChannel,
     setActiveDatasetId,
     changelogOpen,
@@ -51,6 +50,32 @@ export function Header() {
       if (buildA !== buildB) return buildB - buildA;
       return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
     });
+  const effectiveChannelDatasets =
+    channelDatasets.length > 0
+      ? channelDatasets
+      : activeDataset.datasetId && activeDataset.channel === activeChannel
+        ? [
+            {
+              channel: activeDataset.channel,
+              datasetId: activeDataset.datasetId,
+              label: activeDataset.label,
+              version: activeDataset.version,
+              branch: activeDataset.branch,
+              buildNumber: activeDataset.buildNumber,
+              published: activeDataset.published,
+              blueprintCount: activeDataset.blueprintCount,
+              resourceCount: activeDataset.resourceCount,
+              hasDismantling: Boolean(activeDataset.dismantling),
+              hasMissionRewards: Boolean(activeDataset.missionRewards),
+              missionRewardContractCount:
+                activeDataset.missionRewards?.summary?.blueprintRewardContractCount ?? 0,
+              missionRewardFactionGroupCount: activeDataset.missionRewards?.summary?.factionGroupCount ?? 0,
+              importedAt: activeDataset.importedAt,
+              updatedAt: activeDataset.updatedAt,
+              hasChangelog: Boolean(activeDataset.changelog),
+            },
+          ]
+        : [];
   const hasChangelog = activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog);
 
   return (
@@ -148,7 +173,7 @@ export function Header() {
                   display: { xs: 'none', sm: 'block' },
                 }}
               >
-                Build {activeDataset.version}
+                Release v{__APP_VERSION__}
               </Typography>
             </Box>
           </ButtonBase>
@@ -213,6 +238,7 @@ export function Header() {
 
         <Box
           sx={{
+            display: 'flex',
             alignItems: 'center',
             gap: { xs: 0.75, md: 1 },
             width: isHeaderStacked ? '100%' : 'auto',
@@ -221,8 +247,8 @@ export function Header() {
             position: 'relative',
             zIndex: 1,
             flexShrink: 0,
-            display: 'grid',
-            gridTemplateColumns: isHeaderStacked ? '88px minmax(0, 1fr)' : 'none',
+            flexDirection: 'row',
+            alignSelf: 'center',
           }}
         >
           <ToggleButtonGroup
@@ -233,11 +259,10 @@ export function Header() {
             }}
             size="small"
             aria-label={t('Dataset channel', 'Canal du dataset')}
-            disabled={datasetLoading}
             sx={{
               height: 32,
               flexShrink: 0,
-              width: isHeaderStacked ? '100%' : 'auto',
+              width: 'auto',
               '& .MuiToggleButton-root': {
                 px: { xs: 0.5, md: 1.25 },
                 fontSize: { xs: '0.64rem', md: '0.7rem' },
@@ -258,16 +283,16 @@ export function Header() {
 
           <FormControl
             size="small"
-            disabled={datasetLoading || channelDatasets.length === 0}
+            disabled={effectiveChannelDatasets.length === 0}
             sx={{
               minWidth: 0,
-              width: isHeaderStacked ? '100%' : isNarrowHeader ? 'min(100%, 208px)' : 'clamp(200px, 26vw, 280px)',
-              flex: isHeaderStacked ? '1 1 100%' : '0 1 auto',
+              width: isHeaderStacked ? 'calc(100% - 96px)' : isNarrowHeader ? 'min(100%, 208px)' : 'clamp(200px, 26vw, 280px)',
+              flex: isHeaderStacked ? '1 1 auto' : '0 1 auto',
               '& .MuiInputBase-root': { height: 32, fontSize: { xs: '0.7rem', md: '0.75rem' } },
             }}
           >
             <Select
-              value={channelDatasets.some((dataset) => dataset.datasetId === activeDataset.datasetId) ? activeDataset.datasetId : ''}
+              value={effectiveChannelDatasets.some((dataset) => dataset.datasetId === activeDataset.datasetId) ? activeDataset.datasetId : ''}
               displayEmpty
               inputProps={{ 'aria-label': t('Dataset build', 'Build du dataset') }}
               MenuProps={{
@@ -289,7 +314,7 @@ export function Header() {
                 backgroundColor: (theme) => alpha(theme.palette.background.default, 0.2),
               }}
               renderValue={(selected) => {
-                const dataset = channelDatasets.find((entry) => entry.datasetId === selected);
+                const dataset = effectiveChannelDatasets.find((entry) => entry.datasetId === selected);
                 if (!dataset) {
                   return t('Select dataset', 'Selectionner un dataset');
                 }
@@ -299,7 +324,7 @@ export function Header() {
                   : dataset.label;
               }}
             >
-              {channelDatasets.map((dataset) => (
+              {effectiveChannelDatasets.map((dataset) => (
                 <MenuItem key={dataset.datasetId} value={dataset.datasetId}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.1 }}>
