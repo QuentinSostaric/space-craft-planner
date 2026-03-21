@@ -3,7 +3,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import theme from './theme';
+import { createAppTheme } from './theme';
+import { useTheme } from './hooks/useTheme';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { CraftProvider } from './store/CraftContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -31,7 +32,12 @@ function MainContent({ mainView }: { mainView: MainView }) {
   }, [mainView, activeBlueprint, ensureMissionRewardsLoaded]);
 
   if (activeBlueprint) {
-    return <ItemWorkspace />;
+    return (
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <ItemWorkspace />
+        <Footer />
+      </Box>
+    );
   }
 
   return (
@@ -158,17 +164,26 @@ function AppShell() {
   );
 }
 
+function AppContent() {
+  const [themeMode] = useTheme();
+  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline enableColorScheme />
+      <I18nProvider>
+        <CraftProvider>
+          <AppShell />
+        </CraftProvider>
+      </I18nProvider>
+    </ThemeProvider>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={theme}>
-        <CssBaseline enableColorScheme />
-        <I18nProvider>
-          <CraftProvider>
-            <AppShell />
-          </CraftProvider>
-        </I18nProvider>
-      </ThemeProvider>
+      <AppContent />
     </ErrorBoundary>
   );
 }

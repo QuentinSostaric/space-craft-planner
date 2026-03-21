@@ -15,14 +15,13 @@ import type { AcquisitionGraphEntry } from '../../types';
 interface AcquisitionSectionProps {
   entry: AcquisitionGraphEntry | null;
   loading: boolean;
-  sectionRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function AcquisitionSection({ entry, loading, sectionRef }: AcquisitionSectionProps) {
+export function AcquisitionSection({ entry, loading }: AcquisitionSectionProps) {
   const { lang, t } = useI18n();
 
   return (
-    <Box ref={sectionRef} component="section" aria-label={t('Acquisition', 'Acquisition')} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box component="section" aria-label={t('Acquisition', 'Acquisition')} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       <Typography variant="overline" sx={{ display: 'block' }}>
         {t('Acquisition', 'Acquisition')}
       </Typography>
