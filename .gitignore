@@ -16,6 +16,12 @@ exporter/.env
 # Cloudflare Pages dev vars
 .dev.vars
 
+# Wrangler local cache
+.wrangler/
+
+# Debug artifacts
+dump-dom.*
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
