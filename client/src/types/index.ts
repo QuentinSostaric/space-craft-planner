@@ -10,6 +10,7 @@ export const LS_KEYS = {
   DATASET_SELECTIONS: 'sc-craft-dataset-selections',
   INVENTORY: 'sc-craft-inventory',
   NAV_COLLAPSED: 'sc-craft-nav-collapsed',
+  RESOURCE_PROGRESS: 'sc-craft-resource-progress',
 } as const;
 
 export interface GppModifier {
@@ -226,6 +227,41 @@ export type CategoryFilter = ItemCategory | 'all' | 'favorites' | 'obtainable';
 export type LibrarySegment = 'all' | 'inventory' | 'favorites' | 'obtainable';
 
 export type LegalityFilter = 'all' | 'lawful' | 'unlawful';
+
+export type ResourceMethod = 'mission' | 'mining' | 'dismantle' | 'buy';
+
+export interface ResourceProgress {
+  collected: number;       // SCU collected so far (0 – totalScu)
+  method: ResourceMethod | null;
+}
+
+export type RarityFilter = 'all' | Rarity | 'unknown';
+export type SlotCountFilter = 'all' | '1' | '2' | '3';
+export type CraftTimeBucket = 'all' | '<=60' | '61-120' | '121-180' | '180+';
+export type StandingBucket = 'all' | 'none' | '1-999' | '1000-4999' | '5000-14999' | '15000+';
+export type BlueprintSort =
+  | 'name-asc'
+  | 'manufacturer-asc'
+  | 'craft-time-asc'
+  | 'craft-time-desc'
+  | 'slot-count-desc'
+  | 'rarity-desc'
+  | 'acquisition-desc'
+  | 'damage-desc'
+  | 'range-desc'
+  | 'rate-of-fire-desc'
+  | 'magazine-desc'
+  | 'kinetic-desc'
+  | 'energy-desc'
+  | 'temp-max-desc';
+export type MissionSort =
+  | 'name-asc'
+  | 'employer-asc'
+  | 'standing-asc'
+  | 'standing-desc'
+  | 'scale-asc'
+  | 'location-asc'
+  | 'chance-desc';
 
 export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
   'fps-weapon': { en: 'FPS Weapon', fr: 'Arme FPS' },
