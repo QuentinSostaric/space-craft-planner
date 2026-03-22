@@ -6,16 +6,16 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useI18n } from '../../i18n/I18nContext';
-import { ResourceIcon } from '../ui/ResourceIcon';
 import type { Blueprint } from '../../types';
 
 interface DismantleSectionProps {
   blueprint: Blueprint;
   dismantleTimeSecs: number;
   efficiency: number;
+  perItemYieldModelResolved: boolean;
 }
 
-export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency }: DismantleSectionProps) {
+export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency, perItemYieldModelResolved }: DismantleSectionProps) {
   const { t } = useI18n();
 
   return (
@@ -24,7 +24,11 @@ export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency }: D
         {t('Dismantling', 'Démontage')}
       </Typography>
 
-      {blueprint.slots.length === 0 ? (
+      {!perItemYieldModelResolved ? (
+        <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+          {t('Yield data per item unavailable', 'Données de rendement par objet indisponibles')}
+        </Typography>
+      ) : blueprint.slots.length === 0 ? (
         <Typography variant="body2" sx={{ color: 'text.disabled' }}>
           {t('No materials', 'Aucun matériau')}
         </Typography>
@@ -44,7 +48,6 @@ export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency }: D
                 <TableRow key={slot.id}>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <ResourceIcon name={slot.requiredResource} size={14} />
                       <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
                         {slot.requiredResource}
                       </Typography>

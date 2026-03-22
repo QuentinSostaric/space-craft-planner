@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { alpha, useTheme } from '@mui/material/styles';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -339,7 +339,7 @@ function MissionsFilterBar({
   onSortChange: (v: MissionSort) => void;
   onSearchChange: (v: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const theme = useTheme();
   const hasActiveFilters =
     locationFilter !== null ||
@@ -448,7 +448,7 @@ function MissionsFilterBar({
           <Autocomplete
             size="small"
             options={scales}
-            getOptionLabel={(scale) => formatScaleLabel(scale, 'en')}
+            getOptionLabel={(scale) => formatScaleLabel(scale, lang)}
             value={scaleFilter}
             onChange={(_event, value) => onScaleChange(value)}
             renderInput={(params) => <TextField {...params} placeholder={t('Scale', 'Echelle')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
@@ -763,7 +763,7 @@ function ContractCard({
               <StatBar
                 label={t('Standing', 'Reputation', 'Ruf')}
                 value={standingLabel}
-                fill={Math.min(100, (maxStanding / 5) * 100)}
+                fill={Math.min(maxStanding / 15000, 1) * 100}
               />
             )}
             {maxChance > 0 && (
@@ -926,19 +926,18 @@ function MissionHero({
 
         <Stack spacing={1.25}>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-              {locations.map((location) => (
-                <Chip
-                  key={location}
-                  label={location}
-                  size="small"
-                  variant="outlined"
-                  icon={
-                    getLocationIconName(location) ? (
-                      <StarCitizenLicensedIcon name={getLocationIconName(location)!} size={14} dimmed />
-                    ) : undefined
-                  }
-                />
-              ))}
+              {locations.map((location) => {
+                const iconName = getLocationIconName(location);
+                return (
+                  <Chip
+                    key={location}
+                    label={location}
+                    size="small"
+                    variant="outlined"
+                    icon={iconName ? <StarCitizenLicensedIcon name={iconName} size={14} dimmed /> : undefined}
+                  />
+                );
+              })}
             </Box>
           <Box>
               <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
@@ -1054,19 +1053,18 @@ function MissionDetail({
               label={t('Locations', 'Lieux')}
               value={
                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                  {localities.length > 0 ? localities.map((location) => (
-                    <Chip
-                      key={location}
-                      label={location}
-                      size="small"
-                      variant="outlined"
-                      icon={
-                        getLocationIconName(location) ? (
-                          <StarCitizenLicensedIcon name={getLocationIconName(location)!} size={14} dimmed />
-                        ) : undefined
-                      }
-                    />
-                  )) : (
+                  {localities.length > 0 ? localities.map((location) => {
+                    const iconName = getLocationIconName(location);
+                    return (
+                      <Chip
+                        key={location}
+                        label={location}
+                        size="small"
+                        variant="outlined"
+                        icon={iconName ? <StarCitizenLicensedIcon name={iconName} size={14} dimmed /> : undefined}
+                      />
+                    );
+                  }) : (
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {t('No locality data', 'Aucune localisation')}
                     </Typography>
@@ -1151,18 +1149,17 @@ function MissionDetail({
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
               <Chip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
               <Chip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
-              {localities[0] && (
-                <Chip
-                  label={localities[0]}
-                  size="small"
-                  variant="outlined"
-                  icon={
-                    getLocationIconName(localities[0]) ? (
-                      <StarCitizenLicensedIcon name={getLocationIconName(localities[0])!} size={14} dimmed />
-                    ) : undefined
-                  }
-                />
-              )}
+              {localities[0] && (() => {
+                const iconName = getLocationIconName(localities[0]);
+                return (
+                  <Chip
+                    label={localities[0]}
+                    size="small"
+                    variant="outlined"
+                    icon={iconName ? <StarCitizenLicensedIcon name={iconName} size={14} dimmed /> : undefined}
+                  />
+                );
+              })()}
             </Stack>
           </Stack>
         </Paper>
@@ -1190,12 +1187,12 @@ function MissionDetail({
               <BlueprintCard
                 key={blueprint.id}
                 blueprint={blueprint}
-                isActive={false}
+                activeBlueprintId={null}
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
                 statMaxima={statMaxima}
                 resources={resources}
-                onClick={() => onBlueprintOpen(blueprint.id)}
+                onSelect={(bp) => { if (bp) onBlueprintOpen(bp.id); }}
               />
             ))}
           </Box>
@@ -1356,8 +1353,12 @@ export function MissionsPanel() {
       const maxStanding = getMissionMaxStanding(contract);
 
       if (legalityFilter !== 'all') {
-        const factionType = group.faction?.factionType?.toLowerCase() ?? '';
-        if (factionType !== legalityFilter) {
+        const factionType = group.faction?.factionType?.toLowerCase() ?? null;
+        const isExplicitlyUnlawful = factionType === 'unlawful';
+        if (legalityFilter === 'unlawful' && !isExplicitlyUnlawful) {
+          return false;
+        }
+        if (legalityFilter === 'lawful' && isExplicitlyUnlawful) {
           return false;
         }
       }
@@ -1492,12 +1493,12 @@ export function MissionsPanel() {
     return allContracts.find(({ contract, group }) => getMissionSlug(contract, group) === selectedMissionSlug) ?? null;
   }, [allContracts, selectedMissionSlug]);
 
-  function handleBlueprintClick(blueprintId: string) {
+  const handleBlueprintClick = useCallback((blueprintId: string) => {
     const blueprint = blueprints.find((candidate) => candidate.id === blueprintId);
     if (blueprint) {
-      setActiveBlueprint(blueprint);
+      startTransition(() => setActiveBlueprint(blueprint));
     }
-  }
+  }, [blueprints, setActiveBlueprint]);
 
   if (missionRewardsLoading) {
     return (
@@ -1672,7 +1673,7 @@ export function MissionsPanel() {
                     onBlueprintClick={handleBlueprintClick}
                     onOpen={() => {
                       const missionSlug = getMissionSlug(contract, group);
-                      setSelectedMissionSlug(missionSlug);
+                      startTransition(() => setSelectedMissionSlug(missionSlug));
                       navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
                     }}
                   />

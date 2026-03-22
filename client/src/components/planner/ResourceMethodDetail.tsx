@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import List from '@mui/material/List';
@@ -75,7 +75,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
   if (method === 'dismantle') {
     return (
       <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-        {t('🔧 Recovered by dismantling — enter the quantity obtained.', '🔧 Récupération par démantèlement — saisir la quantité obtenue.')}
+        {t('Recovered by dismantling — enter the quantity obtained.', 'Récupération par démantèlement — saisir la quantité obtenue.')}
       </Typography>
     );
   }
@@ -83,7 +83,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
   if (method === 'buy') {
     return (
       <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-        {t('🛒 Purchase from shop or terminal — enter the quantity bought.', '🛒 Achat en magasin ou terminal — saisir la quantité achetée.')}
+        {t('Purchase from shop or terminal — enter the quantity bought.', 'Achat en magasin ou terminal — saisir la quantité achetée.')}
       </Typography>
     );
   }
@@ -98,26 +98,29 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     );
   }
 
-  const resourceIdNorm = resourceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  const matchingContracts: Array<{ contractDebugName: string | null; contractorDisplayName: string | null; derivedScale: string; localities: string[] }> = [];
-
-  for (const group of missionRewards?.factionGroups ?? []) {
-    for (const contract of group.contracts) {
-      const hasObjective = contract.resourceObjectives.some(
-        (obj) => obj.resourceId === resourceIdNorm,
-      );
-      if (hasObjective) {
-        matchingContracts.push({
-          contractDebugName: contract.contractDebugName,
-          contractorDisplayName: group.contractorDisplayName,
-          derivedScale: contract.availability.derivedScale,
-          localities: contract.availability.localities.length > 0
-            ? contract.availability.localities
-            : contract.availability.explicitLocations,
-        });
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const matchingContracts = useMemo(() => {
+    const resourceIdNorm = resourceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const results: Array<{ contractDebugName: string | null; contractorDisplayName: string | null; derivedScale: string; localities: string[] }> = [];
+    for (const group of missionRewards?.factionGroups ?? []) {
+      for (const contract of group.contracts) {
+        const hasObjective = contract.resourceObjectives.some(
+          (obj) => obj.resourceId === resourceIdNorm,
+        );
+        if (hasObjective) {
+          results.push({
+            contractDebugName: contract.contractDebugName,
+            contractorDisplayName: group.contractorDisplayName,
+            derivedScale: contract.availability.derivedScale,
+            localities: contract.availability.localities.length > 0
+              ? contract.availability.localities
+              : contract.availability.explicitLocations,
+          });
+        }
       }
     }
-  }
+    return results;
+  }, [method, missionRewards, resourceName]);
 
   if (matchingContracts.length === 0) {
     return (

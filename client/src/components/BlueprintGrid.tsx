@@ -1,5 +1,5 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { memo, useMemo, useState } from 'react';
+import { memo, startTransition, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -99,21 +99,24 @@ function compareNumberDesc(left: number | null | undefined, right: number | null
 
 export const BlueprintCard = memo(function BlueprintCard({
   blueprint,
-  isActive,
+  activeBlueprintId,
   isFavorite,
   isInInventory,
   statMaxima,
   resources,
-  onClick,
+  priority = false,
+  onSelect,
 }: {
   blueprint: Blueprint;
-  isActive: boolean;
+  activeBlueprintId: string | null;
   isFavorite: boolean;
   isInInventory: boolean;
   statMaxima: Map<ItemCategory, Map<NumericItemStatKey, number>>;
   resources: Resource[];
-  onClick: () => void;
+  priority?: boolean;
+  onSelect: (bp: Blueprint | null) => void;
 }) {
+  const isActive = activeBlueprintId === blueprint.id;
   const { t, lang } = useI18n();
   const theme = useTheme();
   const { url: thumbUrl, mode: thumbMode } = resolveThumb(blueprint);
@@ -144,7 +147,7 @@ export const BlueprintCard = memo(function BlueprintCard({
       }}
     >
       <CardActionArea
-        onClick={onClick}
+        onClick={() => onSelect(isActive ? null : blueprint)}
         aria-pressed={isActive}
         aria-label={t(
           `${blueprint.rarity ? blueprint.rarity + ' ' : ''}Blueprint ${blueprint.name} by ${blueprint.manufacturer}`,
@@ -207,6 +210,7 @@ export const BlueprintCard = memo(function BlueprintCard({
                 image={thumbUrl}
                 alt=""
                 loading="lazy"
+                fetchPriority={priority ? 'high' : 'auto'}
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 sx={{
@@ -314,11 +318,12 @@ export const BlueprintCard = memo(function BlueprintCard({
   );
 }, (prev, next) =>
   prev.blueprint === next.blueprint &&
-  prev.isActive === next.isActive &&
+  prev.activeBlueprintId === next.activeBlueprintId &&
   prev.isFavorite === next.isFavorite &&
   prev.isInInventory === next.isInInventory &&
   prev.statMaxima === next.statMaxima &&
-  prev.resources === next.resources
+  prev.resources === next.resources &&
+  prev.priority === next.priority
 );
 
 export function BlueprintGrid() {
@@ -355,6 +360,8 @@ export function BlueprintGrid() {
 
   const resources = activeDataset.resources;
   const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+  const inventoryIdSet = useMemo(() => new Set(inventoryIds), [inventoryIds]);
   const acquisitionByBlueprintId = useMemo(() => {
     const map = new Map<string, AcquisitionGraphEntry>();
     for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
@@ -417,9 +424,9 @@ export function BlueprintGrid() {
 
     // Library Segment
     if (librarySegment === 'inventory') {
-      list = list.filter((bp) => inventoryIds.includes(bp.id));
+      list = list.filter((bp) => inventoryIdSet.has(bp.id));
     } else if (librarySegment === 'favorites') {
-      list = list.filter((bp) => favoriteIds.includes(bp.id));
+      list = list.filter((bp) => favoriteIdSet.has(bp.id));
     } else if (librarySegment === 'obtainable') {
       list = list.filter((bp) => obtainableIds.has(bp.id));
     }
@@ -557,8 +564,8 @@ export function BlueprintGrid() {
     blueprintSort,
     categoryFilter,
     craftTimeFilter,
-    favoriteIds,
-    inventoryIds,
+    favoriteIdSet,
+    inventoryIdSet,
     legalityBlueprintIds,
     librarySegment,
     locationBlueprintIds,
@@ -634,16 +641,17 @@ export function BlueprintGrid() {
             role="list"
             aria-label={t('Blueprint list', 'Liste des blueprints')}
           >
-            {filteredBlueprints.map((blueprint) => (
+            {filteredBlueprints.map((blueprint, index) => (
               <BlueprintCard
                 key={blueprint.id}
                 blueprint={blueprint}
-                isActive={activeBlueprint?.id === blueprint.id}
-                isFavorite={favoriteIds.includes(blueprint.id)}
-                isInInventory={inventoryIds.includes(blueprint.id)}
+                activeBlueprintId={activeBlueprint?.id ?? null}
+                isFavorite={favoriteIdSet.has(blueprint.id)}
+                isInInventory={inventoryIdSet.has(blueprint.id)}
                 statMaxima={statMaxima}
                 resources={resources}
-                onClick={() => setActiveBlueprint(activeBlueprint?.id === blueprint.id ? null : blueprint)}
+                priority={index < 6}
+                onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
               />
             ))}
           </Box>

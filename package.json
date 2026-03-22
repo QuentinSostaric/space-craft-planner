@@ -13,7 +13,7 @@
     "dev:api":     "node scripts/devApiServer.mjs",
     "dev:cf":      "wrangler pages dev client/dist --port 8788",
     "build":       "npm run build --workspace client",
-    "deploy":      "npm run build && wrangler pages deploy client/dist",
+    "deploy":      "npm run build && node scripts/patchMongoTls.mjs && wrangler pages deploy client/dist",
     "import:ptu":  "npm run import:ptu  --prefix exporter",
     "import:live": "npm run import:live --prefix exporter"
   },

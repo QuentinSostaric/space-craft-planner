@@ -73,14 +73,14 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
 
               {entry.localities.length > 0 && (
                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {entry.localities.map((loc) => (
+                  {entry.localities.map((locality) => (
                     <Chip
-                      key={loc}
-                      label={loc}
+                      key={locality}
+                      label={locality}
                       size="small"
                       icon={
-                        getLocationIconName(loc) ? (
-                          <StarCitizenLicensedIcon name={getLocationIconName(loc)!} size={13} dimmed />
+                        getLocationIconName(locality) ? (
+                          <StarCitizenLicensedIcon name={getLocationIconName(locality)!} size={13} dimmed />
                         ) : undefined
                       }
                       sx={{ fontSize: '0.65rem', height: 20 }}
@@ -113,7 +113,7 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
 
           {entry.factions.map((faction, index) => (
             <Accordion
-              key={index}
+              key={faction.contractorDisplayName ?? String(index)}
               disableGutters
               sx={{
                 border: `1px solid ${theme.palette.ui.border}`,
@@ -145,14 +145,14 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
               <AccordionDetails sx={{ pt: 0 }}>
                 {faction.localities.length > 0 && (
                   <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-                    {faction.localities.map((loc) => (
+                    {faction.localities.map((locality) => (
                       <Chip
-                        key={loc}
-                        label={loc}
+                        key={locality}
+                        label={locality}
                         size="small"
                         icon={
-                          getLocationIconName(loc) ? (
-                            <StarCitizenLicensedIcon name={getLocationIconName(loc)!} size={12} dimmed />
+                          getLocationIconName(locality) ? (
+                            <StarCitizenLicensedIcon name={getLocationIconName(locality)!} size={12} dimmed />
                           ) : undefined
                         }
                         sx={{ fontSize: '0.6rem', height: 18 }}
@@ -178,7 +178,7 @@ export function AcquisitionSection({ entry, loading, onMissionClick }: Acquisiti
                 <List disablePadding dense>
                   {faction.contracts.map((contract, contractIndex) => (
                     <ListItem
-                      key={contractIndex}
+                      key={contract.contractDebugName ?? String(contractIndex)}
                       sx={{
                         flexDirection: 'column',
                         alignItems: 'stretch',

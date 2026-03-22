@@ -10,6 +10,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
+import { useCallback } from 'react';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
@@ -187,6 +188,11 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
 
+  const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
+  const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
+  const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
+  const goToPlanner = useCallback(() => onChangeView('planner'), [onChangeView]);
+
   if (isCompactLayout) {
     return (
       <Box
@@ -204,19 +210,19 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           active={mainView === 'blueprints'}
           label={t('Blueprints', 'Blueprints')}
           icon={<DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
-          onClick={() => onChangeView('blueprints')}
+          onClick={goToBlueprints}
         />
         <MobileNavItem
           active={mainView === 'missions'}
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: '1.1rem' }} />}
-          onClick={() => onChangeView('missions')}
+          onClick={goToMissions}
         />
         <MobileNavItem
           active={mainView === 'resources'}
           label={t('Resources', 'Ressources')}
           icon={<ScienceOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
-          onClick={() => onChangeView('resources')}
+          onClick={goToResources}
         />
         <MobileNavItem
           active={mainView === 'planner'}
@@ -231,7 +237,7 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
               <AssignmentIcon sx={{ fontSize: '1.1rem' }} />
             </Badge>
           }
-          onClick={() => onChangeView('planner')}
+          onClick={goToPlanner}
         />
       </Box>
     );
@@ -262,21 +268,21 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           collapsed={collapsed}
           label={t('Blueprints', 'Blueprints')}
           icon={<DescriptionOutlinedIcon sx={{ fontSize: '1.2rem' }} />}
-          onClick={() => onChangeView('blueprints')}
+          onClick={goToBlueprints}
         />
         <NavItem
           active={mainView === 'missions'}
           collapsed={collapsed}
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: '1.2rem' }} />}
-          onClick={() => onChangeView('missions')}
+          onClick={goToMissions}
         />
         <NavItem
           active={mainView === 'resources'}
           collapsed={collapsed}
           label={t('Resources', 'Ressources')}
           icon={<ScienceOutlinedIcon sx={{ fontSize: '1.2rem' }} />}
-          onClick={() => onChangeView('resources')}
+          onClick={goToResources}
         />
         <Box sx={{ mt: 'auto' }}>
           <NavItem
@@ -293,7 +299,7 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
                 <AssignmentIcon sx={{ fontSize: '1.2rem' }} />
               </Badge>
             }
-            onClick={() => onChangeView('planner')}
+            onClick={goToPlanner}
           />
         </Box>
       </Box>
@@ -305,7 +311,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         display: 'flex',
         justifyContent: collapsed ? 'center' : 'flex-end',
         flexShrink: 0,
-        transition: 'justify-content 0s linear',
       }}>
         <IconButton
           onClick={onToggleCollapsed}

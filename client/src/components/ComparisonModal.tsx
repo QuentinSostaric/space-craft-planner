@@ -26,7 +26,7 @@ import {
   STAT_UNITS,
   STAT_LOWER_IS_BETTER,
 } from '../types';
-import type { ComparisonItem, Lang, NumericItemStatKey } from '../types';
+import type { Blueprint, ComparisonItem, Lang, NumericItemStatKey } from '../types';
 import { aggregateBlueprintResources, summarizeAssignedQualities } from '../utils/crafting';
 import { Button } from './ui/Button';
 import { CategoryBadge } from './ui/Badge';
@@ -169,6 +169,7 @@ function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return [0, 0, 0];
   return [r, g, b];
 }
 
@@ -234,7 +235,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                         {displayVal}
                       </Typography>
                       {delta !== 0 && (
-                        <Typography variant="caption" sx={{ color: delta > 0 ? 'success.main' : 'error.main', fontSize: '.58rem' }}>
+                        <Typography variant="caption" sx={{ color: (isLower ? delta < 0 : delta > 0) ? 'success.main' : 'error.main', fontSize: '.58rem' }}>
                           {displayDelta > 0 ? '+' : ''}{displayDelta}
                         </Typography>
                       )}
@@ -252,20 +253,22 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                 {lang === 'fr' ? 'Score qualite' : lang === 'de' ? 'Qualitatswert' : 'Quality score'}
               </Typography>
             </TableCell>
-            {items.map((item) => {
+            {(() => {
               const maxScore = Math.max(...items.map(i => i.qualityScore));
-              const isBest = item.qualityScore === maxScore;
-              return (
-                <TableCell key={item.id} align="center">
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
-                  >
-                    {item.qualityScore}<Typography component="span" sx={{ color: 'text.disabled', fontSize: '.58rem' }}>/100</Typography>
-                  </Typography>
-                </TableCell>
-              );
-            })}
+              return items.map((item) => {
+                const isBest = item.qualityScore === maxScore;
+                return (
+                  <TableCell key={item.id} align="center">
+                    <Typography
+                      variant="body2"
+                      sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
+                    >
+                      {item.qualityScore}<Typography component="span" sx={{ color: 'text.disabled', fontSize: '.58rem' }}>/100</Typography>
+                    </Typography>
+                  </TableCell>
+                );
+              });
+            })()}
           </TableRow>
         </TableBody>
       </Table>
@@ -274,8 +277,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
 }
 
 // ─── Resource summary per item ────────────────────────────────────────────────
-function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: Lang }) {
-  const { blueprints } = useCraft();
+function ResourceSummary({ item, lang, blueprints }: { item: ComparisonItem; lang: Lang; blueprints: Blueprint[] }) {
   const bp = blueprints.find((blueprint) => blueprint.id === item.blueprintId);
   if (!bp) return null;
 
@@ -309,7 +311,7 @@ function ResourceSummary({ item, lang }: { item: ComparisonItem; lang: Lang }) {
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
 export function ComparisonModal() {
-  const { comparisonItems, comparisonOpen, closeComparison, removeFromComparison, clearComparison } = useCraft();
+  const { comparisonItems, comparisonOpen, closeComparison, removeFromComparison, clearComparison, blueprints } = useCraft();
   const { lang, t } = useI18n();
 
   const allStatKeys = useMemo<NumericItemStatKey[]>(
@@ -446,7 +448,7 @@ export function ComparisonModal() {
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
                     <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.78rem' }}>{item.blueprintName}</Typography>
                   </Box>
-                  <ResourceSummary item={item} lang={lang} />
+                  <ResourceSummary item={item} lang={lang} blueprints={blueprints} />
                 </Paper>
               ))}
             </Box>

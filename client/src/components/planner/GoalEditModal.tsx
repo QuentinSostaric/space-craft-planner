@@ -44,15 +44,11 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
     <Dialog
       open
       onClose={onClose}
-      aria-label={t(
-        `Edit goal ${goal.blueprintName}`,
-        `Modifier l objectif ${goal.blueprintName}`,
-        `Ziel ${goal.blueprintName} bearbeiten`,
-      )}
+      aria-labelledby="goal-edit-modal-title"
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 0.5 }}>
+      <DialogTitle id="goal-edit-modal-title" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 0.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CategoryBadge category={blueprint.category} iconOnly />
           <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>

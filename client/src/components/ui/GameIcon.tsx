@@ -46,35 +46,39 @@ export const ICON_HUE_OFFSET: Partial<Record<GameIconName, number>> = {
 const IconBase = styled('span', {
   shouldForwardProp: (prop) => !['size', 'shimmer', 'pulse', 'hue', 'url'].includes(prop as string),
 })<{ size: number; shimmer?: boolean; pulse?: boolean; hue: number; url: string }>(
-  ({ size, shimmer, pulse, hue, url, theme }) => ({
-    display: 'inline-block',
-    width: size,
-    height: size,
-    backgroundColor: theme.palette.text.primary,
-    maskImage: `url(${url})`,
-    WebkitMaskImage: `url(${url})`,
-    maskSize: 'contain',
-    WebkitMaskSize: 'contain',
-    maskRepeat: 'no-repeat',
-    WebkitMaskRepeat: 'no-repeat',
-    maskPosition: 'center',
-    WebkitMaskPosition: 'center',
-    filter: `hue-rotate(${hue}deg)`,
-    flexShrink: 0,
+  ({ size, shimmer, pulse, hue, url, theme }) => {
+    const animations = [
+      shimmer && `${shimmerAnim} 3s infinite linear`,
+      pulse && `${pulseAnim} 2s infinite ease-in-out`,
+    ].filter(Boolean).join(', ');
 
-    ...(shimmer && {
-      background: `linear-gradient(90deg, 
-        ${theme.palette.text.primary} 0%, 
-        ${theme.palette.primary.light} 50%, 
-        ${theme.palette.text.primary} 100%)`,
-      backgroundSize: '200% 100%',
-      animation: `${shimmerAnim} 3s infinite linear`,
-    }),
+    return {
+      display: 'inline-block',
+      width: size,
+      height: size,
+      backgroundColor: theme.palette.text.primary,
+      maskImage: `url(${url})`,
+      WebkitMaskImage: `url(${url})`,
+      maskSize: 'contain',
+      WebkitMaskSize: 'contain',
+      maskRepeat: 'no-repeat',
+      WebkitMaskRepeat: 'no-repeat',
+      maskPosition: 'center',
+      WebkitMaskPosition: 'center',
+      filter: hue !== 0 ? `hue-rotate(${hue}deg)` : undefined,
+      flexShrink: 0,
 
-    ...(pulse && {
-      animation: `${pulseAnim} 2s infinite ease-in-out`,
-    }),
-  })
+      ...(shimmer && {
+        background: `linear-gradient(90deg,
+          ${theme.palette.text.primary} 0%,
+          ${theme.palette.primary.light} 50%,
+          ${theme.palette.text.primary} 100%)`,
+        backgroundSize: '200% 100%',
+      }),
+
+      animation: animations || undefined,
+    };
+  }
 );
 
 export interface GameIconProps {

@@ -66,7 +66,7 @@ export function MaterialSourcesSection({ resources, materialSources, qty, setQty
                   {t('No source data available', 'Aucune donnée de source disponible')}
                 </Typography>
               ) : (
-                <Table size="small">
+                <Table size="small" aria-label={res.resourceName}>
                   <TableHead>
                     <TableRow>
                       <TableCell>{t('Provider', 'Fournisseur')}</TableCell>
@@ -78,27 +78,30 @@ export function MaterialSourcesSection({ resources, materialSources, qty, setQty
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {providers.map((p, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>
-                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                            {getMaterialProviderIconName(p.providerType, p.providerDisplayName, p.system) && (
-                              <StarCitizenLicensedIcon
-                                name={getMaterialProviderIconName(p.providerType, p.providerDisplayName, p.system)!}
-                                size={14}
-                                dimmed
-                              />
-                            )}
-                            <span>{p.providerDisplayName}</span>
-                          </Box>
-                        </TableCell>
-                        <TableCell>{p.providerType}</TableCell>
-                        <TableCell>{p.system ?? '—'}</TableCell>
-                        <TableCell>{p.groupProbabilityPct != null ? `${p.groupProbabilityPct}%` : '—'}</TableCell>
-                        <TableCell>{p.tier ?? '—'}</TableCell>
-                        <TableCell>{p.labelConfidence}</TableCell>
-                      </TableRow>
-                    ))}
+                    {providers.map((p, idx) => {
+                      const iconName = getMaterialProviderIconName(p.providerType, p.providerDisplayName, p.system);
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell>
+                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                              {iconName && (
+                                <StarCitizenLicensedIcon
+                                  name={iconName}
+                                  size={14}
+                                  dimmed
+                                />
+                              )}
+                              <span>{p.providerDisplayName}</span>
+                            </Box>
+                          </TableCell>
+                          <TableCell>{p.providerType}</TableCell>
+                          <TableCell>{p.system ?? '—'}</TableCell>
+                          <TableCell>{p.groupProbabilityPct != null ? `${p.groupProbabilityPct}%` : '—'}</TableCell>
+                          <TableCell>{p.tier ?? '—'}</TableCell>
+                          <TableCell>{p.labelConfidence}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -116,7 +119,7 @@ export function MaterialSourcesSection({ resources, materialSources, qty, setQty
             size="small"
             value={qty}
             onChange={(e) => setQty(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
-            slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 40, textAlign: 'center', padding: '4px 0', fontSize: '.85rem' } } }}
+            slotProps={{ htmlInput: { min: 1, max: 99, 'aria-label': t('Quantity', 'Quantité'), style: { width: 40, textAlign: 'center', padding: '4px 0', fontSize: '.85rem' } } }}
             sx={{ width: 48, '& .MuiOutlinedInput-root': { '& fieldset': { border: 'none' } } }}
           />
         </Box>

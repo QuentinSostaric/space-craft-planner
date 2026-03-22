@@ -14,6 +14,7 @@ import { alpha, useTheme as useMuiTheme } from '@mui/material/styles';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import { useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
@@ -38,51 +39,63 @@ export function Header() {
   const isHeaderStacked = useMediaQuery('(max-width:430px)');
   const isNarrowHeader = useMediaQuery('(max-width:720px)');
 
-  const availableChannels = new Set(availableDatasets.map((dataset) => dataset.channel));
-  const channelDatasets = availableDatasets
-    .filter((dataset) => dataset.channel === activeChannel)
-    .sort((a, b) => {
-      const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
-      const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
-      if (dateA !== dateB) return dateB - dateA;
-      const buildA = Number(a.buildNumber ?? 0);
-      const buildB = Number(b.buildNumber ?? 0);
-      if (buildA !== buildB) return buildB - buildA;
-      return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
-    });
-  const effectiveChannelDatasets =
-    channelDatasets.length > 0
-      ? channelDatasets
-      : activeDataset.datasetId && activeDataset.channel === activeChannel
-        ? [
-            {
-              channel: activeDataset.channel,
-              datasetId: activeDataset.datasetId,
-              label: activeDataset.label,
-              version: activeDataset.version,
-              branch: activeDataset.branch,
-              buildNumber: activeDataset.buildNumber,
-              published: activeDataset.published,
-              blueprintCount: activeDataset.blueprintCount,
-              resourceCount: activeDataset.resourceCount,
-              hasDismantling: Boolean(activeDataset.dismantling),
-              hasMissionRewards: Boolean(activeDataset.missionRewards),
-              missionRewardContractCount:
-                activeDataset.missionRewards?.summary?.blueprintRewardContractCount ?? 0,
-              missionRewardFactionGroupCount: activeDataset.missionRewards?.summary?.factionGroupCount ?? 0,
-              importedAt: activeDataset.importedAt,
-              updatedAt: activeDataset.updatedAt,
-              hasChangelog: Boolean(activeDataset.changelog),
-            },
-          ]
-        : [];
-  const hasChangelog = activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog);
+  const availableChannels = useMemo(
+    () => new Set(availableDatasets.map((dataset) => dataset.channel)),
+    [availableDatasets, activeChannel, activeDataset],
+  );
+  const channelDatasets = useMemo(
+    () =>
+      availableDatasets
+        .filter((dataset) => dataset.channel === activeChannel)
+        .sort((a, b) => {
+          const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+          const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
+          if (dateA !== dateB) return dateB - dateA;
+          const buildA = Number(a.buildNumber ?? 0);
+          const buildB = Number(b.buildNumber ?? 0);
+          if (buildA !== buildB) return buildB - buildA;
+          return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
+        }),
+    [availableDatasets, activeChannel, activeDataset],
+  );
+  const effectiveChannelDatasets = useMemo(
+    () =>
+      channelDatasets.length > 0
+        ? channelDatasets
+        : activeDataset.datasetId && activeDataset.channel === activeChannel
+          ? [
+              {
+                channel: activeDataset.channel,
+                datasetId: activeDataset.datasetId,
+                label: activeDataset.label,
+                version: activeDataset.version,
+                branch: activeDataset.branch,
+                buildNumber: activeDataset.buildNumber,
+                published: activeDataset.published,
+                blueprintCount: activeDataset.blueprintCount,
+                resourceCount: activeDataset.resourceCount,
+                hasDismantling: Boolean(activeDataset.dismantling),
+                hasMissionRewards: Boolean(activeDataset.missionRewards),
+                missionRewardContractCount:
+                  activeDataset.missionRewards?.summary?.blueprintRewardContractCount ?? 0,
+                missionRewardFactionGroupCount: activeDataset.missionRewards?.summary?.factionGroupCount ?? 0,
+                importedAt: activeDataset.importedAt,
+                updatedAt: activeDataset.updatedAt,
+                hasChangelog: Boolean(activeDataset.changelog),
+              },
+            ]
+          : [],
+    [availableDatasets, activeChannel, activeDataset, channelDatasets],
+  );
+  const hasChangelog = useMemo(
+    () => activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog),
+    [availableDatasets, activeChannel, activeDataset],
+  );
 
   return (
     <AppBar
-      position="static"
+      position="relative"
       sx={{
-        position: 'relative',
         zIndex: (theme) => theme.zIndex.drawer + 1,
         boxShadow: 'none',
         '&::after': {
@@ -193,6 +206,7 @@ export function Header() {
                 onClick={() => setChangelogOpen(!changelogOpen)}
                 aria-pressed={changelogOpen}
                 title={t('PTU Changelog', 'Changelog PTU')}
+                aria-label={t('PTU Changelog', 'Changelog PTU')}
                 size="small"
                 sx={{
                   ...(changelogOpen && {
@@ -208,6 +222,7 @@ export function Header() {
             <IconButton
               onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
               title={themeMode === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
+              aria-label={themeMode === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
               size="small"
             >
               {themeMode === 'dark' ? <LightModeIcon sx={{ fontSize: '1.25rem' }} /> : <DarkModeIcon sx={{ fontSize: '1.25rem' }} />}

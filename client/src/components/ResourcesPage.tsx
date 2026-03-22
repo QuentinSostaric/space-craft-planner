@@ -228,9 +228,7 @@ function buildFallbackResourceInsights(
       if (seenResourceIds.has(resourceId)) continue;
 
       seenResourceIds.add(resourceId);
-      current.blueprintIds = [...current.blueprintIds, blueprint.id].sort((left, right) =>
-        left.localeCompare(right),
-      );
+      current.blueprintIds.push(blueprint.id);
       current.blueprintUsageCount = current.blueprintIds.length;
       current.blueprintCategoryCounts = {
         ...current.blueprintCategoryCounts,
@@ -273,6 +271,10 @@ function buildFallbackResourceInsights(
         ...new Set([...current.missionLocations, ...locations]),
       ].sort((left, right) => left.localeCompare(right));
     }
+  }
+
+  for (const insight of insightMap.values()) {
+    insight.blueprintIds.sort((left, right) => left.localeCompare(right));
   }
 
   return resources
@@ -547,7 +549,7 @@ function ResourcesFilterBar({
             '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
           }}
         >
-          <Select value={sortBy} onChange={(event) => onSortByChange(event.target.value as ResourceSort)}>
+          <Select value={sortBy} onChange={(event) => onSortByChange(event.target.value as ResourceSort)} inputProps={{ 'aria-label': t('Sort by', 'Trier par') }}>
             {RESOURCE_SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {t(option.labelEn, option.labelFr)}
@@ -600,6 +602,7 @@ function ResourcesFilterBar({
           renderInput={(params) => (
             <TextField
               {...params}
+              label={t('System', 'Système')}
               placeholder={t('System', 'Systeme')}
               sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
             />
@@ -658,6 +661,7 @@ function ResourcesFilterBar({
           renderInput={(params) => (
             <TextField
               {...params}
+              label={t('Blueprint', 'Blueprint')}
               placeholder={t('Blueprint category', 'Categorie blueprint')}
               sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
             />
@@ -705,6 +709,10 @@ function ResourceIdentityPanel({
   const theme = useTheme();
   const [imgError, setImgError] = useState(false);
   const showImage = Boolean(resource.visual?.imageUrl && !imgError);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [resource.id]);
 
   return (
     <Stack spacing={2}>
@@ -1167,12 +1175,12 @@ function ResourceBlueprintUsageSection({
               <BlueprintCard
                 key={blueprint.id}
                 blueprint={blueprint}
-                isActive={false}
+                activeBlueprintId={null}
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
                 statMaxima={statMaxima}
                 resources={resources}
-                onClick={() => onOpenBlueprint(blueprint)}
+                onSelect={(bp) => { if (bp) onOpenBlueprint(bp); }}
               />
             ))}
           </Box>
@@ -1191,7 +1199,7 @@ export function ResourcesPage() {
     resourceProgress,
     setActiveBlueprint,
   } = useCraft();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const theme = useTheme();
   const resources = activeDataset.resources;
 
@@ -1385,7 +1393,7 @@ export function ResourcesPage() {
           formatContractName(right.contract.contractDebugName),
         ),
       );
-  }, [allContracts, lang, selectedResource]);
+  }, [allContracts, selectedResource]);
   const selectedBlueprints = useMemo(() => {
     if (!selectedInsight) return [];
 

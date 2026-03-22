@@ -52,7 +52,7 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
           </Typography>
         )}
         {aggregated.map((resource) => (
-          <ResourceRow key={resource.resourceName} resource={resource} />
+          <ResourceRow key={resource.resourceName} resource={resource} progress={resourceProgress[resource.resourceName]} />
         ))}
       </Box>
     </Box>

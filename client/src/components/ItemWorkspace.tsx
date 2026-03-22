@@ -33,6 +33,9 @@ export function ItemWorkspace() {
   const { qualityScore, projectedStats } = useCraftSimulator(activeBlueprint, slotAssignments);
   const [qty, setQty] = useState(1);
 
+  // Reset quantity when a different blueprint is selected
+  useEffect(() => { setQty(1); }, [activeBlueprint?.id]);
+
   // Trigger lazy load of mission rewards
   useEffect(() => {
     if (activeBlueprint) {
@@ -58,6 +61,7 @@ export function ItemWorkspace() {
 
   const dismantleTimeSecs = dismantlingData?.dismantling?.blueprint?.dismantleTimeSecs ?? 0;
   const dismantleEfficiency = dismantlingData?.dismantling?.blueprint?.efficiency ?? 0.5;
+  const perItemYieldModelResolved = dismantlingData?.dismantling?.perItemYieldModel?.resolved ?? false;
 
   return (
     <Box
@@ -142,6 +146,7 @@ export function ItemWorkspace() {
               blueprint={activeBlueprint}
               dismantleTimeSecs={dismantleTimeSecs}
               efficiency={dismantleEfficiency}
+              perItemYieldModelResolved={perItemYieldModelResolved}
             />
           </>
         )}

@@ -13,7 +13,7 @@ export function RarityBadge({ rarity }: { rarity: Rarity }) {
   };
 
   return (
-    <Badge
+    <PillBadge
       label={rarity.toUpperCase()}
       color={colors[rarity]}
     />
@@ -31,14 +31,14 @@ export function ScaleBadge({ scale, label }: { scale: string; label: string }) {
   };
 
   return (
-    <Badge
+    <PillBadge
       label={label}
       color={colors[scale] ?? theme.palette.text.disabled}
     />
   );
 }
 
-function Badge({ label, color }: { label: string; color: string }) {
+function PillBadge({ label, color }: { label: string; color: string }) {
   return (
     <Box
       sx={{

@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { MaterialSlot, Resource } from '../../types';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface MaterialChipsProps {
   slots: MaterialSlot[];
@@ -23,25 +25,29 @@ function formatMaterialQuantity(total: number): string {
 
 export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChipsProps) {
   const theme = useTheme();
-  const aggregated = new Map<string, { name: string; total: number; color: string }>();
-  
-  for (const slot of slots) {
-    const existing = aggregated.get(slot.requiredResource);
-    const res = resources.find((r) => r.name === slot.requiredResource);
-    if (existing) {
-      existing.total += slot.quantityScu;
-    } else {
-      aggregated.set(slot.requiredResource, {
-        name: res?.name ?? slot.requiredResource,
-        total: slot.quantityScu,
-        color: res?.color ?? theme.palette.text.disabled,
-      });
+  const { t } = useI18n();
+
+  const aggregated = useMemo(() => {
+    const map = new Map<string, { name: string; total: number; color: string }>();
+    for (const slot of slots) {
+      const existing = map.get(slot.requiredResource);
+      const res = resources.find((r) => r.name === slot.requiredResource);
+      if (existing) {
+        existing.total += slot.quantityScu;
+      } else {
+        map.set(slot.requiredResource, {
+          name: res?.name ?? slot.requiredResource,
+          total: slot.quantityScu,
+          color: res?.color ?? theme.palette.text.disabled,
+        });
+      }
     }
-  }
+    return map;
+  }, [slots, resources, theme.palette.text.disabled]);
 
   const items = [...aggregated.values()];
   const visible = items.slice(0, maxVisible);
-  const overflow = items.length - maxVisible;
+  const overflow = Math.max(0, items.length - maxVisible);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -55,7 +61,7 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
           fontWeight: 700,
         }}
       >
-        Required Materials
+        {t('Required Materials', 'Matériaux requis')}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         {visible.map((mat) => (

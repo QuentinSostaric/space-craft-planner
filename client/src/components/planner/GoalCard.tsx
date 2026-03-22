@@ -1,4 +1,4 @@
-import { type SyntheticEvent } from 'react';
+import { memo, useCallback, useMemo, type SyntheticEvent } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -20,15 +20,18 @@ interface GoalCardProps {
   onSelect: () => void;
 }
 
-export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSelect }: GoalCardProps) {
+function stopPropagation(event: SyntheticEvent) {
+  event.stopPropagation();
+}
+
+export const GoalCard = memo(function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSelect }: GoalCardProps) {
   const { blueprints } = useCraft();
   const { t } = useI18n();
   const theme = useTheme();
-  const blueprint = blueprints.find((candidate) => candidate.id === goal.blueprintId);
+  const blueprint = useMemo(() => blueprints.find((b) => b.id === goal.blueprintId), [blueprints, goal.blueprintId]);
 
-  const stopPropagation = (event: SyntheticEvent) => {
-    event.stopPropagation();
-  };
+  // useCallback kept here so the identity is stable across re-renders (no deps needed — fn is module-level)
+  const handleStopPropagation = useCallback(stopPropagation, []);
 
   return (
     <Card
@@ -64,7 +67,7 @@ export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSele
           <Box sx={{ display: 'flex', gap: 0.25 }}>
             <IconButton
               size="small"
-              onClick={(event) => { stopPropagation(event); onEdit(); }}
+              onClick={(event) => { handleStopPropagation(event); onEdit(); }}
               aria-label={`${t('Edit', 'Modifier')} ${goal.blueprintName}`}
               sx={{ fontSize: '.75rem' }}
             >
@@ -72,7 +75,7 @@ export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSele
             </IconButton>
             <IconButton
               size="small"
-              onClick={(event) => { stopPropagation(event); onRemove(); }}
+              onClick={(event) => { handleStopPropagation(event); onRemove(); }}
               aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}
               sx={{ fontSize: '.7rem', color: 'error.main' }}
             >
@@ -86,7 +89,7 @@ export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSele
           </Typography>
           <IconButton
             size="small"
-            onClick={(event) => { stopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
+            onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
             aria-label={t('Decrease', 'Reduire')}
             sx={{ width: 22, height: 22, fontSize: '.7rem' }}
           >
@@ -96,8 +99,8 @@ export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSele
             type="number"
             size="small"
             value={goal.quantity}
-            onClick={stopPropagation}
-            onFocus={stopPropagation}
+            onClick={handleStopPropagation}
+            onFocus={handleStopPropagation}
             onChange={(event) =>
               onQtyChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
             }
@@ -106,7 +109,7 @@ export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSele
           />
           <IconButton
             size="small"
-            onClick={(event) => { stopPropagation(event); onQtyChange(Math.min(99, goal.quantity + 1)); }}
+            onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.min(99, goal.quantity + 1)); }}
             aria-label={t('Increase', 'Augmenter')}
             sx={{ width: 22, height: 22, fontSize: '.7rem' }}
           >
@@ -116,4 +119,4 @@ export function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSele
       </CardContent>
     </Card>
   );
-}
+});

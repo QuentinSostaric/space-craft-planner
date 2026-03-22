@@ -52,7 +52,7 @@ export function SlotCard({
     return slot.modifiers
       .map((modifier) => {
         const label = loc(GPP_LABELS[modifier.gppId] ?? { en: modifier.gppId, fr: modifier.gppId }, lang);
-        const multiplier = gppModifier(modifier.modAtMin, modifier.modAtMax, qualityValue);
+        const multiplier = gppModifier(modifier.modAtMin, modifier.modAtMax, qualityValue, modifier.qualityStart, modifier.qualityEnd);
         const pct = (multiplier - 1) * 100;
         const lowerIsBetter = modifier.gppId.includes('Recoil');
         const isImproved = lowerIsBetter ? pct < 0 : pct > 0;
@@ -224,7 +224,10 @@ export function SlotCard({
             size="small"
             value={isAssigned ? Math.round(currentQuality) : ''}
             placeholder="—"
-            onChange={(e) => onQualityChange(clampQualityValue(Number(e.target.value)))}
+            onChange={(e) => {
+              if (e.target.value === '') { onQualityChange(undefined); return; }
+              onQualityChange(clampQualityValue(Number(e.target.value)));
+            }}
             slotProps={{
               htmlInput: {
                 min: 0,

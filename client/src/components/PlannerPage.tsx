@@ -21,6 +21,10 @@ export function PlannerPage() {
 
   const aggregated = useMemo(() => aggregateGoalResources(goals, blueprints), [goals, blueprints]);
 
+  // NOTE: This computation duplicates the same logic in ResourcesList.tsx (totalRequired,
+  // totalCollected, globalPct). Both derive from the same aggregated + resourceProgress data.
+  // Lifting the computation to PlannerPage and passing values down as props would eliminate the
+  // duplication, but that would require restructuring both components. Left as-is for now.
   const { totalRequired, totalCollected, globalPct } = useMemo(() => {
     const totalRequired = aggregated.reduce((sum, r) => sum + r.totalScu, 0);
     const totalCollected = aggregated.reduce((sum, r) => {
@@ -39,20 +43,25 @@ export function PlannerPage() {
       '',
       ...aggregated.map((r) => `${r.resourceName} — ${r.totalScu.toFixed(2)} SCU`),
     ];
-    navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+    navigator.clipboard.writeText(lines.join('\n')).catch((err) => console.warn('Clipboard write failed:', err));
   }, [goals, aggregated]);
 
   const handleDownloadJSON = useCallback(() => {
     const payload = {
       exportedAt: new Date().toISOString(),
-      goals: goals.map((g) => ({ blueprintId: g.blueprintId, blueprintName: g.blueprintName, quantity: g.quantity, buildIndex: g.qualityScore })),
+      goals: goals.map((g) => ({ blueprintId: g.blueprintId, blueprintName: g.blueprintName, quantity: g.quantity, qualityScore: g.qualityScore })),
       materials: aggregated.map((r) => ({ resourceName: r.resourceName, totalScu: r.totalScu, collected: resourceProgress[r.resourceName]?.collected ?? 0, method: resourceProgress[r.resourceName]?.method ?? null })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `item-fabricator-plan-${Date.now()}.json`; a.click();
-    URL.revokeObjectURL(url);
+    try {
+      a.href = url;
+      a.download = `item-fabricator-plan-${Date.now()}.json`;
+      a.click();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }, [goals, aggregated, resourceProgress]);
 
   return (
@@ -65,7 +74,7 @@ export function PlannerPage() {
             <Chip label={`${goals.length} ${t('goals', 'objectifs')}`} size="small" variant="outlined" />
           )}
           {totalRequired > 0 && (
-            <Chip label={`${totalRequired.toFixed(1)} SCU ${t('required', 'requis')}`} size="small" variant="outlined" />
+            <Chip label={`${totalRequired.toFixed(2)} SCU ${t('required', 'requis')}`} size="small" variant="outlined" />
           )}
           {totalRequired > 0 && (
             <Chip label={`${globalPct}% ${t('collected', 'collecté')}`} size="small" color="primary" variant="outlined" />

@@ -9,7 +9,6 @@ export function Footer() {
   return (
     <Box
       component="footer"
-      role="contentinfo"
       sx={{
         borderTop: 1,
         borderColor: 'divider',
@@ -44,7 +43,7 @@ export function Footer() {
         >
           robertsspaceindustries.com
         </Link>
-        <Typography component="span" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
+        <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
         <Typography component="span" sx={{ color: 'text.secondary', fontSize: 'inherit' }}>
           {t('Made by', 'Fait par')}{' '}
           <Link href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">

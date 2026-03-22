@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
@@ -92,7 +93,19 @@ export function StatImpactRadar({
   const theme = useTheme();
   const { lang, t } = useI18n();
 
-  const metricKeys = getMetricKeys(blueprint, projectedStats).slice(0, 6);
+  const { metricKeys, baseSeries, buildSeries, metrics } = useMemo(() => {
+    const keys = getMetricKeys(blueprint, projectedStats).slice(0, 6);
+    const base = keys.map(() => 100);
+    const build = keys.map((key) =>
+      getIndexedScore(key, blueprint.baseStats[key], projectedStats[key]),
+    );
+    const metricsArr = keys.map((key) => ({
+      name: loc(STAT_LABELS[key], lang) ?? key,
+      min: 80,
+      max: 120,
+    }));
+    return { metricKeys: keys, baseSeries: base, buildSeries: build, metrics: metricsArr };
+  }, [blueprint, projectedStats, lang]);
 
   if (metricKeys.length < 3) {
     return (
@@ -112,17 +125,6 @@ export function StatImpactRadar({
       </Box>
     );
   }
-
-  const baseSeries = metricKeys.map(() => 100);
-  const buildSeries = metricKeys.map((key) =>
-    getIndexedScore(key, blueprint.baseStats[key], projectedStats[key]),
-  );
-
-  const metrics = metricKeys.map((key) => ({
-    name: loc(STAT_LABELS[key], lang) ?? key,
-    min: 80,
-    max: 120,
-  }));
 
   return (
     <Box component="section">

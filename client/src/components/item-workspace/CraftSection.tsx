@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
@@ -121,11 +122,11 @@ export function CraftSection({
       ? Math.round((projectedStats.damage * projectedStats.rateOfFire) / 60)
       : 0;
 
-  function fillSlots(mode: 'max' | 'minimum') {
+  const fillSlots = useCallback((mode: 'max' | 'minimum') => {
     for (const slot of blueprint.slots) {
       assignQuality(slot.id, mode === 'max' ? 1000 : (slot.minQuality ?? 0));
     }
-  }
+  }, [blueprint.slots, assignQuality]);
 
   const rangeValue = projectedStats.idealCombatRange ?? projectedStats.effectiveRange ?? '-';
   const fireRateValue = projectedStats.rateOfFire ?? '-';

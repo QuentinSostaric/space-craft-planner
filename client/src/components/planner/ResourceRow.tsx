@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -17,25 +17,26 @@ import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { ResourceMethodDetail } from './ResourceMethodDetail';
 import { ResourceIcon } from '../ui/ResourceIcon';
-import type { AggregatedResource, ResourceMethod } from '../../types';
+import type { AggregatedResource, ResourceMethod, ResourceProgress } from '../../types';
+
+const DEFAULT_PROGRESS: ResourceProgress = { collected: 0, method: null };
 
 interface ResourceRowProps {
   resource: AggregatedResource;
+  progress?: ResourceProgress;
 }
 
-const METHOD_COLORS: Record<ResourceMethod, string> = {
+const PALETTE_KEY_MAP: Record<ResourceMethod, 'primary' | 'success' | 'warning' | 'secondary'> = {
   mission: 'primary',
   mining: 'success',
   dismantle: 'warning',
   buy: 'secondary',
 };
 
-export function ResourceRow({ resource }: ResourceRowProps) {
-  const { resourceProgress, setResourceCollected, setResourceMethod } = useCraft();
+export const ResourceRow = memo(function ResourceRow({ resource, progress = DEFAULT_PROGRESS }: ResourceRowProps) {
+  const { setResourceCollected, setResourceMethod } = useCraft();
   const { t } = useI18n();
   const theme = useTheme();
-
-  const progress = resourceProgress[resource.resourceName] ?? { collected: 0, method: null };
   const collected = Math.min(progress.collected, resource.totalScu);
   const method = progress.method;
   const isDone = collected >= resource.totalScu && resource.totalScu > 0;
@@ -77,11 +78,12 @@ export function ResourceRow({ resource }: ResourceRowProps) {
     setResourceCollected(resource.resourceName, isDone ? 0 : resource.totalScu);
   }, [resource.resourceName, resource.totalScu, isDone, setResourceCollected]);
 
+  const valueLabelFormat = useCallback((v: number) => `${v.toFixed(2)} SCU`, []);
+
   const borderColor = useMemo(() => {
     if (isDone) return theme.palette.success.main;
     if (!method) return theme.palette.divider;
-    const colorKey = METHOD_COLORS[method];
-    return (theme.palette as unknown as Record<string, { main: string }>)[colorKey]?.main ?? theme.palette.divider;
+    return theme.palette[PALETTE_KEY_MAP[method]].main;
   }, [isDone, method, theme]);
 
   return (
@@ -142,7 +144,7 @@ export function ResourceRow({ resource }: ResourceRowProps) {
             value={collected}
             onChange={handleSliderChange}
             valueLabelDisplay="auto"
-            valueLabelFormat={(v) => `${v.toFixed(2)} SCU`}
+            valueLabelFormat={valueLabelFormat}
             aria-label={t('Collected SCU', 'SCU collecté')}
             sx={{ flex: 1, color: isDone ? 'success.main' : undefined }}
           />
@@ -171,6 +173,7 @@ export function ResourceRow({ resource }: ResourceRowProps) {
             onChange={handleCheckbox}
             size="small"
             title={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
+            aria-label={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
             sx={{ p: 0.25, flexShrink: 0 }}
           />
         </Box>
@@ -203,4 +206,4 @@ export function ResourceRow({ resource }: ResourceRowProps) {
       )}
     </Paper>
   );
-}
+});
