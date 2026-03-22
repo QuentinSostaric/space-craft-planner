@@ -1,5 +1,5 @@
 import { getDb, getCollectionName } from '../../_shared/mongoClient.js';
-import { SUMMARY_PROJECTION, errorResponse, jsonResponse, toSummary } from '../../_shared/gameData.js';
+import { SUMMARY_PROJECTION, errorResponse, publicApiJsonResponse, toSummary } from '../../_shared/gameData.js';
 
 function compareSummaries(a, b) {
   const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
@@ -44,7 +44,7 @@ export async function onRequestGet(context) {
 
     const defaultChannel = datasets[0]?.channel ?? null;
 
-    return jsonResponse({ datasets, defaultChannel });
+    return publicApiJsonResponse({ datasets, defaultChannel });
   } catch (error) {
     return errorResponse(500, error instanceof Error ? error.message : 'Failed to load dataset index.');
   }

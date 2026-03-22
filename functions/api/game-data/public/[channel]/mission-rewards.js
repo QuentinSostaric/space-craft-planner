@@ -1,5 +1,5 @@
 import { getDb, getCollectionName } from '../../../../_shared/mongoClient.js';
-import { errorResponse, jsonResponse } from '../../../../_shared/gameData.js';
+import { errorResponse, publicApiJsonResponse } from '../../../../_shared/gameData.js';
 
 function isValidChannel(channel) {
   return channel === 'live' || channel === 'ptu';
@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
       return errorResponse(404, `No published dataset for channel "${channel}".`);
     }
 
-    return jsonResponse({ missionRewards: doc.missionRewards ?? null });
+    return publicApiJsonResponse({ missionRewards: doc.missionRewards ?? null });
   } catch (error) {
     return errorResponse(500, error instanceof Error ? error.message : 'Failed to load mission rewards.');
   }

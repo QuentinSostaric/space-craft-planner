@@ -1,5 +1,5 @@
 import { getDb, getCollectionName } from '../../../_shared/mongoClient.js';
-import { CORE_PROJECTION, errorResponse, jsonResponse, normalizeCoreDataset } from '../../../_shared/gameData.js';
+import { CORE_PROJECTION, errorResponse, normalizeCoreDataset, publicApiJsonResponse } from '../../../_shared/gameData.js';
 
 function isValidChannel(channel) {
   return channel === 'live' || channel === 'ptu';
@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
       return errorResponse(404, `No published dataset for channel "${channel}".`);
     }
 
-    return jsonResponse({ dataset: normalizeCoreDataset(doc, channel) });
+    return publicApiJsonResponse({ dataset: normalizeCoreDataset(doc, channel) });
   } catch (error) {
     return errorResponse(500, error instanceof Error ? error.message : 'Failed to load dataset.');
   }

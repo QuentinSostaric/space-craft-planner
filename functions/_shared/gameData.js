@@ -27,7 +27,23 @@ export function jsonResponse(payload, init = {}) {
 }
 
 export function errorResponse(status, message) {
-  return jsonResponse({ message }, { status });
+  return jsonResponse(
+    { message },
+    {
+      status,
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    },
+  );
+}
+
+export function publicApiJsonResponse(payload, init = {}) {
+  const headers = new Headers(init.headers ?? {});
+  if (!headers.has('Cache-Control')) {
+    headers.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=300');
+  }
+  return jsonResponse(payload, { ...init, headers });
 }
 
 export function toSummary(doc, channel) {

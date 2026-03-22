@@ -1,5 +1,5 @@
 import { getDb, getCollectionName } from '../../../../_shared/mongoClient.js';
-import { CORE_PROJECTION, errorResponse, jsonResponse, normalizeCoreDataset } from '../../../../_shared/gameData.js';
+import { CORE_PROJECTION, errorResponse, normalizeCoreDataset, publicApiJsonResponse } from '../../../../_shared/gameData.js';
 
 async function findPublishedDatasetById(db, env, datasetId) {
   for (const channel of ['live', 'ptu']) {
@@ -31,7 +31,7 @@ export async function onRequestGet(context) {
       return errorResponse(404, `No published dataset for id "${datasetId}".`);
     }
 
-    return jsonResponse({ dataset: normalizeCoreDataset(match.doc, match.channel) });
+    return publicApiJsonResponse({ dataset: normalizeCoreDataset(match.doc, match.channel) });
   } catch (error) {
     return errorResponse(500, error instanceof Error ? error.message : 'Failed to load dataset.');
   }

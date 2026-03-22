@@ -75,6 +75,8 @@ Runtime endpoints:
 
 `missionRewards` is loaded lazily (separate endpoint, heaviest block).
 
+Public API hardening is documented in [docs/cloudflare-public-api-hardening.md](./docs/cloudflare-public-api-hardening.md).
+
 ## Quick Start
 
 ### Prerequisites
