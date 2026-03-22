@@ -29,6 +29,30 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     }
   }, [method, ensureMissionRewardsLoaded]);
 
+  const matchingContracts = useMemo(() => {
+    if (method !== 'mission') return [];
+    const resourceIdNorm = resourceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const results: Array<{ contractDebugName: string | null; contractorDisplayName: string | null; derivedScale: string; localities: string[] }> = [];
+    for (const group of missionRewards?.factionGroups ?? []) {
+      for (const contract of group.contracts) {
+        const hasObjective = contract.resourceObjectives.some(
+          (obj) => obj.resourceId === resourceIdNorm,
+        );
+        if (hasObjective) {
+          results.push({
+            contractDebugName: contract.contractDebugName,
+            contractorDisplayName: group.contractorDisplayName,
+            derivedScale: contract.availability.derivedScale,
+            localities: contract.availability.localities.length > 0
+              ? contract.availability.localities
+              : contract.availability.explicitLocations,
+          });
+        }
+      }
+    }
+    return results;
+  }, [method, missionRewards, resourceName]);
+
   if (method === 'mining') {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -98,30 +122,6 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     );
   }
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const matchingContracts = useMemo(() => {
-    const resourceIdNorm = resourceName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    const results: Array<{ contractDebugName: string | null; contractorDisplayName: string | null; derivedScale: string; localities: string[] }> = [];
-    for (const group of missionRewards?.factionGroups ?? []) {
-      for (const contract of group.contracts) {
-        const hasObjective = contract.resourceObjectives.some(
-          (obj) => obj.resourceId === resourceIdNorm,
-        );
-        if (hasObjective) {
-          results.push({
-            contractDebugName: contract.contractDebugName,
-            contractorDisplayName: group.contractorDisplayName,
-            derivedScale: contract.availability.derivedScale,
-            localities: contract.availability.localities.length > 0
-              ? contract.availability.localities
-              : contract.availability.explicitLocations,
-          });
-        }
-      }
-    }
-    return results;
-  }, [method, missionRewards, resourceName]);
-
   if (matchingContracts.length === 0) {
     return (
       <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
@@ -133,7 +133,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
   return (
     <List dense disablePadding>
       {matchingContracts.map((contract, i) => (
-        <ListItem key={i} disableGutters sx={{ py: 0.25, gap: 1 }}>
+        <ListItem key={contract.contractDebugName ?? `${contract.contractorDisplayName}-${i}`} disableGutters sx={{ py: 0.25, gap: 1 }}>
           <ListItemText
             primary={contract.contractDebugName ?? t('Unknown contract', 'Contrat inconnu')}
             secondary={

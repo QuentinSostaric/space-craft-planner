@@ -1,20 +1,20 @@
 {
   "name": "item-fabricator",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
     "client"
   ],
   "scripts": {
-    "predev":      "node scripts/checkDevPorts.mjs",
-    "dev":         "concurrently -k -n vite,api -c blue,yellow \"npm run dev:vite\" \"npm run dev:api\"",
-    "dev:vite":    "npm run dev --workspace client -- --port 5173 --strictPort",
-    "dev:api":     "node scripts/devApiServer.mjs",
-    "dev:cf":      "wrangler pages dev client/dist --port 8788",
-    "build":       "npm run build --workspace client",
-    "deploy":      "npm run build && node scripts/patchMongoTls.mjs && wrangler pages deploy client/dist",
-    "import:ptu":  "npm run import:ptu  --prefix exporter",
+    "predev": "node scripts/checkDevPorts.mjs",
+    "dev": "concurrently -k -n vite,api -c blue,yellow \"npm run dev:vite\" \"npm run dev:api\"",
+    "dev:vite": "npm run dev --workspace client -- --port 5173 --strictPort",
+    "dev:api": "node scripts/devApiServer.mjs",
+    "dev:cf": "wrangler pages dev client/dist --port 8788",
+    "build": "npm run build --workspace client",
+    "deploy": "npm run build && node scripts/patchMongoTls.mjs && wrangler pages deploy client/dist",
+    "import:ptu": "npm run import:ptu  --prefix exporter",
     "import:live": "npm run import:live --prefix exporter"
   },
   "dependencies": {
@@ -27,7 +27,11 @@
   "engines": {
     "node": ">=22"
   },
-  "keywords": ["react", "vite", "mongodb"],
+  "keywords": [
+    "react",
+    "vite",
+    "mongodb"
+  ],
   "author": "TheSamon",
   "license": "MIT"
 }

@@ -1,5 +1,5 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { useMemo } from 'react';
+import { type ElementType, useCallback, useMemo } from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -56,7 +56,7 @@ const CATEGORY_FILTERS: Array<{ value: CategoryFilter } & LocalizedOption> = [
   { value: 'fps-magazine', labelEn: 'Magazines', labelFr: 'Chargeurs', labelDe: 'Magazine' },
 ];
 
-const SEGMENTS: Array<{ value: LibrarySegment; icon: any } & LocalizedOption> = [
+const SEGMENTS: Array<{ value: LibrarySegment; icon: ElementType | null } & LocalizedOption> = [
   { value: 'all', labelEn: 'All', labelFr: 'Tous', labelDe: 'Alle', icon: null },
   { value: 'inventory', labelEn: 'Inventory', labelFr: 'Inventaire', labelDe: 'Inventar', icon: null },
   { value: 'favorites', labelEn: 'Favs', labelFr: 'Favoris', labelDe: 'Favoriten', icon: StarIcon },
@@ -70,7 +70,7 @@ const SORT_OPTIONS: Array<{ value: BlueprintSort } & LocalizedOption> = [
   { value: 'craft-time-desc', labelEn: 'Craft time: long', labelFr: 'Craft: long', labelDe: 'Fertigungszeit: lang' },
   { value: 'slot-count-desc', labelEn: 'Slot count', labelFr: 'Nombre de slots', labelDe: 'Slot-Anzahl' },
   { value: 'rarity-desc', labelEn: 'Rarity', labelFr: 'Rareté', labelDe: 'Seltenheit' },
-  { value: 'acquisition-desc', labelEn: 'Acquisition ease', labelFr: 'Facilité d’obtention', labelDe: 'Erwerbsleichtigkeit' },
+  { value: 'acquisition-desc', labelEn: 'Acquisition ease', labelFr: "Facilité d'obtention", labelDe: 'Erwerbsleichtigkeit' },
   { value: 'damage-desc', labelEn: 'Damage', labelFr: 'Dégâts', labelDe: 'Schaden' },
   { value: 'range-desc', labelEn: 'Range', labelFr: 'Portée', labelDe: 'Reichweite' },
   { value: 'rate-of-fire-desc', labelEn: 'Rate of fire', labelFr: 'Cadence', labelDe: 'Feuerrate' },
@@ -169,7 +169,7 @@ export function BlueprintExplorer() {
   } = useCraft();
   const { lang, t } = useI18n();
   const theme = useTheme();
-  const isCompactMobile = useMediaQuery('(max-width:430px)');
+  const isCompactMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>();
@@ -274,7 +274,7 @@ export function BlueprintExplorer() {
       missionLinkedCount: missionRewards?.blueprintAcquisitionGraph.length ?? 0,
       materialCount: materials.length,
     }),
-    [blueprints.length, manufacturers.length, materials.length, missionRewards],
+    [blueprints.length, manufacturers.length, materials.length, missionRewards?.blueprintAcquisitionGraph.length ?? 0],
   );
 
   const hasActiveFilters =
@@ -308,7 +308,7 @@ export function BlueprintExplorer() {
     acquisitionStandingFilter !== 'all',
   ]);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setManufacturerFilter(null);
     setLegalityFilter('all');
     setLocationFilter(null);
@@ -324,7 +324,7 @@ export function BlueprintExplorer() {
     setAcquisitionEmployerFilter(null);
     setAcquisitionScaleFilter(null);
     setAcquisitionStandingFilter('all');
-  };
+  }, []);
 
   return (
     <Box
@@ -839,7 +839,7 @@ export function BlueprintExplorer() {
               options={weaponTypes}
               value={weaponTypeFilter}
               onChange={(_e, val) => setWeaponTypeFilter(val)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Weapon type', 'Type d’arme')} />}
+              renderInput={(params) => <TextField {...params} label={t('Weapon type', "Type d'arme")} placeholder={t('Weapon type', "Type d'arme")} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <Autocomplete
@@ -847,7 +847,7 @@ export function BlueprintExplorer() {
               options={ammoTypes}
               value={ammoTypeFilter}
               onChange={(_e, val) => setAmmoTypeFilter(val)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Ammo type', 'Type de munition')} />}
+              renderInput={(params) => <TextField {...params} label={t('Ammo type', 'Type de munition')} placeholder={t('Ammo type', 'Type de munition')} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <Autocomplete
@@ -855,7 +855,7 @@ export function BlueprintExplorer() {
               options={ammoFlavors}
               value={ammoFlavorFilter}
               onChange={(_e, val) => setAmmoFlavorFilter(val)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Ammo flavor', 'Famille de munition')} />}
+              renderInput={(params) => <TextField {...params} label={t('Ammo flavor', 'Famille de munition')} placeholder={t('Ammo flavor', 'Famille de munition')} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <Autocomplete
@@ -863,7 +863,7 @@ export function BlueprintExplorer() {
               options={armorTypes}
               value={armorTypeFilter}
               onChange={(_e, val) => setArmorTypeFilter(val)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Armor type', 'Type d’armure')} />}
+              renderInput={(params) => <TextField {...params} label={t('Armor type', "Type d'armure")} placeholder={t('Armor type', "Type d'armure")} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <Autocomplete
@@ -871,7 +871,7 @@ export function BlueprintExplorer() {
               options={armorSlots}
               value={armorSlotFilter}
               onChange={(_e, val) => setArmorSlotFilter(val)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Armor slot', 'Emplacement d’armure')} />}
+              renderInput={(params) => <TextField {...params} label={t('Armor slot', "Emplacement d'armure")} placeholder={t('Armor slot', "Emplacement d'armure")} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <FormControl size="small">
@@ -906,7 +906,7 @@ export function BlueprintExplorer() {
               options={acquisitionEmployers}
               value={acquisitionEmployerFilter}
               onChange={(_e, val) => setAcquisitionEmployerFilter(val)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Mission employer', 'Employeur de mission')} />}
+              renderInput={(params) => <TextField {...params} label={t('Mission employer', 'Employeur de mission')} placeholder={t('Mission employer', 'Employeur de mission')} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <Autocomplete
@@ -915,7 +915,7 @@ export function BlueprintExplorer() {
               value={acquisitionScaleFilter}
               onChange={(_e, val) => setAcquisitionScaleFilter(val)}
               getOptionLabel={(value) => value}
-              renderInput={(params) => <TextField {...params} placeholder={t('Acquisition scale', 'Portée d’acquisition')} />}
+              renderInput={(params) => <TextField {...params} label={t('Acquisition scale', "Portée d'acquisition")} placeholder={t('Acquisition scale', "Portée d'acquisition")} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <FormControl size="small">
