@@ -16,8 +16,22 @@ import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
 import { CARD_STATS, computeStatMaxima } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
+import { ShipComponentCard } from './ShipComponentCard';
+import {
+  buildShipComponentCardModel,
+  isDisplayableShipComponent,
+} from '../utils/shipComponents';
+import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
 import { STAT_UNITS } from '../types';
-import type { AcquisitionGraphEntry, Blueprint, ItemCategory, NumericItemStatKey, Resource, StandingBucket } from '../types';
+import type {
+  AcquisitionGraphEntry,
+  Blueprint,
+  ItemCategory,
+  NumericItemStatKey,
+  Resource,
+  ShipComponentEntry,
+  StandingBucket,
+} from '../types';
 import type { GameIconName } from './ui/GameIcon';
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
@@ -78,6 +92,33 @@ function getBlueprintSearchHaystack(blueprint: Blueprint): string {
     blueprint.baseStats.armorType,
     blueprint.baseStats.armorSlot,
     ...blueprint.slots.map((slot) => slot.requiredResource),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function getShipComponentSearchHaystack(component: ShipComponentEntry): string {
+  const factText = (component.descriptionFacts ?? [])
+    .flatMap((fact) => [fact.label, fact.value])
+    .filter(Boolean)
+    .join(' ');
+  const model = buildShipComponentCardModel(component);
+  const metricText = [...model.heroMetrics, ...model.chipMetrics, ...model.detailMetrics]
+    .map((metric) => metric.value)
+    .join(' ');
+
+  return [
+    component.name,
+    component.manufacturer,
+    component.family,
+    component.category,
+    component.displayType,
+    component.shortName,
+    component.descriptionBody,
+    factText,
+    model.profileKey,
+    metricText,
   ]
     .filter(Boolean)
     .join(' ')
@@ -334,6 +375,10 @@ export function BlueprintGrid() {
     searchQuery,
     librarySegment,
     manufacturerFilter,
+    shipComponentFamilyFilter,
+    shipComponentProfileFilter,
+    shipComponentSizeFilter,
+    shipComponentGradeFilter,
     legalityFilter,
     locationFilter,
     materialFilter,
@@ -359,6 +404,7 @@ export function BlueprintGrid() {
 
 
   const resources = activeDataset.resources;
+  const allShipComponents = activeDataset.shipComponents?.entries ?? [];
   const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const inventoryIdSet = useMemo(() => new Set(inventoryIds), [inventoryIds]);
@@ -418,6 +464,15 @@ export function BlueprintGrid() {
     }
     return ids;
   }, [locationFilter, missionRewards]);
+
+  const manufacturerCanonicalMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const entry of activeDataset.manufacturers ?? []) {
+      if (!entry?.manufacturer) continue;
+      map.set(entry.manufacturer, entry.canonicalManufacturer ?? entry.manufacturer);
+    }
+    return map;
+  }, [activeDataset.manufacturers]);
 
   const filteredBlueprints = useMemo(() => {
     let list = allBlueprints;
@@ -578,6 +633,82 @@ export function BlueprintGrid() {
     weaponTypeFilter,
   ]);
 
+  const shipComponentFiltersBlocked =
+    !ENABLE_SHIP_COMPONENT_BLUEPRINTS;
+
+  const filteredShipComponents = useMemo(() => {
+    if (shipComponentFiltersBlocked) {
+      return [];
+    }
+
+    let list = allShipComponents.filter(isDisplayableShipComponent);
+
+    if (manufacturerFilter) {
+      const selectedCanonical =
+        manufacturerCanonicalMap.get(manufacturerFilter) ?? manufacturerFilter;
+      list = list.filter((component) => {
+        const componentManufacturer = component.manufacturer;
+        if (!componentManufacturer) {
+          return false;
+        }
+
+        const componentCanonical =
+          manufacturerCanonicalMap.get(componentManufacturer) ?? componentManufacturer;
+        return (
+          componentManufacturer === manufacturerFilter ||
+          componentCanonical === selectedCanonical
+        );
+      });
+    }
+
+    if (shipComponentFamilyFilter) {
+      list = list.filter((component) => component.family === shipComponentFamilyFilter);
+    }
+
+    if (shipComponentProfileFilter) {
+      list = list.filter((component) => {
+        const model = buildShipComponentCardModel(component);
+        return model.profileKey === shipComponentProfileFilter;
+      });
+    }
+
+    if (shipComponentSizeFilter) {
+      list = list.filter(
+        (component) =>
+          String(component.identity?.attachDef?.size ?? '') === shipComponentSizeFilter,
+      );
+    }
+
+    if (shipComponentGradeFilter) {
+      list = list.filter(
+        (component) =>
+          String(component.identity?.attachDef?.grade ?? '') === shipComponentGradeFilter,
+      );
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((component) => getShipComponentSearchHaystack(component).includes(q));
+    }
+
+    return list.sort(
+      (left, right) =>
+        compareText(left.manufacturer, right.manufacturer) ||
+        compareText(left.name, right.name) ||
+        compareText(left.family, right.family),
+    );
+  }, [
+    allShipComponents,
+    manufacturerCanonicalMap,
+    manufacturerFilter,
+    searchQuery,
+    shipComponentFamilyFilter,
+    shipComponentFiltersBlocked,
+    shipComponentGradeFilter,
+    shipComponentProfileFilter,
+    shipComponentSizeFilter,
+  ]);
+
   const emptyMessage = librarySegment === 'inventory'
     ? (inventoryIds.length === 0
       ? t('No blueprints in inventory.', 'Aucun blueprint dans l\'inventaire.')
@@ -587,6 +718,10 @@ export function BlueprintGrid() {
       : librarySegment === 'obtainable'
         ? t('No obtainable blueprints found.', 'Aucun blueprint obtenable trouvé.')
         : t('No blueprints found.', 'Aucun blueprint trouvé.');
+
+  const hasVisibleBlueprints = filteredBlueprints.length > 0;
+  const hasVisibleShipComponents = filteredShipComponents.length > 0;
+  const isCompletelyEmpty = !hasVisibleBlueprints && !hasVisibleShipComponents;
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -617,43 +752,110 @@ export function BlueprintGrid() {
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}
+            {!shipComponentFiltersBlocked ? ` • ${filteredShipComponents.length} ${t('ship components', 'composants de vaisseau')}` : ''}
           </Typography>
         </Box>
-        {filteredBlueprints.length === 0 ? (
+        {isCompletelyEmpty ? (
           <Box sx={{ py: 8, textAlign: 'center' }}>
             <Typography sx={{ color: 'text.secondary', mb: 1 }} role="status">
               {emptyMessage}
             </Typography>
           </Box>
         ) : (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
-                lg: 'repeat(4, 1fr)',
-                xl: 'repeat(5, 1fr)',
-              },
-              gap: { xs: 1.5, sm: 2, lg: 3 },
-            }}
-            role="list"
-            aria-label={t('Blueprint list', 'Liste des blueprints')}
-          >
-            {filteredBlueprints.map((blueprint, index) => (
-              <BlueprintCard
-                key={blueprint.id}
-                blueprint={blueprint}
-                activeBlueprintId={activeBlueprint?.id ?? null}
-                isFavorite={favoriteIdSet.has(blueprint.id)}
-                isInInventory={inventoryIdSet.has(blueprint.id)}
-                statMaxima={statMaxima}
-                resources={resources}
-                priority={index < 6}
-                onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
-              />
-            ))}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {hasVisibleBlueprints && (
+              <Box>
+                <Typography
+                  sx={{
+                    mb: 1.5,
+                    color: 'text.secondary',
+                    fontFamily: "'Khand', sans-serif",
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t('Blueprints', 'Blueprints')}
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'repeat(2, 1fr)',
+                      md: 'repeat(3, 1fr)',
+                      lg: 'repeat(4, 1fr)',
+                      xl: 'repeat(5, 1fr)',
+                    },
+                    gap: { xs: 1.5, sm: 2, lg: 3 },
+                  }}
+                  role="list"
+                  aria-label={t('Blueprint list', 'Liste des blueprints')}
+                >
+                  {filteredBlueprints.map((blueprint, index) => (
+                    <BlueprintCard
+                      key={blueprint.id}
+                      blueprint={blueprint}
+                      activeBlueprintId={activeBlueprint?.id ?? null}
+                      isFavorite={favoriteIdSet.has(blueprint.id)}
+                      isInInventory={inventoryIdSet.has(blueprint.id)}
+                      statMaxima={statMaxima}
+                      resources={resources}
+                      priority={index < 6}
+                      onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
+
+            {hasVisibleShipComponents && (
+              <Box>
+                <Typography
+                  sx={{
+                    mb: 0.75,
+                    color: 'text.secondary',
+                    fontFamily: "'Khand', sans-serif",
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t('Ship Components', 'Composants de vaisseau')}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary' }}>
+                  {t(
+                    'Prepared card profiles for future blueprint support. These entries are currently informational.',
+                    'Cartes preparees pour les futurs blueprints. Ces entrees sont actuellement informatives.',
+                  )}
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'repeat(2, 1fr)',
+                      md: 'repeat(3, 1fr)',
+                      lg: 'repeat(4, 1fr)',
+                      xl: 'repeat(5, 1fr)',
+                    },
+                    gap: { xs: 1.5, sm: 2, lg: 3 },
+                  }}
+                  role="list"
+                  aria-label={t('Ship component list', 'Liste des composants de vaisseau')}
+                >
+                  {filteredShipComponents.map((component, index) => (
+                    <ShipComponentCard
+                      key={component.id}
+                      component={component}
+                      priority={index < 6}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
           </Box>
         )}
       </Box>

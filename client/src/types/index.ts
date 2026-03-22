@@ -669,6 +669,153 @@ export interface MaterialSources {
   };
 }
 
+export interface ShipComponentReference {
+  guid: string;
+  path: string | null;
+}
+
+export interface ShipComponentAttachDef extends BlueprintAttachDef {
+  manufacturerRecord?: string | null;
+}
+
+export interface ShipComponentInventoryOccupancy extends BlueprintInventoryOccupancy {
+  standardCargoUnits?: number | null;
+  standardResourceUnits?: number | null;
+}
+
+export interface ShipComponentDamageResistance {
+  multiplier?: number | null;
+  threshold?: number | null;
+  damageCap?: number | null;
+  damageType?: string | null;
+}
+
+export interface ShipComponentPortType {
+  type?: string | null;
+  subType?: string | null;
+}
+
+export interface ShipComponentPortEntry {
+  name?: string | null;
+  displayNameKey?: string | null;
+  portTags?: string[];
+  requiredPortTags?: string[];
+  flags?: string[];
+  minSize?: number | null;
+  maxSize?: number | null;
+  resourceLinkToParent?: boolean | null;
+  types?: ShipComponentPortType[] | null;
+}
+
+export interface ShipComponentSignatureState {
+  nominalSignature?: number | null;
+  decayRate?: number | null;
+}
+
+export interface ShipComponentPowerRange {
+  start?: number | null;
+  modifier?: number | null;
+  registerRange?: number | null;
+}
+
+export interface ShipComponentResourceAmountUnit {
+  units?: number | null;
+  standardCargoUnits?: number | null;
+  standardResourceUnits?: number | null;
+  unitTag?: string | null;
+  unitType?: string | null;
+}
+
+export interface ShipComponentResourceEndpoint {
+  resource?: string | null;
+}
+
+export interface ShipComponentResourceDelta {
+  deltaTag?: string | null;
+  deltaType?: string | null;
+  minimumConsumptionFraction?: number | null;
+  generation?: ShipComponentResourceEndpoint | null;
+  consumption?: ShipComponentResourceEndpoint | null;
+  amountUnits?: ShipComponentResourceAmountUnit[] | null;
+  dynamicAmountOverride?: Array<Record<string, unknown>> | null;
+}
+
+export interface ShipComponentResourceState {
+  name?: string | null;
+  emSignature?: ShipComponentSignatureState | null;
+  irSignature?: ShipComponentSignatureState | null;
+  powerRanges?: Record<string, ShipComponentPowerRange | null> | null;
+  deltas?: ShipComponentResourceDelta[] | null;
+}
+
+export interface ShipComponentEntry {
+  id: string;
+  name: string | null;
+  family: string | null;
+  category: string | null;
+  manufacturer: string | null;
+  media?: BlueprintMedia | null;
+  displayType?: string | null;
+  shortName?: string | null;
+  description?: string | null;
+  descriptionBody?: string | null;
+  descriptionFacts?: BlueprintIdentityFact[] | null;
+  identity?: {
+    sourceFile?: string | null;
+    recordId?: string | null;
+    recordPath?: string | null;
+    componentTypes?: string[] | null;
+    displayNameKey?: string | null;
+    shortNameKey?: string | null;
+    descriptionKey?: string | null;
+    attachDef?: ShipComponentAttachDef | null;
+    inventoryOccupancy?: ShipComponentInventoryOccupancy | null;
+  } | null;
+  systems?: {
+    displayIcon?: string | null;
+    purchasable?: Record<string, unknown> | null;
+    physics?: {
+      mass?: number | null;
+    } | null;
+    health?: {
+      health?: number | null;
+      damageCap?: number | null;
+      detachFromItemPortOnDeath?: boolean | null;
+      detachFromEntityOnDeath?: boolean | null;
+      destroySelfOnDeath?: boolean | null;
+      isSalvageable?: boolean | null;
+      isRepairable?: boolean | null;
+      salvageDamageModifier?: number | null;
+      damageResistances?: Record<string, ShipComponentDamageResistance> | null;
+    } | null;
+    degradation?: Record<string, unknown> | null;
+    distortion?: Record<string, unknown> | null;
+    thermal?: Record<string, unknown> | null;
+    itemControl?: Record<string, unknown> | null;
+  } | null;
+  ports?: {
+    container?: Record<string, unknown> | null;
+    entries?: ShipComponentPortEntry[] | null;
+  } | null;
+  resources?: {
+    network?: Record<string, unknown> | null;
+    states?: ShipComponentResourceState[] | null;
+    selfRepair?: Record<string, unknown> | null;
+  } | null;
+  stats?: Record<string, unknown> | null;
+  references?: ShipComponentReference[] | null;
+}
+
+export interface ShipComponentsDataset {
+  summary: {
+    componentCount?: number | null;
+    scannedCandidateRecordCount?: number | null;
+    unclassifiedCandidateRecordCount?: number | null;
+    familyCounts?: Record<string, number> | null;
+  } | null;
+  entries: ShipComponentEntry[];
+}
+
 export interface GameDataset {
   channel: DatasetChannel;
   datasetId: string;
@@ -680,12 +827,22 @@ export interface GameDataset {
   blueprintCount: number;
   resourceCount: number;
   blueprints: Blueprint[];
+  manufacturers?: Array<{
+    manufacturer: string;
+    canonicalManufacturer?: string | null;
+    logo?: BlueprintMediaAsset | null;
+    icon?: BlueprintMediaAsset | null;
+    sourcePageUrl?: string | null;
+    status?: string | null;
+    notes?: string | null;
+  }>;
   resources: Resource[];
   resourceInsights: ResourceInsight[] | null;
   changelog: DatasetChangelog | null;
   dismantling: DismantlingData | null;
   materialSources: MaterialSources | null;
   missionRewards: MissionRewardsData | null;
+  shipComponents: ShipComponentsDataset | null;
   importedAt: string | null;
   updatedAt: string | null;
 }

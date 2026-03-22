@@ -45,6 +45,13 @@ export function Footer() {
         </Link>
         <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
         <Typography component="span" sx={{ color: 'text.secondary', fontSize: 'inherit' }}>
+          {t('External media credit:', 'Credit medias externes :')}{' '}
+          <Link href="https://starcitizen.tools" target="_blank" rel="noopener noreferrer">
+            starcitizen.tools
+          </Link>
+        </Typography>
+        <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
+        <Typography component="span" sx={{ color: 'text.secondary', fontSize: 'inherit' }}>
           {t('Made by', 'Fait par')}{' '}
           <Link href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">
             @ThSamon

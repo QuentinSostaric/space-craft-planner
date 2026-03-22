@@ -24,6 +24,11 @@ import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
+import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
+import {
+  buildShipComponentCardModel,
+  isDisplayableShipComponent,
+} from '../utils/shipComponents';
 import { CategoryBadge } from './ui/Badge';
 import { PageStatCard } from './ui/PageStatCard';
 import type {
@@ -121,9 +126,60 @@ function getActiveCount(flags: boolean[]): number {
   return flags.filter(Boolean).length;
 }
 
+const SHIP_COMPONENT_FAMILY_OPTIONS: Record<string, LocalizedOption> = {
+  scanner: { labelEn: 'Scanners', labelFr: 'Scanners', labelDe: 'Scanner' },
+  'refueling-nozzle': {
+    labelEn: 'Refueling nozzles',
+    labelFr: 'Becs de ravitaillement',
+    labelDe: 'Betankungsdusen',
+  },
+  'fuel-pod': { labelEn: 'Fuel pods', labelFr: 'Pods carburant', labelDe: 'Treibstofftanks' },
+  'salvage-head': { labelEn: 'Salvage heads', labelFr: 'Tetes de salvage', labelDe: 'Bergungskopfe' },
+  'salvage-modifier': {
+    labelEn: 'Salvage modifiers',
+    labelFr: 'Modules salvage',
+    labelDe: 'Bergungsmodule',
+  },
+  'mining-laser': { labelEn: 'Mining lasers', labelFr: 'Lasers de minage', labelDe: 'Bergbaulaser' },
+  'mining-module': { labelEn: 'Mining modules', labelFr: 'Modules de minage', labelDe: 'Bergbaumodule' },
+  powerplant: { labelEn: 'Power plants', labelFr: 'Centrales', labelDe: 'Kraftwerke' },
+  cooler: { labelEn: 'Coolers', labelFr: 'Refroidisseurs', labelDe: 'Kuhler' },
+  'shield-generator': {
+    labelEn: 'Shield generators',
+    labelFr: 'Generateurs de bouclier',
+    labelDe: 'Schildgeneratoren',
+  },
+  'quantum-drive': { labelEn: 'Quantum drives', labelFr: 'Moteurs quantiques', labelDe: 'Quantenantriebe' },
+  radar: { labelEn: 'Radars', labelFr: 'Radars', labelDe: 'Radare' },
+  'ship-weapon': { labelEn: 'Ship weapons', labelFr: 'Armes de vaisseau', labelDe: 'Schiffswaffen' },
+  'missile-rack': { labelEn: 'Missile racks', labelFr: 'Racks missiles', labelDe: 'Raketenhalterungen' },
+  emp: { labelEn: 'EMPs', labelFr: 'EMPs', labelDe: 'EMPs' },
+  'qed-qid': { labelEn: 'QED / QID', labelFr: 'QED / QID', labelDe: 'QED / QID' },
+  'jump-drive': { labelEn: 'Jump drives', labelFr: 'Moteurs de saut', labelDe: 'Sprungantriebe' },
+  thruster: { labelEn: 'Thrusters', labelFr: 'Propulseurs', labelDe: 'Triebwerke' },
+  'fuel-tank': { labelEn: 'Fuel tanks', labelFr: 'Reservoirs', labelDe: 'Treibstofftanks' },
+  'fuel-intake': { labelEn: 'Fuel intakes', labelFr: 'Prises carburant', labelDe: 'Treibstoffaufnahmen' },
+  battery: { labelEn: 'Batteries', labelFr: 'Batteries', labelDe: 'Batterien' },
+  computer: { labelEn: 'Computers', labelFr: 'Ordinateurs', labelDe: 'Computer' },
+};
+
+function humanizeToken(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function getShipComponentFamilyLabel(value: string, lang: Lang): string {
+  const option = SHIP_COMPONENT_FAMILY_OPTIONS[value];
+  return option ? getOptionText(option, lang) : humanizeToken(value);
+}
+
 export function BlueprintExplorer() {
   const {
     activeBlueprint,
+    activeDataset,
     setActiveBlueprint,
     categoryFilter,
     setCategoryFilter,
@@ -133,6 +189,14 @@ export function BlueprintExplorer() {
     setLibrarySegment,
     manufacturerFilter,
     setManufacturerFilter,
+    shipComponentFamilyFilter,
+    setShipComponentFamilyFilter,
+    shipComponentProfileFilter,
+    setShipComponentProfileFilter,
+    shipComponentSizeFilter,
+    setShipComponentSizeFilter,
+    shipComponentGradeFilter,
+    setShipComponentGradeFilter,
     legalityFilter,
     setLegalityFilter,
     locationFilter,
@@ -231,6 +295,77 @@ export function BlueprintExplorer() {
     return [...set].sort();
   }, [blueprints]);
 
+  const shipComponents = useMemo(
+    () =>
+      ENABLE_SHIP_COMPONENT_BLUEPRINTS
+        ? (activeDataset.shipComponents?.entries ?? []).filter(isDisplayableShipComponent)
+        : [],
+    [activeDataset.shipComponents],
+  );
+
+  const shipComponentFamilies = useMemo(() => {
+    const set = new Set<string>();
+    for (const component of shipComponents) {
+      if (component.family) {
+        set.add(component.family);
+      }
+    }
+
+    return [...set].sort((left, right) =>
+      getShipComponentFamilyLabel(left, lang).localeCompare(
+        getShipComponentFamilyLabel(right, lang),
+        undefined,
+        { sensitivity: 'base' },
+      ),
+    );
+  }, [lang, shipComponents]);
+
+  const shipComponentProfiles = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const component of shipComponents) {
+      const model = buildShipComponentCardModel(component);
+      map.set(
+        model.profileKey,
+        lang === 'fr'
+          ? model.profile.label.fr
+          : lang === 'de'
+            ? (model.profile.label.de ?? model.profile.label.en)
+            : model.profile.label.en,
+      );
+    }
+
+    return [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+  }, [lang, shipComponents]);
+
+  const shipComponentSizes = useMemo(() => {
+    const set = new Set<string>();
+    for (const component of shipComponents) {
+      const size = component.identity?.attachDef?.size;
+      if (size != null) {
+        set.add(String(size));
+      }
+    }
+
+    return [...set].sort((left, right) => Number(left) - Number(right));
+  }, [shipComponents]);
+
+  const shipComponentGrades = useMemo(() => {
+    const set = new Set<string>();
+    for (const component of shipComponents) {
+      const grade = component.identity?.attachDef?.grade;
+      if (grade != null) {
+        set.add(String(grade));
+      }
+    }
+
+    return [...set].sort((left, right) => Number(left) - Number(right));
+  }, [shipComponents]);
+
+  const shipComponentFiltersEnabled =
+    ENABLE_SHIP_COMPONENT_BLUEPRINTS && shipComponents.length > 0;
+
   const locations = useMemo(() => {
     if (!missionRewards) return [];
     const set = new Set<string>();
@@ -292,7 +427,12 @@ export function BlueprintExplorer() {
     armorSlotFilter !== null ||
     acquisitionEmployerFilter !== null ||
     acquisitionScaleFilter !== null ||
-    acquisitionStandingFilter !== 'all';
+    acquisitionStandingFilter !== 'all' ||
+    (shipComponentFiltersEnabled &&
+      (shipComponentFamilyFilter !== null ||
+        shipComponentProfileFilter !== null ||
+        shipComponentSizeFilter !== null ||
+        shipComponentGradeFilter !== null));
 
   const advancedFilterCount = getActiveCount([
     weaponTypeFilter !== null,
@@ -306,6 +446,10 @@ export function BlueprintExplorer() {
     acquisitionEmployerFilter !== null,
     acquisitionScaleFilter !== null,
     acquisitionStandingFilter !== 'all',
+    shipComponentFiltersEnabled && shipComponentFamilyFilter !== null,
+    shipComponentFiltersEnabled && shipComponentProfileFilter !== null,
+    shipComponentFiltersEnabled && shipComponentSizeFilter !== null,
+    shipComponentFiltersEnabled && shipComponentGradeFilter !== null,
   ]);
 
   const clearAllFilters = useCallback(() => {
@@ -324,7 +468,31 @@ export function BlueprintExplorer() {
     setAcquisitionEmployerFilter(null);
     setAcquisitionScaleFilter(null);
     setAcquisitionStandingFilter('all');
-  }, []);
+    setShipComponentFamilyFilter(null);
+    setShipComponentProfileFilter(null);
+    setShipComponentSizeFilter(null);
+    setShipComponentGradeFilter(null);
+  }, [
+    setAcquisitionEmployerFilter,
+    setAcquisitionScaleFilter,
+    setAcquisitionStandingFilter,
+    setAmmoFlavorFilter,
+    setAmmoTypeFilter,
+    setArmorSlotFilter,
+    setArmorTypeFilter,
+    setCraftTimeFilter,
+    setLegalityFilter,
+    setLocationFilter,
+    setManufacturerFilter,
+    setMaterialFilter,
+    setRarityFilter,
+    setShipComponentFamilyFilter,
+    setShipComponentGradeFilter,
+    setShipComponentProfileFilter,
+    setShipComponentSizeFilter,
+    setSlotCountFilter,
+    setWeaponTypeFilter,
+  ]);
 
   return (
     <Box
@@ -874,6 +1042,76 @@ export function BlueprintExplorer() {
               renderInput={(params) => <TextField {...params} label={t('Armor slot', "Emplacement d'armure")} placeholder={t('Armor slot', "Emplacement d'armure")} />}
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
+            {shipComponentFiltersEnabled && (
+              <Autocomplete
+                size="small"
+                options={shipComponentFamilies}
+                value={shipComponentFamilyFilter}
+                onChange={(_e, val) => setShipComponentFamilyFilter(val)}
+                getOptionLabel={(value) => getShipComponentFamilyLabel(value, lang)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t('Ship component family', 'Famille de composant')}
+                    placeholder={t('Ship component family', 'Famille de composant')}
+                  />
+                )}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+            )}
+            {shipComponentFiltersEnabled && (
+              <Autocomplete
+                size="small"
+                options={shipComponentProfiles}
+                value={
+                  shipComponentProfiles.find((option) => option.value === shipComponentProfileFilter) ?? null
+                }
+                onChange={(_e, val) => setShipComponentProfileFilter(val?.value ?? null)}
+                getOptionLabel={(option) => option.label}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t('Ship component profile', 'Profil de composant')}
+                    placeholder={t('Ship component profile', 'Profil de composant')}
+                  />
+                )}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+            )}
+            {shipComponentFiltersEnabled && (
+              <Autocomplete
+                size="small"
+                options={shipComponentSizes}
+                value={shipComponentSizeFilter}
+                onChange={(_e, val) => setShipComponentSizeFilter(val)}
+                getOptionLabel={(value) => `S${value}`}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t('Ship component size', 'Taille composant')}
+                    placeholder={t('Ship component size', 'Taille composant')}
+                  />
+                )}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+            )}
+            {shipComponentFiltersEnabled && (
+              <Autocomplete
+                size="small"
+                options={shipComponentGrades}
+                value={shipComponentGradeFilter}
+                onChange={(_e, val) => setShipComponentGradeFilter(val)}
+                getOptionLabel={(value) => `Grade ${value}`}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t('Ship component grade', 'Grade composant')}
+                    placeholder={t('Ship component grade', 'Grade composant')}
+                  />
+                )}
+                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              />
+            )}
             <FormControl size="small">
               <Select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value as RarityFilter)}>
                 {RARITY_OPTIONS.map((option) => (
@@ -939,6 +1177,30 @@ export function BlueprintExplorer() {
               {ammoFlavorFilter && <Chip label={`${t('Flavor', 'Famille')}: ${ammoFlavorFilter}`} size="small" />}
               {armorTypeFilter && <Chip label={`${t('Armor', 'Armure')}: ${armorTypeFilter}`} size="small" />}
               {armorSlotFilter && <Chip label={`${t('Slot', 'Slot')}: ${armorSlotFilter}`} size="small" />}
+              {shipComponentFiltersEnabled && shipComponentFamilyFilter && (
+                <Chip
+                  label={`${t('Component family', 'Famille composant')}: ${getShipComponentFamilyLabel(shipComponentFamilyFilter, lang)}`}
+                  size="small"
+                />
+              )}
+              {shipComponentFiltersEnabled && shipComponentProfileFilter && (
+                <Chip
+                  label={`${t('Component profile', 'Profil composant')}: ${shipComponentProfiles.find((option) => option.value === shipComponentProfileFilter)?.label ?? humanizeToken(shipComponentProfileFilter)}`}
+                  size="small"
+                />
+              )}
+              {shipComponentFiltersEnabled && shipComponentSizeFilter && (
+                <Chip
+                  label={`${t('Component size', 'Taille composant')}: S${shipComponentSizeFilter}`}
+                  size="small"
+                />
+              )}
+              {shipComponentFiltersEnabled && shipComponentGradeFilter && (
+                <Chip
+                  label={`${t('Component grade', 'Grade composant')}: ${shipComponentGradeFilter}`}
+                  size="small"
+                />
+              )}
               {rarityFilter !== 'all' && <Chip label={`${t('Rarity', 'Rareté')}: ${getOptionText(RARITY_OPTIONS.find((option) => option.value === rarityFilter) ?? RARITY_OPTIONS[0], lang)}`} size="small" />}
               {slotCountFilter !== 'all' && <Chip label={`${t('Slots', 'Slots')}: ${slotCountFilter}`} size="small" />}
               {craftTimeFilter !== 'all' && <Chip label={`${t('Craft time', 'Temps de craft')}: ${craftTimeFilter}`} size="small" />}

@@ -58,6 +58,7 @@ const EMPTY_DATASET: GameDataset = {
   dismantling: null,
   materialSources: null,
   missionRewards: null,
+  shipComponents: null,
   importedAt: null,
   updatedAt: null,
 };
@@ -83,6 +84,10 @@ interface CraftState {
   searchQuery: string;
   librarySegment: LibrarySegment;
   manufacturerFilter: string | null;
+  shipComponentFamilyFilter: string | null;
+  shipComponentProfileFilter: string | null;
+  shipComponentSizeFilter: string | null;
+  shipComponentGradeFilter: string | null;
   legalityFilter: LegalityFilter;
   locationFilter: string | null;
   materialFilter: string | null;
@@ -100,6 +105,10 @@ interface CraftState {
   blueprintSort: BlueprintSort;
   setLibrarySegment: (segment: LibrarySegment) => void;
   setManufacturerFilter: (manufacturer: string | null) => void;
+  setShipComponentFamilyFilter: (family: string | null) => void;
+  setShipComponentProfileFilter: (profile: string | null) => void;
+  setShipComponentSizeFilter: (size: string | null) => void;
+  setShipComponentGradeFilter: (grade: string | null) => void;
   setLegalityFilter: (legality: LegalityFilter) => void;
   setLocationFilter: (location: string | null) => void;
   setMaterialFilter: (material: string | null) => void;
@@ -211,6 +220,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('all');
   const [manufacturerFilter, setManufacturerFilter] = useState<string | null>(null);
+  const [shipComponentFamilyFilter, setShipComponentFamilyFilter] = useState<string | null>(null);
+  const [shipComponentProfileFilter, setShipComponentProfileFilter] = useState<string | null>(null);
+  const [shipComponentSizeFilter, setShipComponentSizeFilter] = useState<string | null>(null);
+  const [shipComponentGradeFilter, setShipComponentGradeFilter] = useState<string | null>(null);
   const [legalityFilter, setLegalityFilter] = useState<LegalityFilter>('all');
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [materialFilter, setMaterialFilter] = useState<string | null>(null);
@@ -653,6 +666,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         searchQuery,
         librarySegment,
         manufacturerFilter,
+        shipComponentFamilyFilter,
+        shipComponentProfileFilter,
+        shipComponentSizeFilter,
+        shipComponentGradeFilter,
         legalityFilter,
         locationFilter,
         materialFilter,
@@ -670,6 +687,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         blueprintSort,
         setLibrarySegment,
         setManufacturerFilter,
+        setShipComponentFamilyFilter,
+        setShipComponentProfileFilter,
+        setShipComponentSizeFilter,
+        setShipComponentGradeFilter,
         setLegalityFilter,
         setLocationFilter,
         setMaterialFilter,
