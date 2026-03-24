@@ -26,10 +26,9 @@ function calcCount(
 
 export interface UseInfiniteScrollOptions {
   /** Maps scroll container pixel width to number of visible grid columns.
-   *  Must be a stable (module-scope) function — it is used inside effects
-   *  without being listed in their dependency arrays, so inline arrow functions
-   *  will cause stale behaviour.
-   *  Defaults to the 5-column BlueprintGrid mapping if omitted. */
+   *  Defaults to the 5-column BlueprintGrid mapping if omitted.
+   *  A stable module-scope function is recommended for clarity, though an inline
+   *  function also works correctly (the hook captures it via a ref on every render). */
   getColumns?: (containerWidth: number) => number;
 }
 
@@ -70,12 +69,19 @@ export function useInfiniteScroll<T>(
   const filteredLengthRef = useRef(filteredItems.length);
   filteredLengthRef.current = filteredItems.length;
 
-  const [visibleCount, setVisibleCount] = useState<number>(() =>
-    calcCount(window.innerWidth, window.innerHeight, getColumns),
-  );
-  const [initialCount, setInitialCount] = useState<number>(() =>
-    calcCount(window.innerWidth, window.innerHeight, getColumns),
-  );
+  // Keeps getColumns current without adding it to effect dependency arrays.
+  // Callers should still pass a stable module-scope function for clarity.
+  const getColumnsRef = useRef(getColumns);
+  getColumnsRef.current = getColumns;
+
+  const [visibleCount, setVisibleCount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 10;
+    return calcCount(window.innerWidth, window.innerHeight, getColumns);
+  });
+  const [initialCount, setInitialCount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 10;
+    return calcCount(window.innerWidth, window.innerHeight, getColumns);
+  });
 
   // NOTE: Must be declared before the IntersectionObserver effect.
   // React runs effects in declaration order; the reset runs before the observer
@@ -86,11 +92,9 @@ export function useInfiniteScroll<T>(
     const el = scrollContainerRef.current;
     const w = el?.clientWidth ?? window.innerWidth;
     const h = el?.clientHeight ?? window.innerHeight;
-    const count = calcCount(w, h, getColumns);
+    const count = calcCount(w, h, getColumnsRef.current);
     setVisibleCount(count);
     setInitialCount(count);
-  // getColumns is intentionally omitted — it must be a stable module-scope function.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredItems]);
 
   // Loads the next batch when the sentinel enters the scroll container's viewport.
@@ -102,7 +106,7 @@ export function useInfiniteScroll<T>(
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          const batch = calcCount(root.clientWidth, root.clientHeight, getColumns);
+          const batch = calcCount(root.clientWidth, root.clientHeight, getColumnsRef.current);
           setVisibleCount((c) => Math.min(c + batch, filteredLengthRef.current));
         }
       },
@@ -111,8 +115,6 @@ export function useInfiniteScroll<T>(
 
     observer.observe(el);
     return () => observer.disconnect();
-  // getColumns is intentionally omitted — it must be a stable module-scope function.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredItems]);
 
   return { scrollContainerRef, sentinelRef, visibleCount, initialCount };
