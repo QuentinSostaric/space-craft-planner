@@ -23,7 +23,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
 import { useCraft } from '../store/CraftContext';
-import { useI18n } from '../i18n/I18nContext';
+import { loc, useI18n } from '../i18n/I18nContext';
 import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
 import {
   buildShipComponentCardModel,
@@ -38,83 +38,84 @@ import type {
   LegalityFilter,
   Lang,
   LibrarySegment,
+  LocalizedString,
   RarityFilter,
   SlotCountFilter,
   StandingBucket,
 } from '../types';
 
-type LocalizedOption = { labelEn: string; labelFr: string; labelDe: string };
+type LocalizedOption = { label: LocalizedString };
+
+const ls = (en: string, fr: string, de?: string): LocalizedString => ({ en, fr, de });
 
 function getOptionText(option: LocalizedOption, lang: Lang): string {
-  if (lang === 'fr') return option.labelFr;
-  if (lang === 'de') return option.labelDe;
-  return option.labelEn;
+  return loc(option.label, lang);
 }
 
 const CATEGORY_FILTERS: Array<{ value: CategoryFilter } & LocalizedOption> = [
-  { value: 'all', labelEn: 'All', labelFr: 'Tous', labelDe: 'Alle' },
-  { value: 'fps-weapon', labelEn: 'Weapons', labelFr: 'Armes', labelDe: 'Waffen' },
-  { value: 'fps-armor', labelEn: 'Armor', labelFr: 'Armures', labelDe: 'Rüstungen' },
-  { value: 'fps-helmet', labelEn: 'Helmets', labelFr: 'Casques', labelDe: 'Helme' },
-  { value: 'fps-undersuit', labelEn: 'Undersuits', labelFr: 'Combis', labelDe: 'Unteranzüge' },
-  { value: 'fps-backpack', labelEn: 'Backpacks', labelFr: 'Sacs', labelDe: 'Rucksäcke' },
-  { value: 'fps-magazine', labelEn: 'Magazines', labelFr: 'Chargeurs', labelDe: 'Magazine' },
+  { value: 'all', label: ls('All', 'Tous', 'Alle') },
+  { value: 'fps-weapon', label: ls('Weapons', 'Armes', 'Waffen') },
+  { value: 'fps-armor', label: ls('Armor', 'Armures', 'Rüstungen') },
+  { value: 'fps-helmet', label: ls('Helmets', 'Casques', 'Helme') },
+  { value: 'fps-undersuit', label: ls('Undersuits', 'Combis', 'Unteranzüge') },
+  { value: 'fps-backpack', label: ls('Backpacks', 'Sacs', 'Rucksäcke') },
+  { value: 'fps-magazine', label: ls('Magazines', 'Chargeurs', 'Magazine') },
 ];
 
 const SEGMENTS: Array<{ value: LibrarySegment; icon: ElementType | null } & LocalizedOption> = [
-  { value: 'all', labelEn: 'All', labelFr: 'Tous', labelDe: 'Alle', icon: null },
-  { value: 'inventory', labelEn: 'Inventory', labelFr: 'Inventaire', labelDe: 'Inventar', icon: null },
-  { value: 'favorites', labelEn: 'Favs', labelFr: 'Favoris', labelDe: 'Favoriten', icon: StarIcon },
-  { value: 'obtainable', labelEn: 'Obtainable', labelFr: 'Obtenables', labelDe: 'Erhältlich', icon: FlagIcon },
+  { value: 'all', label: ls('All', 'Tous', 'Alle'), icon: null },
+  { value: 'inventory', label: ls('Inventory', 'Inventaire', 'Inventar'), icon: null },
+  { value: 'favorites', label: ls('Favs', 'Favoris', 'Favoriten'), icon: StarIcon },
+  { value: 'obtainable', label: ls('Obtainable', 'Obtenables', 'Erhältlich'), icon: FlagIcon },
 ];
 
 const SORT_OPTIONS: Array<{ value: BlueprintSort } & LocalizedOption> = [
-  { value: 'name-asc', labelEn: 'Name', labelFr: 'Nom', labelDe: 'Name' },
-  { value: 'manufacturer-asc', labelEn: 'Manufacturer', labelFr: 'Fabricant', labelDe: 'Hersteller' },
-  { value: 'craft-time-asc', labelEn: 'Craft time: fast', labelFr: 'Craft: rapide', labelDe: 'Fertigungszeit: schnell' },
-  { value: 'craft-time-desc', labelEn: 'Craft time: long', labelFr: 'Craft: long', labelDe: 'Fertigungszeit: lang' },
-  { value: 'slot-count-desc', labelEn: 'Slot count', labelFr: 'Nombre de slots', labelDe: 'Slot-Anzahl' },
-  { value: 'rarity-desc', labelEn: 'Rarity', labelFr: 'Rareté', labelDe: 'Seltenheit' },
-  { value: 'acquisition-desc', labelEn: 'Acquisition ease', labelFr: "Facilité d'obtention", labelDe: 'Erwerbsleichtigkeit' },
-  { value: 'damage-desc', labelEn: 'Damage', labelFr: 'Dégâts', labelDe: 'Schaden' },
-  { value: 'range-desc', labelEn: 'Range', labelFr: 'Portée', labelDe: 'Reichweite' },
-  { value: 'rate-of-fire-desc', labelEn: 'Rate of fire', labelFr: 'Cadence', labelDe: 'Feuerrate' },
-  { value: 'magazine-desc', labelEn: 'Magazine', labelFr: 'Chargeur', labelDe: 'Magazin' },
-  { value: 'kinetic-desc', labelEn: 'Kinetic resist.', labelFr: 'Résist. cinétique', labelDe: 'Kinet. Resist.' },
-  { value: 'energy-desc', labelEn: 'Energy resist.', labelFr: 'Résist. énergie', labelDe: 'Energie-Resist.' },
-  { value: 'temp-max-desc', labelEn: 'Temp max', labelFr: 'Temp max', labelDe: 'Temp. Max' },
+  { value: 'name-asc', label: ls('Name', 'Nom', 'Name') },
+  { value: 'manufacturer-asc', label: ls('Manufacturer', 'Fabricant', 'Hersteller') },
+  { value: 'craft-time-asc', label: ls('Craft time: fast', 'Craft: rapide', 'Fertigungszeit: schnell') },
+  { value: 'craft-time-desc', label: ls('Craft time: long', 'Craft: long', 'Fertigungszeit: lang') },
+  { value: 'slot-count-desc', label: ls('Slot count', 'Nombre de slots', 'Slot-Anzahl') },
+  { value: 'rarity-desc', label: ls('Rarity', 'Rareté', 'Seltenheit') },
+  { value: 'acquisition-desc', label: ls('Acquisition ease', "Facilité d'obtention", 'Erwerbsleichtigkeit') },
+  { value: 'damage-desc', label: ls('Damage', 'Dégâts', 'Schaden') },
+  { value: 'range-desc', label: ls('Range', 'Portée', 'Reichweite') },
+  { value: 'rate-of-fire-desc', label: ls('Rate of fire', 'Cadence', 'Feuerrate') },
+  { value: 'magazine-desc', label: ls('Magazine', 'Chargeur', 'Magazin') },
+  { value: 'kinetic-desc', label: ls('Kinetic resist.', 'Résist. cinétique', 'Kinet. Resist.') },
+  { value: 'energy-desc', label: ls('Energy resist.', 'Résist. énergie', 'Energie-Resist.') },
+  { value: 'temp-max-desc', label: ls('Temp max', 'Temp max', 'Temp. Max') },
 ];
 
 const RARITY_OPTIONS: Array<{ value: RarityFilter } & LocalizedOption> = [
-  { value: 'all', labelEn: 'Any rarity', labelFr: 'Toute rareté', labelDe: 'Beliebige Seltenheit' },
-  { value: 'legendary', labelEn: 'Legendary', labelFr: 'Légendaire', labelDe: 'Legendär' },
-  { value: 'rare', labelEn: 'Rare', labelFr: 'Rare', labelDe: 'Selten' },
-  { value: 'common', labelEn: 'Common', labelFr: 'Commune', labelDe: 'Gewöhnlich' },
-  { value: 'unknown', labelEn: 'Unknown', labelFr: 'Inconnue', labelDe: 'Unbekannt' },
+  { value: 'all', label: ls('Any rarity', 'Toute rareté', 'Beliebige Seltenheit') },
+  { value: 'legendary', label: ls('Legendary', 'Légendaire', 'Legendär') },
+  { value: 'rare', label: ls('Rare', 'Rare', 'Selten') },
+  { value: 'common', label: ls('Common', 'Commune', 'Gewöhnlich') },
+  { value: 'unknown', label: ls('Unknown', 'Inconnue', 'Unbekannt') },
 ];
 
 const SLOT_COUNT_OPTIONS: Array<{ value: SlotCountFilter } & LocalizedOption> = [
-  { value: 'all', labelEn: 'Any slots', labelFr: 'Tous les slots', labelDe: 'Beliebige Slot-Anzahl' },
-  { value: '1', labelEn: '1 slot', labelFr: '1 slot', labelDe: '1 Slot' },
-  { value: '2', labelEn: '2 slots', labelFr: '2 slots', labelDe: '2 Slots' },
-  { value: '3', labelEn: '3 slots', labelFr: '3 slots', labelDe: '3 Slots' },
+  { value: 'all', label: ls('Any slots', 'Tous les slots', 'Beliebige Slot-Anzahl') },
+  { value: '1', label: ls('1 slot', '1 slot', '1 Slot') },
+  { value: '2', label: ls('2 slots', '2 slots', '2 Slots') },
+  { value: '3', label: ls('3 slots', '3 slots', '3 Slots') },
 ];
 
 const CRAFT_TIME_OPTIONS: Array<{ value: CraftTimeBucket } & LocalizedOption> = [
-  { value: 'all', labelEn: 'Any duration', labelFr: 'Toute durée', labelDe: 'Beliebige Dauer' },
-  { value: '<=60', labelEn: '≤ 1 min', labelFr: '≤ 1 min', labelDe: '≤ 1 Min' },
-  { value: '61-120', labelEn: '1-2 min', labelFr: '1-2 min', labelDe: '1-2 Min' },
-  { value: '121-180', labelEn: '2-3 min', labelFr: '2-3 min', labelDe: '2-3 Min' },
-  { value: '180+', labelEn: '3+ min', labelFr: '3+ min', labelDe: '3+ Min' },
+  { value: 'all', label: ls('Any duration', 'Toute durée', 'Beliebige Dauer') },
+  { value: '<=60', label: ls('≤ 1 min', '≤ 1 min', '≤ 1 Min') },
+  { value: '61-120', label: ls('1-2 min', '1-2 min', '1-2 Min') },
+  { value: '121-180', label: ls('2-3 min', '2-3 min', '2-3 Min') },
+  { value: '180+', label: ls('3+ min', '3+ min', '3+ Min') },
 ];
 
 const STANDING_OPTIONS: Array<{ value: StandingBucket } & LocalizedOption> = [
-  { value: 'all', labelEn: 'Any standing', labelFr: 'Toute réputation', labelDe: 'Beliebiger Ruf' },
-  { value: 'none', labelEn: 'No standing gate', labelFr: 'Sans prérequis', labelDe: 'Keine Rufschwelle' },
-  { value: '1-999', labelEn: '1-999', labelFr: '1-999', labelDe: '1-999' },
-  { value: '1000-4999', labelEn: '1k-4.9k', labelFr: '1k-4,9k', labelDe: '1k-4,9k' },
-  { value: '5000-14999', labelEn: '5k-14.9k', labelFr: '5k-14,9k', labelDe: '5k-14,9k' },
-  { value: '15000+', labelEn: '15k+', labelFr: '15k+', labelDe: '15k+' },
+  { value: 'all', label: ls('Any standing', 'Toute réputation', 'Beliebiger Ruf') },
+  { value: 'none', label: ls('No standing gate', 'Sans prérequis', 'Keine Rufschwelle') },
+  { value: '1-999', label: ls('1-999', '1-999', '1-999') },
+  { value: '1000-4999', label: ls('1k-4.9k', '1k-4,9k', '1k-4,9k') },
+  { value: '5000-14999', label: ls('5k-14.9k', '5k-14,9k', '5k-14,9k') },
+  { value: '15000+', label: ls('15k+', '15k+', '15k+') },
 ];
 
 function getStandingLabel(value: StandingBucket, lang: Lang): string {
@@ -127,40 +128,34 @@ function getActiveCount(flags: boolean[]): number {
 }
 
 const SHIP_COMPONENT_FAMILY_OPTIONS: Record<string, LocalizedOption> = {
-  scanner: { labelEn: 'Scanners', labelFr: 'Scanners', labelDe: 'Scanner' },
+  scanner: { label: ls('Scanners', 'Scanners', 'Scanner') },
   'refueling-nozzle': {
-    labelEn: 'Refueling nozzles',
-    labelFr: 'Becs de ravitaillement',
-    labelDe: 'Betankungsdusen',
+    label: ls('Refueling nozzles', 'Becs de ravitaillement', 'Betankungsdusen'),
   },
-  'fuel-pod': { labelEn: 'Fuel pods', labelFr: 'Pods carburant', labelDe: 'Treibstofftanks' },
-  'salvage-head': { labelEn: 'Salvage heads', labelFr: 'Tetes de salvage', labelDe: 'Bergungskopfe' },
+  'fuel-pod': { label: ls('Fuel pods', 'Pods carburant', 'Treibstofftanks') },
+  'salvage-head': { label: ls('Salvage heads', 'Tetes de salvage', 'Bergungskopfe') },
   'salvage-modifier': {
-    labelEn: 'Salvage modifiers',
-    labelFr: 'Modules salvage',
-    labelDe: 'Bergungsmodule',
+    label: ls('Salvage modifiers', 'Modules salvage', 'Bergungsmodule'),
   },
-  'mining-laser': { labelEn: 'Mining lasers', labelFr: 'Lasers de minage', labelDe: 'Bergbaulaser' },
-  'mining-module': { labelEn: 'Mining modules', labelFr: 'Modules de minage', labelDe: 'Bergbaumodule' },
-  powerplant: { labelEn: 'Power plants', labelFr: 'Centrales', labelDe: 'Kraftwerke' },
-  cooler: { labelEn: 'Coolers', labelFr: 'Refroidisseurs', labelDe: 'Kuhler' },
+  'mining-laser': { label: ls('Mining lasers', 'Lasers de minage', 'Bergbaulaser') },
+  'mining-module': { label: ls('Mining modules', 'Modules de minage', 'Bergbaumodule') },
+  powerplant: { label: ls('Power plants', 'Centrales', 'Kraftwerke') },
+  cooler: { label: ls('Coolers', 'Refroidisseurs', 'Kuhler') },
   'shield-generator': {
-    labelEn: 'Shield generators',
-    labelFr: 'Generateurs de bouclier',
-    labelDe: 'Schildgeneratoren',
+    label: ls('Shield generators', 'Generateurs de bouclier', 'Schildgeneratoren'),
   },
-  'quantum-drive': { labelEn: 'Quantum drives', labelFr: 'Moteurs quantiques', labelDe: 'Quantenantriebe' },
-  radar: { labelEn: 'Radars', labelFr: 'Radars', labelDe: 'Radare' },
-  'ship-weapon': { labelEn: 'Ship weapons', labelFr: 'Armes de vaisseau', labelDe: 'Schiffswaffen' },
-  'missile-rack': { labelEn: 'Missile racks', labelFr: 'Racks missiles', labelDe: 'Raketenhalterungen' },
-  emp: { labelEn: 'EMPs', labelFr: 'EMPs', labelDe: 'EMPs' },
-  'qed-qid': { labelEn: 'QED / QID', labelFr: 'QED / QID', labelDe: 'QED / QID' },
-  'jump-drive': { labelEn: 'Jump drives', labelFr: 'Moteurs de saut', labelDe: 'Sprungantriebe' },
-  thruster: { labelEn: 'Thrusters', labelFr: 'Propulseurs', labelDe: 'Triebwerke' },
-  'fuel-tank': { labelEn: 'Fuel tanks', labelFr: 'Reservoirs', labelDe: 'Treibstofftanks' },
-  'fuel-intake': { labelEn: 'Fuel intakes', labelFr: 'Prises carburant', labelDe: 'Treibstoffaufnahmen' },
-  battery: { labelEn: 'Batteries', labelFr: 'Batteries', labelDe: 'Batterien' },
-  computer: { labelEn: 'Computers', labelFr: 'Ordinateurs', labelDe: 'Computer' },
+  'quantum-drive': { label: ls('Quantum drives', 'Moteurs quantiques', 'Quantenantriebe') },
+  radar: { label: ls('Radars', 'Radars', 'Radare') },
+  'ship-weapon': { label: ls('Ship weapons', 'Armes de vaisseau', 'Schiffswaffen') },
+  'missile-rack': { label: ls('Missile racks', 'Racks missiles', 'Raketenhalterungen') },
+  emp: { label: ls('EMPs', 'EMPs', 'EMPs') },
+  'qed-qid': { label: ls('QED / QID', 'QED / QID', 'QED / QID') },
+  'jump-drive': { label: ls('Jump drives', 'Moteurs de saut', 'Sprungantriebe') },
+  thruster: { label: ls('Thrusters', 'Propulseurs', 'Triebwerke') },
+  'fuel-tank': { label: ls('Fuel tanks', 'Reservoirs', 'Treibstofftanks') },
+  'fuel-intake': { label: ls('Fuel intakes', 'Prises carburant', 'Treibstoffaufnahmen') },
+  battery: { label: ls('Batteries', 'Batteries', 'Batterien') },
+  computer: { label: ls('Computers', 'Ordinateurs', 'Computer') },
 };
 
 function humanizeToken(value: string): string {

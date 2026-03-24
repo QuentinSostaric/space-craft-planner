@@ -22,10 +22,49 @@ import { GameIcon } from './ui/GameIcon';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { navigateToPath } from '../utils/slug';
 
-const DATE_LOCALE_BY_LANG = {
-  en: 'en-US',
-  fr: 'fr-FR',
-  de: 'de-DE',
+const MONTH_NAMES = {
+  en: [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ],
+  fr: [
+    'janvier',
+    'fevrier',
+    'mars',
+    'avril',
+    'mai',
+    'juin',
+    'juillet',
+    'aout',
+    'septembre',
+    'octobre',
+    'novembre',
+    'decembre',
+  ],
+  de: [
+    'Januar',
+    'Februar',
+    'Marz',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember',
+  ],
 } as const;
 
 function formatDatasetBuildDate(
@@ -43,11 +82,19 @@ function formatDatasetBuildDate(
     return buildDateStamp ?? null;
   }
 
-  return new Intl.DateTimeFormat(DATE_LOCALE_BY_LANG[lang], {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(parsed);
+  const day = parsed.getDate();
+  const month = MONTH_NAMES[lang][parsed.getMonth()];
+  const year = parsed.getFullYear();
+
+  if (lang === 'en') {
+    return `${month} ${day}, ${year}`;
+  }
+
+  if (lang === 'de') {
+    return `${day}. ${month} ${year}`;
+  }
+
+  return `${day} ${month} ${year}`;
 }
 
 export function Header() {

@@ -42,7 +42,7 @@ import { PageStatCard } from './ui/PageStatCard';
 import { ScaleBadge } from './ui/RarityBadge';
 import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLicensedIcon';
 import { StatBar } from './ui/StatBar';
-import { useI18n } from '../i18n/I18nContext';
+import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import {
   computeStatMaxima,
@@ -61,34 +61,37 @@ import type {
   MissionRequiredStanding,
   MissionRewardFactionGroup,
   Resource,
+  LocalizedString,
   StandingBucket,
 } from '../types';
 
-const MISSION_SORT_OPTIONS: { value: MissionSort; labelEn: string; labelFr: string }[] = [
-  { value: 'name-asc', labelEn: 'Mission name', labelFr: 'Nom de mission' },
-  { value: 'employer-asc', labelEn: 'Employer', labelFr: 'Employeur' },
-  { value: 'standing-asc', labelEn: 'Lowest standing', labelFr: 'Réputation croissante' },
-  { value: 'standing-desc', labelEn: 'Highest standing', labelFr: 'Réputation décroissante' },
-  { value: 'scale-asc', labelEn: 'Scale', labelFr: 'Portée' },
-  { value: 'location-asc', labelEn: 'Location', labelFr: 'Lieu' },
-  { value: 'blueprint-count-asc', labelEn: 'Fewest blueprints', labelFr: 'Moins de blueprints' },
-  { value: 'blueprint-count-desc', labelEn: 'Most blueprints', labelFr: 'Plus de blueprints' },
-  { value: 'chance-desc', labelEn: 'Best chance', labelFr: 'Meilleure chance' },
+const ls = (en: string, fr: string, de?: string): LocalizedString => ({ en, fr, de });
+
+const MISSION_SORT_OPTIONS: { value: MissionSort; label: LocalizedString }[] = [
+  { value: 'name-asc', label: ls('Mission name', 'Nom de mission', 'Missionsname') },
+  { value: 'employer-asc', label: ls('Employer', 'Employeur', 'Arbeitgeber') },
+  { value: 'standing-asc', label: ls('Lowest standing', 'Réputation croissante', 'Niedrigster Ruf') },
+  { value: 'standing-desc', label: ls('Highest standing', 'Réputation décroissante', 'Höchster Ruf') },
+  { value: 'scale-asc', label: ls('Scale', 'Portée', 'Reichweite') },
+  { value: 'location-asc', label: ls('Location', 'Lieu', 'Ort') },
+  { value: 'blueprint-count-asc', label: ls('Fewest blueprints', 'Moins de blueprints', 'Wenigste Blueprints') },
+  { value: 'blueprint-count-desc', label: ls('Most blueprints', 'Plus de blueprints', 'Meiste Blueprints') },
+  { value: 'chance-desc', label: ls('Best chance', 'Meilleure chance', 'Beste Chance') },
 ];
 
-const STANDING_OPTIONS: { value: StandingBucket; labelEn: string; labelFr: string }[] = [
-  { value: 'all', labelEn: 'Any standing', labelFr: 'Toute réputation' },
-  { value: 'none', labelEn: 'No standing gate', labelFr: 'Sans prérequis' },
-  { value: '1-999', labelEn: '1-999', labelFr: '1-999' },
-  { value: '1000-4999', labelEn: '1k-4.9k', labelFr: '1k-4,9k' },
-  { value: '5000-14999', labelEn: '5k-14.9k', labelFr: '5k-14,9k' },
-  { value: '15000+', labelEn: '15k+', labelFr: '15k+' },
+const STANDING_OPTIONS: { value: StandingBucket; label: LocalizedString }[] = [
+  { value: 'all', label: ls('Any standing', 'Toute réputation', 'Beliebiger Ruf') },
+  { value: 'none', label: ls('No standing gate', 'Sans prérequis', 'Keine Rufschwelle') },
+  { value: '1-999', label: ls('1-999', '1-999', '1-999') },
+  { value: '1000-4999', label: ls('1k-4.9k', '1k-4,9k', '1k-4,9k') },
+  { value: '5000-14999', label: ls('5k-14.9k', '5k-14,9k', '5k-14,9k') },
+  { value: '15000+', label: ls('15k+', '15k+', '15k+') },
 ];
 
 const RESOURCE_OBJECTIVE_OPTIONS = [
-  { value: 'all', labelEn: 'All missions', labelFr: 'Toutes les missions' },
-  { value: 'with', labelEn: 'With resource goals', labelFr: 'Avec objectifs ressource' },
-  { value: 'without', labelEn: 'Without resource goals', labelFr: 'Sans objectifs ressource' },
+  { value: 'all', label: ls('All missions', 'Toutes les missions', 'Alle Missionen') },
+  { value: 'with', label: ls('With resource goals', 'Avec objectifs ressource', 'Mit Ressourcenzielen') },
+  { value: 'without', label: ls('Without resource goals', 'Sans objectifs ressource', 'Ohne Ressourcenziele') },
 ] as const;
 
 interface FlatContract {
@@ -403,7 +406,7 @@ function MissionsFilterBar({
           <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)}>
             {MISSION_SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
-                {t(option.labelEn, option.labelFr)}
+                {loc(option.label, lang)}
               </MenuItem>
             ))}
           </Select>
@@ -526,7 +529,7 @@ function MissionsFilterBar({
               <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)}>
                 {STANDING_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {t(option.labelEn, option.labelFr)}
+                    {loc(option.label, lang)}
                   </MenuItem>
                 ))}
               </Select>
@@ -569,7 +572,7 @@ function MissionsFilterBar({
               <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')}>
                 {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {t(option.labelEn, option.labelFr)}
+                    {loc(option.label, lang)}
                   </MenuItem>
                 ))}
               </Select>

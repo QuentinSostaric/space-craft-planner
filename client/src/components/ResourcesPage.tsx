@@ -46,6 +46,7 @@ import {
   type Blueprint,
   type ItemCategory,
   type Lang,
+  type LocalizedString,
   type MaterialSourceProvider,
   type MissionContract,
   type MissionRewardFactionGroup,
@@ -90,15 +91,16 @@ interface ResourceIdentityPanelProps {
   onBack: () => void;
 }
 
+const ls = (en: string, fr: string, de?: string): LocalizedString => ({ en, fr, de });
+
 const RESOURCE_SORT_OPTIONS: Array<{
   value: ResourceSort;
-  labelEn: string;
-  labelFr: string;
+  label: LocalizedString;
 }> = [
-  { value: 'name-asc', labelEn: 'Name', labelFr: 'Nom' },
-  { value: 'providers-desc', labelEn: 'Most providers', labelFr: 'Plus de sources' },
-  { value: 'missions-desc', labelEn: 'Most mission demand', labelFr: 'Plus de missions' },
-  { value: 'blueprints-desc', labelEn: 'Most blueprint usage', labelFr: 'Plus de blueprints' },
+  { value: 'name-asc', label: ls('Name', 'Nom', 'Name') },
+  { value: 'providers-desc', label: ls('Most providers', 'Plus de sources', 'Meiste Quellen') },
+  { value: 'missions-desc', label: ls('Most mission demand', 'Plus de missions', 'Meiste Missionsnachfrage') },
+  { value: 'blueprints-desc', label: ls('Most blueprint usage', 'Plus de blueprints', 'Meiste Blueprint-Nutzung') },
 ];
 
 function simplifyProviderType(
@@ -553,7 +555,7 @@ function ResourcesFilterBar({
           <Select value={sortBy} onChange={(event) => onSortByChange(event.target.value as ResourceSort)} inputProps={{ 'aria-label': t('Sort by', 'Trier par') }}>
             {RESOURCE_SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
-                {t(option.labelEn, option.labelFr)}
+                {loc(option.label, lang)}
               </MenuItem>
             ))}
           </Select>
