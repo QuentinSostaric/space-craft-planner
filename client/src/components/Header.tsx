@@ -429,10 +429,7 @@ export function Header() {
             }}
           >
             <ToggleButton value="live" disabled={!availableChannels.has('live')}>
-              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                <StarCitizenLicensedIcon name="live" size={14} />
-                <span>LIVE</span>
-              </Box>
+              LIVE
             </ToggleButton>
             <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')}>
               PTU
