@@ -1,4 +1,5 @@
 import { startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -70,6 +71,8 @@ const MISSION_SORT_OPTIONS: { value: MissionSort; labelEn: string; labelFr: stri
   { value: 'standing-desc', labelEn: 'Highest standing', labelFr: 'Réputation décroissante' },
   { value: 'scale-asc', labelEn: 'Scale', labelFr: 'Portée' },
   { value: 'location-asc', labelEn: 'Location', labelFr: 'Lieu' },
+  { value: 'blueprint-count-asc', labelEn: 'Fewest blueprints', labelFr: 'Moins de blueprints' },
+  { value: 'blueprint-count-desc', labelEn: 'Most blueprints', labelFr: 'Plus de blueprints' },
   { value: 'chance-desc', labelEn: 'Best chance', labelFr: 'Meilleure chance' },
 ];
 
@@ -197,6 +200,14 @@ function getMissionMaxStanding(contract: MissionContract): number {
 
 function getMissionMaxChance(contract: MissionContract): number {
   return Math.max(0, ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.chance ?? 0));
+}
+
+function getMissionRewardedBlueprintCount(contract: MissionContract): number {
+  return new Set(
+    contract.rewardedBlueprints
+      .map((rewardedBlueprint) => rewardedBlueprint.id)
+      .filter(Boolean),
+  ).size;
 }
 
 function getStandingBucket(value: number | null | undefined): StandingBucket {
@@ -1202,6 +1213,13 @@ function MissionDetail({
   );
 }
 
+function missionGetColumns(containerWidth: number): number {
+  if (containerWidth >= 1200) return 4; // lg + xl
+  if (containerWidth >= 900)  return 3; // md
+  if (containerWidth >= 600)  return 2; // sm
+  return 1;
+}
+
 export function MissionsPanel() {
   const {
     missionRewards,
@@ -1446,6 +1464,12 @@ export function MissionsPanel() {
         case 'location-asc':
           return String(getPrimaryMissionLocation(left.contract) ?? '').localeCompare(String(getPrimaryMissionLocation(right.contract) ?? ''), undefined, { numeric: true, sensitivity: 'base' })
             || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'blueprint-count-asc':
+          return getMissionRewardedBlueprintCount(left.contract) - getMissionRewardedBlueprintCount(right.contract)
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+        case 'blueprint-count-desc':
+          return getMissionRewardedBlueprintCount(right.contract) - getMissionRewardedBlueprintCount(left.contract)
+            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
         case 'chance-desc':
           return getMissionMaxChance(right.contract) - getMissionMaxChance(left.contract)
             || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
@@ -1475,6 +1499,9 @@ export function MissionsPanel() {
     sortBy,
     standingBucketFilter,
   ]);
+
+  const { scrollContainerRef, sentinelRef, visibleCount } =
+    useInfiniteScroll(filteredContracts, { getColumns: missionGetColumns });
 
   useEffect(() => {
     const syncSelectedMissionFromPath = () => {
@@ -1629,7 +1656,7 @@ export function MissionsPanel() {
           />
         </Box>
       )}
-      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
+      <Box ref={scrollContainerRef} sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
         {selectedMission ? (
           <MissionDetail
             selection={selectedMission}
@@ -1656,29 +1683,34 @@ export function MissionsPanel() {
                 {t('No contracts match your filters.', 'Aucun contrat ne correspond a tes filtres.')}
               </Typography>
             ) : (
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
-                  gap: { xs: 1.25, sm: 1.5, md: 2 },
-                }}
-                role="list"
-                aria-label={t('Contract list', 'Liste des contrats')}
-              >
-                {filteredContracts.map(({ contract, group }) => (
-                  <ContractCard
-                    key={getContractKey(contract)}
-                    contract={contract}
-                    group={group}
-                    onBlueprintClick={handleBlueprintClick}
-                    onOpen={() => {
-                      const missionSlug = getMissionSlug(contract, group);
-                      startTransition(() => setSelectedMissionSlug(missionSlug));
-                      navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
-                    }}
-                  />
-                ))}
-              </Box>
+              <>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                    gap: { xs: 1.25, sm: 1.5, md: 2 },
+                  }}
+                  role="list"
+                  aria-label={t('Contract list', 'Liste des contrats')}
+                >
+                  {filteredContracts.slice(0, visibleCount).map(({ contract, group }) => (
+                    <ContractCard
+                      key={getContractKey(contract)}
+                      contract={contract}
+                      group={group}
+                      onBlueprintClick={handleBlueprintClick}
+                      onOpen={() => {
+                        const missionSlug = getMissionSlug(contract, group);
+                        startTransition(() => setSelectedMissionSlug(missionSlug));
+                        navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
+                      }}
+                    />
+                  ))}
+                </Box>
+                {visibleCount < filteredContracts.length && (
+                  <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+                )}
+              </>
             )}
           </Box>
         )}
