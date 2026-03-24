@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#111827"/>
-      <stop offset="100%" stop-color="#1e293b"/>
+      <stop offset="0%" stop-color="#0d1520"/>
+      <stop offset="100%" stop-color="#1a2035"/>
     </linearGradient>
     <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#3b82f6"/>
@@ -14,27 +14,60 @@
       <stop offset="100%" stop-color="#c084fc"/>
     </linearGradient>
   </defs>
+
+  <!-- Background -->
   <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Accent bars -->
   <rect x="0" y="0" width="1200" height="4" fill="url(#accent)"/>
   <rect x="0" y="626" width="1200" height="4" fill="url(#accent)"/>
-  
-  <!-- Nouveau Hexagone Logo (centré) -->
-  <g transform="translate(525, 80) scale(3.5)">
-    <path d="M25 10L40 18.5V35.5L25 44L10 35.5V18.5L25 10Z" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="2 2" />
-    <path d="M25 15L35 21V33L25 39L15 33V21L25 15Z" fill="url(#brand)" />
-    <path d="M25 22L30 25V30L25 33L20 30V25L25 22Z" fill="#fff" opacity="0.8" />
+
+  <!-- Hexagon Logo (centered at x=600, y≈145) -->
+  <!-- translate(513, 50) scale(3.5): center = (513+25×3.5, 50+27×3.5) = (600.5, 144.5) -->
+  <g transform="translate(513, 50) scale(3.5)">
+    <path d="M25 10L40 18.5V35.5L25 44L10 35.5V18.5L25 10Z" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <path d="M25 15L35 21V33L25 39L15 33V21L25 15Z" fill="url(#brand)"/>
+    <path d="M25 22L30 25V30L25 33L20 30V25L25 22Z" fill="#fff" opacity="0.8"/>
   </g>
 
   <!-- Title -->
-  <text x="600" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="72" fill="#edf0f9" letter-spacing="-2">
+  <text x="600" y="288" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="76" fill="#edf0f9" letter-spacing="-2">
     Item<tspan fill="url(#brand)">Fabricator</tspan>
   </text>
-  <!-- Subtitle -->
-  <text x="600" y="485" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="32" fill="#a0aeca">
-    Star Citizen Crafting &amp; Resource Planner
+
+  <!-- Version label -->
+  <text x="600" y="330" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="20" fill="#7d8ba8" letter-spacing="4">
+    STAR CITIZEN ALPHA 4.7
   </text>
+
+  <!-- Divider -->
+  <rect x="150" y="358" width="900" height="1" fill="url(#accent)" opacity="0.35"/>
+
+  <!-- Feature pills: width=210, gap=26, start x=141, centers at 246/482/718/954 -->
+
+  <!-- Blueprints -->
+  <rect x="141" y="385" width="210" height="72" rx="2" fill="#3b82f6" fill-opacity="0.08" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.45"/>
+  <text x="246" y="416" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="19" fill="#93c5fd">Blueprints</text>
+  <text x="246" y="440" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#586480">Craft simulator · Stats</text>
+
+  <!-- Missions -->
+  <rect x="377" y="385" width="210" height="72" rx="2" fill="#8b5cf6" fill-opacity="0.08" stroke="#8b5cf6" stroke-width="1" stroke-opacity="0.45"/>
+  <text x="482" y="416" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="19" fill="#a78bfa">Missions</text>
+  <text x="482" y="440" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#586480">Faction contracts</text>
+
+  <!-- Resources -->
+  <rect x="613" y="385" width="210" height="72" rx="2" fill="#a855f7" fill-opacity="0.08" stroke="#a855f7" stroke-width="1" stroke-opacity="0.45"/>
+  <text x="718" y="416" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="19" fill="#c084fc">Resources</text>
+  <text x="718" y="440" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#586480">Sources · Mining</text>
+
+  <!-- Planner -->
+  <rect x="849" y="385" width="210" height="72" rx="2" fill="#c084fc" fill-opacity="0.08" stroke="#c084fc" stroke-width="1" stroke-opacity="0.45"/>
+  <text x="954" y="416" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="19" fill="#e879f9">Planner</text>
+  <text x="954" y="440" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#586480">Goals · Resources</text>
+
+  <!-- Bottom divider -->
+  <rect x="150" y="492" width="900" height="1" fill="url(#accent)" opacity="0.2"/>
+
   <!-- URL -->
-  <text x="600" y="570" text-anchor="middle" font-family="monospace" font-weight="400" font-size="24" fill="#7d8ba8">
-    itemfab.space
-  </text>
+  <text x="600" y="565" text-anchor="middle" font-family="monospace" font-size="19" fill="#4a5a78" letter-spacing="2">itemfab.space</text>
 </svg>

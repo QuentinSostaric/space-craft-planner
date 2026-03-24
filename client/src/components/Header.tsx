@@ -294,7 +294,7 @@ export function Header() {
               <path d="M25 10L40 18.5V35.5L25 44L10 35.5V18.5L25 10Z" stroke="#818cf8" strokeWidth="1.5" strokeDasharray="2 2" />
               <path d="M25 15L35 21V33L25 39L15 33V21L25 15Z" fill="url(#hdr_grad)" />
               <path d="M25 22L30 25V30L25 33L20 30V25L25 22Z" fill="#fff" fillOpacity="0.8" />
-              <text x="52" y="38" fontFamily="Khand, sans-serif" fontWeight="700" fontSize="26" letterSpacing="0.5">
+              <text x="52" y="38" fontFamily="Khand, sans-serif" fontWeight="700" fontSize="32" letterSpacing="0.5">
                 <tspan fill="#fff">ITEM</tspan>
                 <tspan fill="#818cf8" dx="3">FABRICATOR</tspan>
               </text>
