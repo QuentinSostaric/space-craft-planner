@@ -265,6 +265,8 @@ export type MissionSort =
   | 'standing-desc'
   | 'scale-asc'
   | 'location-asc'
+  | 'blueprint-count-asc'
+  | 'blueprint-count-desc'
   | 'chance-desc';
 
 export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
