@@ -7,6 +7,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useI18n } from '../../i18n/I18nContext';
 import type { Blueprint } from '../../types';
+import { isResourceSlot } from '../../utils/crafting';
 
 interface DismantleSectionProps {
   blueprint: Blueprint;
@@ -17,6 +18,7 @@ interface DismantleSectionProps {
 
 export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency, perItemYieldModelResolved }: DismantleSectionProps) {
   const { t } = useI18n();
+  const resourceSlots = blueprint.slots.filter(isResourceSlot);
 
   return (
     <Box component="section" aria-label={t('Dismantling', 'Démontage')} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -28,7 +30,7 @@ export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency, per
         <Typography variant="body2" sx={{ color: 'text.disabled' }}>
           {t('Yield data per item unavailable', 'Données de rendement par objet indisponibles')}
         </Typography>
-      ) : blueprint.slots.length === 0 ? (
+      ) : resourceSlots.length === 0 ? (
         <Typography variant="body2" sx={{ color: 'text.disabled' }}>
           {t('No materials', 'Aucun matériau')}
         </Typography>
@@ -41,7 +43,7 @@ export function DismantleSection({ blueprint, dismantleTimeSecs, efficiency, per
             </TableRow>
           </TableHead>
           <TableBody>
-            {blueprint.slots.map((slot) => {
+            {resourceSlots.map((slot) => {
               const effectiveQty = slot.quantityScu * (slot.quantityMultiplier ?? 1);
               const recovered = effectiveQty * efficiency;
               return (

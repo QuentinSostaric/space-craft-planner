@@ -29,6 +29,7 @@ import {
   buildShipComponentCardModel,
   isDisplayableShipComponent,
 } from '../utils/shipComponents';
+import { isResourceSlot } from '../utils/crafting';
 import { CategoryBadge } from './ui/Badge';
 import { PageStatCard } from './ui/PageStatCard';
 import type {
@@ -242,7 +243,7 @@ export function BlueprintExplorer() {
     const set = new Set<string>();
     for (const bp of blueprints) {
       for (const slot of bp.slots) {
-        if (slot.requiredResource) {
+        if (isResourceSlot(slot) && slot.requiredResource) {
           set.add(slot.requiredResource);
         }
       }

@@ -11,12 +11,11 @@ import ThermostatIcon from '@mui/icons-material/Thermostat';
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
 import { loc, useI18n } from '../../i18n/I18nContext';
 import { ARMOR_DAMAGE_RESISTANCE_KEYS, STAT_LABELS } from '../../types';
-import type { AggregatedResource, Blueprint, ItemStats, Resource } from '../../types';
+import type { Blueprint, ItemStats } from '../../types';
 import { Button } from '../ui/Button';
 import { SlotCard } from './shared/SlotCard';
 import { CombinedModifiers } from './shared/CombinedModifiers';
 import { QualityScore } from './shared/QualityScore';
-import { ResourceSummary } from './shared/ResourceSummary';
 import { StatImpactRadar } from './shared/StatImpactRadar';
 
 function StatBox({
@@ -94,8 +93,6 @@ interface CraftSectionProps {
   clearAssignments: () => void;
   qualityScore: number;
   projectedStats: ItemStats;
-  requiredResources: AggregatedResource[];
-  resources: Resource[];
 }
 
 export function CraftSection({
@@ -105,8 +102,6 @@ export function CraftSection({
   clearAssignments,
   qualityScore,
   projectedStats,
-  requiredResources,
-  resources,
 }: CraftSectionProps) {
   const { lang, t } = useI18n();
   const theme = useTheme();
@@ -438,27 +433,15 @@ export function CraftSection({
           <CombinedModifiers blueprint={blueprint} projectedStats={projectedStats} />
         </Box>
 
-        <Stack spacing={2}>
-          <Box
-            sx={{
-              p: 1.5,
-              border: `1px solid ${theme.palette.ui.border}`,
-              backgroundColor: theme.palette.ui.surface1,
-            }}
-          >
-            <StatImpactRadar blueprint={blueprint} projectedStats={projectedStats} />
-          </Box>
-
-          <Box
-            sx={{
-              p: 1.5,
-              border: `1px solid ${theme.palette.ui.border}`,
-              backgroundColor: theme.palette.ui.surface1,
-            }}
-          >
-            <ResourceSummary entries={requiredResources} resources={resources} />
-          </Box>
-        </Stack>
+        <Box
+          sx={{
+            p: 1.5,
+            border: `1px solid ${theme.palette.ui.border}`,
+            backgroundColor: theme.palette.ui.surface1,
+          }}
+        >
+          <StatImpactRadar blueprint={blueprint} projectedStats={projectedStats} />
+        </Box>
       </Box>
     </Box>
   );

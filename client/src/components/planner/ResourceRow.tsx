@@ -24,6 +24,7 @@ const DEFAULT_PROGRESS: ResourceProgress = { collected: 0, method: null };
 interface ResourceRowProps {
   resource: AggregatedResource;
   progress?: ResourceProgress;
+  manualRequired?: number;
 }
 
 const PALETTE_KEY_MAP: Record<ResourceMethod, 'primary' | 'success' | 'warning' | 'secondary'> = {
@@ -33,8 +34,12 @@ const PALETTE_KEY_MAP: Record<ResourceMethod, 'primary' | 'success' | 'warning' 
   buy: 'secondary',
 };
 
-export const ResourceRow = memo(function ResourceRow({ resource, progress = DEFAULT_PROGRESS }: ResourceRowProps) {
-  const { setResourceCollected, setResourceMethod } = useCraft();
+export const ResourceRow = memo(function ResourceRow({
+  resource,
+  progress = DEFAULT_PROGRESS,
+  manualRequired = 0,
+}: ResourceRowProps) {
+  const { clearPlannerResourceRequirement, setResourceCollected, setResourceMethod } = useCraft();
   const { t } = useI18n();
   const theme = useTheme();
   const collected = Math.min(progress.collected, resource.totalScu);
@@ -113,6 +118,15 @@ export const ResourceRow = memo(function ResourceRow({ resource, progress = DEFA
               size="small"
               variant="outlined"
               sx={{ fontSize: '0.6rem', height: 18, color: 'warning.main', borderColor: alpha(theme.palette.warning.main, 0.3) }}
+            />
+          )}
+          {manualRequired > 0 && (
+            <Chip
+              label={`+${manualRequired.toFixed(2)} SCU ${t('manual', 'manuel')}`}
+              size="small"
+              variant="outlined"
+              onDelete={() => clearPlannerResourceRequirement(resource.resourceName)}
+              sx={{ fontSize: '0.6rem', height: 18 }}
             />
           )}
           <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", color: 'text.secondary', flexShrink: 0 }}>

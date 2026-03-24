@@ -10,7 +10,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { alpha, useTheme as useMuiTheme } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -18,8 +18,6 @@ import { useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useTheme } from '../hooks/useTheme';
-import { GameIcon } from './ui/GameIcon';
-import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { navigateToPath } from '../utils/slug';
 
 const MONTH_NAMES = {
@@ -163,8 +161,6 @@ export function Header() {
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const [themeMode, setThemeMode] = useTheme();
-  const theme = useMuiTheme();
-  const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
   const isHeaderStacked = useMediaQuery('(max-width:430px)');
   const isNarrowHeader = useMediaQuery('(max-width:720px)');
 
@@ -280,58 +276,49 @@ export function Header() {
             sx={{
               borderRadius: 1,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: { xs: 0.85, md: 2 },
-              minWidth: 0,
-              maxWidth: isHeaderStacked ? 'calc(100% - 124px)' : 'none',
+              gap: 0.25,
+              flexShrink: 0,
             }}
           >
             <Box
+              component="svg"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 270 60"
+              fill="none"
+              role="img"
+              aria-label="Item Fabricator"
+              sx={{ height: { xs: 32, md: 44 }, width: 'auto', display: 'block', flexShrink: 0 }}
+            >
+              <path d="M25 10L40 18.5V35.5L25 44L10 35.5V18.5L25 10Z" stroke="#818cf8" strokeWidth="1.5" strokeDasharray="2 2" />
+              <path d="M25 15L35 21V33L25 39L15 33V21L25 15Z" fill="url(#hdr_grad)" />
+              <path d="M25 22L30 25V30L25 33L20 30V25L25 22Z" fill="#fff" fillOpacity="0.8" />
+              <text x="52" y="38" fontFamily="Khand, sans-serif" fontWeight="700" fontSize="26" letterSpacing="0.5">
+                <tspan fill="#fff">ITEM</tspan>
+                <tspan fill="#818cf8" dx="3">FABRICATOR</tspan>
+              </text>
+              <defs>
+                <linearGradient id="hdr_grad" x1="10" y1="10" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#3b82f6" />
+                  <stop offset="1" stopColor="#818cf8" />
+                </linearGradient>
+              </defs>
+            </Box>
+            <Typography
+              variant="caption"
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: { xs: 30, md: 36 },
-                height: { xs: 30, md: 36 },
-                borderRadius: 1,
-                backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                color: 'primary.main',
-                flexShrink: 0,
+                fontSize: { xs: '0.54rem', md: '0.6rem' },
+                color: 'text.disabled',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                display: { xs: 'none', md: 'block' },
               }}
             >
-              <GameIcon name="calculator" size={isCompactLayout ? 20 : 24} />
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  letterSpacing: '-0.01em',
-                  fontSize: { xs: '0.9rem', sm: '1.1rem', md: '1.3rem' },
-                  lineHeight: 0.95,
-                  color: 'text.primary',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Item
-                <Box component="span" sx={{ color: 'primary.main', ml: 0.5 }}>
-                  Fabricator
-                </Box>
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                fontSize: { xs: '0.54rem', md: '0.6rem' },
-                  color: 'text.disabled',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  display: { xs: 'none', sm: 'block' },
-                }}
-              >
-                Release v{__APP_VERSION__}
-              </Typography>
-            </Box>
+              v{__APP_VERSION__}
+            </Typography>
           </ButtonBase>
 
           <Box

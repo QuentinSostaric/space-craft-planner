@@ -17,7 +17,12 @@ import { GameIcon } from '../../ui/GameIcon';
 import { GPP_LABELS } from '../../../types';
 import type { MaterialSlot, ItemCategory } from '../../../types';
 import type { GameIconName } from '../../ui/GameIcon';
-import { clampQualityValue } from '../../../utils/crafting';
+import {
+  clampQualityValue,
+  formatSlotQuantity,
+  getSlotRequirementName,
+  isResourceSlot,
+} from '../../../utils/crafting';
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon': 'weapons',
@@ -46,6 +51,8 @@ export function SlotCard({
 
   const currentQuality = qualityValue ?? 0;
   const isAssigned = qualityValue !== undefined;
+  const requirementName = getSlotRequirementName(slot);
+  const isResourceRequirement = isResourceSlot(slot);
 
   const modifiers = useMemo(() => {
     if (!isAssigned || qualityValue === undefined) return [];
@@ -107,8 +114,10 @@ export function SlotCard({
         >
           {category ? (
             <GameIcon name={CAT_ICON[category]} size={20} />
-          ) : (
+          ) : isResourceRequirement ? (
             <ResourceIcon name={slot.requiredResource} size={20} />
+          ) : (
+            <GameIcon name="utilities" size={20} />
           )}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -132,10 +141,10 @@ export function SlotCard({
               variant="caption"
               sx={{ fontSize: '0.7rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '.1em' }}
             >
-              {t('Resource', 'Ressource')}
+              {isResourceRequirement ? t('Resource', 'Ressource') : t('Item', 'Objet')}
             </Typography>
             <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 600 }}>
-              {slot.requiredResource}
+              {requirementName}
             </Typography>
           </Box>
         </Box>
@@ -190,9 +199,9 @@ export function SlotCard({
             value={currentQuality}
             onChange={(_e, val) => onQualityChange(clampQualityValue(val as number))}
             aria-label={t(
-              `Quality for ${slot.requiredResource}`,
-              `Qualite pour ${slot.requiredResource}`,
-              `Qualitat fur ${slot.requiredResource}`,
+              `Quality for ${requirementName}`,
+              `Qualite pour ${requirementName}`,
+              `Qualitat fur ${requirementName}`,
             )}
             size="small"
             marks={deadZoneEnd > 0 ? [{ value: deadZoneEnd, label: '' }] : undefined}
@@ -238,7 +247,7 @@ export function SlotCard({
             sx={{ flex: 1, '& .MuiInputBase-root': { height: 26 } }}
           />
           <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.disabled', flexShrink: 0 }}>
-            {slot.quantityScu} SCU
+            {formatSlotQuantity(slot)}
           </Typography>
           {slot.quantityMultiplier != null && (
             <Chip

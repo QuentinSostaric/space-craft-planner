@@ -7,6 +7,7 @@ export interface LocalizedString {
 
 export const LS_KEYS = {
   GOALS: 'sc-craft-goals',
+  PLANNER_RESOURCE_REQUIREMENTS: 'sc-craft-planner-resource-requirements',
   FAVORITES: 'sc-craft-favorites',
   LANG: 'sc-craft-lang',
   THEME: 'sc-craft-theme',
@@ -26,12 +27,21 @@ export interface GppModifier {
   occurrenceCount: number;
 }
 
+export type MaterialSlotRequirementType = 'resource' | 'item';
+export type MaterialSlotQuantityUnit = 'scu' | 'count';
+
 export interface MaterialSlot {
   id: string;
   label: LocalizedString;
+  requirementType: MaterialSlotRequirementType;
+  requirementName: string;
   requiredResource: string;
+  requiredItem: string | null;
+  requiredItemClass: string | null;
   minQuality: number | null;
   quantityScu: number;
+  quantityValue: number;
+  quantityUnit: MaterialSlotQuantityUnit;
   quantityMultiplier: number | null;
   modifiers: GppModifier[];
 }
@@ -238,6 +248,8 @@ export interface ResourceProgress {
   collected: number;       // SCU collected so far (0 – totalScu)
   method: ResourceMethod | null;
 }
+
+export type PlannerResourceRequirements = Record<string, number>;
 
 export type RarityFilter = 'all' | Rarity | 'unknown';
 export type SlotCountFilter = 'all' | '1' | '2' | '3';

@@ -8,18 +8,23 @@ import { useI18n } from '../i18n/I18nContext';
 import { GoalsList } from './planner/GoalsList';
 import { ResourcesList } from './planner/ResourcesList';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
-import { aggregateGoalResources } from '../utils/crafting';
+import { aggregatePlannedResources } from '../utils/crafting';
 
 export function PlannerPage() {
   const {
     goals,
     blueprints,
+    plannerResourceRequirements,
     resourceProgress,
     resetResourceProgress,
   } = useCraft();
   const { t } = useI18n();
 
-  const aggregated = useMemo(() => aggregateGoalResources(goals, blueprints), [goals, blueprints]);
+  const aggregated = useMemo(
+    () => aggregatePlannedResources(goals, blueprints, plannerResourceRequirements),
+    [goals, blueprints, plannerResourceRequirements],
+  );
+  const hasPlannerContent = goals.length > 0 || aggregated.length > 0;
 
   // NOTE: This computation duplicates the same logic in ResourcesList.tsx (totalRequired,
   // totalCollected, globalPct). Both derive from the same aggregated + resourceProgress data.
@@ -50,7 +55,13 @@ export function PlannerPage() {
     const payload = {
       exportedAt: new Date().toISOString(),
       goals: goals.map((g) => ({ blueprintId: g.blueprintId, blueprintName: g.blueprintName, quantity: g.quantity, qualityScore: g.qualityScore })),
-      materials: aggregated.map((r) => ({ resourceName: r.resourceName, totalScu: r.totalScu, collected: resourceProgress[r.resourceName]?.collected ?? 0, method: resourceProgress[r.resourceName]?.method ?? null })),
+      materials: aggregated.map((r) => ({
+        resourceName: r.resourceName,
+        totalScu: r.totalScu,
+        manualRequired: plannerResourceRequirements[r.resourceName] ?? 0,
+        collected: resourceProgress[r.resourceName]?.collected ?? 0,
+        method: resourceProgress[r.resourceName]?.method ?? null,
+      })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -62,7 +73,7 @@ export function PlannerPage() {
     } finally {
       URL.revokeObjectURL(url);
     }
-  }, [goals, aggregated, resourceProgress]);
+  }, [goals, aggregated, plannerResourceRequirements, resourceProgress]);
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: { xs: 'visible', md: 'hidden' } }}>
@@ -81,10 +92,10 @@ export function PlannerPage() {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}>
-          <Button variant="outlined" size="small" onClick={handleCopyText} disabled={goals.length === 0} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
+          <Button variant="outlined" size="small" onClick={handleCopyText} disabled={!hasPlannerContent} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
             {t('Copy text', 'Copier texte')}
           </Button>
-          <Button variant="outlined" size="small" onClick={handleDownloadJSON} disabled={goals.length === 0} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
+          <Button variant="outlined" size="small" onClick={handleDownloadJSON} disabled={!hasPlannerContent} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
               <StarCitizenLicensedIcon name="download" size={14} dimmed />
               <span>JSON</span>

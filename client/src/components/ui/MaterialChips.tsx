@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { MaterialSlot, Resource } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
+import { isResourceSlot } from '../../utils/crafting';
 
 interface MaterialChipsProps {
   slots: MaterialSlot[];
@@ -30,6 +31,10 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
   const aggregated = useMemo(() => {
     const map = new Map<string, { name: string; total: number; color: string }>();
     for (const slot of slots) {
+      if (!isResourceSlot(slot)) {
+        continue;
+      }
+
       const existing = map.get(slot.requiredResource);
       const res = resources.find((r) => r.name === slot.requiredResource);
       if (existing) {

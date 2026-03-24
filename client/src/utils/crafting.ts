@@ -13,6 +13,7 @@ import type {
   MissionRequiredStanding,
   MissionRewardsData,
   NumericItemStatKey,
+  PlannerResourceRequirements,
 } from '../types';
 import { NUMERIC_ITEM_STAT_KEYS } from '../types';
 import { loc } from '../i18n/I18nContext';
@@ -125,6 +126,30 @@ export function clampQualityValue(value: number | undefined): number | undefined
   return Math.max(0, Math.min(1000, Math.round(value)));
 }
 
+export function isResourceSlot(slot: MaterialSlot): boolean {
+  return slot.requirementType !== 'item';
+}
+
+export function getSlotRequirementName(slot: MaterialSlot): string {
+  return slot.requirementName || slot.requiredResource;
+}
+
+export function getSlotQuantityValue(slot: MaterialSlot): number {
+  return slot.quantityUnit === 'count' ? slot.quantityValue : slot.quantityScu;
+}
+
+export function formatSlotQuantity(slot: MaterialSlot): string {
+  const value = getSlotQuantityValue(slot);
+  const rounded =
+    value >= 10
+      ? Math.round(value).toString()
+      : value >= 1
+        ? value.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
+        : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+
+  return slot.quantityUnit === 'count' ? `x${rounded}` : `${rounded} SCU`;
+}
+
 export function formatQualityToken(value: number): string {
   return `Q${Math.round(value)}`;
 }
@@ -212,19 +237,18 @@ export function aggregateBlueprintResources(
   assignments: Record<string, number | undefined>,
 ): AggregatedResource[] {
   return aggregateResourceEntries(
-    slots.map((slot) => ({
+    slots
+      .filter(isResourceSlot)
+      .map((slot) => ({
       resourceName: slot.requiredResource,
       quantityScu: slot.quantityScu,
       minQuality: slot.minQuality,
       assignedQuality: clampQualityValue(assignments[slot.id]),
-    })),
+      })),
   );
 }
 
-export function aggregateGoalResources(
-  goals: CraftGoal[],
-  blueprints: Blueprint[],
-): AggregatedResource[] {
+function collectGoalResourceEntries(goals: CraftGoal[], blueprints: Blueprint[]) {
   const entries = [];
 
   for (const goal of goals) {
@@ -234,6 +258,10 @@ export function aggregateGoalResources(
     }
 
     for (const slot of blueprint.slots) {
+      if (!isResourceSlot(slot)) {
+        continue;
+      }
+
       entries.push({
         resourceName: slot.requiredResource,
         quantityScu: slot.quantityScu * goal.quantity,
@@ -243,7 +271,34 @@ export function aggregateGoalResources(
     }
   }
 
-  return aggregateResourceEntries(entries);
+  return entries;
+}
+
+export function aggregateGoalResources(
+  goals: CraftGoal[],
+  blueprints: Blueprint[],
+): AggregatedResource[] {
+  return aggregateResourceEntries(collectGoalResourceEntries(goals, blueprints));
+}
+
+export function aggregatePlannedResources(
+  goals: CraftGoal[],
+  blueprints: Blueprint[],
+  plannerResourceRequirements: PlannerResourceRequirements,
+): AggregatedResource[] {
+  const manualEntries = Object.entries(plannerResourceRequirements)
+    .filter(([resourceName, quantityScu]) => Boolean(resourceName) && Number.isFinite(quantityScu) && quantityScu > 0)
+    .map(([resourceName, quantityScu]) => ({
+      resourceName,
+      quantityScu,
+      minQuality: null,
+      assignedQuality: undefined,
+    }));
+
+  return aggregateResourceEntries([
+    ...collectGoalResourceEntries(goals, blueprints),
+    ...manualEntries,
+  ]);
 }
 
 

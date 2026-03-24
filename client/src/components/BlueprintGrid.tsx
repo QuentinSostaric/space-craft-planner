@@ -15,7 +15,7 @@ import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
-import { CARD_STATS, computeStatMaxima } from '../utils/crafting';
+import { CARD_STATS, computeStatMaxima, isResourceSlot } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
 import {
@@ -101,7 +101,7 @@ function getBlueprintSearchHaystack(blueprint: Blueprint): string {
     blueprint.baseStats.ammoFlavor,
     blueprint.baseStats.armorType,
     blueprint.baseStats.armorSlot,
-    ...blueprint.slots.map((slot) => slot.requiredResource),
+    ...blueprint.slots.map((slot) => slot.requirementName || slot.requiredResource),
   ]
     .filter(Boolean)
     .join(' ')
@@ -506,7 +506,9 @@ export function BlueprintGrid() {
     }
 
     if (materialFilter) {
-      list = list.filter((bp) => bp.slots.some((slot) => slot.requiredResource === materialFilter));
+      list = list.filter((bp) =>
+        bp.slots.some((slot) => isResourceSlot(slot) && slot.requiredResource === materialFilter),
+      );
     }
 
     // Legality

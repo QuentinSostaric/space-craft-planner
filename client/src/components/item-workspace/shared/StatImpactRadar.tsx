@@ -93,18 +93,53 @@ export function StatImpactRadar({
   const theme = useTheme();
   const { lang, t } = useI18n();
 
-  const { metricKeys, baseSeries, buildSeries, metrics } = useMemo(() => {
+  const { metricKeys, baseSeries, buildSeries, metrics, metricStates } = useMemo(() => {
     const keys = getMetricKeys(blueprint, projectedStats).slice(0, 6);
     const base = keys.map(() => 100);
     const build = keys.map((key) =>
       getIndexedScore(key, blueprint.baseStats[key], projectedStats[key]),
     );
+    const states = keys.map((key) => {
+      const baseValue = blueprint.baseStats[key];
+      const projectedValue = projectedStats[key];
+      const baseNumeric = typeof baseValue === 'number' ? baseValue : 0;
+      const projectedNumeric =
+        typeof projectedValue === 'number' ? projectedValue : baseNumeric;
+      const comparableBase = getComparableValue(key, baseNumeric);
+      const comparableProjected = getComparableValue(key, projectedNumeric);
+
+      let pct = 0;
+      if (Math.abs(comparableBase) > 0.0001) {
+        pct = ((comparableProjected / comparableBase) - 1) * 100;
+      } else if (STAT_PERCENT_KEYS.has(key)) {
+        pct = (projectedNumeric - baseNumeric) * 100;
+      } else {
+        pct = comparableProjected - comparableBase;
+      }
+
+      const isNeutral = Math.abs(pct) < 0.005;
+      const isImproved = STAT_LOWER_IS_BETTER.has(key) ? pct < 0 : pct > 0;
+
+      return {
+        key,
+        label: loc(STAT_LABELS[key], lang) ?? key,
+        pct,
+        isNeutral,
+        isImproved,
+      };
+    });
     const metricsArr = keys.map((key) => ({
       name: loc(STAT_LABELS[key], lang) ?? key,
       min: 80,
       max: 120,
     }));
-    return { metricKeys: keys, baseSeries: base, buildSeries: build, metrics: metricsArr };
+    return {
+      metricKeys: keys,
+      baseSeries: base,
+      buildSeries: build,
+      metrics: metricsArr,
+      metricStates: states,
+    };
   }, [blueprint, projectedStats, lang]);
 
   if (metricKeys.length < 3) {
@@ -170,6 +205,42 @@ export function StatImpactRadar({
             }}
           />
         </Stack>
+      </Stack>
+
+      <Stack
+        direction="row"
+        spacing={0.75}
+        useFlexGap
+        flexWrap="wrap"
+        sx={{ mb: 1.25 }}
+      >
+        {metricStates.map((metric) => (
+          <Chip
+            key={metric.key}
+            size="small"
+            label={metric.label}
+            variant="outlined"
+            sx={{
+              height: 22,
+              fontSize: '.65rem',
+              color: metric.isNeutral
+                ? 'text.secondary'
+                : metric.isImproved
+                  ? theme.palette.success.main
+                  : theme.palette.error.main,
+              borderColor: metric.isNeutral
+                ? alpha(theme.palette.text.secondary, 0.28)
+                : metric.isImproved
+                  ? alpha(theme.palette.success.main, 0.45)
+                  : alpha(theme.palette.error.main, 0.45),
+              backgroundColor: metric.isNeutral
+                ? alpha(theme.palette.text.secondary, 0.04)
+                : metric.isImproved
+                  ? alpha(theme.palette.success.main, 0.08)
+                  : alpha(theme.palette.error.main, 0.08),
+            }}
+          />
+        ))}
       </Stack>
 
       <RadarChart

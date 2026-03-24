@@ -27,6 +27,7 @@ import type {
   LibrarySegment,
   MaterialSources,
   MissionRewardsData,
+  PlannerResourceRequirements,
   RarityFilter,
   ResourceMethod,
   ResourceProgress,
@@ -130,6 +131,7 @@ interface CraftState {
   inventoryIds: string[];
   slotAssignments: Record<string, number | undefined>;
   goals: CraftGoal[];
+  plannerResourceRequirements: PlannerResourceRequirements;
   resourceProgress: Record<string, ResourceProgress>;
   comparisonItems: ComparisonItem[];
   comparisonOpen: boolean;
@@ -154,6 +156,8 @@ interface CraftState {
     projectedStats: ItemStats,
   ) => void;
   selectGoalBlueprint: (goalId: string) => void;
+  addPlannerResourceRequirement: (resourceName: string, quantityScu: number) => void;
+  clearPlannerResourceRequirement: (resourceName: string) => void;
   setResourceCollected: (resourceName: string, scu: number) => void;
   setResourceMethod: (resourceName: string, method: ResourceMethod | null) => void;
   resetResourceProgress: () => void;
@@ -252,6 +256,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const materialSources = activeDataset.materialSources ?? null;
 
   const [rawGoals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
+  const [plannerResourceRequirements, setPlannerResourceRequirements] = useLocalPersist<PlannerResourceRequirements>(
+    LS_KEYS.PLANNER_RESOURCE_REQUIREMENTS,
+    {},
+  );
   const [resourceProgress, setResourceProgressRaw] = useLocalPersist<Record<string, ResourceProgress>>(
     LS_KEYS.RESOURCE_PROGRESS,
     {},
@@ -519,6 +527,37 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     setResourceProgressRaw({});
   }, [setResourceProgressRaw]);
 
+  const addPlannerResourceRequirement = useCallback(
+    (resourceName: string, quantityScu: number) => {
+      const normalizedName = resourceName.trim();
+      const normalizedQuantity = Math.round(Math.max(0, quantityScu) * 1000) / 1000;
+      if (!normalizedName || normalizedQuantity <= 0) {
+        return;
+      }
+
+      setPlannerResourceRequirements((prev) => ({
+        ...prev,
+        [normalizedName]: Math.round(((prev[normalizedName] ?? 0) + normalizedQuantity) * 1000) / 1000,
+      }));
+    },
+    [setPlannerResourceRequirements],
+  );
+
+  const clearPlannerResourceRequirement = useCallback(
+    (resourceName: string) => {
+      setPlannerResourceRequirements((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, resourceName)) {
+          return prev;
+        }
+
+        const next = { ...prev };
+        delete next[resourceName];
+        return next;
+      });
+    },
+    [setPlannerResourceRequirements],
+  );
+
   const addGoal = useCallback(
     (qualityScore: number, projectedStats: ItemStats, quantity = 1) => {
       if (!activeBlueprint) return;
@@ -712,6 +751,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         inventoryIds,
         slotAssignments,
         goals,
+        plannerResourceRequirements,
         resourceProgress,
         comparisonItems,
         comparisonOpen,
@@ -731,6 +771,8 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         updateGoalQuantity,
         updateGoal,
         selectGoalBlueprint,
+        addPlannerResourceRequirement,
+        clearPlannerResourceRequirement,
         setResourceCollected,
         setResourceMethod,
         resetResourceProgress,

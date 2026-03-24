@@ -34,6 +34,7 @@ import { BlueprintCard } from './BlueprintGrid';
 import { ScaleBadge } from './ui/RarityBadge';
 import { PageStatCard } from './ui/PageStatCard';
 import { ResourceIcon } from './ui/ResourceIcon';
+import { isResourceSlot } from '../utils/crafting';
 import {
   StarCitizenLicensedIcon,
   getLocationIconName,
@@ -217,6 +218,10 @@ function buildFallbackResourceInsights(
   for (const blueprint of blueprints) {
     const seenResourceIds = new Set<string>();
     for (const slot of blueprint.slots) {
+      if (!isResourceSlot(slot)) {
+        continue;
+      }
+
       const resourceId = slot.requiredResource
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')

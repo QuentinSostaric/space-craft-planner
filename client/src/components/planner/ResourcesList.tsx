@@ -9,7 +9,7 @@ import type { AggregatedResource } from '../../types';
 import { ResourceRow } from './ResourceRow';
 
 export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[] }) {
-  const { resourceProgress } = useCraft();
+  const { plannerResourceRequirements, resourceProgress } = useCraft();
   const { t } = useI18n();
 
   const { totalRequired, totalCollected, globalPct } = useMemo(() => {
@@ -48,11 +48,16 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
       <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, overflowY: { xs: 'visible', md: 'auto' }, p: 1.25, display: 'flex', flexDirection: 'column', gap: 1 }}>
         {aggregated.length === 0 && (
           <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 2.5, textAlign: 'center' }}>
-            {t('Add goals to see required resources.', 'Ajoutez des objectifs pour voir les ressources requises.')}
+            {t('Add goals or materials to see required resources.', 'Ajoutez des objectifs ou des materiaux pour voir les ressources requises.')}
           </Typography>
         )}
         {aggregated.map((resource) => (
-          <ResourceRow key={resource.resourceName} resource={resource} progress={resourceProgress[resource.resourceName]} />
+          <ResourceRow
+            key={resource.resourceName}
+            resource={resource}
+            progress={resourceProgress[resource.resourceName]}
+            manualRequired={plannerResourceRequirements[resource.resourceName] ?? 0}
+          />
         ))}
       </Box>
     </Box>

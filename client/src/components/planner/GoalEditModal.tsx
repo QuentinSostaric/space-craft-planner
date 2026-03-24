@@ -13,8 +13,14 @@ import { useI18n } from '../../i18n/I18nContext';
 import { useCraftSimulator } from '../../hooks/useCraftSimulator';
 import { CategoryBadge } from '../ui/Badge';
 import { ResourceIcon } from '../ui/ResourceIcon';
+import { GameIcon } from '../ui/GameIcon';
 import { Button } from '../ui/Button';
-import { clampQualityValue } from '../../utils/crafting';
+import {
+  clampQualityValue,
+  formatSlotQuantity,
+  getSlotRequirementName,
+  isResourceSlot,
+} from '../../utils/crafting';
 import type { CraftGoal, MaterialSlot } from '../../types';
 
 interface GoalEditModalProps {
@@ -69,13 +75,18 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {blueprint.slots.map((slot: MaterialSlot) => {
             const assignedValue = assignments[slot.id];
+            const requirementName = getSlotRequirementName(slot);
             return (
               <Box key={slot.id} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ResourceIcon name={slot.requiredResource} size={16} />
-                  <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{slot.requiredResource}</Typography>
+                  {isResourceSlot(slot) ? (
+                    <ResourceIcon name={slot.requiredResource} size={16} />
+                  ) : (
+                    <GameIcon name="utilities" size={16} />
+                  )}
+                  <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{requirementName}</Typography>
                   <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", color: 'text.secondary' }}>
-                    {slot.quantityScu.toFixed(2)} SCU
+                    {formatSlotQuantity(slot)}
                   </Typography>
                   {slot.minQuality != null && slot.minQuality > 0 && (
                     <Chip label={`Min ${slot.minQuality}`} size="small" variant="outlined" sx={{ fontSize: '.6rem', height: 20, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
@@ -95,8 +106,8 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
                     }
                     slotProps={{ htmlInput: { min: 0, max: 1000, style: { width: 60, textAlign: 'center', padding: '4px 6px' } } }}
                     aria-label={t(
-                      `Assigned quality for ${slot.requiredResource}`,
-                      `Qualite assignee pour ${slot.requiredResource}`,
+                      `Assigned quality for ${requirementName}`,
+                      `Qualite assignee pour ${requirementName}`,
                     )}
                     sx={{ width: 80 }}
                   />

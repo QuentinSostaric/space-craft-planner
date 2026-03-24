@@ -24,11 +24,13 @@ export function ItemWorkspace() {
     favoriteIds,
     toggleFavorite,
     addGoal,
+    addPlannerResourceRequirement,
     missionRewards,
     missionRewardsLoading,
     ensureMissionRewardsLoaded,
     dismantlingData,
     materialSources,
+    openPlanner,
   } = useCraft();
   const { qualityScore, projectedStats } = useCraftSimulator(activeBlueprint, slotAssignments);
   const [qty, setQty] = useState(1);
@@ -113,8 +115,6 @@ export function ItemWorkspace() {
           clearAssignments={clearAssignments}
           qualityScore={qualityScore}
           projectedStats={projectedStats}
-          requiredResources={requiredResources}
-          resources={activeDataset.resources}
         />
 
         <Divider />
@@ -134,10 +134,15 @@ export function ItemWorkspace() {
 
         <MaterialSourcesSection
           resources={requiredResources}
+          allResources={activeDataset.resources}
           materialSources={materialSources}
           qty={qty}
           setQty={setQty}
           onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
+          onAddResource={(resourceName, quantityScu) => {
+            addPlannerResourceRequirement(resourceName, quantityScu);
+            openPlanner();
+          }}
         />
 
         {dismantlingData && (
