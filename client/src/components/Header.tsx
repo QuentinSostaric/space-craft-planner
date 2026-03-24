@@ -22,6 +22,34 @@ import { GameIcon } from './ui/GameIcon';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { navigateToPath } from '../utils/slug';
 
+const DATE_LOCALE_BY_LANG = {
+  en: 'en-US',
+  fr: 'fr-FR',
+  de: 'de-DE',
+} as const;
+
+function formatDatasetBuildDate(
+  buildDateStamp: string | null,
+  importedAt: string | null,
+  lang: 'en' | 'fr' | 'de',
+) {
+  const rawDate = buildDateStamp ?? importedAt;
+  if (!rawDate) {
+    return null;
+  }
+
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) {
+    return buildDateStamp ?? null;
+  }
+
+  return new Intl.DateTimeFormat(DATE_LOCALE_BY_LANG[lang], {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
+}
+
 export function Header() {
   const {
     activeDataset,
@@ -71,6 +99,8 @@ export function Header() {
                 version: activeDataset.version,
                 branch: activeDataset.branch,
                 buildNumber: activeDataset.buildNumber,
+                buildDateStamp: activeDataset.buildDateStamp,
+                buildTimeStamp: activeDataset.buildTimeStamp,
                 published: activeDataset.published,
                 blueprintCount: activeDataset.blueprintCount,
                 resourceCount: activeDataset.resourceCount,
@@ -90,6 +120,18 @@ export function Header() {
   const hasChangelog = useMemo(
     () => activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog),
     [availableDatasets, activeChannel, activeDataset],
+  );
+  const formatDatasetLabel = useMemo(
+    () => (dataset: {
+      version: string;
+      label: string;
+      buildDateStamp: string | null;
+      importedAt: string | null;
+    }) => {
+      const formattedDate = formatDatasetBuildDate(dataset.buildDateStamp, dataset.importedAt, lang);
+      return formattedDate ? `${dataset.version} • ${formattedDate}` : dataset.label;
+    },
+    [lang],
   );
 
   return (
@@ -334,16 +376,14 @@ export function Header() {
                   return t('Select dataset', 'Selectionner un dataset');
                 }
 
-                return dataset.buildNumber
-                  ? `${dataset.version} • #${dataset.buildNumber}`
-                  : dataset.label;
+                return formatDatasetLabel(dataset);
               }}
             >
               {effectiveChannelDatasets.map((dataset) => (
                 <MenuItem key={dataset.datasetId} value={dataset.datasetId}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.1 }}>
-                      {dataset.buildNumber ? `#${dataset.buildNumber}` : dataset.label}
+                      {formatDatasetBuildDate(dataset.buildDateStamp, dataset.importedAt, lang) ?? dataset.label}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.1 }}>
                       {dataset.version}

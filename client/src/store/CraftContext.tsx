@@ -48,6 +48,8 @@ const EMPTY_DATASET: GameDataset = {
   version: '',
   branch: null,
   buildNumber: null,
+  buildDateStamp: null,
+  buildTimeStamp: null,
   published: false,
   blueprintCount: 0,
   resourceCount: 0,

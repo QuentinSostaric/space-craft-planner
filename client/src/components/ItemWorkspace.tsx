@@ -122,6 +122,7 @@ export function ItemWorkspace() {
         <AcquisitionSection
           entry={acquisitionEntry}
           loading={missionRewardsLoading}
+          missionRewards={missionRewards}
           onMissionClick={(contractDebugName, contractorDisplayName) => {
             const missionSlug = missionSlugFromContract(contractDebugName, contractorDisplayName);
             navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });

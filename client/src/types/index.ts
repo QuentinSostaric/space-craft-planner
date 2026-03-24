@@ -382,6 +382,8 @@ export interface DatasetSummary {
   version: string;
   branch: string | null;
   buildNumber: string | null;
+  buildDateStamp: string | null;
+  buildTimeStamp: string | null;
   published: boolean;
   blueprintCount: number;
   resourceCount: number;
@@ -823,6 +825,8 @@ export interface GameDataset {
   version: string;
   branch: string | null;
   buildNumber: string | null;
+  buildDateStamp: string | null;
+  buildTimeStamp: string | null;
   published: boolean;
   blueprintCount: number;
   resourceCount: number;
