@@ -1,5 +1,5 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { memo, startTransition, useMemo, useState } from 'react';
+import { memo, startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -33,6 +33,10 @@ import type {
   StandingBucket,
 } from '../types';
 import type { GameIconName } from './ui/GameIcon';
+
+/** Approximate rendered height of a blueprint card in pixels.
+ *  Used to estimate how many cards fit in the viewport. Update if card layout changes significantly. */
+const CARD_HEIGHT_ESTIMATE_PX = 310;
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon':    'weapons',
@@ -71,6 +75,26 @@ function getRarityRank(rarity?: Blueprint['rarity']): number {
   if (rarity === 'rare') return 2;
   if (rarity === 'common') return 1;
   return 0;
+}
+
+/** Returns the number of grid columns for a given container pixel width,
+ *  matching the responsive grid template in BlueprintGrid's JSX. */
+function getColumnCount(containerWidth: number): number {
+  if (containerWidth >= 1536) return 5; // xl
+  if (containerWidth >= 1200) return 4; // lg
+  if (containerWidth >= 900)  return 3; // md
+  if (containerWidth >= 600)  return 2; // sm
+  return 1;
+}
+
+/** Estimates how many blueprint cards fit in the scroll container at its
+ *  current dimensions, plus two extra rows as a scroll buffer.
+ *  Uses container dimensions (not window) to account for the sidebar. */
+function calcInitialCount(containerWidth: number, containerHeight: number): number {
+  const cols = getColumnCount(containerWidth);
+  const cardHeight = CARD_HEIGHT_ESTIMATE_PX;
+  const rows = Math.ceil(containerHeight / cardHeight) + 2;
+  return cols * rows;
 }
 
 function getBlueprintSearchHaystack(blueprint: Blueprint): string {
@@ -402,6 +426,24 @@ export function BlueprintGrid() {
   } = useCraft();
   const { t } = useI18n();
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  // Always holds the current length — used inside the observer callback to avoid stale closures.
+  // Initialized to 0; updated synchronously on every render (see assignment after filteredBlueprints).
+  const filteredLengthRef = useRef(0);
+
+  // Stable initial count for the first render batch.
+  // Computed once from the container dimensions; updated by the filter-reset effect.
+  const [visibleCount, setVisibleCount] = useState<number>(() => {
+    // Container is not yet mounted on first call — fall back to a window-based estimate.
+    return calcInitialCount(window.innerWidth, window.innerHeight);
+  });
+
+  // Stable reference to the initial batch size used for the `priority` image prop.
+  // Recomputed after the first render when the container dimensions are known.
+  const [initialCount, setInitialCount] = useState<number>(() =>
+    calcInitialCount(window.innerWidth, window.innerHeight),
+  );
 
   const resources = activeDataset.resources;
   const allShipComponents = activeDataset.shipComponents?.entries ?? [];
@@ -632,6 +674,44 @@ export function BlueprintGrid() {
     slotCountFilter,
     weaponTypeFilter,
   ]);
+  // Synchronously keep the ref in sync with the latest filtered length so the observer
+  // callback never reads a stale value, even across rapid filter changes.
+  filteredLengthRef.current = filteredBlueprints.length;
+
+  // NOTE: This effect must be declared before the IntersectionObserver effect below.
+  // React runs effects in declaration order; the reset must run before the observer
+  // re-registers so that visibleCount is correct when the new observer starts watching.
+  //
+  // Reset visible count whenever the filtered list changes (filter, search, sort).
+  // Also updates initialCount using real container dimensions now that the DOM exists.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    const w = el?.clientWidth ?? window.innerWidth;
+    const h = el?.clientHeight ?? window.innerHeight;
+    const count = calcInitialCount(w, h);
+    setVisibleCount(count);
+    setInitialCount(count);
+  }, [filteredBlueprints]);
+
+  // Load the next batch when the sentinel div scrolls into the container's viewport.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    const root = scrollContainerRef.current;
+    if (!el || !root) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          const batch = calcInitialCount(root.clientWidth, root.clientHeight);
+          setVisibleCount((c) => Math.min(c + batch, filteredLengthRef.current));
+        }
+      },
+      { root }, // use the scroll container as the viewport, not the browser window
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filteredBlueprints]); // re-registers on every filter change; captures current filteredBlueprints.length
 
   const shipComponentFiltersBlocked =
     !ENABLE_SHIP_COMPONENT_BLUEPRINTS;
@@ -748,7 +828,10 @@ export function BlueprintGrid() {
         <BlueprintExplorer />
       </Box>
 
-      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
+      {/* Scroll container — IntersectionObserver root. Requires the flex:1/minHeight:0 chain
+          from App.tsx's <Box component="main"> to remain intact so this Box — not the parent —
+          is the actual scrolling ancestor. If the layout breaks, the sentinel never fires. */}
+      <Box ref={scrollContainerRef} sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}
@@ -793,7 +876,7 @@ export function BlueprintGrid() {
                   role="list"
                   aria-label={t('Blueprint list', 'Liste des blueprints')}
                 >
-                  {filteredBlueprints.map((blueprint, index) => (
+                  {filteredBlueprints.slice(0, visibleCount).map((blueprint, index) => (
                     <BlueprintCard
                       key={blueprint.id}
                       blueprint={blueprint}
@@ -802,11 +885,15 @@ export function BlueprintGrid() {
                       isInInventory={inventoryIdSet.has(blueprint.id)}
                       statMaxima={statMaxima}
                       resources={resources}
-                      priority={index < 6}
+                      priority={index < initialCount}
                       onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
                     />
                   ))}
                 </Box>
+                {/* Sentinel: triggers next batch when it enters the scroll container */}
+                {visibleCount < filteredBlueprints.length && (
+                  <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+                )}
               </Box>
             )}
 
@@ -831,6 +918,8 @@ export function BlueprintGrid() {
                     'Cartes preparees pour les futurs blueprints. Ces entrees sont actuellement informatives.',
                   )}
                 </Typography>
+                {/* TODO: Ship components do not have infinite scroll yet. When ENABLE_SHIP_COMPONENT_BLUEPRINTS
+                    is enabled, apply the same visibleCount/sentinel pattern used for blueprints above. */}
                 <Box
                   sx={{
                     display: 'grid',
