@@ -46,6 +46,25 @@ export function publicApiJsonResponse(payload, init = {}) {
   return jsonResponse(payload, { ...init, headers });
 }
 
+export function shouldExposeUnpublishedDatasets(request) {
+  if (!request?.url) {
+    return false;
+  }
+
+  const { hostname } = new URL(request.url);
+  const normalizedHostname = hostname.toLowerCase();
+
+  return (
+    normalizedHostname === 'localhost' ||
+    normalizedHostname === '127.0.0.1' ||
+    normalizedHostname.endsWith('.pages.dev')
+  );
+}
+
+export function buildDatasetVisibilityFilter(request) {
+  return shouldExposeUnpublishedDatasets(request) ? {} : { published: true };
+}
+
 export function toSummary(doc, channel) {
   return {
     channel,

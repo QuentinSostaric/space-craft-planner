@@ -1,10 +1,17 @@
 import { getDb, getCollectionName } from '../../../../_shared/mongoClient.js';
-import { CORE_PROJECTION, errorResponse, normalizeCoreDataset, publicApiJsonResponse } from '../../../../_shared/gameData.js';
+import {
+  CORE_PROJECTION,
+  buildDatasetVisibilityFilter,
+  errorResponse,
+  normalizeCoreDataset,
+  publicApiJsonResponse,
+} from '../../../../_shared/gameData.js';
 
-async function findPublishedDatasetById(db, env, datasetId) {
+async function findDatasetById(db, env, request, datasetId) {
+  const visibilityFilter = buildDatasetVisibilityFilter(request);
   for (const channel of ['live', 'ptu']) {
     const doc = await db.collection(getCollectionName(env, channel)).findOne(
-      { published: true, datasetId },
+      { ...visibilityFilter, datasetId },
       { projection: CORE_PROJECTION, sort: { importedAt: -1 } },
     );
 
@@ -25,10 +32,10 @@ export async function onRequestGet(context) {
 
   try {
     const db = await getDb(context.env);
-    const match = await findPublishedDatasetById(db, context.env, datasetId);
+    const match = await findDatasetById(db, context.env, context.request, datasetId);
 
     if (!match) {
-      return errorResponse(404, `No published dataset for id "${datasetId}".`);
+      return errorResponse(404, `No dataset for id "${datasetId}".`);
     }
 
     return publicApiJsonResponse({ dataset: normalizeCoreDataset(match.doc, match.channel) });

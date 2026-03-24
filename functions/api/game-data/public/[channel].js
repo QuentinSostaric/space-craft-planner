@@ -1,5 +1,11 @@
 import { getDb, getCollectionName } from '../../../_shared/mongoClient.js';
-import { CORE_PROJECTION, errorResponse, normalizeCoreDataset, publicApiJsonResponse } from '../../../_shared/gameData.js';
+import {
+  CORE_PROJECTION,
+  buildDatasetVisibilityFilter,
+  errorResponse,
+  normalizeCoreDataset,
+  publicApiJsonResponse,
+} from '../../../_shared/gameData.js';
 
 function isValidChannel(channel) {
   return channel === 'live' || channel === 'ptu';
@@ -14,9 +20,10 @@ export async function onRequestGet(context) {
 
   try {
     const db = await getDb(context.env);
+    const visibilityFilter = buildDatasetVisibilityFilter(context.request);
     const doc = await db.collection(getCollectionName(context.env, channel))
       .findOne(
-        { published: true },
+        visibilityFilter,
         { projection: CORE_PROJECTION, sort: { importedAt: -1 } },
       );
 

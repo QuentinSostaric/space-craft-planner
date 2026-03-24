@@ -1,5 +1,11 @@
 import { getDb, getCollectionName } from '../../_shared/mongoClient.js';
-import { SUMMARY_PROJECTION, errorResponse, publicApiJsonResponse, toSummary } from '../../_shared/gameData.js';
+import {
+  SUMMARY_PROJECTION,
+  buildDatasetVisibilityFilter,
+  errorResponse,
+  publicApiJsonResponse,
+  toSummary,
+} from '../../_shared/gameData.js';
 
 function compareSummaries(a, b) {
   const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
@@ -23,15 +29,16 @@ function compareSummaries(a, b) {
 export async function onRequestGet(context) {
   try {
     const db = await getDb(context.env);
+    const visibilityFilter = buildDatasetVisibilityFilter(context.request);
 
     const [liveDocs, ptuDocs] = await Promise.all([
       db.collection(getCollectionName(context.env, 'live'))
-        .find({ published: true })
+        .find(visibilityFilter)
         .project(SUMMARY_PROJECTION)
         .sort({ importedAt: -1 })
         .toArray(),
       db.collection(getCollectionName(context.env, 'ptu'))
-        .find({ published: true })
+        .find(visibilityFilter)
         .project(SUMMARY_PROJECTION)
         .sort({ importedAt: -1 })
         .toArray(),
