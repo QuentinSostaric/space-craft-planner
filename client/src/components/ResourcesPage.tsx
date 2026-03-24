@@ -1469,7 +1469,7 @@ export function ResourcesPage() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <Box
         sx={{
           p: { xs: 1.25, sm: 1.5, md: 2 },
