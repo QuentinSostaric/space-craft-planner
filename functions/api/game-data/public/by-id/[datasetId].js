@@ -8,7 +8,7 @@ import {
 } from '../../../../_shared/gameData.js';
 
 async function findDatasetById(db, env, request, datasetId) {
-  const visibilityFilter = buildDatasetVisibilityFilter(request);
+  const visibilityFilter = buildDatasetVisibilityFilter(request, env);
   for (const channel of ['live', 'ptu']) {
     const doc = await db.collection(getCollectionName(env, channel)).findOne(
       { ...visibilityFilter, datasetId },

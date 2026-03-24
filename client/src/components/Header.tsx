@@ -67,24 +67,78 @@ const MONTH_NAMES = {
   ],
 } as const;
 
+const MANIFEST_MONTH_INDEX = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+} as const;
+
+function getDatasetBuildDateParts(
+  buildDateStamp: string | null,
+  importedAt: string | null,
+): { day: number; monthIndex: number; year: number } | null {
+  if (buildDateStamp) {
+    const normalizedStamp = buildDateStamp.trim();
+
+    const manifestMatch = normalizedStamp.match(/^[A-Za-z]{3}\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})$/);
+    if (manifestMatch) {
+      const monthIndex = MANIFEST_MONTH_INDEX[manifestMatch[1].toLowerCase() as keyof typeof MANIFEST_MONTH_INDEX];
+      if (monthIndex != null) {
+        return {
+          day: Number(manifestMatch[2]),
+          monthIndex,
+          year: Number(manifestMatch[3]),
+        };
+      }
+    }
+
+    const isoDateMatch = normalizedStamp.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoDateMatch) {
+      return {
+        day: Number(isoDateMatch[3]),
+        monthIndex: Number(isoDateMatch[2]) - 1,
+        year: Number(isoDateMatch[1]),
+      };
+    }
+  }
+
+  if (!importedAt) {
+    return null;
+  }
+
+  const importedAtDate = new Date(importedAt);
+  if (Number.isNaN(importedAtDate.getTime())) {
+    return null;
+  }
+
+  return {
+    day: importedAtDate.getUTCDate(),
+    monthIndex: importedAtDate.getUTCMonth(),
+    year: importedAtDate.getUTCFullYear(),
+  };
+}
+
 function formatDatasetBuildDate(
   buildDateStamp: string | null,
   importedAt: string | null,
   lang: 'en' | 'fr' | 'de',
 ) {
-  const rawDate = buildDateStamp ?? importedAt;
-  if (!rawDate) {
+  const dateParts = getDatasetBuildDateParts(buildDateStamp, importedAt);
+  if (!dateParts) {
     return null;
   }
 
-  const parsed = new Date(rawDate);
-  if (Number.isNaN(parsed.getTime())) {
-    return buildDateStamp ?? null;
-  }
-
-  const day = parsed.getDate();
-  const month = MONTH_NAMES[lang][parsed.getMonth()];
-  const year = parsed.getFullYear();
+  const { day, monthIndex, year } = dateParts;
+  const month = MONTH_NAMES[lang][monthIndex];
 
   if (lang === 'en') {
     return `${month} ${day}, ${year}`;

@@ -29,7 +29,7 @@ function compareSummaries(a, b) {
 export async function onRequestGet(context) {
   try {
     const db = await getDb(context.env);
-    const visibilityFilter = buildDatasetVisibilityFilter(context.request);
+    const visibilityFilter = buildDatasetVisibilityFilter(context.request, context.env);
 
     const [liveDocs, ptuDocs] = await Promise.all([
       db.collection(getCollectionName(context.env, 'live'))

@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
 
   try {
     const db = await getDb(context.env);
-    const visibilityFilter = buildDatasetVisibilityFilter(context.request);
+    const visibilityFilter = buildDatasetVisibilityFilter(context.request, context.env);
     const doc = await db.collection(getCollectionName(context.env, channel))
       .findOne(
         visibilityFilter,

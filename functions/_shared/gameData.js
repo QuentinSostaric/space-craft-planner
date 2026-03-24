@@ -46,7 +46,34 @@ export function publicApiJsonResponse(payload, init = {}) {
   return jsonResponse(payload, { ...init, headers });
 }
 
-export function shouldExposeUnpublishedDatasets(request) {
+const PAGES_PROJECT_HOSTNAME = 'space-craft-planner.pages.dev';
+const PREVIEW_HOSTNAME = `preview.${PAGES_PROJECT_HOSTNAME}`;
+const LOCAL_DATASET_HOSTS = new Set(['localhost', '127.0.0.1']);
+
+function getAllowedUnpublishedDatasetHosts(env) {
+  const hosts = new Set(LOCAL_DATASET_HOSTS);
+
+  if (env?.ALLOW_UNPUBLISHED_DATASET_HOSTS) {
+    for (const host of String(env.ALLOW_UNPUBLISHED_DATASET_HOSTS)
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)) {
+      hosts.add(host);
+    }
+  }
+
+  return hosts;
+}
+
+function isPagesPreviewHostname(hostname) {
+  if (hostname === PREVIEW_HOSTNAME) {
+    return true;
+  }
+
+  return hostname.endsWith(`.${PAGES_PROJECT_HOSTNAME}`) && hostname !== PAGES_PROJECT_HOSTNAME;
+}
+
+export function shouldExposeUnpublishedDatasets(request, env) {
   if (!request?.url) {
     return false;
   }
@@ -55,14 +82,13 @@ export function shouldExposeUnpublishedDatasets(request) {
   const normalizedHostname = hostname.toLowerCase();
 
   return (
-    normalizedHostname === 'localhost' ||
-    normalizedHostname === '127.0.0.1' ||
-    normalizedHostname.endsWith('.pages.dev')
+    getAllowedUnpublishedDatasetHosts(env).has(normalizedHostname) ||
+    isPagesPreviewHostname(normalizedHostname)
   );
 }
 
-export function buildDatasetVisibilityFilter(request) {
-  return shouldExposeUnpublishedDatasets(request) ? {} : { published: true };
+export function buildDatasetVisibilityFilter(request, env) {
+  return shouldExposeUnpublishedDatasets(request, env) ? {} : { published: true };
 }
 
 export function toSummary(doc, channel) {
@@ -108,12 +134,14 @@ export function normalizeCoreDataset(doc, channel) {
     blueprintCount: doc.blueprintCount ?? doc.blueprints?.length ?? 0,
     resourceCount: doc.resourceCount ?? doc.resources?.length ?? 0,
     blueprints: doc.blueprints ?? [],
+    manufacturers: doc.manufacturers ?? [],
     resources: doc.resources ?? [],
     resourceInsights: doc.resourceInsights ?? null,
     changelog: doc.changelog ?? null,
     dismantling: doc.dismantling ?? null,
     materialSources: doc.materialSources ?? null,
     missionRewards: null,
+    shipComponents: doc.shipComponents ?? null,
     importedAt: doc.importedAt ?? null,
     updatedAt: doc.updatedAt ?? doc.importedAt ?? null,
   };
