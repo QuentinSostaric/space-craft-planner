@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -1190,6 +1191,13 @@ function ResourceBlueprintUsageSection({
   );
 }
 
+function resourceGetColumns(containerWidth: number): number {
+  if (containerWidth >= 1536) return 4; // xl
+  if (containerWidth >= 1200) return 3; // lg
+  if (containerWidth >= 600)  return 2; // sm (covers md — no md CSS breakpoint)
+  return 1;
+}
+
 export function ResourcesPage() {
   const {
     activeDataset,
@@ -1357,6 +1365,9 @@ export function ResourcesPage() {
     systemFilter,
   ]);
 
+  const { scrollContainerRef, sentinelRef, visibleCount } =
+    useInfiniteScroll(filteredResources, { getColumns: resourceGetColumns });
+
   const resourceStats = useMemo(() => {
     const systemCount = new Set(resourceInsights.flatMap((insight) => insight.systems)).size;
     const missionLinkedCount = resourceInsights.filter(
@@ -1523,11 +1534,15 @@ export function ResourcesPage() {
       />
 
       <Box
+        ref={scrollContainerRef}
         sx={{
           p: { xs: 1.25, sm: 1.5, md: 2, xl: 3 },
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
         }}
       >
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1545,33 +1560,38 @@ export function ResourcesPage() {
             </Typography>
           </Paper>
         ) : (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                lg: 'repeat(3, minmax(0, 1fr))',
-                xl: 'repeat(4, minmax(0, 1fr))',
-              },
-              gap: { xs: 1.25, md: 1.5, xl: 2 },
-            }}
-          >
-            {filteredResources.map((resource) => (
-              <ResourceCard
-                key={resource.id}
-                resource={resource}
-                insight={resourceInsightById.get(resource.id) ?? null}
-                onOpen={() => {
-                  setSelectedResourceSlug(resource.id);
-                  navigateToPath(resourcePathFromSlug(resource.id), {
-                    resourceId: resource.id,
-                    mainView: 'resources',
-                  });
-                }}
-              />
-            ))}
-          </Box>
+          <>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg: 'repeat(3, minmax(0, 1fr))',
+                  xl: 'repeat(4, minmax(0, 1fr))',
+                },
+                gap: { xs: 1.25, md: 1.5, xl: 2 },
+              }}
+            >
+              {filteredResources.slice(0, visibleCount).map((resource) => (
+                <ResourceCard
+                  key={resource.id}
+                  resource={resource}
+                  insight={resourceInsightById.get(resource.id) ?? null}
+                  onOpen={() => {
+                    setSelectedResourceSlug(resource.id);
+                    navigateToPath(resourcePathFromSlug(resource.id), {
+                      resourceId: resource.id,
+                      mainView: 'resources',
+                    });
+                  }}
+                />
+              ))}
+            </Box>
+            {visibleCount < filteredResources.length && (
+              <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+            )}
+          </>
         )}
       </Box>
     </Box>
