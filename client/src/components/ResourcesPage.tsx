@@ -1562,6 +1562,7 @@ export function ResourcesPage() {
         ) : (
           <>
             <Box
+              role="list"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: {
