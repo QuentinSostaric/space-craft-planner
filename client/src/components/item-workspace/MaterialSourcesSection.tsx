@@ -1,4 +1,3 @@
-import type { SyntheticEvent } from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -48,10 +47,6 @@ function resolveResource(resourceName: string, resources: Resource[]) {
     ?? resources.find((resource) => normalizeResourceKey(resource.name) === normalized)
     ?? null
   );
-}
-
-function stopAccordionToggle(event: SyntheticEvent) {
-  event.stopPropagation();
 }
 
 interface MaterialSourcesSectionProps {
@@ -237,34 +232,29 @@ export function MaterialSourcesSection({
                   </Typography>
                 </Box>
 
-                <Box
-                  sx={{ width: { xs: '100%', sm: 'auto' } }}
-                  onClick={stopAccordionToggle}
-                  onFocusCapture={stopAccordionToggle}
-                >
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={(event) => {
-                      stopAccordionToggle(event);
-                      onAddResource(
-                        resourceEntry.resourceName,
-                        requiredQuantity,
-                        resourceEntry.quantityUnit,
-                      );
-                    }}
-                    sx={{
-                      width: { xs: '100%', sm: 'auto' },
-                      minWidth: { sm: 132 },
-                    }}
-                  >
-                    {t('Add to Planner', 'Ajouter au planificateur')}
-                  </Button>
-                </Box>
               </Box>
             </AccordionSummary>
 
             <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() =>
+                    onAddResource(
+                      resourceEntry.resourceName,
+                      requiredQuantity,
+                      resourceEntry.quantityUnit,
+                    )
+                  }
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                    minWidth: { sm: 132 },
+                  }}
+                >
+                  {t('Add to Planner', 'Ajouter au planificateur')}
+                </Button>
+              </Box>
               {!materialSources?.resources ? (
                 <DatasetTooOldNotice />
               ) : providers.length === 0 ? (
