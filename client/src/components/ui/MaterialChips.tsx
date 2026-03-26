@@ -4,7 +4,11 @@ import Typography from '@mui/material/Typography';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { MaterialSlot, Resource } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
-import { isResourceSlot } from '../../utils/crafting';
+import {
+  formatResourceQuantity,
+  getSlotQuantityValue,
+  isResourceSlot,
+} from '../../utils/crafting';
 
 interface MaterialChipsProps {
   slots: MaterialSlot[];
@@ -12,24 +16,20 @@ interface MaterialChipsProps {
   maxVisible?: number;
 }
 
-function formatMaterialQuantity(total: number): string {
-  if (total >= 10) {
-    return Math.round(total).toString();
-  }
-
-  if (total >= 1) {
-    return total.toFixed(1).replace(/\.0$/, '');
-  }
-
-  return total.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
-
 export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChipsProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const aggregated = useMemo(() => {
-    const map = new Map<string, { name: string; total: number; color: string }>();
+    const map = new Map<
+      string,
+      {
+        name: string;
+        total: number;
+        quantityUnit: MaterialSlot['quantityUnit'] | 'mixed';
+        color: string;
+      }
+    >();
     for (const slot of slots) {
       if (!isResourceSlot(slot)) {
         continue;
@@ -38,11 +38,14 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
       const existing = map.get(slot.requiredResource);
       const res = resources.find((r) => r.name === slot.requiredResource);
       if (existing) {
-        existing.total += slot.quantityScu;
+        existing.total += getSlotQuantityValue(slot);
+        existing.quantityUnit =
+          existing.quantityUnit === slot.quantityUnit ? existing.quantityUnit : 'mixed';
       } else {
         map.set(slot.requiredResource, {
           name: res?.name ?? slot.requiredResource,
-          total: slot.quantityScu,
+          total: getSlotQuantityValue(slot),
+          quantityUnit: slot.quantityUnit,
           color: res?.color ?? theme.palette.text.disabled,
         });
       }
@@ -105,7 +108,7 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
             >
               {mat.name}{' '}
               <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>
-                ({formatMaterialQuantity(mat.total)} SCU)
+                ({formatResourceQuantity(mat.total, mat.quantityUnit, lang)})
               </Box>
             </Typography>
           </Box>

@@ -1,10 +1,11 @@
-import { memo, useCallback, useMemo, type SyntheticEvent } from 'react';
+import { memo, useCallback, useMemo, type DragEventHandler, type SyntheticEvent } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
@@ -18,13 +19,34 @@ interface GoalCardProps {
   onQtyChange: (quantity: number) => void;
   onEdit: () => void;
   onSelect: () => void;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragOver?: DragEventHandler<HTMLElement>;
+  onDrop?: DragEventHandler<HTMLElement>;
+  dragHandleProps?: {
+    draggable: boolean;
+    onDragStart: DragEventHandler<HTMLElement>;
+    onDragEnd: DragEventHandler<HTMLElement>;
+  };
 }
 
 function stopPropagation(event: SyntheticEvent) {
   event.stopPropagation();
 }
 
-export const GoalCard = memo(function GoalCard({ goal, isActive, onRemove, onQtyChange, onEdit, onSelect }: GoalCardProps) {
+export const GoalCard = memo(function GoalCard({
+  goal,
+  isActive,
+  onRemove,
+  onQtyChange,
+  onEdit,
+  onSelect,
+  isDragging = false,
+  isDropTarget = false,
+  onDragOver,
+  onDrop,
+  dragHandleProps,
+}: GoalCardProps) {
   const { blueprints } = useCraft();
   const { t } = useI18n();
   const theme = useTheme();
@@ -36,13 +58,18 @@ export const GoalCard = memo(function GoalCard({ goal, isActive, onRemove, onQty
   return (
     <Card
       sx={{
-        cursor: 'pointer',
+        cursor: isDragging ? 'grabbing' : 'pointer',
         borderColor: isActive ? theme.palette.primary.main : theme.palette.ui.border,
         backgroundColor: isActive ? theme.palette.ui.surface2 : theme.palette.ui.surface1,
         transition: 'all 150ms ease',
+        transform: isDragging ? 'scale(0.985)' : 'none',
+        opacity: isDragging ? 0.7 : 1,
+        boxShadow: isDropTarget ? `0 0 0 1px ${theme.palette.primary.main}` : undefined,
         '&:hover': { borderColor: theme.palette.ui.borderStrong },
       }}
       onClick={onSelect}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -55,6 +82,25 @@ export const GoalCard = memo(function GoalCard({ goal, isActive, onRemove, onQty
     >
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          {dragHandleProps && (
+            <Box
+              component="span"
+              {...dragHandleProps}
+              onClick={handleStopPropagation}
+              onMouseDown={handleStopPropagation}
+              title={t('Drag to reorder', 'Glisser pour reordonner')}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'text.disabled',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                flexShrink: 0,
+              }}
+            >
+              <DragIndicatorIcon sx={{ fontSize: '1rem' }} />
+            </Box>
+          )}
           {blueprint && <CategoryBadge category={blueprint.category} iconOnly />}
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.85rem', lineHeight: 1.2 }}>

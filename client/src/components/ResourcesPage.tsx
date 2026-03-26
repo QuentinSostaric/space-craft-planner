@@ -29,6 +29,7 @@ import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { BlueprintCard } from './BlueprintGrid';
 import { AppGlyph } from './ui/AppGlyph';
+import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { ScaleBadge } from './ui/RarityBadge';
 import { PageStatCard } from './ui/PageStatCard';
 import { ResourceIcon } from './ui/ResourceIcon';
@@ -55,9 +56,16 @@ import {
 import {
   computeStatMaxima,
   formatContractName,
+  formatMaterialProviderConfidence,
+  formatMaterialProviderType,
+  formatMaterialSourceMethod,
+  formatMineableGroupName,
+  formatResourceQuantity,
   formatScaleLabel,
   formatStandingSummary,
+  getMaterialProviderProbabilityPct,
   getMaterialProviders,
+  getSlotQuantityValue,
 } from '../utils/crafting';
 import {
   missionPathFromSlug,
@@ -87,6 +95,8 @@ interface ResourceIdentityPanelProps {
   resource: Resource;
   insight: ResourceInsight | null;
   resourceProgress: { collected: number; method: string | null } | null;
+  craftDemandQuantity: number;
+  craftDemandUnit: 'scu' | 'count' | 'mixed';
   onBack: () => void;
 }
 
@@ -123,7 +133,7 @@ function formatScu(value: number | null | undefined): string {
   return `${amount.toFixed(2)} SCU`;
 }
 
-function formatProbability(value: number | null | undefined): string {
+export function formatProbability(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) {
     return '—';
   }
@@ -177,6 +187,7 @@ function buildFallbackResourceInsights(
         providerCount: 0,
         systems: [],
         providerTypes: [],
+        sourceMethods: [],
         missionObjectiveContractCount: 0,
         missionEmployers: [],
         missionLocations: [],
@@ -204,12 +215,20 @@ function buildFallbackResourceInsights(
     ].sort((left, right) => left.localeCompare(right)) as Array<
       'planetary' | 'asteroid' | 'other'
     >;
+    const sourceMethods = [
+      ...new Set(
+        providers
+          .map((provider) => provider.sourceMethod)
+          .filter(Boolean) as Array<'ship-mining' | 'hand-mining'>,
+      ),
+    ].sort((left, right) => left.localeCompare(right));
 
     insightMap.set(resource.id, {
       ...insightMap.get(resource.id)!,
       providerCount: providers.length,
       systems,
       providerTypes,
+      sourceMethods,
     });
   }
 
@@ -228,7 +247,7 @@ function buildFallbackResourceInsights(
       if (!current) continue;
 
       current.totalScuPerCraftSum = Number(
-        (current.totalScuPerCraftSum + slot.quantityScu).toFixed(4),
+        (current.totalScuPerCraftSum + getSlotQuantityValue(slot)).toFixed(4),
       );
 
       if (seenResourceIds.has(resourceId)) continue;
@@ -286,6 +305,46 @@ function buildFallbackResourceInsights(
   return resources
     .map((resource) => insightMap.get(resource.id)!)
     .sort((left, right) => left.resourceId.localeCompare(right.resourceId));
+}
+
+function summarizeResourceCraftDemand(
+  resourceId: string,
+  blueprints: Blueprint[],
+): { quantity: number; quantityUnit: 'scu' | 'count' | 'mixed' } {
+  let quantity = 0;
+  let quantityUnit: 'scu' | 'count' | null = null;
+  let mixed = false;
+
+  for (const blueprint of blueprints) {
+    for (const slot of blueprint.slots) {
+      if (!isResourceSlot(slot)) {
+        continue;
+      }
+
+      const slotResourceId = slot.requiredResource
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      if (slotResourceId !== resourceId) {
+        continue;
+      }
+
+      const slotUnit = slot.quantityUnit === 'count' ? 'count' : 'scu';
+      quantity += getSlotQuantityValue(slot);
+
+      if (!quantityUnit) {
+        quantityUnit = slotUnit;
+      } else if (quantityUnit !== slotUnit) {
+        mixed = true;
+      }
+    }
+  }
+
+  return {
+    quantity,
+    quantityUnit: mixed ? 'mixed' : quantityUnit ?? 'scu',
+  };
 }
 
 function ResourceFact({ label, value }: { label: string; value: string }) {
@@ -709,12 +768,18 @@ function ResourceIdentityPanel({
   resource,
   insight,
   resourceProgress,
+  craftDemandQuantity,
+  craftDemandUnit,
   onBack,
 }: ResourceIdentityPanelProps) {
   const { t, lang } = useI18n();
   const theme = useTheme();
   const [imgError, setImgError] = useState(false);
   const showImage = Boolean(resource.visual?.imageUrl && !imgError);
+  const craftDemandLabel =
+    craftDemandUnit === 'mixed'
+      ? `${craftDemandQuantity.toFixed(2)} ${t('mixed', 'mixte')}`
+      : formatResourceQuantity(craftDemandQuantity, craftDemandUnit, lang, 'long');
 
   useEffect(() => {
     setImgError(false);
@@ -791,6 +856,14 @@ function ResourceIdentityPanel({
                   size="small"
                 />
               )}
+              {(insight?.sourceMethods ?? []).map((sourceMethod) => (
+                <Chip
+                  key={sourceMethod}
+                  label={formatMaterialSourceMethod(sourceMethod, lang)}
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
               <Chip
                 label={
                   insight?.missionObjectiveContractCount
@@ -818,14 +891,14 @@ function ResourceIdentityPanel({
           </Box>
         </Box>
 
-        <Stack spacing={2} sx={{ p: 2.25 }}>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <ResourceFact label={t('Providers', 'Sources')} value={String(insight?.providerCount ?? 0)} />
-            <ResourceFact label={t('Systems', 'Systemes')} value={String(insight?.systems.length ?? 0)} />
-            <ResourceFact label={t('Mission contracts', 'Contrats mission')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
-            <ResourceFact label={t('Blueprint usage', 'Usage blueprint')} value={String(insight?.blueprintUsageCount ?? 0)} />
-            <ResourceFact label={t('Combined craft volume', 'Volume craft cumule')} value={formatScu(insight?.totalScuPerCraftSum ?? 0)} />
-          </Stack>
+          <Stack spacing={2} sx={{ p: 2.25 }}>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <ResourceFact label={t('Providers', 'Sources')} value={String(insight?.providerCount ?? 0)} />
+              <ResourceFact label={t('Systems', 'Systemes')} value={String(insight?.systems.length ?? 0)} />
+              <ResourceFact label={t('Mission contracts', 'Contrats mission')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
+              <ResourceFact label={t('Blueprint usage', 'Usage blueprint')} value={String(insight?.blueprintUsageCount ?? 0)} />
+              <ResourceFact label={t('Craft demand', 'Demande craft')} value={craftDemandLabel} />
+            </Stack>
 
           {resourceProgress && (
             <>
@@ -833,7 +906,13 @@ function ResourceIdentityPanel({
               <Stack spacing={0.75}>
                 <Typography variant="overline">{t('Resource progress', 'Progression ressource')}</Typography>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <Chip label={`${t('Collected', 'Collecte')}: ${formatScu(resourceProgress.collected)}`} />
+                  <Chip
+                    label={`${t('Collected', 'Collecte')}: ${
+                      craftDemandUnit === 'mixed'
+                        ? resourceProgress.collected.toFixed(2)
+                        : formatResourceQuantity(resourceProgress.collected, craftDemandUnit, lang, 'long')
+                    }`}
+                  />
                   {resourceProgress.method && (
                     <Chip label={`${t('Method', 'Methode')}: ${resourceProgress.method}`} variant="outlined" />
                   )}
@@ -858,10 +937,12 @@ function ResourceIdentityPanel({
 
 function ResourceSourcesSection({
   providers,
+  hasMaterialSourceData,
 }: {
   providers: MaterialSourceProvider[];
+  hasMaterialSourceData: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const groupedProviders = useMemo(() => {
     const groups = new Map<'planetary' | 'asteroid' | 'other', MaterialSourceProvider[]>();
     for (const provider of providers) {
@@ -876,8 +957,8 @@ function ResourceSourcesSection({
         type,
         [...list].sort(
           (left, right) =>
-            (right.craftOnlyProbabilityPct ?? right.groupProbabilityPct ?? 0) -
-              (left.craftOnlyProbabilityPct ?? left.groupProbabilityPct ?? 0) ||
+            (getMaterialProviderProbabilityPct(right) ?? 0) -
+              (getMaterialProviderProbabilityPct(left) ?? 0) ||
             String(left.providerDisplayName ?? '').localeCompare(String(right.providerDisplayName ?? '')),
         ),
       ] as const)
@@ -891,7 +972,9 @@ function ResourceSourcesSection({
           <ScienceOutlinedIcon sx={{ color: 'secondary.main', fontSize: '1.1rem' }} />
           <Typography variant="overline">{t('Best Sources', 'Meilleures sources')}</Typography>
         </Stack>
-        {providers.length === 0 ? (
+        {!hasMaterialSourceData ? (
+          <DatasetTooOldNotice />
+        ) : providers.length === 0 ? (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {t('No provider data available for this resource.', 'Aucune source connue pour cette ressource.')}
           </Typography>
@@ -920,6 +1003,7 @@ function ResourceSourcesSection({
                           provider.providerDisplayName,
                           provider.system,
                         );
+                        const providerProbabilityPct = getMaterialProviderProbabilityPct(provider);
 
                         return (
                           <Paper
@@ -941,14 +1025,47 @@ function ResourceSourcesSection({
                                   </Typography>
                                   {provider.system && <Chip size="small" variant="outlined" label={provider.system} />}
                                 </Stack>
-                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                  {provider.tier ?? t('Unknown tier', 'Tier inconnu')}
-                                </Typography>
+                                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={formatMaterialProviderType(provider.providerType, lang)}
+                                  />
+                                  {provider.sourceMethod && (
+                                    <Chip
+                                      size="small"
+                                      variant="outlined"
+                                      label={formatMaterialSourceMethod(provider.sourceMethod, lang)}
+                                    />
+                                  )}
+                                  {provider.mineableGroupName && (
+                                    <Chip
+                                      size="small"
+                                      variant="outlined"
+                                      label={formatMineableGroupName(provider.mineableGroupName)}
+                                    />
+                                  )}
+                                </Stack>
                               </Stack>
                               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                <Chip size="small" label={`${t('Craft', 'Craft')}: ${formatProbability(provider.craftOnlyProbabilityPct)}`} />
-                                <Chip size="small" variant="outlined" label={`${t('Pool', 'Pool')}: ${formatProbability(provider.groupProbabilityPct)}`} />
-                                <Chip size="small" variant="outlined" label={provider.labelConfidence} />
+                                {providerProbabilityPct != null && (
+                                  <Chip
+                                    size="small"
+                                    label={`${t('Share', 'Part')}: ${providerProbabilityPct}%`}
+                                  />
+                                )}
+                                {provider.tier && (
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={`${t('Tier', 'Tier')}: ${provider.tier}`}
+                                  />
+                                )}
+                                <Chip
+                                  size="small"
+                                  variant="outlined"
+                                  label={formatMaterialProviderConfidence(provider.labelConfidence, lang)}
+                                />
                               </Stack>
                             </Stack>
                           </Paper>
@@ -969,9 +1086,13 @@ function ResourceSourcesSection({
 function ResourceMissionSection({
   selection,
   resourceId,
+  missionRewardsLoading,
+  hasMissionRewardData,
 }: {
   selection: Array<{ contract: MissionContract; group: MissionRewardFactionGroup }>;
   resourceId: string;
+  missionRewardsLoading: boolean;
+  hasMissionRewardData: boolean;
 }) {
   const { t, lang } = useI18n();
   const theme = useTheme();
@@ -983,7 +1104,13 @@ function ResourceMissionSection({
           <RouteOutlinedIcon sx={{ color: 'secondary.main', fontSize: '1.1rem' }} />
           <Typography variant="overline">{t('Mission Demand', 'Demande mission')}</Typography>
         </Stack>
-        {selection.length === 0 ? (
+        {missionRewardsLoading ? (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t('Loading mission data...', 'Chargement des donnees mission...')}
+          </Typography>
+        ) : !hasMissionRewardData ? (
+          <DatasetTooOldNotice />
+        ) : selection.length === 0 ? (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {t('No mission objectives currently reference this resource.', 'Aucun objectif de mission ne reference actuellement cette ressource.')}
           </Typography>
@@ -1207,8 +1334,10 @@ export function ResourcesPage() {
   const {
     activeDataset,
     blueprints,
+    ensureMissionRewardsLoaded,
     materialSources,
     missionRewards,
+    missionRewardsLoading,
     resourceProgress,
     setActiveBlueprint,
   } = useCraft();
@@ -1233,6 +1362,10 @@ export function ResourcesPage() {
       group.contracts.map((contract) => ({ contract, group })),
     );
   }, [missionRewards]);
+
+  useEffect(() => {
+    void ensureMissionRewardsLoaded();
+  }, [ensureMissionRewardsLoaded]);
 
   const resourceInsights = useMemo(
     () =>
@@ -1416,6 +1549,13 @@ export function ResourcesPage() {
     const blueprintIdSet = new Set(selectedInsight.blueprintIds);
     return blueprints.filter((blueprint) => blueprintIdSet.has(blueprint.id));
   }, [blueprints, selectedInsight]);
+  const selectedCraftDemand = useMemo(
+    () =>
+      selectedResource
+        ? summarizeResourceCraftDemand(selectedResource.id, selectedBlueprints)
+        : { quantity: 0, quantityUnit: 'scu' as const },
+    [selectedBlueprints, selectedResource],
+  );
   const selectedProgress =
     (selectedResource &&
       (resourceProgress[selectedResource.name] ?? resourceProgress[selectedResource.id])) ??
@@ -1435,6 +1575,8 @@ export function ResourcesPage() {
           resource={selectedResource}
           insight={selectedInsight}
           resourceProgress={selectedProgress}
+          craftDemandQuantity={selectedCraftDemand.quantity}
+          craftDemandUnit={selectedCraftDemand.quantityUnit}
           onBack={() => {
             setSelectedResourceSlug(null);
             navigateToPath('/resources', { mainView: 'resources' });
@@ -1456,10 +1598,15 @@ export function ResourcesPage() {
             </Stack>
           </Paper>
 
-          <ResourceSourcesSection providers={selectedProviders} />
+          <ResourceSourcesSection
+            providers={selectedProviders}
+            hasMaterialSourceData={Boolean(materialSources?.resources)}
+          />
           <ResourceMissionSection
             selection={selectedMissionDemand}
             resourceId={selectedResource.id}
+            missionRewardsLoading={missionRewardsLoading}
+            hasMissionRewardData={Boolean(missionRewards)}
           />
 
           <ResourceBlueprintUsageSection

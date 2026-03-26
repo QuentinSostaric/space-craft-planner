@@ -24,13 +24,13 @@ export function ItemWorkspace() {
     favoriteIds,
     toggleFavorite,
     addGoal,
+    ensureGoal,
     addPlannerResourceRequirement,
     missionRewards,
     missionRewardsLoading,
     ensureMissionRewardsLoaded,
     dismantlingData,
     materialSources,
-    openPlanner,
   } = useCraft();
   const { qualityScore, projectedStats } = useCraftSimulator(activeBlueprint, slotAssignments);
   const [qty, setQty] = useState(1);
@@ -63,7 +63,6 @@ export function ItemWorkspace() {
 
   const dismantleTimeSecs = dismantlingData?.dismantling?.blueprint?.dismantleTimeSecs ?? 0;
   const dismantleEfficiency = dismantlingData?.dismantling?.blueprint?.efficiency ?? 0.5;
-  const perItemYieldModelResolved = dismantlingData?.dismantling?.perItemYieldModel?.resolved ?? false;
 
   return (
     <Box
@@ -139,23 +138,25 @@ export function ItemWorkspace() {
           qty={qty}
           setQty={setQty}
           onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
-          onAddResource={(resourceName, quantityScu) => {
-            addPlannerResourceRequirement(resourceName, quantityScu);
-            openPlanner();
+          onAddResource={(resourceName, quantity, quantityUnit) => {
+            ensureGoal(qualityScore, projectedStats, qty);
+            addPlannerResourceRequirement(
+              resourceName,
+              quantity,
+              quantityUnit === 'count' ? 'count' : 'scu',
+            );
           }}
         />
 
-        {dismantlingData && (
-          <>
-            <Divider />
-            <DismantleSection
-              blueprint={activeBlueprint}
-              dismantleTimeSecs={dismantleTimeSecs}
-              efficiency={dismantleEfficiency}
-              perItemYieldModelResolved={perItemYieldModelResolved}
-            />
-          </>
-        )}
+        <>
+          <Divider />
+          <DismantleSection
+            blueprint={activeBlueprint}
+            resources={requiredResources}
+            dismantleTimeSecs={dismantleTimeSecs}
+            efficiency={dismantleEfficiency}
+          />
+        </>
       </Box>
     </Box>
   );

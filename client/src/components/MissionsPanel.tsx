@@ -36,6 +36,7 @@ import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import { BlueprintCard } from './BlueprintGrid';
 import { AppGlyph } from './ui/AppGlyph';
 import { CategoryBadge } from './ui/Badge';
+import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
 import { ScaleBadge } from './ui/RarityBadge';
 import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLicensedIcon';
@@ -1556,9 +1557,7 @@ export function MissionsPanel() {
       <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
         <FlagIcon sx={{ mb: 1, opacity: 0.4, fontSize: '3rem' }} />
         <Typography variant="h6">{t('No mission data', 'Aucune donnee de mission')}</Typography>
-        <Typography variant="body2">
-          {t('Mission rewards are not available for this dataset.', 'Les recompenses de mission ne sont pas disponibles pour ce dataset.')}
-        </Typography>
+        <DatasetTooOldNotice />
       </Box>
     );
   }

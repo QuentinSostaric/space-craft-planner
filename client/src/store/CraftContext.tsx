@@ -25,6 +25,7 @@ import type {
   ItemStats,
   LegalityFilter,
   LibrarySegment,
+  MaterialSlotQuantityUnit,
   MaterialSources,
   MissionRewardsData,
   PlannerResourceRequirements,
@@ -147,6 +148,7 @@ interface CraftState {
   assignQuality: (slotId: string, quality: number | undefined) => void;
   clearAssignments: () => void;
   addGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
+  ensureGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
   removeGoal: (goalId: string) => void;
   updateGoalQuantity: (goalId: string, quantity: number) => void;
   updateGoal: (
@@ -156,9 +158,13 @@ interface CraftState {
     projectedStats: ItemStats,
   ) => void;
   selectGoalBlueprint: (goalId: string) => void;
-  addPlannerResourceRequirement: (resourceName: string, quantityScu: number) => void;
+  addPlannerResourceRequirement: (
+    resourceName: string,
+    quantity: number,
+    quantityUnit?: MaterialSlotQuantityUnit,
+  ) => void;
   clearPlannerResourceRequirement: (resourceName: string) => void;
-  setResourceCollected: (resourceName: string, scu: number) => void;
+  setResourceCollected: (resourceName: string, amount: number) => void;
   setResourceMethod: (resourceName: string, method: ResourceMethod | null) => void;
   resetResourceProgress: () => void;
   addToComparison: (score: number, projectedStats: ItemStats) => void;
@@ -166,7 +172,6 @@ interface CraftState {
   clearComparison: () => void;
   openComparison: () => void;
   closeComparison: () => void;
-  openPlanner: () => void;
 }
 
 const CraftContext = createContext<CraftState | null>(null);
@@ -200,6 +205,45 @@ function pickDatasetForChannel(
   }
 
   return channelDatasets[0];
+}
+
+type PlannerResourceRequirementsStorage = Record<
+  string,
+  number | { quantity?: number | null; quantityUnit?: MaterialSlotQuantityUnit | null }
+>;
+
+function normalizePlannerResourceRequirements(
+  requirements: PlannerResourceRequirementsStorage,
+): PlannerResourceRequirements {
+  return Object.fromEntries(
+    Object.entries(requirements)
+      .map(([resourceName, value]) => {
+        if (typeof value === 'number') {
+          const quantity = Math.round(Math.max(0, value) * 1000) / 1000;
+          return quantity > 0
+            ? [resourceName, { quantity, quantityUnit: 'scu' as const }]
+            : null;
+        }
+
+        const quantity = Math.round(Math.max(0, Number(value?.quantity ?? 0)) * 1000) / 1000;
+        if (quantity <= 0) {
+          return null;
+        }
+
+        return [
+          resourceName,
+          {
+            quantity,
+            quantityUnit: value?.quantityUnit === 'count' ? 'count' : 'scu',
+          },
+        ];
+      })
+      .filter(
+        (
+          entry,
+        ): entry is [string, PlannerResourceRequirements[string]] => Array.isArray(entry),
+      ),
+  );
 }
 
 export function CraftProvider({ children }: { children: ReactNode }) {
@@ -252,7 +296,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const materialSources = activeDataset.materialSources ?? null;
 
   const [rawGoals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
-  const [plannerResourceRequirements, setPlannerResourceRequirements] = useLocalPersist<PlannerResourceRequirements>(
+  const [rawPlannerResourceRequirements, setPlannerResourceRequirements] = useLocalPersist<PlannerResourceRequirementsStorage>(
     LS_KEYS.PLANNER_RESOURCE_REQUIREMENTS,
     {},
   );
@@ -275,6 +319,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       ),
     })),
     [rawGoals], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const plannerResourceRequirements = useMemo(
+    () => normalizePlannerResourceRequirements(rawPlannerResourceRequirements),
+    [rawPlannerResourceRequirements],
   );
   const [favoriteIds, setFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
   const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(LS_KEYS.INVENTORY, [
@@ -504,10 +552,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const clearAssignments = useCallback(() => setSlotAssignments({}), []);
 
   const setResourceCollected = useCallback(
-    (resourceName: string, scu: number) => {
+    (resourceName: string, amount: number) => {
       setResourceProgressRaw((prev) => ({
         ...prev,
-        [resourceName]: { ...(prev[resourceName] ?? { method: null }), collected: scu },
+        [resourceName]: { ...(prev[resourceName] ?? { method: null }), collected: amount },
       }));
     },
     [setResourceProgressRaw],
@@ -528,16 +576,27 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   }, [setResourceProgressRaw]);
 
   const addPlannerResourceRequirement = useCallback(
-    (resourceName: string, quantityScu: number) => {
+    (
+      resourceName: string,
+      quantity: number,
+      quantityUnit: MaterialSlotQuantityUnit = 'scu',
+    ) => {
       const normalizedName = resourceName.trim();
-      const normalizedQuantity = Math.round(Math.max(0, quantityScu) * 1000) / 1000;
+      const normalizedQuantity = Math.round(Math.max(0, quantity) * 1000) / 1000;
       if (!normalizedName || normalizedQuantity <= 0) {
         return;
       }
 
       setPlannerResourceRequirements((prev) => ({
         ...prev,
-        [normalizedName]: Math.round(((prev[normalizedName] ?? 0) + normalizedQuantity) * 1000) / 1000,
+        [normalizedName]: {
+          quantity:
+            Math.round(
+              (((normalizePlannerResourceRequirements(prev)[normalizedName]?.quantity) ?? 0) + normalizedQuantity)
+              * 1000,
+            ) / 1000,
+          quantityUnit,
+        },
       }));
     },
     [setPlannerResourceRequirements],
@@ -575,7 +634,33 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       };
 
       setGoals((prev) => [goal, ...prev]);
-      navigateToPath('/planner', { mainView: 'planner' });
+    },
+    [activeBlueprint, slotAssignments, setGoals],
+  );
+
+  const ensureGoal = useCallback(
+    (qualityScore: number, projectedStats: ItemStats, quantity = 1) => {
+      if (!activeBlueprint) return;
+
+      setGoals((prev) => {
+        if (prev.some((goal) => goal.blueprintId === activeBlueprint.id)) {
+          return prev;
+        }
+
+        const goal: CraftGoal = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          blueprintId: activeBlueprint.id,
+          blueprintName: activeBlueprint.name,
+          category: activeBlueprint.category,
+          slotAssignments: { ...slotAssignments },
+          quantity,
+          qualityScore,
+          projectedStats,
+          createdAt: Date.now(),
+        };
+
+        return [goal, ...prev];
+      });
     },
     [activeBlueprint, slotAssignments, setGoals],
   );
@@ -652,10 +737,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const clearComparison = useCallback(() => setComparisonItems([]), []);
   const openComparison = useCallback(() => setComparisonOpen(true), []);
   const closeComparison = useCallback(() => setComparisonOpen(false), []);
-  const openPlanner = useCallback(() => {
-    navigateToPath('/planner', { mainView: 'planner' });
-  }, []);
-
   // Resolve initial URL slug once blueprints are available
   useEffect(() => {
     if (blueprints.length === 0 || !pendingSlugRef.current) return;
@@ -767,6 +848,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         assignQuality,
         clearAssignments,
         addGoal,
+        ensureGoal,
         removeGoal,
         updateGoalQuantity,
         updateGoal,
@@ -781,7 +863,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         clearComparison,
         openComparison,
         closeComparison,
-        openPlanner,
       }}
     >
       {children}
