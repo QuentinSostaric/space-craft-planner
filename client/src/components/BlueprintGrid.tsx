@@ -260,8 +260,9 @@ export const BlueprintCard = memo(function BlueprintCard({
                 component="img"
                 image={thumbUrl}
                 alt=""
-                loading="lazy"
+                loading={priority ? 'eager' : 'lazy'}
                 fetchPriority={priority ? 'high' : 'auto'}
+                decoding={priority ? 'sync' : 'async'}
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 sx={{
