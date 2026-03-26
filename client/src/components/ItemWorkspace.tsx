@@ -152,6 +152,7 @@ export function ItemWorkspace() {
           <Divider />
           <DismantleSection
             blueprint={activeBlueprint}
+            allResources={activeDataset.resources}
             resources={requiredResources}
             dismantleTimeSecs={dismantleTimeSecs}
             efficiency={dismantleEfficiency}

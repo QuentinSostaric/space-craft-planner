@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -14,12 +15,14 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import {
   formatMaterialProviderConfidence,
-  formatMaterialSourceMethod,
   formatMaterialProviderType,
+  formatMaterialSourceMethod,
   formatMineableGroupName,
+  formatQuantityValue,
   formatResourceQuantity,
-  getMaterialProviders,
   getMaterialProviderProbabilityPct,
+  getMaterialProviders,
+  getResourceQuantityInputStep,
   summarizeAssignedQualities,
 } from '../../utils/crafting';
 import type { AggregatedResource, MaterialSources, Resource } from '../../types';
@@ -49,6 +52,28 @@ function resolveResource(resourceName: string, resources: Resource[]) {
   );
 }
 
+function getRequiredQuantity(resourceEntry: AggregatedResource, qty: number) {
+  return Math.round(resourceEntry.totalScu * qty * 1000) / 1000;
+}
+
+function normalizePlannerQuantity(
+  rawValue: string | undefined,
+  fallbackValue: number,
+  quantityUnit: AggregatedResource['quantityUnit'],
+) {
+  const parsed = Number(rawValue);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallbackValue;
+  }
+
+  if (quantityUnit === 'count') {
+    return Math.max(1, Math.round(parsed));
+  }
+
+  return Math.round(parsed * 1000) / 1000;
+}
+
 interface MaterialSourcesSectionProps {
   resources: AggregatedResource[];
   allResources: Resource[];
@@ -74,6 +99,26 @@ export function MaterialSourcesSection({
 }: MaterialSourcesSectionProps) {
   const { lang, t } = useI18n();
   const theme = useTheme();
+  const defaultResourceQuantities = useMemo(
+    () =>
+      Object.fromEntries(
+        resources.map((resourceEntry) => {
+          const requiredQuantity = getRequiredQuantity(resourceEntry, qty);
+          return [
+            resourceEntry.resourceName,
+            formatQuantityValue(requiredQuantity, resourceEntry.quantityUnit),
+          ];
+        }),
+      ),
+    [qty, resources],
+  );
+  const [resourceQuantities, setResourceQuantities] = useState<Record<string, string>>(
+    defaultResourceQuantities,
+  );
+
+  useEffect(() => {
+    setResourceQuantities(defaultResourceQuantities);
+  }, [defaultResourceQuantities]);
 
   if (resources.length === 0) return null;
 
@@ -99,7 +144,16 @@ export function MaterialSourcesSection({
           )
           : null;
         const resource = resolveResource(resourceEntry.resourceName, allResources);
-        const requiredQuantity = Math.round(resourceEntry.totalScu * qty * 1000) / 1000;
+        const requiredQuantity = getRequiredQuantity(resourceEntry, qty);
+        const plannerQuantityValue = resourceQuantities[resourceEntry.resourceName]
+          ?? defaultResourceQuantities[resourceEntry.resourceName]
+          ?? formatQuantityValue(requiredQuantity, resourceEntry.quantityUnit);
+        const plannerQuantity = normalizePlannerQuantity(
+          plannerQuantityValue,
+          requiredQuantity,
+          resourceEntry.quantityUnit,
+        );
+        const quantityStep = getResourceQuantityInputStep(resourceEntry.quantityUnit);
 
         return (
           <Accordion
@@ -199,7 +253,9 @@ export function MaterialSourcesSection({
                       >
                         {leadProvider.providerDisplayName}
                         {leadProvider.system ? ` - ${leadProvider.system}` : ''}
-                        {leadProvider.sourceMethod ? ` - ${formatMaterialSourceMethod(leadProvider.sourceMethod, lang)}` : ''}
+                        {leadProvider.sourceMethod
+                          ? ` - ${formatMaterialSourceMethod(leadProvider.sourceMethod, lang)}`
+                          : ''}
                       </Typography>
                     </Box>
                   )}
@@ -231,22 +287,102 @@ export function MaterialSourcesSection({
                     {formatResourceQuantity(requiredQuantity, resourceEntry.quantityUnit, lang)}
                   </Typography>
                 </Box>
-
               </Box>
             </AccordionSummary>
 
-            <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                px: 1.25,
+                pb: 1,
+                pt: 0.25,
+                flexWrap: { xs: 'wrap', md: 'nowrap' },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  minWidth: 0,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.65rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '.04em',
+                  }}
+                >
+                  {t('Planner qty', 'Qte planner')}
+                </Typography>
+                <TextField
+                  type="number"
+                  size="small"
+                  value={plannerQuantityValue}
+                  onChange={(event) =>
+                    setResourceQuantities((prev) => ({
+                      ...prev,
+                      [resourceEntry.resourceName]: event.target.value,
+                    }))}
+                  onBlur={() =>
+                    setResourceQuantities((prev) => ({
+                      ...prev,
+                      [resourceEntry.resourceName]: formatQuantityValue(
+                        normalizePlannerQuantity(
+                          prev[resourceEntry.resourceName],
+                          requiredQuantity,
+                          resourceEntry.quantityUnit,
+                        ),
+                        resourceEntry.quantityUnit,
+                      ),
+                    }))}
+                  slotProps={{
+                    htmlInput: {
+                      min: 0,
+                      step: quantityStep,
+                      'aria-label': `${resourceEntry.resourceName} ${t('quantity', 'quantite')}`,
+                      style: {
+                        width: 62,
+                        textAlign: 'right',
+                        padding: '3px 6px',
+                        fontSize: '0.78rem',
+                        fontFamily: "'Share Tech Mono', monospace",
+                      },
+                    },
+                  }}
+                  sx={{
+                    width: 82,
+                    flexShrink: 0,
+                    '& .MuiOutlinedInput-root': {
+                      height: 30,
+                      backgroundColor: alpha(theme.palette.common.white, 0.02),
+                    },
+                  }}
+                />
+                <Typography variant="caption" sx={{ color: 'text.disabled', whiteSpace: 'nowrap' }}>
+                  {resourceEntry.quantityUnit === 'count'
+                    ? t('items', 'objets')
+                    : 'SCU'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ width: { xs: '100%', md: 'auto' }, ml: { md: 'auto' } }}>
                 <Button
                   variant="contained"
                   size="small"
                   onClick={() =>
                     onAddResource(
                       resourceEntry.resourceName,
-                      requiredQuantity,
+                      plannerQuantity,
                       resourceEntry.quantityUnit,
-                    )
-                  }
+                    )}
                   sx={{
                     width: { xs: '100%', sm: 'auto' },
                     minWidth: { sm: 132 },
@@ -255,6 +391,9 @@ export function MaterialSourcesSection({
                   {t('Add to Planner', 'Ajouter au planificateur')}
                 </Button>
               </Box>
+            </Box>
+
+            <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
               {!materialSources?.resources ? (
                 <DatasetTooOldNotice />
               ) : providers.length === 0 ? (
@@ -308,6 +447,7 @@ export function MaterialSourcesSection({
                   </TableBody>
                 </Table>
               )}
+
               {providers.some((provider) => provider.mineableGroupName) && (
                 <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.disabled' }}>
                   {providers
@@ -316,7 +456,7 @@ export function MaterialSourcesSection({
                       Boolean(groupName) && list.indexOf(groupName) === index,
                     )
                     .map((groupName) => formatMineableGroupName(groupName))
-                    .join(' • ')}
+                    .join(' | ')}
                 </Typography>
               )}
             </AccordionDetails>
@@ -336,7 +476,7 @@ export function MaterialSourcesSection({
           }}
         >
           <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.65rem' }}>
-            {t('Qty', 'Qte')}
+            {t('Blueprint qty', 'Qte blueprint')}
           </Typography>
           <TextField
             type="number"
