@@ -1,30 +1,131 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import Box from '@mui/material/Box';
 import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
+import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
+import { LS_KEYS } from '../../types';
+import { areStringArraysEqual, moveIdBefore, synchronizeOrderedIds } from '../../utils/reorder';
+import { formatResourceQuantity } from '../../utils/crafting';
 import { StarCitizenLicensedIcon } from '../ui/StarCitizenLicensedIcon';
 import type { AggregatedResource } from '../../types';
 import { ResourceRow } from './ResourceRow';
 
 export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[] }) {
   const { plannerResourceRequirements, resourceProgress } = useCraft();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const [resourceOrder, setResourceOrder] = useLocalPersist<string[]>(LS_KEYS.PLANNER_RESOURCE_ORDER, []);
+  const [draggedResourceName, setDraggedResourceName] = useState<string | null>(null);
+  const [dropResourceName, setDropResourceName] = useState<string | null>(null);
+  const resourceNames = useMemo(
+    () => aggregated.map((resource) => resource.resourceName),
+    [aggregated],
+  );
 
-  const { totalRequired, totalCollected, globalPct } = useMemo(() => {
-    const totalRequired = aggregated.reduce((sum, r) => sum + r.totalScu, 0);
-    const totalCollected = aggregated.reduce((sum, r) => {
-      const prog = resourceProgress[r.resourceName];
-      return sum + Math.min(prog?.collected ?? 0, r.totalScu);
-    }, 0);
-    const globalPct = totalRequired > 0 ? (totalCollected / totalRequired) * 100 : 0;
-    return { totalRequired, totalCollected, globalPct };
-  }, [aggregated, resourceProgress]);
+  useEffect(() => {
+    setResourceOrder((previous) => {
+      const next = synchronizeOrderedIds(previous, resourceNames);
+      return areStringArraysEqual(previous, next) ? previous : next;
+    });
+  }, [resourceNames, setResourceOrder]);
+
+  const orderedResources = useMemo(() => {
+    const resourceByName = new Map(aggregated.map((resource) => [resource.resourceName, resource]));
+    return synchronizeOrderedIds(resourceOrder, resourceNames)
+      .map((resourceName) => resourceByName.get(resourceName))
+      .filter((resource): resource is NonNullable<typeof resource> => Boolean(resource));
+  }, [aggregated, resourceNames, resourceOrder]);
+
+  const { scuCollected, scuRequired, countCollected, countRequired, globalPct } = useMemo(() => {
+    let scuCollected = 0;
+    let scuRequired = 0;
+    let countCollected = 0;
+    let countRequired = 0;
+    let completionSum = 0;
+
+    for (const resource of orderedResources) {
+      const collected = Math.min(resourceProgress[resource.resourceName]?.collected ?? 0, resource.totalScu);
+      const completion = resource.totalScu > 0 ? collected / resource.totalScu : 0;
+
+      if (resource.quantityUnit === 'count') {
+        countCollected += collected;
+        countRequired += resource.totalScu;
+      } else {
+        scuCollected += collected;
+        scuRequired += resource.totalScu;
+      }
+
+      completionSum += completion;
+    }
+
+    return {
+      scuCollected,
+      scuRequired,
+      countCollected,
+      countRequired,
+      globalPct: orderedResources.length > 0 ? (completionSum / orderedResources.length) * 100 : 0,
+    };
+  }, [orderedResources, resourceProgress]);
+
+  const handleDragStart = useCallback(
+    (resourceName: string) => (event: DragEvent<HTMLElement>) => {
+      setDraggedResourceName(resourceName);
+      setDropResourceName(resourceName);
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', resourceName);
+    },
+    [],
+  );
+
+  const handleDragOver = useCallback(
+    (resourceName: string) => (event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      if (!draggedResourceName || draggedResourceName === resourceName) {
+        return;
+      }
+      event.dataTransfer.dropEffect = 'move';
+      setDropResourceName(resourceName);
+    },
+    [draggedResourceName],
+  );
+
+  const handleDrop = useCallback(
+    (resourceName: string) => (event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      const currentDraggedResourceName = draggedResourceName ?? event.dataTransfer.getData('text/plain');
+      if (!currentDraggedResourceName || currentDraggedResourceName === resourceName) {
+        setDraggedResourceName(null);
+        setDropResourceName(null);
+        return;
+      }
+
+      setResourceOrder((previous) => {
+        const synced = synchronizeOrderedIds(previous, resourceNames);
+        const next = moveIdBefore(synced, currentDraggedResourceName, resourceName);
+        return areStringArraysEqual(synced, next) ? synced : next;
+      });
+      setDraggedResourceName(null);
+      setDropResourceName(null);
+    },
+    [draggedResourceName, resourceNames, setResourceOrder],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedResourceName(null);
+    setDropResourceName(null);
+  }, []);
 
   return (
-    <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: { xs: 'visible', md: 'hidden' } }}>
-      {/* Column header + global progress */}
+    <Box
+      sx={{
+        flex: { xs: '0 0 auto', md: 1 },
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: { xs: 'visible', md: 'hidden' },
+      }}
+    >
       <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
@@ -33,8 +134,20 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
               {t('Resources', 'Ressources')}
             </Typography>
           </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace" }}>
-            {totalCollected.toFixed(2)} / {totalRequired.toFixed(2)} SCU
+          <Typography
+            variant="caption"
+            sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace" }}
+          >
+            {[
+              scuRequired > 0
+                ? `${formatResourceQuantity(scuCollected, 'scu', lang)} / ${formatResourceQuantity(scuRequired, 'scu', lang)}`
+                : null,
+              countRequired > 0
+                ? `${formatResourceQuantity(countCollected, 'count', lang)} / ${formatResourceQuantity(countRequired, 'count', lang)}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' • ') || t('No totals', 'Pas de total')}
           </Typography>
         </Box>
         <LinearProgress
@@ -44,19 +157,42 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
         />
       </Box>
 
-      {/* Resources list */}
-      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, overflowY: { xs: 'visible', md: 'auto' }, p: 1.25, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {aggregated.length === 0 && (
-          <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 2.5, textAlign: 'center' }}>
-            {t('Add goals or materials to see required resources.', 'Ajoutez des objectifs ou des materiaux pour voir les ressources requises.')}
+      <Box
+        sx={{
+          flex: { xs: '0 0 auto', md: 1 },
+          overflowY: { xs: 'visible', md: 'auto' },
+          p: 1.25,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+        }}
+      >
+        {orderedResources.length === 0 && (
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 2.5, textAlign: 'center' }}
+          >
+            {t(
+              'Add goals or materials to see required resources.',
+              'Ajoutez des objectifs ou des materiaux pour voir les ressources requises.',
+            )}
           </Typography>
         )}
-        {aggregated.map((resource) => (
+        {orderedResources.map((resource) => (
           <ResourceRow
             key={resource.resourceName}
             resource={resource}
             progress={resourceProgress[resource.resourceName]}
-            manualRequired={plannerResourceRequirements[resource.resourceName] ?? 0}
+            manualRequired={plannerResourceRequirements[resource.resourceName]?.quantity ?? 0}
+            isDragging={draggedResourceName === resource.resourceName}
+            isDropTarget={dropResourceName === resource.resourceName && draggedResourceName !== resource.resourceName}
+            onDragOver={handleDragOver(resource.resourceName)}
+            onDrop={handleDrop(resource.resourceName)}
+            dragHandleProps={{
+              draggable: true,
+              onDragStart: handleDragStart(resource.resourceName),
+              onDragEnd: handleDragEnd,
+            }}
           />
         ))}
       </Box>

@@ -31,6 +31,7 @@ import {
 } from '../utils/shipComponents';
 import { isResourceSlot } from '../utils/crafting';
 import { CategoryBadge } from './ui/Badge';
+import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
 import type {
   BlueprintSort,
@@ -525,6 +526,7 @@ export function BlueprintExplorer() {
           value={String(blueprintStats.materialCount)}
         />
       </Box>
+      {!missionRewards && <DatasetTooOldNotice variant="caption" />}
 
       <Box
         sx={{

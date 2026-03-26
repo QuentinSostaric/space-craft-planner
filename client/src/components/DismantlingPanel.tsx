@@ -7,6 +7,7 @@ import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
+import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 
 function ConfidenceBadge({ level }: { level: string }) {
   const color = level === 'high' ? 'success' : level === 'medium' ? 'warning' : 'error';
@@ -36,9 +37,7 @@ export function DismantlingPanel() {
   if (!dismantlingData || !dismantling?.blueprint || !dismantling.globalParams) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {t('No dismantling data available for this dataset.', 'Aucune donnee de demontage disponible pour ce dataset.')}
-        </Typography>
+        <DatasetTooOldNotice />
       </Box>
     );
   }

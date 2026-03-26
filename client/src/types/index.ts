@@ -7,7 +7,9 @@ export interface LocalizedString {
 
 export const LS_KEYS = {
   GOALS: 'sc-craft-goals',
+  PLANNER_GOAL_ORDER: 'sc-craft-planner-goal-order',
   PLANNER_RESOURCE_REQUIREMENTS: 'sc-craft-planner-resource-requirements',
+  PLANNER_RESOURCE_ORDER: 'sc-craft-planner-resource-order',
   FAVORITES: 'sc-craft-favorites',
   LANG: 'sc-craft-lang',
   THEME: 'sc-craft-theme',
@@ -28,6 +30,7 @@ export interface GppModifier {
 
 export type MaterialSlotRequirementType = 'resource' | 'item';
 export type MaterialSlotQuantityUnit = 'scu' | 'count';
+export type ResourceSourceMethod = 'ship-mining' | 'hand-mining';
 
 export interface MaterialSlot {
   id: string;
@@ -244,11 +247,16 @@ export type LegalityFilter = 'all' | 'lawful' | 'unlawful';
 export type ResourceMethod = 'mission' | 'mining' | 'dismantle' | 'buy';
 
 export interface ResourceProgress {
-  collected: number;       // SCU collected so far (0 – totalScu)
+  collected: number;       // Generic collected amount, interpreted through the resource quantity unit
   method: ResourceMethod | null;
 }
 
-export type PlannerResourceRequirements = Record<string, number>;
+export interface PlannerResourceRequirement {
+  quantity: number;
+  quantityUnit: MaterialSlotQuantityUnit;
+}
+
+export type PlannerResourceRequirements = Record<string, PlannerResourceRequirement>;
 
 export type RarityFilter = 'all' | Rarity | 'unknown';
 export type SlotCountFilter = 'all' | '1' | '2' | '3';
@@ -377,6 +385,7 @@ export interface ResourceInsight {
   providerCount: number;
   systems: string[];
   providerTypes: Array<'planetary' | 'asteroid' | 'other'>;
+  sourceMethods: ResourceSourceMethod[];
   missionObjectiveContractCount: number;
   missionEmployers: string[];
   missionLocations: string[];
@@ -656,9 +665,12 @@ export interface MaterialSourceProvider {
   providerId?: string;
   providerDisplayName: string;
   providerType: string;
+  sourceMethod?: ResourceSourceMethod | null;
+  mineableGroupName?: string | null;
   system: string | null;
   tier: string | null;
   rawRelativeProbability?: number | null;
+  providerProbabilityPct?: number | null;
   groupProbabilityPct: number | null;
   craftOnlyProbabilityPct: number | null;
   labelConfidence: string;
@@ -668,6 +680,7 @@ export interface MaterialSourceProvider {
 export interface MaterialSourceEntry {
   id?: string;
   displayName?: string;
+  sourceMethods?: ResourceSourceMethod[];
   providers: MaterialSourceProvider[];
 }
 
@@ -680,6 +693,7 @@ export interface MaterialSources {
     localizedProviderCount?: number;
     technicalProviderCount?: number;
     providerTypes?: Record<string, number>;
+    sourceMethods?: Record<string, number>;
     systems?: string[];
   };
 }
@@ -893,6 +907,7 @@ export interface ComparisonItem {
 export interface AggregatedResource {
   resourceName: string;
   totalScu: number;
+  quantityUnit: MaterialSlotQuantityUnit | 'mixed';
   minRequiredQuality: number | null;
   assignedQualityValues: number[];
   unassignedSlotCount: number;

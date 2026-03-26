@@ -10,7 +10,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
@@ -184,9 +184,15 @@ function MobileNavItem({
 
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
-  const { goals } = useCraft();
+  const { goals, plannerResourceRequirements } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
+  const plannerBadgeCount = useMemo(
+    () =>
+      goals.length
+      + Object.values(plannerResourceRequirements).filter((requirement) => Number(requirement?.quantity ?? 0) > 0).length,
+    [goals.length, plannerResourceRequirements],
+  );
 
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
   const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
@@ -228,10 +234,10 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           active={mainView === 'planner'}
           label={t('Planner', 'Planificateur')}
           icon={
-            <Badge
-              badgeContent={goals.length}
+              <Badge
+              badgeContent={plannerBadgeCount}
               color="primary"
-              invisible={goals.length === 0}
+              invisible={plannerBadgeCount === 0}
               sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
             >
               <AssignmentIcon sx={{ fontSize: '1.1rem' }} />
@@ -291,9 +297,9 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
             label={t('Planner', 'Planificateur')}
             icon={
               <Badge
-                badgeContent={goals.length}
+                badgeContent={plannerBadgeCount}
                 color="primary"
-                invisible={goals.length === 0}
+                invisible={plannerBadgeCount === 0}
                 sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
               >
                 <AssignmentIcon sx={{ fontSize: '1.2rem' }} />

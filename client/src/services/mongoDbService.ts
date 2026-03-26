@@ -11,6 +11,85 @@ export interface DatasetIndexResponse {
   defaultChannel: DatasetChannel | null;
 }
 
+function normalizeMissionRewards(missionRewards: MissionRewardsData | null | undefined): MissionRewardsData | null {
+  if (!missionRewards) {
+    return null;
+  }
+
+  return {
+    summary: missionRewards.summary ?? null,
+    conclusions: missionRewards.conclusions ?? null,
+    factionGroups: (missionRewards.factionGroups ?? []).map((group) => ({
+      ...group,
+      reputationScopes: group.reputationScopes ?? [],
+      contracts: (group.contracts ?? []).map((contract) => ({
+        ...contract,
+        minimumRequiredStandings: contract.minimumRequiredStandings ?? [],
+        availability: {
+          derivedScale: contract.availability?.derivedScale ?? 'unknown',
+          localities: contract.availability?.localities ?? [],
+          explicitLocations: contract.availability?.explicitLocations ?? [],
+          hasHandlerAvailabilityRules: Boolean(contract.availability?.hasHandlerAvailabilityRules),
+        },
+        rewardedBlueprints: contract.rewardedBlueprints ?? [],
+        itemAwards: contract.itemAwards ?? [],
+        resourceObjectives: contract.resourceObjectives ?? [],
+      })),
+    })),
+    blueprintAcquisitionGraph: missionRewards.blueprintAcquisitionGraph ?? [],
+  };
+}
+
+function normalizeDataset(dataset: GameDataset): GameDataset {
+  return {
+    ...dataset,
+    manufacturers: dataset.manufacturers ?? [],
+    resourceInsights: dataset.resourceInsights
+      ? dataset.resourceInsights.map((entry) => ({
+          ...entry,
+          systems: entry.systems ?? [],
+          providerTypes: entry.providerTypes ?? [],
+          sourceMethods: entry.sourceMethods ?? [],
+          missionEmployers: entry.missionEmployers ?? [],
+          missionLocations: entry.missionLocations ?? [],
+          blueprintCategoryCounts: entry.blueprintCategoryCounts ?? {},
+          blueprintIds: entry.blueprintIds ?? [],
+        }))
+      : null,
+    materialSources: dataset.materialSources
+      ? {
+          ...dataset.materialSources,
+          resources: Object.fromEntries(
+            Object.entries(dataset.materialSources.resources ?? {}).map(([resourceId, entry]) => [
+              resourceId,
+              {
+                ...entry,
+                sourceMethods: entry?.sourceMethods ?? [],
+                providers: entry?.providers ?? [],
+              },
+            ]),
+          ),
+          providers: dataset.materialSources.providers ?? [],
+          summary: dataset.materialSources.summary
+            ? {
+                ...dataset.materialSources.summary,
+                providerTypes: dataset.materialSources.summary.providerTypes ?? {},
+                sourceMethods: dataset.materialSources.summary.sourceMethods ?? {},
+                systems: dataset.materialSources.summary.systems ?? [],
+              }
+            : undefined,
+        }
+      : null,
+    missionRewards: normalizeMissionRewards(dataset.missionRewards ?? null),
+    shipComponents: dataset.shipComponents
+      ? {
+          ...dataset.shipComponents,
+          entries: dataset.shipComponents.entries ?? [],
+        }
+      : null,
+  };
+}
+
 function buildApiCandidateUrls(path: string): string[] {
   return [path];
 }
@@ -56,7 +135,7 @@ export async function fetchPublishedDataset(channel: DatasetChannel): Promise<Ga
     throw new Error(`No published dataset for channel "${channel}".`);
   }
 
-  return payload.dataset;
+  return normalizeDataset(payload.dataset);
 }
 
 export async function fetchPublishedDatasetById(
@@ -70,7 +149,7 @@ export async function fetchPublishedDatasetById(
     if (!payload.dataset) {
       throw new Error(`No published dataset for id "${datasetId}".`);
     }
-    return payload.dataset;
+    return normalizeDataset(payload.dataset);
   } catch (error) {
     if (channelHint) {
       return fetchPublishedDataset(channelHint);
@@ -85,7 +164,7 @@ export async function fetchPublishedMissionRewards(
   const payload = await apiFetch<{ missionRewards: MissionRewardsData | null }>(
     `/api/game-data/public/${channel}/mission-rewards`,
   );
-  return payload.missionRewards ?? null;
+  return normalizeMissionRewards(payload.missionRewards ?? null);
 }
 
 export async function fetchPublishedMissionRewardsById(
@@ -96,7 +175,7 @@ export async function fetchPublishedMissionRewardsById(
     const payload = await apiFetch<{ missionRewards: MissionRewardsData | null }>(
       `/api/game-data/public/by-id/${datasetId}/mission-rewards`,
     );
-    return payload.missionRewards ?? null;
+    return normalizeMissionRewards(payload.missionRewards ?? null);
   } catch (error) {
     if (channelHint) {
       return fetchPublishedMissionRewards(channelHint);

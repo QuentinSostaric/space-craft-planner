@@ -13,6 +13,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import { formatContractName, formatScaleLabel } from '../../utils/crafting';
 import { AppGlyph } from '../ui/AppGlyph';
+import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import { StarCitizenLicensedIcon, getLocationIconName } from '../ui/StarCitizenLicensedIcon';
 import type {
   AcquisitionContract,
@@ -198,9 +199,13 @@ export function AcquisitionSection({
 
       {!loading && !entry && (
         <Paper sx={panelSx}>
-          <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-            {t('Not obtainable via missions', 'Non obtenable via les missions')}
-          </Typography>
+          {missionRewards ? (
+            <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+              {t('Not obtainable via missions', 'Non obtenable via les missions')}
+            </Typography>
+          ) : (
+            <DatasetTooOldNotice />
+          )}
         </Paper>
       )}
 

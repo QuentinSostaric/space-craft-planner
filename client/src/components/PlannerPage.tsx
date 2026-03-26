@@ -8,7 +8,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { GoalsList } from './planner/GoalsList';
 import { ResourcesList } from './planner/ResourcesList';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
-import { aggregatePlannedResources } from '../utils/crafting';
+import { aggregatePlannedResources, formatResourceQuantity } from '../utils/crafting';
 
 export function PlannerPage() {
   const {
@@ -18,7 +18,7 @@ export function PlannerPage() {
     resourceProgress,
     resetResourceProgress,
   } = useCraft();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const aggregated = useMemo(
     () => aggregatePlannedResources(goals, blueprints, plannerResourceRequirements),
@@ -26,76 +26,164 @@ export function PlannerPage() {
   );
   const hasPlannerContent = goals.length > 0 || aggregated.length > 0;
 
-  // NOTE: This computation duplicates the same logic in ResourcesList.tsx (totalRequired,
-  // totalCollected, globalPct). Both derive from the same aggregated + resourceProgress data.
-  // Lifting the computation to PlannerPage and passing values down as props would eliminate the
-  // duplication, but that would require restructuring both components. Left as-is for now.
-  const { totalRequired, totalCollected, globalPct } = useMemo(() => {
-    const totalRequired = aggregated.reduce((sum, r) => sum + r.totalScu, 0);
-    const totalCollected = aggregated.reduce((sum, r) => {
-      const prog = resourceProgress[r.resourceName];
-      return sum + Math.min(prog?.collected ?? 0, r.totalScu);
-    }, 0);
-    const globalPct = totalRequired > 0 ? Math.round((totalCollected / totalRequired) * 100) : 0;
-    return { totalRequired, totalCollected, globalPct };
+  const { scuRequired, countRequired, totalCollected, completedResourceCount, globalPct } = useMemo(() => {
+    let scuRequired = 0;
+    let countRequired = 0;
+    let totalCollected = 0;
+    let completedResourceCount = 0;
+    let completionSum = 0;
+
+    for (const resource of aggregated) {
+      const collected = Math.min(
+        resourceProgress[resource.resourceName]?.collected ?? 0,
+        resource.totalScu,
+      );
+      const completion = resource.totalScu > 0 ? collected / resource.totalScu : 0;
+
+      if (resource.quantityUnit === 'count') {
+        countRequired += resource.totalScu;
+      } else {
+        scuRequired += resource.totalScu;
+      }
+
+      totalCollected += collected;
+      completionSum += completion;
+
+      if (completion >= 1 && resource.totalScu > 0) {
+        completedResourceCount += 1;
+      }
+    }
+
+    return {
+      scuRequired,
+      countRequired,
+      totalCollected,
+      completedResourceCount,
+      globalPct: aggregated.length > 0 ? Math.round((completionSum / aggregated.length) * 100) : 0,
+    };
   }, [aggregated, resourceProgress]);
 
   const handleCopyText = useCallback(() => {
     const lines = [
-      'ITEM FABRICATOR — Plan',
+      'ITEM FABRICATOR - Plan',
       '',
-      ...goals.map((g) => `${g.quantity}× ${g.blueprintName} (${g.qualityScore}/100)`),
+      ...goals.map((goal) => `${goal.quantity}x ${goal.blueprintName} (${goal.qualityScore}/100)`),
       '',
-      ...aggregated.map((r) => `${r.resourceName} — ${r.totalScu.toFixed(2)} SCU`),
+      ...aggregated.map(
+        (resource) =>
+          `${resource.resourceName} - ${formatResourceQuantity(resource.totalScu, resource.quantityUnit, lang, 'long')}`,
+      ),
     ];
-    navigator.clipboard.writeText(lines.join('\n')).catch((err) => console.warn('Clipboard write failed:', err));
-  }, [goals, aggregated]);
+    navigator.clipboard
+      .writeText(lines.join('\n'))
+      .catch((error) => console.warn('Clipboard write failed:', error));
+  }, [aggregated, goals, lang]);
 
   const handleDownloadJSON = useCallback(() => {
     const payload = {
       exportedAt: new Date().toISOString(),
-      goals: goals.map((g) => ({ blueprintId: g.blueprintId, blueprintName: g.blueprintName, quantity: g.quantity, qualityScore: g.qualityScore })),
-      materials: aggregated.map((r) => ({
-        resourceName: r.resourceName,
-        totalScu: r.totalScu,
-        manualRequired: plannerResourceRequirements[r.resourceName] ?? 0,
-        collected: resourceProgress[r.resourceName]?.collected ?? 0,
-        method: resourceProgress[r.resourceName]?.method ?? null,
+      goals: goals.map((goal) => ({
+        blueprintId: goal.blueprintId,
+        blueprintName: goal.blueprintName,
+        quantity: goal.quantity,
+        qualityScore: goal.qualityScore,
+      })),
+      materials: aggregated.map((resource) => ({
+        resourceName: resource.resourceName,
+        totalQuantity: resource.totalScu,
+        quantityUnit: resource.quantityUnit,
+        manualRequired: plannerResourceRequirements[resource.resourceName]?.quantity ?? 0,
+        collected: resourceProgress[resource.resourceName]?.collected ?? 0,
+        method: resourceProgress[resource.resourceName]?.method ?? null,
       })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const anchor = document.createElement('a');
+
     try {
-      a.href = url;
-      a.download = `item-fabricator-plan-${Date.now()}.json`;
-      a.click();
+      anchor.href = url;
+      anchor.download = `item-fabricator-plan-${Date.now()}.json`;
+      anchor.click();
     } finally {
       URL.revokeObjectURL(url);
     }
-  }, [goals, aggregated, plannerResourceRequirements, resourceProgress]);
+  }, [aggregated, goals, plannerResourceRequirements, resourceProgress]);
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: { xs: 'visible', md: 'hidden' } }}>
-      {/* Page header */}
-      <Box sx={{ px: { xs: 1.25, md: 3 }, py: { xs: 1.1, md: 1.5 }, borderBottom: 1, borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', gap: 1, flexShrink: 0, backgroundColor: 'background.paper' }}>
+    <Box
+      sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+        overflow: { xs: 'visible', md: 'hidden' },
+      }}
+    >
+      <Box
+        sx={{
+          px: { xs: 1.25, md: 3 },
+          py: { xs: 1.1, md: 1.5 },
+          borderBottom: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: 1,
+          flexShrink: 0,
+          backgroundColor: 'background.paper',
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6">{t('Planner', 'Planificateur')}</Typography>
           {goals.length > 0 && (
-            <Chip label={`${goals.length} ${t('goals', 'objectifs')}`} size="small" variant="outlined" />
+            <Chip
+              label={`${goals.length} ${t('goals', 'objectifs')}`}
+              size="small"
+              variant="outlined"
+            />
           )}
-          {totalRequired > 0 && (
-            <Chip label={`${totalRequired.toFixed(2)} SCU ${t('required', 'requis')}`} size="small" variant="outlined" />
+          {scuRequired > 0 && (
+            <Chip
+              label={`${formatResourceQuantity(scuRequired, 'scu', lang, 'long')} ${t('required', 'requis')}`}
+              size="small"
+              variant="outlined"
+            />
           )}
-          {totalRequired > 0 && (
-            <Chip label={`${globalPct}% ${t('collected', 'collecté')}`} size="small" color="primary" variant="outlined" />
+          {countRequired > 0 && (
+            <Chip
+              label={`${formatResourceQuantity(countRequired, 'count', lang, 'long')} ${t('required', 'requis')}`}
+              size="small"
+              variant="outlined"
+            />
+          )}
+          {aggregated.length > 0 && (
+            <Chip
+              label={`${globalPct}% ${t('collected', 'collecte')} • ${completedResourceCount}/${aggregated.length}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}>
-          <Button variant="outlined" size="small" onClick={handleCopyText} disabled={!hasPlannerContent} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleCopyText}
+            disabled={!hasPlannerContent}
+            sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
+          >
             {t('Copy text', 'Copier texte')}
           </Button>
-          <Button variant="outlined" size="small" onClick={handleDownloadJSON} disabled={!hasPlannerContent} sx={{ flex: { xs: 1, sm: '0 0 auto' } }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleDownloadJSON}
+            disabled={!hasPlannerContent}
+            sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
+          >
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
               <StarCitizenLicensedIcon name="download" size={14} dimmed />
               <span>JSON</span>
@@ -104,14 +192,31 @@ export function PlannerPage() {
         </Box>
       </Box>
 
-      {/* Two-column body */}
-      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, overflow: { xs: 'visible', md: 'hidden' } }}>
+      <Box
+        sx={{
+          flex: { xs: '0 0 auto', md: 1 },
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          minHeight: 0,
+          overflow: { xs: 'visible', md: 'hidden' },
+        }}
+      >
         <GoalsList />
         <ResourcesList aggregated={aggregated} />
       </Box>
 
-      {/* Footer */}
-      <Box sx={{ px: { xs: 1.25, md: 3 }, py: 1, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: { xs: 'stretch', md: 'flex-end' }, flexShrink: 0, backgroundColor: 'background.paper' }}>
+      <Box
+        sx={{
+          px: { xs: 1.25, md: 3 },
+          py: 1,
+          borderTop: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          justifyContent: { xs: 'stretch', md: 'flex-end' },
+          flexShrink: 0,
+          backgroundColor: 'background.paper',
+        }}
+      >
         <Button
           variant="outlined"
           color="error"
@@ -120,7 +225,7 @@ export function PlannerPage() {
           disabled={totalCollected === 0}
           sx={{ width: { xs: '100%', md: 'auto' } }}
         >
-          {t('Reset progress', 'Réinitialiser la progression')}
+          {t('Reset progress', 'Reinitialiser la progression')}
         </Button>
       </Box>
     </Box>

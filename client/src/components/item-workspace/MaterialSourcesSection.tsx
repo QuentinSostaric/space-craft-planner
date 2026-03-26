@@ -13,10 +13,20 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
-import { getMaterialProviders, summarizeAssignedQualities } from '../../utils/crafting';
+import {
+  formatMaterialProviderConfidence,
+  formatMaterialSourceMethod,
+  formatMaterialProviderType,
+  formatMineableGroupName,
+  formatResourceQuantity,
+  getMaterialProviders,
+  getMaterialProviderProbabilityPct,
+  summarizeAssignedQualities,
+} from '../../utils/crafting';
 import type { AggregatedResource, MaterialSources, Resource } from '../../types';
 import { Button as AppButton } from '../ui/Button';
 import { AppGlyph } from '../ui/AppGlyph';
+import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import {
   StarCitizenLicensedIcon,
@@ -40,18 +50,6 @@ function resolveResource(resourceName: string, resources: Resource[]) {
   );
 }
 
-function formatScu(totalScu: number) {
-  if (totalScu >= 10) {
-    return totalScu.toFixed(0);
-  }
-
-  if (totalScu >= 1) {
-    return totalScu.toFixed(1);
-  }
-
-  return totalScu.toFixed(2);
-}
-
 function stopAccordionToggle(event: SyntheticEvent) {
   event.stopPropagation();
 }
@@ -63,7 +61,11 @@ interface MaterialSourcesSectionProps {
   qty: number;
   setQty: (val: number) => void;
   onAddGoal: () => void;
-  onAddResource: (resourceName: string, quantityScu: number) => void;
+  onAddResource: (
+    resourceName: string,
+    quantity: number,
+    quantityUnit: AggregatedResource['quantityUnit'],
+  ) => void;
 }
 
 export function MaterialSourcesSection({
@@ -89,6 +91,7 @@ export function MaterialSourcesSection({
       <Typography variant="overline" sx={{ display: 'block' }}>
         {t('Material Sources', 'Sources de materiaux')}
       </Typography>
+      {!materialSources?.resources && <DatasetTooOldNotice variant="caption" />}
 
       {resources.map((resourceEntry) => {
         const providers = getMaterialProviders(materialSources, resourceEntry.resourceName);
@@ -101,7 +104,7 @@ export function MaterialSourcesSection({
           )
           : null;
         const resource = resolveResource(resourceEntry.resourceName, allResources);
-        const requiredScu = Math.round(resourceEntry.totalScu * qty * 1000) / 1000;
+        const requiredQuantity = Math.round(resourceEntry.totalScu * qty * 1000) / 1000;
 
         return (
           <Accordion
@@ -201,6 +204,7 @@ export function MaterialSourcesSection({
                       >
                         {leadProvider.providerDisplayName}
                         {leadProvider.system ? ` - ${leadProvider.system}` : ''}
+                        {leadProvider.sourceMethod ? ` - ${formatMaterialSourceMethod(leadProvider.sourceMethod, lang)}` : ''}
                       </Typography>
                     </Box>
                   )}
@@ -229,7 +233,7 @@ export function MaterialSourcesSection({
                     variant="body2"
                     sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700 }}
                   >
-                    {formatScu(requiredScu)} SCU
+                    {formatResourceQuantity(requiredQuantity, resourceEntry.quantityUnit, lang)}
                   </Typography>
                 </Box>
 
@@ -243,7 +247,11 @@ export function MaterialSourcesSection({
                     size="small"
                     onClick={(event) => {
                       stopAccordionToggle(event);
-                      onAddResource(resourceEntry.resourceName, requiredScu);
+                      onAddResource(
+                        resourceEntry.resourceName,
+                        requiredQuantity,
+                        resourceEntry.quantityUnit,
+                      );
                     }}
                     sx={{
                       width: { xs: '100%', sm: 'auto' },
@@ -257,7 +265,9 @@ export function MaterialSourcesSection({
             </AccordionSummary>
 
             <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
-              {providers.length === 0 ? (
+              {!materialSources?.resources ? (
+                <DatasetTooOldNotice />
+              ) : providers.length === 0 ? (
                 <Typography variant="body2" sx={{ color: 'text.disabled' }}>
                   {t('No source data available', 'Aucune donnee de source disponible')}
                 </Typography>
@@ -266,9 +276,10 @@ export function MaterialSourcesSection({
                   <TableHead>
                     <TableRow>
                       <TableCell>{t('Provider', 'Fournisseur')}</TableCell>
+                      <TableCell>{t('Method', 'Methode')}</TableCell>
                       <TableCell>{t('Type', 'Type')}</TableCell>
                       <TableCell>{t('System', 'Systeme')}</TableCell>
-                      <TableCell>{t('Probability', 'Probabilite')}</TableCell>
+                      <TableCell>{t('Share', 'Part')}</TableCell>
                       <TableCell>{t('Tier', 'Tier')}</TableCell>
                       <TableCell>{t('Confidence', 'Confiance')}</TableCell>
                     </TableRow>
@@ -291,16 +302,32 @@ export function MaterialSourcesSection({
                               <span>{provider.providerDisplayName}</span>
                             </Box>
                           </TableCell>
-                          <TableCell>{provider.providerType}</TableCell>
+                          <TableCell>{formatMaterialSourceMethod(provider.sourceMethod, lang)}</TableCell>
+                          <TableCell>{formatMaterialProviderType(provider.providerType, lang)}</TableCell>
                           <TableCell>{provider.system ?? '-'}</TableCell>
-                          <TableCell>{provider.groupProbabilityPct != null ? `${provider.groupProbabilityPct}%` : '-'}</TableCell>
+                          <TableCell>
+                            {getMaterialProviderProbabilityPct(provider) != null
+                              ? `${getMaterialProviderProbabilityPct(provider)}%`
+                              : '-'}
+                          </TableCell>
                           <TableCell>{provider.tier ?? '-'}</TableCell>
-                          <TableCell>{provider.labelConfidence}</TableCell>
+                          <TableCell>{formatMaterialProviderConfidence(provider.labelConfidence, lang)}</TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
+              )}
+              {providers.some((provider) => provider.mineableGroupName) && (
+                <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.disabled' }}>
+                  {providers
+                    .map((provider) => provider.mineableGroupName)
+                    .filter((groupName, index, list): groupName is string =>
+                      Boolean(groupName) && list.indexOf(groupName) === index,
+                    )
+                    .map((groupName) => formatMineableGroupName(groupName))
+                    .join(' • ')}
+                </Typography>
               )}
             </AccordionDetails>
           </Accordion>

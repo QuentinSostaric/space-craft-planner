@@ -6,7 +6,9 @@ import type {
   CraftGoal,
   ItemCategory,
   Lang,
+  LocalizedString,
   MaterialSlot,
+  MaterialSlotQuantityUnit,
   MaterialSourceProvider,
   MaterialSources,
   MissionContract,
@@ -14,6 +16,7 @@ import type {
   MissionRewardsData,
   NumericItemStatKey,
   PlannerResourceRequirements,
+  ResourceSourceMethod,
 } from '../types';
 import { NUMERIC_ITEM_STAT_KEYS } from '../types';
 import { loc } from '../i18n/I18nContext';
@@ -127,7 +130,7 @@ export function clampQualityValue(value: number | undefined): number | undefined
 }
 
 export function isResourceSlot(slot: MaterialSlot): boolean {
-  return slot.requirementType !== 'item';
+  return Boolean(slot.requiredResource?.trim());
 }
 
 export function getSlotRequirementName(slot: MaterialSlot): string {
@@ -138,16 +141,61 @@ export function getSlotQuantityValue(slot: MaterialSlot): number {
   return slot.quantityUnit === 'count' ? slot.quantityValue : slot.quantityScu;
 }
 
-export function formatSlotQuantity(slot: MaterialSlot): string {
-  const value = getSlotQuantityValue(slot);
-  const rounded =
-    value >= 10
-      ? Math.round(value).toString()
-      : value >= 1
-        ? value.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
-        : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+export function formatQuantityValue(
+  value: number | null | undefined,
+  quantityUnit: MaterialSlotQuantityUnit | 'mixed',
+): string {
+  const amount = Number(value ?? 0);
+  const precision = quantityUnit === 'count' ? 2 : 3;
+  const wholeNumberThreshold = quantityUnit === 'count' ? 100 : 10;
 
-  return slot.quantityUnit === 'count' ? `x${rounded}` : `${rounded} SCU`;
+  if (amount >= wholeNumberThreshold) {
+    return Math.round(amount).toString();
+  }
+
+  if (amount >= 1) {
+    return amount
+      .toFixed(precision)
+      .replace(/\.0+$/, '')
+      .replace(/(\.\d*[1-9])0+$/, '$1');
+  }
+
+  return amount.toFixed(precision).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+export function formatResourceQuantity(
+  value: number | null | undefined,
+  quantityUnit: MaterialSlotQuantityUnit | 'mixed',
+  lang: Lang,
+  style: 'compact' | 'long' = 'compact',
+): string {
+  const formattedValue = formatQuantityValue(value, quantityUnit);
+
+  if (quantityUnit === 'count') {
+    if (style === 'long') {
+      if (lang === 'fr') return `${formattedValue} objets`;
+      if (lang === 'de') return `${formattedValue} Teile`;
+      return `${formattedValue} items`;
+    }
+
+    return `x${formattedValue}`;
+  }
+
+  if (quantityUnit === 'mixed') {
+    return formattedValue;
+  }
+
+  return `${formattedValue} SCU`;
+}
+
+export function getResourceQuantityInputStep(
+  quantityUnit: MaterialSlotQuantityUnit | 'mixed',
+): number {
+  return quantityUnit === 'count' ? 1 : 0.01;
+}
+
+export function formatSlotQuantity(slot: MaterialSlot): string {
+  return formatResourceQuantity(getSlotQuantityValue(slot), slot.quantityUnit, 'en');
 }
 
 export function formatQualityToken(value: number): string {
@@ -167,7 +215,7 @@ export function summarizeAssignedQualities(
 ): string {
   if (qualityValues.length === 0) {
     return unassignedSlotCount > 0
-      ? (lang === 'fr' ? 'Non selectionnee' : lang === 'de' ? 'Nicht zugewiesen' : 'Unassigned')
+      ? (lang === 'fr' ? 'Aucune qualite selectionnee' : lang === 'de' ? 'Keine Qualitat gewahlt' : 'No quality selected')
       : (lang === 'fr' ? 'Aucune' : lang === 'de' ? 'Keine' : 'None');
   }
 
@@ -177,18 +225,129 @@ export function summarizeAssignedQualities(
   const baseLabel = min === max ? formatQualityToken(min) : `${formatQualityToken(min)}-${formatQualityToken(max)}`;
 
   if (unassignedSlotCount > 0) {
-    if (lang === 'fr') return `${baseLabel} (+${unassignedSlotCount} non selectionne)`;
-    if (lang === 'de') return `${baseLabel} (+${unassignedSlotCount} nicht zugewiesen)`;
-    return `${baseLabel} (+${unassignedSlotCount} unassigned)`;
+    if (lang === 'fr') return `${baseLabel} (+${unassignedSlotCount} sans qualite)`;
+    if (lang === 'de') return `${baseLabel} (+${unassignedSlotCount} ohne Qualitat)`;
+    return `${baseLabel} (+${unassignedSlotCount} no quality)`;
   }
 
   return baseLabel;
 }
 
+const MATERIAL_PROVIDER_TYPE_LABELS: Record<string, LocalizedString> = {
+  'asteroid-hotspot': { en: 'Asteroid hotspot', fr: 'Hotspot d asteroid', de: 'Asteroiden-Hotspot' },
+  'body-provider': { en: 'Planetary body', fr: 'Corps planetaire', de: 'Planetarer Himmelskorper' },
+};
+
+const MATERIAL_SOURCE_METHOD_LABELS: Record<ResourceSourceMethod, LocalizedString> = {
+  'ship-mining': { en: 'Ship mining', fr: 'Minage vaisseau', de: 'Schiffsbergbau' },
+  'hand-mining': { en: 'Hand mining', fr: 'Minage FPS', de: 'Handbergbau' },
+};
+
+const MATERIAL_PROVIDER_CONFIDENCE_LABELS: Record<string, LocalizedString> = {
+  'localized-starmap-record': { en: 'Mapped location', fr: 'Lieu cartographie', de: 'Kartierter Ort' },
+  'localized-known-key': { en: 'Known location key', fr: 'Cle de lieu connue', de: 'Bekannter Orts-Schlussel' },
+  'technical-provider-code': { en: 'Internal provider code', fr: 'Code technique interne', de: 'Interner Provider-Code' },
+};
+
+const MATERIAL_PROVIDER_CONFIDENCE_ORDER: Record<string, number> = {
+  'localized-starmap-record': 0,
+  'localized-known-key': 1,
+  'technical-provider-code': 2,
+};
+
+export function formatMaterialProviderType(providerType: string | null | undefined, lang: Lang): string {
+  if (!providerType) {
+    return lang === 'fr' ? 'Inconnu' : lang === 'de' ? 'Unbekannt' : 'Unknown';
+  }
+
+  const label = MATERIAL_PROVIDER_TYPE_LABELS[providerType];
+  if (label) {
+    return loc(label, lang);
+  }
+
+  return providerType;
+}
+
+export function formatMaterialProviderConfidence(confidence: string | null | undefined, lang: Lang): string {
+  if (!confidence) {
+    return lang === 'fr' ? 'Inconnue' : lang === 'de' ? 'Unbekannt' : 'Unknown';
+  }
+
+  const label = MATERIAL_PROVIDER_CONFIDENCE_LABELS[confidence];
+  if (label) {
+    return loc(label, lang);
+  }
+
+  return confidence;
+}
+
+export function formatMaterialSourceMethod(
+  sourceMethod: ResourceSourceMethod | string | null | undefined,
+  lang: Lang,
+): string {
+  if (!sourceMethod) {
+    return lang === 'fr' ? 'Inconnue' : lang === 'de' ? 'Unbekannt' : 'Unknown';
+  }
+
+  const label = MATERIAL_SOURCE_METHOD_LABELS[sourceMethod as ResourceSourceMethod];
+  if (label) {
+    return loc(label, lang);
+  }
+
+  return sourceMethod;
+}
+
+export function formatMineableGroupName(groupName: string | null | undefined): string {
+  if (!groupName) {
+    return 'Unknown';
+  }
+
+  return groupName
+    .replace(/[_-]+/g, ' ')
+    .trim();
+}
+
+export function getMaterialProviderProbabilityPct(
+  provider: MaterialSourceProvider,
+): number | null {
+  return provider.providerProbabilityPct
+    ?? provider.groupProbabilityPct
+    ?? provider.craftOnlyProbabilityPct
+    ?? null;
+}
+
+export function sortMaterialProviders(providers: MaterialSourceProvider[]): MaterialSourceProvider[] {
+  return [...providers].sort((left, right) => {
+    const probabilityDelta =
+      (right.providerProbabilityPct ?? right.craftOnlyProbabilityPct ?? right.groupProbabilityPct ?? -1)
+      - (left.providerProbabilityPct ?? left.craftOnlyProbabilityPct ?? left.groupProbabilityPct ?? -1);
+
+    if (probabilityDelta !== 0) {
+      return probabilityDelta;
+    }
+
+    const confidenceDelta =
+      (MATERIAL_PROVIDER_CONFIDENCE_ORDER[left.labelConfidence] ?? 99)
+      - (MATERIAL_PROVIDER_CONFIDENCE_ORDER[right.labelConfidence] ?? 99);
+
+    if (confidenceDelta !== 0) {
+      return confidenceDelta;
+    }
+
+    const systemDelta = String(left.system ?? '').localeCompare(String(right.system ?? ''));
+    if (systemDelta !== 0) {
+      return systemDelta;
+    }
+
+    return String(left.providerDisplayName ?? '').localeCompare(String(right.providerDisplayName ?? ''));
+  });
+}
+
 function aggregateResourceEntries(
   entries: Array<{
     resourceName: string;
-    quantityScu: number;
+    quantityValue: number;
+    quantityUnit: MaterialSlotQuantityUnit;
     minQuality: number | null;
     assignedQuality: number | undefined;
   }>,
@@ -199,13 +358,16 @@ function aggregateResourceEntries(
     const current = totals.get(entry.resourceName) ?? {
       resourceName: entry.resourceName,
       totalScu: 0,
+      quantityUnit: entry.quantityUnit,
       minRequiredQuality: entry.minQuality ?? null,
       assignedQualityValues: [],
       unassignedSlotCount: 0,
       slotCount: 0,
     };
 
-    current.totalScu += entry.quantityScu;
+    current.totalScu += entry.quantityValue;
+    current.quantityUnit =
+      current.quantityUnit === entry.quantityUnit ? current.quantityUnit : 'mixed';
     current.slotCount += 1;
     current.minRequiredQuality = Math.max(current.minRequiredQuality ?? 0, entry.minQuality ?? 0) || null;
 
@@ -241,7 +403,8 @@ export function aggregateBlueprintResources(
       .filter(isResourceSlot)
       .map((slot) => ({
       resourceName: slot.requiredResource,
-      quantityScu: slot.quantityScu,
+      quantityValue: getSlotQuantityValue(slot),
+      quantityUnit: slot.quantityUnit,
       minQuality: slot.minQuality,
       assignedQuality: clampQualityValue(assignments[slot.id]),
       })),
@@ -264,7 +427,8 @@ function collectGoalResourceEntries(goals: CraftGoal[], blueprints: Blueprint[])
 
       entries.push({
         resourceName: slot.requiredResource,
-        quantityScu: slot.quantityScu * goal.quantity,
+        quantityValue: getSlotQuantityValue(slot) * goal.quantity,
+        quantityUnit: slot.quantityUnit,
         minQuality: slot.minQuality,
         assignedQuality: clampQualityValue(goal.slotAssignments[slot.id]),
       });
@@ -287,10 +451,15 @@ export function aggregatePlannedResources(
   plannerResourceRequirements: PlannerResourceRequirements,
 ): AggregatedResource[] {
   const manualEntries = Object.entries(plannerResourceRequirements)
-    .filter(([resourceName, quantityScu]) => Boolean(resourceName) && Number.isFinite(quantityScu) && quantityScu > 0)
-    .map(([resourceName, quantityScu]) => ({
+    .filter(([resourceName, requirement]) =>
+      Boolean(resourceName) &&
+      Number.isFinite(requirement?.quantity) &&
+      Number(requirement.quantity) > 0,
+    )
+    .map(([resourceName, requirement]) => ({
       resourceName,
-      quantityScu,
+      quantityValue: requirement.quantity,
+      quantityUnit: requirement.quantityUnit ?? 'scu',
       minQuality: null,
       assignedQuality: undefined,
     }));
@@ -383,7 +552,7 @@ export function getMaterialProviders(
   for (const candidate of candidates) {
     const providers = materialSources.resources[candidate]?.providers;
     if (providers?.length) {
-      return providers;
+      return sortMaterialProviders(providers);
     }
   }
 
@@ -393,5 +562,5 @@ export function getMaterialProviders(
     return displayName === normalizedLookup || id === normalizedLookup;
   });
 
-  return matchedEntry?.providers ?? [];
+  return matchedEntry?.providers ? sortMaterialProviders(matchedEntry.providers) : [];
 }
