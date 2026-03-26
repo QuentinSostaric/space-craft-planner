@@ -22,6 +22,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
@@ -65,7 +66,7 @@ const CATEGORY_FILTERS: Array<{ value: CategoryFilter } & LocalizedOption> = [
 
 const SEGMENTS: Array<{ value: LibrarySegment; icon: ElementType | null } & LocalizedOption> = [
   { value: 'all', label: ls('All', 'Tous', 'Alle'), icon: null },
-  { value: 'inventory', label: ls('Inventory', 'Inventaire', 'Inventar'), icon: null },
+  { value: 'inventory', label: ls('Inventory', 'Inventaire', 'Inventar'), icon: Inventory2Icon },
   { value: 'favorites', label: ls('Favs', 'Favoris', 'Favoriten'), icon: StarIcon },
   { value: 'obtainable', label: ls('Obtainable', 'Obtenables', 'Erhältlich'), icon: FlagIcon },
 ];

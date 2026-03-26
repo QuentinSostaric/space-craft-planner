@@ -203,10 +203,6 @@ function pickDatasetForChannel(
 }
 
 export function CraftProvider({ children }: { children: ReactNode }) {
-  const [, setPreferredChannel] = useLocalPersist<DatasetChannel>(
-    LS_KEYS.DATASET_CHANNEL,
-    'ptu',
-  );
   const [, setPreferredDatasetIds] = useLocalPersist<
     Partial<Record<DatasetChannel, string>>
   >(LS_KEYS.DATASET_SELECTIONS, {});
@@ -281,7 +277,12 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     [rawGoals], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const [favoriteIds, setFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
-  const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(LS_KEYS.INVENTORY, []);
+  const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(LS_KEYS.INVENTORY, [
+    'bp_craft_behr_pistol_ballistic_01',
+    'bp_craft_behr_pistol_ballistic_01_mag',
+    'bp_craft_behr_rifle_ballistic_01',
+    'bp_craft_behr_rifle_ballistic_01_mag',
+  ]);
 
   const blueprints = activeDataset.blueprints;
   const activeChannel = activeDataset.channel;
@@ -304,7 +305,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setAvailableDatasets(datasets);
         setDatasetError(errorMessage);
         setMissionRewardsError(null);
-        setPreferredChannel(dataset.channel);
         setPreferredDatasetIds((previous) => ({
           ...previous,
           [dataset.channel]: dataset.datasetId,
@@ -322,7 +322,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         );
       });
     },
-    [missionRewardsByDatasetId, setPreferredChannel, setPreferredDatasetIds],
+    [missionRewardsByDatasetId, setPreferredDatasetIds],
   );
 
   const loadDataset = useCallback(

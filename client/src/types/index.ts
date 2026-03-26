@@ -11,7 +11,6 @@ export const LS_KEYS = {
   FAVORITES: 'sc-craft-favorites',
   LANG: 'sc-craft-lang',
   THEME: 'sc-craft-theme',
-  DATASET_CHANNEL: 'sc-craft-dataset-channel',
   DATASET_SELECTIONS: 'sc-craft-dataset-selections',
   INVENTORY: 'sc-craft-inventory',
   NAV_COLLAPSED: 'sc-craft-nav-collapsed',
