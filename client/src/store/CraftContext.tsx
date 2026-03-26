@@ -67,6 +67,18 @@ const EMPTY_DATASET: GameDataset = {
   updatedAt: null,
 };
 
+type DatasetSelectionsStorage =
+  | Partial<Record<DatasetChannel, string>>
+  | {
+      activeChannel?: DatasetChannel | null;
+      ids?: Partial<Record<DatasetChannel, string>> | null;
+    };
+
+interface DatasetSelections {
+  activeChannel: DatasetChannel | null;
+  ids: Partial<Record<DatasetChannel, string>>;
+}
+
 interface CraftState {
   appMode: AppMode;
   setAppMode: (mode: AppMode) => void;
@@ -177,8 +189,8 @@ interface CraftState {
 const CraftContext = createContext<CraftState | null>(null);
 
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
-  const dateA = Date.parse(a.importedAt ?? '') || 0;
-  const dateB = Date.parse(b.importedAt ?? '') || 0;
+  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
   if (dateA !== dateB) {
     return dateB - dateA;
   }
@@ -192,10 +204,74 @@ function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
   return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
 }
 
+function isDatasetChannel(value: unknown): value is DatasetChannel {
+  return value === 'live' || value === 'ptu';
+}
+
+function normalizeDatasetSelections(
+  selections: DatasetSelectionsStorage | null | undefined,
+): DatasetSelections {
+  if (!selections || typeof selections !== 'object') {
+    return { activeChannel: null, ids: {} };
+  }
+
+  if ('activeChannel' in selections || 'ids' in selections) {
+    const idsSource =
+      selections.ids && typeof selections.ids === 'object'
+        ? selections.ids
+        : {};
+
+    return {
+      activeChannel: isDatasetChannel(selections.activeChannel)
+        ? selections.activeChannel
+        : null,
+      ids: Object.fromEntries(
+        Object.entries(idsSource).filter(
+          ([channel, datasetId]) =>
+            isDatasetChannel(channel)
+            && typeof datasetId === 'string'
+            && datasetId.trim().length > 0,
+        ),
+      ) as Partial<Record<DatasetChannel, string>>,
+    };
+  }
+
+  return {
+    activeChannel: null,
+    ids: Object.fromEntries(
+      Object.entries(selections).filter(
+        ([channel, datasetId]) =>
+          isDatasetChannel(channel)
+          && typeof datasetId === 'string'
+          && datasetId.trim().length > 0,
+      ),
+    ) as Partial<Record<DatasetChannel, string>>,
+  };
+}
+
+function findDatasetById(
+  datasets: DatasetSummary[],
+  datasetId: string | null | undefined,
+): DatasetSummary | null {
+  if (!datasetId) {
+    return null;
+  }
+
+  return datasets.find((dataset) => dataset.datasetId === datasetId) ?? null;
+}
+
 function pickDatasetForChannel(
   channel: DatasetChannel,
   datasets: DatasetSummary[],
+  preferredDatasetId?: string | null,
 ): DatasetSummary | null {
+  const preferredDataset = datasets.find(
+    (dataset) => dataset.channel === channel && dataset.datasetId === preferredDatasetId,
+  );
+  if (preferredDataset) {
+    return preferredDataset;
+  }
+
   const channelDatasets = datasets
     .filter((dataset) => dataset.channel === channel)
     .sort(compareDatasetSummaries);
@@ -205,6 +281,28 @@ function pickDatasetForChannel(
   }
 
   return channelDatasets[0];
+}
+
+function pickStoredDataset(
+  datasets: DatasetSummary[],
+  selections: DatasetSelections,
+): DatasetSummary | null {
+  if (selections.activeChannel) {
+    const activeChannelDataset = findDatasetById(
+      datasets,
+      selections.ids[selections.activeChannel],
+    );
+    if (activeChannelDataset) {
+      return activeChannelDataset;
+    }
+  }
+
+  const storedDatasets = Object.values(selections.ids)
+    .map((datasetId) => findDatasetById(datasets, datasetId))
+    .filter((dataset): dataset is DatasetSummary => Boolean(dataset))
+    .sort(compareDatasetSummaries);
+
+  return storedDatasets[0] ?? null;
 }
 
 type PlannerResourceRequirementsStorage = Record<
@@ -247,13 +345,15 @@ function normalizePlannerResourceRequirements(
 }
 
 export function CraftProvider({ children }: { children: ReactNode }) {
-  const [, setPreferredDatasetIds] = useLocalPersist<
-    Partial<Record<DatasetChannel, string>>
-  >(LS_KEYS.DATASET_SELECTIONS, {});
+  const [rawDatasetSelections, setDatasetSelections] = useLocalPersist<DatasetSelectionsStorage>(
+    LS_KEYS.DATASET_SELECTIONS,
+    {},
+  );
   const [activeDataset, setActiveDataset] = useState<GameDataset>(EMPTY_DATASET);
   const [availableDatasets, setAvailableDatasets] = useState<DatasetSummary[]>([]);
   const [datasetLoading, setDatasetLoading] = useState(true);
   const [datasetError, setDatasetError] = useState<string | null>(null);
+  const datasetCacheRef = useRef<Record<string, GameDataset>>({});
   const [missionRewardsByDatasetId, setMissionRewardsByDatasetId] = useState<
     Record<string, MissionRewardsData | null>
   >({});
@@ -290,6 +390,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('craft');
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const datasetSelections = useMemo(
+    () => normalizeDatasetSelections(rawDatasetSelections),
+    [rawDatasetSelections],
+  );
 
   const activeMissionRewards = activeDataset.missionRewards ?? null;
   const dismantlingData = activeDataset.dismantling ?? null;
@@ -342,6 +446,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       errorMessage: string | null,
     ) => {
       const cachedMissionRewards = missionRewardsByDatasetId[dataset.datasetId];
+      datasetCacheRef.current[dataset.datasetId] = dataset;
       startTransition(() => {
         setActiveDataset({
           ...dataset,
@@ -353,10 +458,16 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setAvailableDatasets(datasets);
         setDatasetError(errorMessage);
         setMissionRewardsError(null);
-        setPreferredDatasetIds((previous) => ({
-          ...previous,
-          [dataset.channel]: dataset.datasetId,
-        }));
+        setDatasetSelections((previous) => {
+          const normalizedSelections = normalizeDatasetSelections(previous);
+          return {
+            activeChannel: dataset.channel,
+            ids: {
+              ...normalizedSelections.ids,
+              [dataset.channel]: dataset.datasetId,
+            },
+          };
+        });
         if (dataset.missionRewards != null) {
           setMissionRewardsByDatasetId((previous) =>
             Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
@@ -370,11 +481,17 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         );
       });
     },
-    [missionRewardsByDatasetId, setPreferredDatasetIds],
+    [missionRewardsByDatasetId, setDatasetSelections],
   );
 
   const loadDataset = useCallback(
     async (summary: DatasetSummary, datasets: DatasetSummary[]) => {
+      const cachedDataset = datasetCacheRef.current[summary.datasetId];
+      if (cachedDataset) {
+        applyDataset(cachedDataset, datasets, null);
+        return cachedDataset;
+      }
+
       const dataset = await fetchPublishedDatasetById(summary.datasetId, summary.channel);
       applyDataset(dataset, datasets, null);
       return dataset;
@@ -395,10 +512,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       }
 
       const sortedDatasets = [...index.datasets].sort(compareDatasetSummaries);
-      const currentDataset = activeDataset.datasetId
-        ? sortedDatasets.find((dataset) => dataset.datasetId === activeDataset.datasetId) ?? null
-        : null;
-      const targetDataset = currentDataset ?? sortedDatasets[0] ?? null;
+      const currentDataset = findDatasetById(sortedDatasets, activeDataset.datasetId);
+      const storedDataset = pickStoredDataset(sortedDatasets, datasetSelections);
+      const targetDataset = currentDataset ?? storedDataset ?? sortedDatasets[0] ?? null;
 
       if (!targetDataset) {
         throw new Error('No published dataset is available.');
@@ -410,11 +526,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     } finally {
       setDatasetLoading(false);
     }
-  }, [activeDataset.datasetId, loadDataset]);
+  }, [activeDataset.datasetId, datasetSelections, loadDataset]);
 
   useEffect(() => {
     void refreshDatasets();
-  }, [refreshDatasets]);
+  }, []);
 
   const ensureMissionRewardsLoaded = useCallback(
     async (requestedDatasetId?: string) => {
@@ -466,6 +582,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const targetDataset = pickDatasetForChannel(
         channel,
         datasets,
+        datasetSelections.ids[channel],
       );
 
       if (!targetDataset) {
@@ -482,7 +599,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setDatasetLoading(false);
       }
     },
-    [activeDataset.channel, availableDatasets, datasetError, loadDataset],
+    [activeDataset.channel, availableDatasets, datasetError, datasetSelections.ids, loadDataset],
   );
 
   const setActiveDatasetId = useCallback(
