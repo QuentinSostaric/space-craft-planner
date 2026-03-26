@@ -172,8 +172,8 @@ interface CraftState {
 const CraftContext = createContext<CraftState | null>(null);
 
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
-  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
-  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
+  const dateA = Date.parse(a.importedAt ?? '') || 0;
+  const dateB = Date.parse(b.importedAt ?? '') || 0;
   if (dateA !== dateB) {
     return dateB - dateA;
   }

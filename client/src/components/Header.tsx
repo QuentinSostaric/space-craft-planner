@@ -3,7 +3,6 @@ import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import FormControl from '@mui/material/FormControl';
-import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -11,13 +10,9 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha } from '@mui/material/styles';
-import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { useTheme } from '../hooks/useTheme';
 import { navigateToPath } from '../utils/slug';
 
 const MONTH_NAMES = {
@@ -156,11 +151,8 @@ export function Header() {
     activeChannel,
     setActiveDatasetChannel,
     setActiveDatasetId,
-    changelogOpen,
-    setChangelogOpen,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
-  const [themeMode, setThemeMode] = useTheme();
   const isHeaderStacked = useMediaQuery('(max-width:430px)');
   const isNarrowHeader = useMediaQuery('(max-width:720px)');
 
@@ -213,10 +205,6 @@ export function Header() {
             ]
           : [],
     [availableDatasets, activeChannel, activeDataset, channelDatasets],
-  );
-  const hasChangelog = useMemo(
-    () => activeDataset.channel === 'ptu' && Boolean(activeDataset.changelog),
-    [availableDatasets, activeChannel, activeDataset],
   );
   const formatDatasetLabel = useMemo(
     () => (dataset: {
@@ -331,33 +319,6 @@ export function Header() {
               pl: { xs: 0, lg: 1.5 },
             }}
           >
-            {hasChangelog && (
-              <IconButton
-                onClick={() => setChangelogOpen(!changelogOpen)}
-                aria-pressed={changelogOpen}
-                title={t('PTU Changelog', 'Changelog PTU')}
-                aria-label={t('PTU Changelog', 'Changelog PTU')}
-                size="small"
-                sx={{
-                  ...(changelogOpen && {
-                    color: 'primary.main',
-                    backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                  }),
-                }}
-              >
-                <ChangeHistoryIcon sx={{ fontSize: '1.25rem' }} />
-              </IconButton>
-            )}
-
-            <IconButton
-              onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-              title={themeMode === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
-              aria-label={themeMode === 'dark' ? t('Light theme', 'Theme clair') : t('Dark theme', 'Theme sombre')}
-              size="small"
-            >
-              {themeMode === 'dark' ? <LightModeIcon sx={{ fontSize: '1.25rem' }} /> : <DarkModeIcon sx={{ fontSize: '1.25rem' }} />}
-            </IconButton>
-
             <ToggleButtonGroup
               value={lang}
               exclusive
