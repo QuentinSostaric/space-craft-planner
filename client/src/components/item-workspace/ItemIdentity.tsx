@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
@@ -10,7 +9,6 @@ import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
 import TimerIcon from '@mui/icons-material/Timer';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
@@ -22,6 +20,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import type { Blueprint, BlueprintIdentityFact } from '../../types';
 import { Button } from '../ui/Button';
+import { AppGlyph } from '../ui/AppGlyph';
 import { CategoryBadge } from '../ui/Badge';
 import { RarityBadge } from '../ui/RarityBadge';
 
@@ -216,7 +215,7 @@ export function ItemIdentity({
     <Stack spacing={2} sx={{ p: 2 }}>
       <Box sx={{ alignSelf: 'flex-start' }}>
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowBackIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> {t('Library', 'Bibliotheque')}
+          <AppGlyph name="arrow-left" size={16} sx={{ mr: 0.5 }} /> {t('Library', 'Bibliotheque')}
         </Button>
       </Box>
 
@@ -333,7 +332,7 @@ export function ItemIdentity({
                 }}
               >
                 {isLooted ? (
-                  <CheckCircleIcon sx={{ fontSize: '1rem' }} />
+                  <AppGlyph name="checkmark" size={16} />
                 ) : (
                   <RadioButtonUncheckedIcon sx={{ fontSize: '1rem' }} />
                 )}

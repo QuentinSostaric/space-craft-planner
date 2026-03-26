@@ -11,11 +11,11 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { ResourceMethodDetail } from './ResourceMethodDetail';
+import { AppGlyph } from '../ui/AppGlyph';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import type { AggregatedResource, ResourceMethod, ResourceProgress } from '../../types';
 
@@ -205,7 +205,7 @@ export const ResourceRow = memo(function ResourceRow({
             '&::before': { display: 'none' },
           }}
         >
-          <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: '1rem' }} />} sx={{ minHeight: 32, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+          <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={16} />} sx={{ minHeight: 32, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {method === 'mission' ? t('Available contracts', 'Contrats disponibles')
                 : method === 'mining' ? t('Mining', 'Minage')

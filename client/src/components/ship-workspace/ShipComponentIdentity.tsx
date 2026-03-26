@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -20,6 +19,7 @@ import {
   type ShipComponentCommonMetric,
   type ShipComponentLeftColumnSectionModel,
 } from '../../utils/shipComponentWorkspace';
+import { AppGlyph } from '../ui/AppGlyph';
 import { Button } from '../ui/Button';
 
 interface ShipComponentIdentityProps {
@@ -290,13 +290,13 @@ export function ShipComponentIdentity({
 
   return (
     <Stack spacing={2} sx={{ p: 2 }}>
-      {onBack && (
-        <Box sx={{ alignSelf: 'flex-start' }}>
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowBackIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> {t('Library', 'Bibliotheque')}
-          </Button>
-        </Box>
-      )}
+        {onBack && (
+          <Box sx={{ alignSelf: 'flex-start' }}>
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              <AppGlyph name="arrow-left" size={16} sx={{ mr: 0.5 }} /> {t('Library', 'Bibliotheque')}
+            </Button>
+          </Box>
+        )}
 
       <Paper
         sx={{

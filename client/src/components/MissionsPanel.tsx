@@ -24,19 +24,17 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlagIcon from '@mui/icons-material/Flag';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
-import SearchIcon from '@mui/icons-material/Search';
 import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import { BlueprintCard } from './BlueprintGrid';
+import { AppGlyph } from './ui/AppGlyph';
 import { CategoryBadge } from './ui/Badge';
 import { PageStatCard } from './ui/PageStatCard';
 import { ScaleBadge } from './ui/RarityBadge';
@@ -392,7 +390,7 @@ function MissionsFilterBar({
             input: {
               startAdornment: (
                 <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                  <SearchIcon sx={{ fontSize: '1.1rem' }} />
+                  <AppGlyph name="search" size={18} />
                 </InputAdornment>
               ),
             },
@@ -502,7 +500,7 @@ function MissionsFilterBar({
           '&::before': { display: 'none' },
         }}
       >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Typography variant="body2" sx={{ fontWeight: 700 }}>
               {t('Advanced mission filters', 'Filtres mission avancés')}
@@ -997,7 +995,13 @@ function MissionDetail({
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
       <Stack spacing={2}>
-        <Button variant="outlined" color="inherit" startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ alignSelf: 'flex-start' }}>
+        <Button
+          variant="outlined"
+          color="inherit"
+          startIcon={<AppGlyph name="arrow-left" size={18} />}
+          onClick={onBack}
+          sx={{ alignSelf: 'flex-start' }}
+        >
           {t('Back to missions', 'Retour aux missions')}
         </Button>
 

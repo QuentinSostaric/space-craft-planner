@@ -271,28 +271,11 @@ export function Header() {
             }}
           >
             <Box
-              component="svg"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 270 60"
-              fill="none"
-              role="img"
-              aria-label="Item Fabricator"
+              component="img"
+              src="/logo.svg"
+              alt="Item Fabricator"
               sx={{ height: { xs: 32, md: 44 }, width: 'auto', display: 'block', flexShrink: 0 }}
-            >
-              <path d="M25 10L40 18.5V35.5L25 44L10 35.5V18.5L25 10Z" stroke="#818cf8" strokeWidth="1.5" strokeDasharray="2 2" />
-              <path d="M25 15L35 21V33L25 39L15 33V21L25 15Z" fill="url(#hdr_grad)" />
-              <path d="M25 22L30 25V30L25 33L20 30V25L25 22Z" fill="#fff" fillOpacity="0.8" />
-              <text x="52" y="38" fontFamily="Khand, sans-serif" fontWeight="700" fontSize="32" letterSpacing="0.5">
-                <tspan fill="#fff">ITEM</tspan>
-                <tspan fill="#818cf8" dx="3">FABRICATOR</tspan>
-              </text>
-              <defs>
-                <linearGradient id="hdr_grad" x1="10" y1="10" x2="40" y2="44" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#3b82f6" />
-                  <stop offset="1" stopColor="#818cf8" />
-                </linearGradient>
-              </defs>
-            </Box>
+            />
             <Typography
               variant="caption"
               sx={{

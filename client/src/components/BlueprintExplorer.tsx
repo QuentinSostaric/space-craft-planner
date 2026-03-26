@@ -17,12 +17,11 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
+import { AppGlyph } from './ui/AppGlyph';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
@@ -548,7 +547,7 @@ export function BlueprintExplorer() {
             input: {
               startAdornment: (
                 <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                  <SearchIcon sx={{ fontSize: '1.1rem' }} />
+                  <AppGlyph name="search" size={18} />
                 </InputAdornment>
               ),
             },
@@ -679,7 +678,7 @@ export function BlueprintExplorer() {
             '&::before': { display: 'none' },
           }}
         >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 40 }}>
+          <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />} sx={{ minHeight: 40 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                 {t('Filters', 'Filtres')}
@@ -971,7 +970,7 @@ export function BlueprintExplorer() {
         }}
       >
         <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
+                    expandIcon={<AppGlyph name="caret-up" size={18} />}
           sx={{
             minHeight: 42,
             '& .MuiAccordionSummary-content': {

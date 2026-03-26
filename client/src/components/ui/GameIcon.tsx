@@ -25,7 +25,15 @@ export type GameIconName =
   | 'shopping-cart' | 'info' | 'add' | 'calculator' | 'computer'
   | 'hangar' | 'ships' | 'shop';
 
-const SVG_ICONS = new Set<GameIconName>(['mining-lasers', 'hangar', 'ships', 'shop']);
+const SVG_ICONS = new Set<GameIconName>([
+  'armor',
+  'hangar',
+  'mining-lasers',
+  'ships',
+  'shop',
+  'utilities',
+  'weapons',
+]);
 
 export const ICON_HUE_OFFSET: Partial<Record<GameIconName, number>> = {
   'weapons':      0,

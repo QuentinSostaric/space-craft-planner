@@ -23,14 +23,12 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
-import SearchIcon from '@mui/icons-material/Search';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
 import { BlueprintCard } from './BlueprintGrid';
+import { AppGlyph } from './ui/AppGlyph';
 import { ScaleBadge } from './ui/RarityBadge';
 import { PageStatCard } from './ui/PageStatCard';
 import { ResourceIcon } from './ui/ResourceIcon';
@@ -540,7 +538,7 @@ function ResourcesFilterBar({
             input: {
               startAdornment: (
                 <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                  <SearchIcon sx={{ fontSize: '1.1rem' }} />
+                  <AppGlyph name="search" size={18} />
                 </InputAdornment>
               ),
             },
@@ -696,7 +694,7 @@ function ResourcesFilterBar({
 
   return (
     <Accordion disableGutters defaultExpanded sx={{ borderBottom: 1, borderColor: 'divider' }}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
           <Typography variant="subtitle2">{t('Resource filters', 'Filtres de ressources')}</Typography>
           <Chip size="small" label={t('Compact mobile', 'Mobile compact')} />
@@ -727,7 +725,7 @@ function ResourceIdentityPanel({
       <Button
         variant="outlined"
         color="inherit"
-        startIcon={<ArrowBackIcon />}
+        startIcon={<AppGlyph name="arrow-left" size={18} />}
         onClick={onBack}
         sx={{ alignSelf: 'flex-start' }}
       >

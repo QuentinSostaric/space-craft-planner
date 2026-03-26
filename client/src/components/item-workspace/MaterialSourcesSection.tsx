@@ -11,12 +11,12 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import { getMaterialProviders, summarizeAssignedQualities } from '../../utils/crafting';
 import type { AggregatedResource, MaterialSources, Resource } from '../../types';
 import { Button as AppButton } from '../ui/Button';
+import { AppGlyph } from '../ui/AppGlyph';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import {
   StarCitizenLicensedIcon,
@@ -115,7 +115,7 @@ export function MaterialSourcesSection({
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ fontSize: '1rem' }} />}
+              expandIcon={<AppGlyph name="caret-up" size={16} />}
               sx={{
                 px: 1.25,
                 py: 0.25,

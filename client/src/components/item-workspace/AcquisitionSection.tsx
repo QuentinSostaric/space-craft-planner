@@ -9,10 +9,10 @@ import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import { formatContractName, formatScaleLabel } from '../../utils/crafting';
+import { AppGlyph } from '../ui/AppGlyph';
 import { StarCitizenLicensedIcon, getLocationIconName } from '../ui/StarCitizenLicensedIcon';
 import type {
   AcquisitionContract,
@@ -259,7 +259,7 @@ export function AcquisitionSection({
                       '&::before': { display: 'none' },
                     }}
                   >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, width: '100%' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                           <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>

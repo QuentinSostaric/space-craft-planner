@@ -6,10 +6,10 @@ import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
 import Typography from '@mui/material/Typography';
 import StarIcon from '@mui/icons-material/Star';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { AppGlyph } from './ui/AppGlyph';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
@@ -242,13 +242,14 @@ export const BlueprintCard = memo(function BlueprintCard({
               />
             )}
             {isInInventory && (
-              <CheckCircleIcon
+              <AppGlyph
+                name="checkmark"
+                size={18}
+                ariaLabel={t('In inventory', 'En inventaire')}
                 sx={{
                   color: 'primary.main',
-                  fontSize: '1.1rem',
                   filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
                 }}
-                aria-label={t('In inventory', 'En inventaire')}
               />
             )}
           </Box>
