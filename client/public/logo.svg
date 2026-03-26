@@ -1,13 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 60" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 344 60" fill="none">
   <defs>
     <linearGradient id="mark_grad" x1="8" y1="5" x2="48" y2="46" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7dd3fc" />
-      <stop offset="0.55" stop-color="#38bdf8" />
-      <stop offset="1" stop-color="#0ea5e9" />
-    </linearGradient>
-    <linearGradient id="word_grad" x1="150" y1="16" x2="310" y2="44" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7dd3fc" />
-      <stop offset="1" stop-color="#38bdf8" />
+      <stop stop-color="#818cf8" />
+      <stop offset="0.58" stop-color="#60a5fa" />
+      <stop offset="1" stop-color="#3b82f6" />
     </linearGradient>
   </defs>
 
@@ -20,6 +16,6 @@
 
   <text x="63" y="36" font-family="Khand, sans-serif" font-weight="700" font-size="28" letter-spacing="0.8">
     <tspan fill="#f8fafc">ITEM</tspan>
-    <tspan dx="5" fill="url(#word_grad)">FABRICATOR</tspan>
+    <tspan dx="5" fill="#818cf8">FABRICATOR</tspan>
   </text>
 </svg>
