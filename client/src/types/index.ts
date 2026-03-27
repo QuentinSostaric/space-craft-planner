@@ -634,6 +634,7 @@ export interface MissionContract {
   reputationScope: MissionReputationScope | null;
   minimumRequiredStandings: MissionRequiredStanding[];
   availability: MissionAvailability;
+  blueprintDropChance?: number | null;
   rewardedBlueprints: MissionRewardBlueprint[];
   itemAwards: MissionItemAward[];
   resourceObjectives: MissionResourceObjective[];
@@ -676,6 +677,7 @@ export interface AcquisitionContract {
   title?: MissionText | null;
   availability: MissionAvailability;
   minimumRequiredStandings: AcquisitionStanding[];
+  blueprintDropChance?: number | null;
   expectedRewardShare: number | null;
   maxChance: number | null;
 }

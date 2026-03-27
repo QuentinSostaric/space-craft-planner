@@ -45,6 +45,8 @@ import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import {
   computeStatMaxima,
+  formatProbabilityPercent,
+  getMissionBlueprintDropChance,
   getMissionContractName,
   formatScaleLabel,
   formatStandingLabel,
@@ -204,10 +206,6 @@ function dedupeMissionBlueprints(contract: MissionContract, blueprints: Blueprin
 
 function getMissionMaxStanding(contract: MissionContract): number {
   return Math.max(0, ...contract.minimumRequiredStandings.map((standing) => standing.minReputation ?? 0));
-}
-
-function getMissionMaxChance(contract: MissionContract): number {
-  return Math.max(0, ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.chance ?? 0));
 }
 
 function getMissionRewardedBlueprintCount(contract: MissionContract): number {
@@ -607,7 +605,7 @@ function ContractCard({
   const isUnlawful = factionType === 'unlawful';
   const maxStanding = getMissionMaxStanding(contract);
   const standingLabel = contract.minimumRequiredStandings.length > 0 ? formatStandingSummary(contract.minimumRequiredStandings, lang) : null;
-  const maxChance = getMissionMaxChance(contract);
+  const blueprintDropChance = getMissionBlueprintDropChance(contract);
   const visibleBlueprints = contract.rewardedBlueprints.slice(0, 3);
   const blueprintOverflow = contract.rewardedBlueprints.length - 3;
   const primaryLocation = getPrimaryMissionLocation(contract);
@@ -812,11 +810,11 @@ function ContractCard({
                 fill={Math.min(maxStanding / 15000, 1) * 100}
               />
             )}
-            {maxChance > 0 && (
+            {blueprintDropChance > 0 && (
               <StatBar
-                label={t('Chance', 'Chance', 'Chance')}
-                value={`${Math.round(maxChance * 100)}%`}
-                fill={maxChance * 100}
+                label={t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}
+                value={formatProbabilityPercent(blueprintDropChance)}
+                fill={blueprintDropChance * 100}
               />
             )}
           </Box>
@@ -1025,6 +1023,7 @@ function MissionDetail({
   const employerAssetUrl = getMissionEmployerAssetUrl(employer);
   const localities = getMissionLocalities(contract);
   const missionBlueprints = useMemo(() => dedupeMissionBlueprints(contract, blueprints), [contract, blueprints]);
+  const blueprintDropChance = getMissionBlueprintDropChance(contract);
 
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
@@ -1146,6 +1145,13 @@ function MissionDetail({
                 )
               }
             />
+            {contract.rewardedBlueprints.length > 0 && (
+              <MissionFact
+                icon={<VerifiedOutlinedIcon fontSize="small" />}
+                label={t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}
+                value={formatProbabilityPercent(blueprintDropChance)}
+              />
+            )}
             {(contract.resourceObjectives.length > 0 || contract.itemAwards.length > 0) && (
               <MissionFact
                 icon={<TravelExploreOutlinedIcon fontSize="small" />}
@@ -1200,6 +1206,11 @@ function MissionDetail({
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
               <Chip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
+              <Chip
+                label={`${formatProbabilityPercent(blueprintDropChance)} ${t('blueprint chance', 'chance blueprint', 'Blueprint-Chance')}`}
+                size="small"
+                variant="outlined"
+              />
               <Chip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
               {localities[0] && (() => {
                 const iconName = getLocationIconName(localities[0]);
@@ -1518,7 +1529,7 @@ export function MissionsPanel() {
           return getMissionRewardedBlueprintCount(right.contract) - getMissionRewardedBlueprintCount(left.contract)
             || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'chance-desc':
-          return getMissionMaxChance(right.contract) - getMissionMaxChance(left.contract)
+          return getMissionBlueprintDropChance(right.contract) - getMissionBlueprintDropChance(left.contract)
             || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'name-asc':
         default:

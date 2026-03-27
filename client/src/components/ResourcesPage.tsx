@@ -55,6 +55,7 @@ import {
 } from '../types';
 import {
   computeStatMaxima,
+  formatProbabilityPercent,
   formatMaterialProviderConfidence,
   formatMaterialProviderType,
   formatMaterialSourceMethod,
@@ -62,6 +63,7 @@ import {
   formatResourceQuantity,
   formatScaleLabel,
   formatStandingSummary,
+  getMissionBlueprintDropChance,
   getMissionContractName,
   getMaterialProviderProbabilityPct,
   getMaterialProviders,
@@ -1143,6 +1145,7 @@ function ResourceMissionSection({
                 contract.minimumRequiredStandings,
                 lang,
               );
+              const blueprintDropChance = getMissionBlueprintDropChance(contract);
 
               return (
                 <Card key={`${contract.contractFile ?? 'contract'}-${contract.contractDebugName ?? 'debug'}`}>
@@ -1194,6 +1197,13 @@ function ResourceMissionSection({
                       )}
                       {standingSummary && (
                         <Chip size="small" variant="outlined" label={standingSummary} />
+                      )}
+                      {blueprintDropChance > 0 && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={`${formatProbabilityPercent(blueprintDropChance)} ${t('chance', 'chance')}`}
+                        />
                       )}
                       {objective && (
                         <Chip

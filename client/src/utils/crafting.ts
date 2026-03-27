@@ -77,6 +77,49 @@ export function getMissionContractName(contract: MissionNameLike | null | undefi
   return formatContractName(contract?.contractDebugName ?? null);
 }
 
+type MissionChanceLike = {
+  blueprintDropChance?: number | null;
+  rewardedBlueprints?: Array<{
+    chance?: number | null;
+  }> | null;
+};
+
+function clampProbability(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(value, 1));
+}
+
+export function getMissionBlueprintDropChance(
+  contract: MissionChanceLike | null | undefined,
+): number {
+  const explicitChance = clampProbability(contract?.blueprintDropChance);
+  if (explicitChance != null) {
+    return explicitChance;
+  }
+
+  return Math.max(
+    0,
+    ...(contract?.rewardedBlueprints ?? []).map(
+      (rewardedBlueprint) => clampProbability(rewardedBlueprint?.chance) ?? 0,
+    ),
+  );
+}
+
+export function formatProbabilityPercent(value: number | null | undefined): string {
+  const probability = clampProbability(value);
+  if (probability == null) {
+    return '—';
+  }
+
+  const roundedPercent = Math.round(probability * 1000) / 10;
+  return Number.isInteger(roundedPercent)
+    ? `${roundedPercent.toFixed(0)}%`
+    : `${roundedPercent.toFixed(1)}%`;
+}
+
 type StandingLike = MissionRequiredStanding | AcquisitionStanding;
 
 function getStandingNameOnly(standing: StandingLike): string | null {

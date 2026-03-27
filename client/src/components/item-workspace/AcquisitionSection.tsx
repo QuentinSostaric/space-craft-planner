@@ -11,7 +11,12 @@ import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
-import { formatScaleLabel, getMissionContractName } from '../../utils/crafting';
+import {
+  formatProbabilityPercent,
+  formatScaleLabel,
+  getMissionBlueprintDropChance,
+  getMissionContractName,
+} from '../../utils/crafting';
 import { AppGlyph } from '../ui/AppGlyph';
 import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import { StarCitizenLicensedIcon, getLocationIconName } from '../ui/StarCitizenLicensedIcon';
@@ -330,6 +335,7 @@ export function AcquisitionSection({
                             contractDetailsByKey.get(
                               buildContractKey(contract.contractDebugName, faction.contractorDisplayName),
                             ) ?? EMPTY_CONTRACT_DETAIL;
+                          const blueprintDropChance = getMissionBlueprintDropChance(contract);
                           const contractStandingNames = [...new Set(
                             contract.minimumRequiredStandings
                               .map((standing) => standing.standingName?.trim())
@@ -390,6 +396,14 @@ export function AcquisitionSection({
                                   color="primary"
                                   sx={{ fontSize: '0.65rem', height: 20 }}
                                 />
+                                {blueprintDropChance > 0 && (
+                                  <Chip
+                                    label={`${formatProbabilityPercent(blueprintDropChance)} ${t('chance', 'chance')}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.65rem', height: 20 }}
+                                  />
+                                )}
                                 {contractStandingNames.map((standingName) => (
                                   <Chip
                                     key={standingName}
