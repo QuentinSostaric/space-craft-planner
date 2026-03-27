@@ -79,6 +79,19 @@ const EMPTY_DATASET: GameDataset = {
   updatedAt: null,
 };
 
+const DEFAULT_INVENTORY_IDS = [
+  'bp_craft_behr_pistol_ballistic_01',
+  'bp_craft_behr_pistol_ballistic_01_mag',
+  'bp_craft_behr_rifle_ballistic_01',
+  'bp_craft_behr_rifle_ballistic_01_mag',
+  'bp_craft_cds_armor_light_arms_01_01_01',
+  'bp_craft_cds_armor_light_core_01_01_01',
+  'bp_craft_cds_armor_light_helmet_01_01_01',
+  'bp_craft_cds_armor_light_legs_01_01_01',
+] as const;
+
+const INVENTORY_SEED_VERSION = 1;
+
 type DatasetSelectionsStorage =
   | Partial<Record<DatasetChannel, string>>
   | {
@@ -510,12 +523,23 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     [rawPlannerResourceRequirements],
   );
   const [favoriteIds, setFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
-  const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(LS_KEYS.INVENTORY, [
-    'bp_craft_behr_pistol_ballistic_01',
-    'bp_craft_behr_pistol_ballistic_01_mag',
-    'bp_craft_behr_rifle_ballistic_01',
-    'bp_craft_behr_rifle_ballistic_01_mag',
-  ]);
+  const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(
+    LS_KEYS.INVENTORY,
+    [...DEFAULT_INVENTORY_IDS],
+  );
+  const [inventorySeedVersion, setInventorySeedVersion] = useLocalPersist<number>(
+    LS_KEYS.INVENTORY_SEED_VERSION,
+    0,
+  );
+
+  useEffect(() => {
+    if (inventorySeedVersion >= INVENTORY_SEED_VERSION) {
+      return;
+    }
+
+    setInventoryIds((previous) => [...new Set([...DEFAULT_INVENTORY_IDS, ...previous])]);
+    setInventorySeedVersion(INVENTORY_SEED_VERSION);
+  }, [inventorySeedVersion, setInventoryIds, setInventorySeedVersion]);
 
   const blueprints = activeDataset.blueprints;
   const activeChannel = activeDataset.channel;
