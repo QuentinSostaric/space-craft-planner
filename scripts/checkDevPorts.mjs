@@ -2,7 +2,7 @@ import net from 'node:net';
 
 const REQUIRED_PORTS = [
   { port: 5173, label: 'Vite dev server' },
-  { port: 8788, label: 'Local Mongo API server' },
+  { port: 8788, label: 'Local R2 API server' },
 ];
 
 function ensurePortFree({ port, label }) {

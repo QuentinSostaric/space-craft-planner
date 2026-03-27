@@ -50,40 +50,64 @@ graph TD
 
     subgraph State
         CraftContext[CraftContext.tsx]
-        mongoDbService[mongoDbService.ts]
+        gameDataService[gameDataService.ts]
     end
 
     CraftContext -.->|Provides State| AppShell
-    mongoDbService -->|Fetches Data| CraftContext
+    gameDataService -->|Fetches Data| CraftContext
 ```
 
 Production data is runtime-driven:
 
-- Browser
-- Cloudflare Pages Functions
-- MongoDB Atlas
-
-The frontend must not read or generate local dataset snapshots. The published MongoDB dataset is the source of truth.
+1. Game files are copied locally for extraction.
+2. Exporter scripts normalize and chunk data.
+3. Chunks are published to Cloudflare R2 (`craft` bucket).
+4. Cloudflare Pages Functions read chunks from R2 at runtime via the `GAME_DATA` binding.
+5. The browser fetches `/api/game-data/public*`.
 
 Production URL: [itemfab.space](https://itemfab.space) (Cloudflare Pages + custom domain)
 
-Runtime endpoints:
+### R2 storage layout
 
-- `GET /api/game-data/public`
-- `GET /api/game-data/public/:channel`
-- `GET /api/game-data/public/:channel/mission-rewards`
+```
+indexes/public.json                          ← published datasets index
+indexes/all.json                             ← all datasets index (dev/preview)
+datasets/{datasetId}/core.json               ← blueprint catalog + resources + metadata
+datasets/{datasetId}/resource-data.json      ← resourceInsights + materialSources
+datasets/{datasetId}/ship-components.json    ← shipComponents
+datasets/{datasetId}/mission-rewards.json    ← full missionRewards
+datasets/{datasetId}/changelog.json          ← PTU vs LIVE diff
+datasets/{datasetId}/blueprints/{id}.json    ← full blueprint detail
+aliases/public/{channel}/core.json           ← latest published dataset for channel (mutable)
+aliases/public/{channel}/resource-data.json
+aliases/public/{channel}/...
+aliases/all/{channel}/...                    ← same for dev/preview
+```
 
-`missionRewards` is loaded lazily (separate endpoint, heaviest block).
+### Runtime endpoints
 
-Public API hardening is documented in [docs/cloudflare-public-api-hardening.md](./docs/cloudflare-public-api-hardening.md).
+```
+GET /api/game-data/public                                        → dataset index
+GET /api/game-data/public/:channel                               → core (catalog blueprints + resources)
+GET /api/game-data/public/:channel/resource-data                 → resourceInsights + materialSources
+GET /api/game-data/public/:channel/ship-components               → shipComponents
+GET /api/game-data/public/:channel/mission-rewards               → full missionRewards
+GET /api/game-data/public/:channel/changelog                     → PTU vs LIVE diff
+GET /api/game-data/public/by-id/:datasetId                       → core by exact datasetId
+GET /api/game-data/public/by-id/:datasetId/resource-data
+GET /api/game-data/public/by-id/:datasetId/ship-components
+GET /api/game-data/public/by-id/:datasetId/mission-rewards
+GET /api/game-data/public/by-id/:datasetId/changelog
+GET /api/game-data/public/by-id/:datasetId/blueprints/:id        → full blueprint detail
+```
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 22+
-- a published dataset in MongoDB Atlas
-- copied Star Citizen files in `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE` only if you want to re-extract data
+- Node.js 24+
+- Cloudflare R2 credentials (see Local dev section)
+- Copied Star Citizen game files in `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE` (only needed for re-extraction)
 
 ### Install
 
@@ -93,10 +117,14 @@ npm install
 
 ### Local dev
 
-Create a root `.dev.vars` file for Cloudflare Pages local functions:
+Create a root `.dev.vars` file (never commit — already in `.gitignore`):
 
 ```bash
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<AppName>
+R2_ACCOUNT_ID=<cloudflare-account-id>
+R2_ACCESS_KEY_ID=<r2-access-key-id>
+R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
+R2_BUCKET_NAME=craft
+R2_BUCKET_REGION=auto
 ```
 
 Then run:
@@ -105,12 +133,10 @@ Then run:
 npm run dev
 ```
 
-This starts:
+This starts two processes in parallel:
 
 - Vite on `http://localhost:5173`
-- a local Node API server on `http://127.0.0.1:8788`
-
-Use `http://localhost:5173` as the dev app URL. The client proxies `/api/*` to the local Mongo-backed API server.
+- `scripts/devApiServer.mjs` on `http://127.0.0.1:8788` — a plain Node HTTP server that serves all `/api/game-data/public*` routes by reading chunks directly from R2 via `@aws-sdk/client-s3`
 
 ### Build
 
@@ -125,8 +151,6 @@ npm run deploy
 ```
 
 This builds the client and deploys `client/dist` to Cloudflare Pages.
-
-CI also runs `node scripts/patchMongoTls.mjs` before the build. This patches the MongoDB driver to use a `cloudflare:sockets` TLS shim (`functions/_shared/tls-cf-shim.js`) instead of the `node:tls` polyfill, which hangs against MongoDB Atlas in Workers.
 
 ## Game Data Rules
 
@@ -181,7 +205,7 @@ The script detects channel, version, build number, and output label, then runs:
 4. dismantling extraction
 5. material sources extraction
 6. resource image extraction
-7. optional MongoDB publication prompt
+7. optional R2 publication prompt
 
 ### Main exported files
 
@@ -192,8 +216,9 @@ The script detects channel, version, build number, and output label, then runs:
 - `exporter/output/<label>-dismantling.json`
 - `exporter/output/<label>-material-sources.json`
 - `exporter/output/<label>-resource-images.json`
+- `exporter/output/<label>-build-manifest.json`
 
-### Publish to MongoDB
+### Publish to R2
 
 The normal path is to publish from the extractor prompt. You can also import manually:
 
@@ -202,29 +227,17 @@ npm run import:ptu
 npm run import:live
 ```
 
-## App Data Contract
-
-### Dataset index
-
-`GET /api/game-data/public` returns lightweight summaries per channel.
-
-### Core dataset
-
-`GET /api/game-data/public/:channel` returns `resources`, `blueprints`, `dismantling`, `changelog`, `materialSources`, optional `resourceInsights`, and dataset metadata.
-
-### Mission rewards dataset
-
-`GET /api/game-data/public/:channel/mission-rewards` returns `summary`, `conclusions`, and `factionGroups`.
+Add `-- --published=true` to mark the dataset visible in the public index.
 
 ## Scripts
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Vite dev server plus Cloudflare Pages local proxy |
+| `npm run dev` | Vite dev server plus local R2 API server |
 | `npm run build` | Type-check and build the client |
 | `npm run deploy` | Build the client and deploy to Cloudflare Pages |
-| `npm run import:ptu` | Import the PTU dataset into MongoDB |
-| `npm run import:live` | Import the LIVE dataset into MongoDB |
+| `npm run import:ptu` | Import the PTU dataset into R2 |
+| `npm run import:live` | Import the LIVE dataset into R2 |
 
 ## Key Files
 
@@ -232,7 +245,7 @@ npm run import:live
 | --- | --- |
 | `client/src/App.tsx` | root shell — lazy views, Suspense/useTransition, view routing |
 | `client/src/store/CraftContext.tsx` | central frontend state and dataset loading |
-| `client/src/services/mongoDbService.ts` | runtime fetch client for published datasets |
+| `client/src/services/gameDataService.ts` | runtime fetch client (all chunk loaders) |
 | `client/src/components/NavRail.tsx` | side nav (Blueprints / Missions / Resources / Planner) |
 | `client/src/components/Header.tsx` | top bar |
 | `client/src/components/BlueprintExplorer.tsx` | blueprint library sidebar (search, filters, sort) |
@@ -244,12 +257,15 @@ npm run import:live
 | `client/src/components/PlannerPage.tsx` | full-page planner (goals + resource tracking) |
 | `client/src/components/planner/` | planner sub-components (GoalsList, ResourcesList, ResourceRow, …) |
 | `client/src/components/item-workspace/` | item workspace sub-components |
-| `functions/_shared/mongoClient.js` | Cloudflare Pages MongoDB client |
-| `functions/_shared/tls-cf-shim.js` | cloudflare:sockets TLS shim — replaces node:tls for MongoDB in Workers |
+| `functions/_shared/r2Store.js` | raw R2 access via GAME_DATA binding + caches.default |
+| `functions/_shared/r2Datasets.js` | higher-level R2 helpers (index, channel alias, by-id with visibility) |
+| `functions/_shared/gameData.js` | response helpers, visibility logic, isValidChannel |
 | `functions/api/game-data/public.js` | dataset index endpoint |
 | `functions/api/game-data/public/[channel].js` | core dataset endpoint |
 | `functions/api/game-data/public/[channel]/mission-rewards.js` | mission rewards endpoint |
-| `scripts/patchMongoTls.mjs` | CI script — patches MongoDB driver to use tls-cf-shim.js |
+| `scripts/devApiServer.mjs` | local API server — serves all public routes from R2 |
 | `exporter/extract-game-data.ps1` | main extraction entry point |
 | `exporter/dataset-builder.mjs` | normalized dataset builder |
-| `exporter/importToMongo.mjs` | Atlas import pipeline |
+| `exporter/dataset-chunks.mjs` | chunk split logic (core, resource-data, ship-components, mission-rewards, changelog, blueprint details) |
+| `exporter/importToR2.mjs` | R2 publication pipeline |
+| `shared/r2Storage.mjs` | S3-compatible R2 client (used by exporter + devApiServer) |
