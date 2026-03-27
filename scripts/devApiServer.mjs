@@ -1,32 +1,13 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { MongoClient } from 'mongodb';
+import {
+  createR2Client,
+  getJsonObject,
+  getR2Config,
+} from '../shared/r2Storage.mjs';
 
 const PORT = 8788;
-
-const SUMMARY_PROJECTION = {
-  _id: 0,
-  blueprints: 0,
-  resources: 0,
-  dismantling: 0,
-  missionRewards: 0,
-  changelog: 0,
-  metrics: 0,
-  sourceFiles: 0,
-};
-
-const CORE_PROJECTION = {
-  _id: 0,
-  missionRewards: 0,
-  metrics: 0,
-  sourceFiles: 0,
-  installPath: 0,
-  outputLabel: 0,
-};
-
-let clientPromise = null;
-let cachedUri = null;
 
 function loadDevVars() {
   const envPath = resolve('.dev.vars');
@@ -50,101 +31,6 @@ function loadDevVars() {
   }
 }
 
-function getDbName() {
-  return process.env.ATLAS_DB_NAME ?? 'craft';
-}
-
-function getCollectionName(channel) {
-  return channel === 'live'
-    ? (process.env.ATLAS_LIVE_COLLECTION ?? 'craft-live-data')
-    : (process.env.ATLAS_PTU_COLLECTION ?? 'craft-ptu-data');
-}
-
-function toSummary(doc, channel) {
-  return {
-    channel,
-    datasetId: doc.datasetId,
-    label: doc.label,
-    version: doc.version,
-    branch: doc.branch ?? null,
-    buildNumber: doc.buildNumber ?? null,
-    published: Boolean(doc.published),
-    blueprintCount: doc.blueprintCount ?? (doc.blueprints?.length ?? 0),
-    resourceCount: doc.resourceCount ?? (doc.resources?.length ?? 0),
-    hasDismantling: Boolean(doc.dismantlingAvailable ?? doc.dismantling),
-    hasMissionRewards:
-      (doc.missionRewardContractCount ?? 0) > 0 ||
-      (doc.missionRewardFactionGroupCount ?? 0) > 0,
-    missionRewardContractCount: doc.missionRewardContractCount ?? 0,
-    missionRewardFactionGroupCount: doc.missionRewardFactionGroupCount ?? 0,
-    importedAt: doc.importedAt ?? null,
-    updatedAt: doc.updatedAt ?? doc.importedAt ?? null,
-    hasChangelog: Boolean(doc.changelog),
-  };
-}
-
-function normalizeCoreDataset(doc, channel) {
-  return {
-    channel,
-    datasetId: doc.datasetId,
-    label: doc.label,
-    version: doc.version,
-    branch: doc.branch ?? null,
-    buildNumber: doc.buildNumber ?? null,
-    published: Boolean(doc.published),
-    blueprintCount: doc.blueprintCount ?? doc.blueprints?.length ?? 0,
-    resourceCount: doc.resourceCount ?? doc.resources?.length ?? 0,
-    blueprints: doc.blueprints ?? [],
-    resources: doc.resources ?? [],
-    resourceInsights: doc.resourceInsights ?? null,
-    changelog: doc.changelog ?? null,
-    dismantling: doc.dismantling ?? null,
-    materialSources: doc.materialSources ?? null,
-    missionRewards: null,
-    importedAt: doc.importedAt ?? null,
-    updatedAt: doc.updatedAt ?? doc.importedAt ?? null,
-  };
-}
-
-function compareSummaries(a, b) {
-  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
-  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
-  if (dateA !== dateB) {
-    return dateB - dateA;
-  }
-
-  const buildA = Number(a.buildNumber ?? 0);
-  const buildB = Number(b.buildNumber ?? 0);
-  if (buildA !== buildB) {
-    return buildB - buildA;
-  }
-
-  return String(b.version ?? '').localeCompare(String(a.version ?? ''), undefined, {
-    numeric: true,
-    sensitivity: 'base',
-  });
-}
-
-async function getDb() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('Missing MONGODB_URI in .dev.vars.');
-  }
-
-  if (!clientPromise || cachedUri !== uri) {
-    cachedUri = uri;
-    const client = new MongoClient(uri, {
-      maxPoolSize: 4,
-      minPoolSize: 0,
-      serverSelectionTimeoutMS: 10_000,
-    });
-    clientPromise = client.connect();
-  }
-
-  const client = await clientPromise;
-  return client.db(getDbName());
-}
-
 function sendJson(response, status, payload) {
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -157,105 +43,79 @@ function sendError(response, status, message) {
   sendJson(response, status, { message });
 }
 
+loadDevVars();
+
+const r2Config = getR2Config(process.env);
+const client = createR2Client(process.env);
+
+async function readJson(key) {
+  return getJsonObject(client, r2Config.bucketName, key);
+}
+
 async function listDatasets(response) {
-  const db = await getDb();
-  const [liveDocs, ptuDocs] = await Promise.all([
-    db.collection(getCollectionName('live'))
-      .find({ published: true })
-      .project(SUMMARY_PROJECTION)
-      .sort({ importedAt: -1 })
-      .toArray(),
-    db.collection(getCollectionName('ptu'))
-      .find({ published: true })
-      .project(SUMMARY_PROJECTION)
-      .sort({ importedAt: -1 })
-      .toArray(),
-  ]);
-
-  const datasets = [
-    ...liveDocs.map((doc) => toSummary(doc, 'live')),
-    ...ptuDocs.map((doc) => toSummary(doc, 'ptu')),
-  ].sort(compareSummaries);
-
-  sendJson(response, 200, {
-    datasets,
-    defaultChannel: datasets[0]?.channel ?? null,
-  });
+  const index = await readJson('indexes/all.json');
+  sendJson(
+    response,
+    200,
+    index ?? {
+      datasets: [],
+      defaultChannel: null,
+      latestByChannel: { live: null, ptu: null },
+    },
+  );
 }
 
 async function getDatasetByChannel(response, channel) {
-  if (channel !== 'live' && channel !== 'ptu') {
-    sendError(response, 404, `Unknown dataset channel "${channel}".`);
-    return;
-  }
-
-  const db = await getDb();
-  const doc = await db.collection(getCollectionName(channel)).findOne(
-    { published: true },
-    { projection: CORE_PROJECTION, sort: { importedAt: -1 } },
-  );
-
-  if (!doc) {
+  const dataset = await readJson(`aliases/all/${channel}/core.json`);
+  if (!dataset) {
     sendError(response, 404, `No published dataset for channel "${channel}".`);
     return;
   }
 
-  sendJson(response, 200, { dataset: normalizeCoreDataset(doc, channel) });
+  sendJson(response, 200, { dataset });
 }
 
-async function getMissionRewardsByChannel(response, channel) {
-  if (channel !== 'live' && channel !== 'ptu') {
-    sendError(response, 404, `Unknown dataset channel "${channel}".`);
+async function getDatasetById(response, datasetId) {
+  const dataset = await readJson(`datasets/${datasetId}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No published dataset for id "${datasetId}".`);
     return;
   }
 
-  const db = await getDb();
-  const doc = await db.collection(getCollectionName(channel)).findOne(
-    { published: true },
-    { projection: { _id: 0, missionRewards: 1 }, sort: { importedAt: -1 } },
+  sendJson(response, 200, { dataset });
+}
+
+async function getChunkById(response, datasetId, chunkName, payloadBuilder) {
+  const dataset = await readJson(`datasets/${datasetId}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No dataset for id "${datasetId}".`);
+    return;
+  }
+
+  const chunk = await readJson(`datasets/${datasetId}/${chunkName}.json`);
+  sendJson(response, 200, payloadBuilder(chunk));
+}
+
+async function getBlueprintDetail(response, datasetId, blueprintId) {
+  const dataset = await readJson(`datasets/${datasetId}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No dataset for id "${datasetId}".`);
+    return;
+  }
+
+  const blueprint = await readJson(
+    `datasets/${datasetId}/blueprints/${encodeURIComponent(blueprintId)}.json`,
   );
-
-  if (!doc) {
-    sendError(response, 404, `No published dataset for channel "${channel}".`);
+  if (!blueprint) {
+    sendError(response, 404, `No blueprint "${blueprintId}" for dataset "${datasetId}".`);
     return;
   }
 
-  sendJson(response, 200, { missionRewards: doc.missionRewards ?? null });
+  sendJson(response, 200, {
+    datasetId,
+    blueprint,
+  });
 }
-
-async function findDatasetById(datasetId) {
-  const db = await getDb();
-  for (const channel of ['live', 'ptu']) {
-    const doc = await db.collection(getCollectionName(channel)).findOne(
-      { published: true, datasetId },
-      { projection: CORE_PROJECTION, sort: { importedAt: -1 } },
-    );
-
-    if (doc) {
-      return { channel, doc };
-    }
-  }
-
-  return null;
-}
-
-async function findMissionRewardsById(datasetId) {
-  const db = await getDb();
-  for (const channel of ['live', 'ptu']) {
-    const doc = await db.collection(getCollectionName(channel)).findOne(
-      { published: true, datasetId },
-      { projection: { _id: 0, missionRewards: 1 }, sort: { importedAt: -1 } },
-    );
-
-    if (doc) {
-      return { channel, doc };
-    }
-  }
-
-  return null;
-}
-
-loadDevVars();
 
 const server = http.createServer(async (request, response) => {
   if (!request.url) {
@@ -287,31 +147,127 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    const datasetByIdMissionMatch = path.match(/^\/api\/game-data\/public\/by-id\/([^/]+)\/mission-rewards$/);
-    if (datasetByIdMissionMatch) {
-      const match = await findMissionRewardsById(decodeURIComponent(datasetByIdMissionMatch[1]));
-      if (!match) {
-        sendError(response, 404, `No published dataset for id "${decodeURIComponent(datasetByIdMissionMatch[1])}".`);
-        return;
-      }
-      sendJson(response, 200, { missionRewards: match.doc.missionRewards ?? null });
+    const blueprintDetailMatch = path.match(
+      /^\/api\/game-data\/public\/by-id\/([^/]+)\/blueprints\/([^/]+)$/,
+    );
+    if (blueprintDetailMatch) {
+      await getBlueprintDetail(
+        response,
+        decodeURIComponent(blueprintDetailMatch[1]),
+        decodeURIComponent(blueprintDetailMatch[2]),
+      );
+      return;
+    }
+
+    const byIdResourceDataMatch = path.match(/^\/api\/game-data\/public\/by-id\/([^/]+)\/resource-data$/);
+    if (byIdResourceDataMatch) {
+      const datasetId = decodeURIComponent(byIdResourceDataMatch[1]);
+      await getChunkById(response, datasetId, 'resource-data', (chunk) => ({
+        datasetId,
+        resourceInsights: chunk?.resourceInsights ?? null,
+        materialSources: chunk?.materialSources ?? null,
+      }));
+      return;
+    }
+
+    const byIdShipComponentsMatch = path.match(/^\/api\/game-data\/public\/by-id\/([^/]+)\/ship-components$/);
+    if (byIdShipComponentsMatch) {
+      const datasetId = decodeURIComponent(byIdShipComponentsMatch[1]);
+      await getChunkById(response, datasetId, 'ship-components', (chunk) => ({
+        datasetId,
+        shipComponents: chunk?.shipComponents ?? null,
+      }));
+      return;
+    }
+
+    const byIdMissionRewardsMatch = path.match(/^\/api\/game-data\/public\/by-id\/([^/]+)\/mission-rewards$/);
+    if (byIdMissionRewardsMatch) {
+      const datasetId = decodeURIComponent(byIdMissionRewardsMatch[1]);
+      await getChunkById(response, datasetId, 'mission-rewards', (chunk) => ({
+        datasetId,
+        missionRewards: chunk?.missionRewards ?? null,
+      }));
+      return;
+    }
+
+    const byIdChangelogMatch = path.match(/^\/api\/game-data\/public\/by-id\/([^/]+)\/changelog$/);
+    if (byIdChangelogMatch) {
+      const datasetId = decodeURIComponent(byIdChangelogMatch[1]);
+      await getChunkById(response, datasetId, 'changelog', (chunk) => ({
+        datasetId,
+        changelog: chunk?.changelog ?? null,
+      }));
       return;
     }
 
     const datasetByIdMatch = path.match(/^\/api\/game-data\/public\/by-id\/([^/]+)$/);
     if (datasetByIdMatch) {
-      const match = await findDatasetById(decodeURIComponent(datasetByIdMatch[1]));
-      if (!match) {
-        sendError(response, 404, `No published dataset for id "${decodeURIComponent(datasetByIdMatch[1])}".`);
+      await getDatasetById(response, decodeURIComponent(datasetByIdMatch[1]));
+      return;
+    }
+
+    const resourceDataByChannelMatch = path.match(/^\/api\/game-data\/public\/(live|ptu)\/resource-data$/);
+    if (resourceDataByChannelMatch) {
+      const channel = resourceDataByChannelMatch[1];
+      const dataset = await readJson(`aliases/all/${channel}/core.json`);
+      if (!dataset) {
+        sendError(response, 404, `No dataset for channel "${channel}".`);
         return;
       }
-      sendJson(response, 200, { dataset: normalizeCoreDataset(match.doc, match.channel) });
+      const chunk = await readJson(`aliases/all/${channel}/resource-data.json`);
+      sendJson(response, 200, {
+        datasetId: dataset.datasetId,
+        resourceInsights: chunk?.resourceInsights ?? null,
+        materialSources: chunk?.materialSources ?? null,
+      });
+      return;
+    }
+
+    const shipComponentsByChannelMatch = path.match(/^\/api\/game-data\/public\/(live|ptu)\/ship-components$/);
+    if (shipComponentsByChannelMatch) {
+      const channel = shipComponentsByChannelMatch[1];
+      const dataset = await readJson(`aliases/all/${channel}/core.json`);
+      if (!dataset) {
+        sendError(response, 404, `No dataset for channel "${channel}".`);
+        return;
+      }
+      const chunk = await readJson(`aliases/all/${channel}/ship-components.json`);
+      sendJson(response, 200, {
+        datasetId: dataset.datasetId,
+        shipComponents: chunk?.shipComponents ?? null,
+      });
       return;
     }
 
     const missionRewardsByChannelMatch = path.match(/^\/api\/game-data\/public\/(live|ptu)\/mission-rewards$/);
     if (missionRewardsByChannelMatch) {
-      await getMissionRewardsByChannel(response, missionRewardsByChannelMatch[1]);
+      const channel = missionRewardsByChannelMatch[1];
+      const dataset = await readJson(`aliases/all/${channel}/core.json`);
+      if (!dataset) {
+        sendError(response, 404, `No dataset for channel "${channel}".`);
+        return;
+      }
+      const chunk = await readJson(`aliases/all/${channel}/mission-rewards.json`);
+      sendJson(response, 200, {
+        datasetId: dataset.datasetId,
+        missionRewards: chunk?.missionRewards ?? null,
+      });
+      return;
+    }
+
+    const changelogByChannelMatch = path.match(/^\/api\/game-data\/public\/(live|ptu)\/changelog$/);
+    if (changelogByChannelMatch) {
+      const channel = changelogByChannelMatch[1];
+      const dataset = await readJson(`aliases/all/${channel}/core.json`);
+      if (!dataset) {
+        sendError(response, 404, `No dataset for channel "${channel}".`);
+        return;
+      }
+      const chunk = await readJson(`aliases/all/${channel}/changelog.json`);
+      sendJson(response, 200, {
+        datasetId: dataset.datasetId,
+        changelog: chunk?.changelog ?? null,
+      });
       return;
     }
 

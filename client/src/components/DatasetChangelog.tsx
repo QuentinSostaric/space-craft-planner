@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
@@ -10,6 +10,7 @@ import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
+import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
@@ -148,8 +149,20 @@ function DiffCard({
 }
 
 export function DatasetChangelog() {
-  const { activeDataset, changelogOpen, setChangelogOpen } = useCraft();
+  const {
+    activeDataset,
+    changelogOpen,
+    setChangelogOpen,
+    changelogLoading,
+    ensureChangelogLoaded,
+  } = useCraft();
   const { lang, t } = useI18n();
+
+  useEffect(() => {
+    if (changelogOpen && activeDataset.channel === 'ptu' && activeDataset.hasChangelog) {
+      void ensureChangelogLoaded();
+    }
+  }, [activeDataset.channel, activeDataset.hasChangelog, changelogOpen, ensureChangelogLoaded]);
 
   const generatedAtLabel = useMemo(() => {
     if (!activeDataset.changelog?.generatedAt) return null;
@@ -158,8 +171,31 @@ export function DatasetChangelog() {
     );
   }, [activeDataset.changelog?.generatedAt, lang]);
 
-  if (activeDataset.channel !== 'ptu' || !activeDataset.changelog) {
+  if (activeDataset.channel !== 'ptu' || (!activeDataset.hasChangelog && !activeDataset.changelog)) {
     return null;
+  }
+
+  if (!activeDataset.changelog) {
+    return (
+      <Dialog
+        open={changelogOpen}
+        onClose={() => setChangelogOpen(false)}
+        aria-label={t('PTU changelog', 'Changelog PTU')}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>{t('PTU vs LIVE', 'PTU vs LIVE')}</DialogTitle>
+        <DialogContent dividers>
+          {changelogLoading && <LinearProgress sx={{ mb: 2 }} />}
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t(
+              'Loading changelog for the active PTU dataset...',
+              'Chargement du changelog pour le dataset PTU actif...',
+            )}
+          </Typography>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   const { changelog } = activeDataset;

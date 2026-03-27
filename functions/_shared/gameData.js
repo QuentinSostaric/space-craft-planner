@@ -1,23 +1,3 @@
-export const SUMMARY_PROJECTION = {
-  _id: 0,
-  blueprints: 0,
-  resources: 0,
-  dismantling: 0,
-  missionRewards: 0,
-  changelog: 0,
-  metrics: 0,
-  sourceFiles: 0,
-};
-
-export const CORE_PROJECTION = {
-  _id: 0,
-  missionRewards: 0,
-  metrics: 0,
-  sourceFiles: 0,
-  installPath: 0,
-  outputLabel: 0,
-};
-
 export function jsonResponse(payload, init = {}) {
   const headers = new Headers(init.headers ?? {});
   if (!headers.has('content-type')) {
@@ -87,62 +67,29 @@ export function shouldExposeUnpublishedDatasets(request, env) {
   );
 }
 
-export function buildDatasetVisibilityFilter(request, env) {
-  return shouldExposeUnpublishedDatasets(request, env) ? {} : { published: true };
+export function getDatasetVisibilityNamespace(request, env) {
+  return shouldExposeUnpublishedDatasets(request, env) ? 'all' : 'public';
 }
 
-export function toSummary(doc, channel) {
-  return {
-    channel,
-    datasetId: doc.datasetId,
-    label: doc.label,
-    version: doc.version,
-    branch: doc.branch ?? null,
-    buildNumber: doc.buildNumber ?? null,
-    buildDateStamp: doc.buildDateStamp ?? null,
-    buildTimeStamp: doc.buildTimeStamp ?? null,
-    published: Boolean(doc.published),
-    blueprintCount: doc.blueprintCount ?? (doc.blueprints?.length ?? 0),
-    resourceCount: doc.resourceCount ?? (doc.resources?.length ?? 0),
-    hasDismantling: Boolean(doc.dismantlingAvailable ?? doc.dismantling),
-    hasMissionRewards:
-      (doc.missionRewardContractCount ?? 0) > 0 ||
-      (doc.missionRewardFactionGroupCount ?? 0) > 0,
-    missionRewardContractCount: doc.missionRewardContractCount ?? 0,
-    missionRewardFactionGroupCount: doc.missionRewardFactionGroupCount ?? 0,
-    importedAt: doc.importedAt ?? null,
-    updatedAt: doc.updatedAt ?? doc.importedAt ?? null,
-    hasChangelog: Boolean(doc.changelog),
-  };
+export function isValidChannel(channel) {
+  return channel === 'live' || channel === 'ptu';
 }
 
-export function normalizeCoreDataset(doc, channel) {
-  if (!doc) {
-    return null;
+export function compareDatasetSummaries(a, b) {
+  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
+  if (dateA !== dateB) {
+    return dateB - dateA;
   }
 
-  return {
-    channel,
-    datasetId: doc.datasetId,
-    label: doc.label,
-    version: doc.version,
-    branch: doc.branch ?? null,
-    buildNumber: doc.buildNumber ?? null,
-    buildDateStamp: doc.buildDateStamp ?? null,
-    buildTimeStamp: doc.buildTimeStamp ?? null,
-    published: Boolean(doc.published),
-    blueprintCount: doc.blueprintCount ?? doc.blueprints?.length ?? 0,
-    resourceCount: doc.resourceCount ?? doc.resources?.length ?? 0,
-    blueprints: doc.blueprints ?? [],
-    manufacturers: doc.manufacturers ?? [],
-    resources: doc.resources ?? [],
-    resourceInsights: doc.resourceInsights ?? null,
-    changelog: doc.changelog ?? null,
-    dismantling: doc.dismantling ?? null,
-    materialSources: doc.materialSources ?? null,
-    missionRewards: null,
-    shipComponents: doc.shipComponents ?? null,
-    importedAt: doc.importedAt ?? null,
-    updatedAt: doc.updatedAt ?? doc.importedAt ?? null,
-  };
+  const buildA = Number(a.buildNumber ?? 0);
+  const buildB = Number(b.buildNumber ?? 0);
+  if (buildA !== buildB) {
+    return buildB - buildA;
+  }
+
+  return String(b.version ?? '').localeCompare(String(a.version ?? ''), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
 }

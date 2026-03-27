@@ -1,27 +1,8 @@
-import { getDb, getCollectionName } from '../../../../_shared/mongoClient.js';
+import { errorResponse, publicApiJsonResponse } from '../../../../_shared/gameData.js';
 import {
-  CORE_PROJECTION,
-  buildDatasetVisibilityFilter,
-  errorResponse,
-  normalizeCoreDataset,
-  publicApiJsonResponse,
-} from '../../../../_shared/gameData.js';
-
-async function findDatasetById(db, env, request, datasetId) {
-  const visibilityFilter = buildDatasetVisibilityFilter(request, env);
-  for (const channel of ['live', 'ptu']) {
-    const doc = await db.collection(getCollectionName(env, channel)).findOne(
-      { ...visibilityFilter, datasetId },
-      { projection: CORE_PROJECTION, sort: { importedAt: -1 } },
-    );
-
-    if (doc) {
-      return { doc, channel };
-    }
-  }
-
-  return null;
-}
+  CACHE_CONTROL_IMMUTABLE,
+  getVisibleDatasetCore,
+} from '../../../../_shared/r2Datasets.js';
 
 export async function onRequestGet(context) {
   const { datasetId } = context.params;
@@ -31,14 +12,17 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const db = await getDb(context.env);
-    const match = await findDatasetById(db, context.env, context.request, datasetId);
+    const dataset = await getVisibleDatasetCore(context.request, context.env, datasetId);
 
-    if (!match) {
+    if (!dataset) {
       return errorResponse(404, `No dataset for id "${datasetId}".`);
     }
 
-    return publicApiJsonResponse({ dataset: normalizeCoreDataset(match.doc, match.channel) });
+    return publicApiJsonResponse({ dataset }, {
+      headers: {
+        'Cache-Control': CACHE_CONTROL_IMMUTABLE,
+      },
+    });
   } catch (error) {
     return errorResponse(500, error instanceof Error ? error.message : 'Failed to load dataset.');
   }

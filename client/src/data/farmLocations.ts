@@ -1,3 +1,3 @@
 // Deprecated manual planner data.
-// The app must use published MongoDB mission datasets instead of local farm tables.
+// The app must use the published runtime dataset instead of local farm tables.
 export {};

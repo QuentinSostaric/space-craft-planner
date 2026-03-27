@@ -1233,6 +1233,7 @@ export function MissionsPanel() {
     missionRewards,
     missionRewardsLoading,
     missionRewardsError,
+    ensureMissionRewardsLoaded,
     blueprints,
     favoriteIds,
     inventoryIds,
@@ -1240,6 +1241,10 @@ export function MissionsPanel() {
     activeDataset,
   } = useCraft();
   const { t } = useI18n();
+
+  useEffect(() => {
+    void ensureMissionRewardsLoaded();
+  }, [ensureMissionRewardsLoaded]);
 
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [scaleFilter, setScaleFilter] = useState<string | null>(null);

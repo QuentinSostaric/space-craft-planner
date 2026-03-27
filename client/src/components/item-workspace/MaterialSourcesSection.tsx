@@ -4,6 +4,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import LinearProgress from '@mui/material/LinearProgress';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -78,6 +79,8 @@ interface MaterialSourcesSectionProps {
   resources: AggregatedResource[];
   allResources: Resource[];
   materialSources: MaterialSources | null;
+  hasResourceData: boolean;
+  loading: boolean;
   qty: number;
   setQty: (val: number) => void;
   onAddGoal: () => void;
@@ -92,6 +95,8 @@ export function MaterialSourcesSection({
   resources,
   allResources,
   materialSources,
+  hasResourceData,
+  loading,
   qty,
   setQty,
   onAddGoal,
@@ -131,7 +136,10 @@ export function MaterialSourcesSection({
       <Typography variant="overline" sx={{ display: 'block' }}>
         {t('Material Sources', 'Sources de materiaux')}
       </Typography>
-      {!materialSources?.resources && <DatasetTooOldNotice variant="caption" />}
+      {loading && !materialSources?.resources && <LinearProgress />}
+      {!loading && !materialSources?.resources && !hasResourceData && (
+        <DatasetTooOldNotice variant="caption" />
+      )}
 
       {resources.map((resourceEntry) => {
         const providers = getMaterialProviders(materialSources, resourceEntry.resourceName);
@@ -395,12 +403,20 @@ export function MaterialSourcesSection({
 
             <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
               {!materialSources?.resources ? (
-                <DatasetTooOldNotice />
-              ) : providers.length === 0 ? (
-                <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                  {t('No source data available', 'Aucune donnee de source disponible')}
-                </Typography>
-              ) : (
+                loading ? (
+                  <LinearProgress />
+                ) : !hasResourceData ? (
+                  <DatasetTooOldNotice />
+                ) : (
+                  <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                    {t('No source data available', 'Aucune donnee de source disponible')}
+                  </Typography>
+                )
+                ) : providers.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                    {t('No source data available', 'Aucune donnee de source disponible')}
+                  </Typography>
+                ) : (
                 <Table size="small" aria-label={resourceEntry.resourceName}>
                   <TableHead>
                     <TableRow>

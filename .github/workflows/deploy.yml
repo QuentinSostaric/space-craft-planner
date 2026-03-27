@@ -24,9 +24,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Patch MongoDB for CF Workers TLS
-        run: node scripts/patchMongoTls.mjs
-
       - name: Build
         run: npm run build
 

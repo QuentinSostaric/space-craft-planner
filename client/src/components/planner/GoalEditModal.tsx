@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
@@ -6,6 +6,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
+import LinearProgress from '@mui/material/LinearProgress';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../../store/CraftContext';
@@ -29,14 +30,23 @@ interface GoalEditModalProps {
 }
 
 export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
-  const { blueprints, updateGoal } = useCraft();
+  const { blueprints, updateGoal, ensureBlueprintDetailLoaded } = useCraft();
   const { t } = useI18n();
   const blueprint = blueprints.find((candidate) => candidate.id === goal.blueprintId);
   const [assignments, setAssignments] = useState<Record<string, number | undefined>>({
     ...goal.slotAssignments,
   });
 
-  const { qualityScore, projectedStats } = useCraftSimulator(blueprint ?? null, assignments);
+  useEffect(() => {
+    if (blueprint && !blueprint.detailsLoaded) {
+      void ensureBlueprintDetailLoaded(blueprint.id);
+    }
+  }, [blueprint, ensureBlueprintDetailLoaded]);
+
+  const { qualityScore, projectedStats } = useCraftSimulator(
+    blueprint?.detailsLoaded ? blueprint : null,
+    assignments,
+  );
 
   if (!blueprint) {
     return null;
@@ -72,6 +82,14 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
       </DialogTitle>
 
       <DialogContent dividers>
+        {!blueprint.detailsLoaded ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <LinearProgress />
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {t('Loading blueprint detail...', 'Chargement du detail blueprint...')}
+            </Typography>
+          </Box>
+        ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {blueprint.slots.map((slot: MaterialSlot) => {
             const assignedValue = assignments[slot.id];
@@ -125,6 +143,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
             );
           })}
         </Box>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 1.5 }}>
@@ -134,6 +153,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
         <Button
           variant="gradient"
           size="sm"
+          disabled={!blueprint.detailsLoaded}
           onClick={() => {
             updateGoal(goal.id, assignments, qualityScore, projectedStats);
             onClose();

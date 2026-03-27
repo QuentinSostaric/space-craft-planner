@@ -4,6 +4,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import CircularProgress from '@mui/material/CircularProgress';
 import Fade from '@mui/material/Fade';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
@@ -22,7 +23,7 @@ import { NavRail } from './components/NavRail';
 import { Footer } from './components/Footer';
 import { useCraft } from './store/CraftContext';
 import { LS_KEYS } from './types';
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
 import { mainViewFromPathname, navigateToPath } from './utils/slug';
 
@@ -448,12 +449,14 @@ function DatasetChangelogFallback() {
 
 function MainContent({ mainView }: { mainView: MainView }) {
   const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
+  const ensureMissionRewardsLoadedRef = useRef(ensureMissionRewardsLoaded);
+  useEffect(() => { ensureMissionRewardsLoadedRef.current = ensureMissionRewardsLoaded; });
 
   useEffect(() => {
-    if (mainView === 'missions' || mainView === 'resources' || !activeBlueprint) {
-      void ensureMissionRewardsLoaded();
+    if (mainView === 'missions' || mainView === 'resources') {
+      void ensureMissionRewardsLoadedRef.current();
     }
-  }, [mainView, activeBlueprint, ensureMissionRewardsLoaded]);
+  }, [mainView]);
 
   const resolvedView: ResolvedMainView =
     mainView === 'missions'
@@ -507,6 +510,8 @@ function AppShell() {
     try { return localStorage.getItem(LS_KEYS.NAV_COLLAPSED) === 'true'; } catch { return false; }
   });
   const [isPending, startTransition] = useTransition();
+  const ensureMissionRewardsLoadedRef = useRef(ensureMissionRewardsLoaded);
+  useEffect(() => { ensureMissionRewardsLoadedRef.current = ensureMissionRewardsLoaded; });
 
   const toggleNavCollapsed = useCallback(() => {
     setNavCollapsed((prev) => {
@@ -523,14 +528,14 @@ function AppShell() {
         setMainView(nextView);
       });
       if (nextView === 'missions' || nextView === 'resources') {
-        void ensureMissionRewardsLoaded();
+        void ensureMissionRewardsLoadedRef.current();
       }
     };
 
     syncViewFromPath();
     window.addEventListener('popstate', syncViewFromPath);
     return () => window.removeEventListener('popstate', syncViewFromPath);
-  }, [ensureMissionRewardsLoaded]);
+  }, []);
 
   const handleChangeView = useCallback((view: MainView) => {
     const path =
@@ -557,13 +562,68 @@ function AppShell() {
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {t(
-                  'The app is connecting to the published MongoDB dataset.',
-                  'L\'application se connecte au dataset publie sur MongoDB.',
+                  'The app is connecting to the published dataset API.',
+                  'L\'application se connecte a l API du dataset publie.',
                 )}
               </Typography>
             </Paper>
           </Box>
           <Footer />
+        </Box>
+      </Box>
+    );
+  }
+
+  // Dataset switch in progress — old data present but new one loading
+  if (datasetLoading && activeDataset.blueprints.length > 0) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Header />
+        <LinearProgress sx={{ height: 2 }} />
+        <Box
+          sx={{
+            display: 'flex',
+            flex: 1,
+            minHeight: 0,
+            flexDirection: { xs: 'column', md: 'row' },
+            overflow: isCompactLayout ? 'visible' : 'hidden',
+          }}
+        >
+          <NavRail
+            mainView={mainView}
+            onChangeView={handleChangeView}
+            collapsed={navCollapsed}
+            onToggleCollapsed={toggleNavCollapsed}
+          />
+          <Box
+            component="main"
+            id="main-content"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 4,
+            }}
+            aria-live="polite"
+          >
+            <Fade in timeout={300}>
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress
+                  size={56}
+                  thickness={2}
+                  sx={{ mb: 3, color: 'primary.main' }}
+                />
+                <Typography variant="h6" sx={{ mb: 0.75 }}>
+                  {t('Loading new dataset', 'Chargement du dataset')}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('Please wait\u2026', 'Veuillez patienter\u2026')}
+                </Typography>
+              </Box>
+            </Fade>
+          </Box>
         </Box>
       </Box>
     );
@@ -582,8 +642,8 @@ function AppShell() {
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 {t(
-                  'This app reads published datasets directly from MongoDB through the runtime API. The API must be available.',
-                  'Cette app lit les datasets publies directement depuis MongoDB via l API runtime. L API doit etre disponible.',
+                  'This app reads published datasets through the runtime API. The API must be available.',
+                  'Cette app lit les datasets publies via l API runtime. L API doit etre disponible.',
                 )}
               </Typography>
             </Paper>
