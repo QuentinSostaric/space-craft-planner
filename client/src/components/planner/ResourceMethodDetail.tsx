@@ -81,16 +81,22 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     missionRewardsLoading,
     ensureMissionRewardsLoaded,
     materialSources,
+    ensureResourceDataLoaded,
+    resourceDataLoading,
+    activeDataset,
   } = useCraft();
   const { lang, t } = useI18n();
   const miningProviders = getMaterialProviders(materialSources, resourceName);
-  const hasMaterialSourceDataset = Boolean(materialSources?.resources);
+  const hasMaterialSourceDataset = Boolean(materialSources?.resources || activeDataset.hasResourceData);
 
   useEffect(() => {
     if (method === 'mission') {
       void ensureMissionRewardsLoaded();
     }
-  }, [method, ensureMissionRewardsLoaded]);
+    if (method === 'mining') {
+      void ensureResourceDataLoaded();
+    }
+  }, [method, ensureMissionRewardsLoaded, ensureResourceDataLoaded]);
 
   const matchingContracts = useMemo(() => {
     if (method !== 'mission' || !missionRewards) return [];
@@ -138,6 +144,8 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
         </Box>
         {!hasMaterialSourceDataset ? (
           <DatasetTooOldNotice variant="caption" />
+        ) : resourceDataLoading && !materialSources?.resources ? (
+          <Skeleton variant="rectangular" height={20} sx={{ borderRadius: 0.5 }} />
         ) : miningProviders.length === 0 ? (
           <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
             {t(

@@ -12,7 +12,7 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const match = await getVisibleDatasetChunk(context.request, context.env, datasetId, 'mission-rewards');
+    const match = await getVisibleDatasetChunk(context.request, context.env, datasetId, 'changelog');
 
     if (!match) {
       return errorResponse(404, `No dataset for id "${datasetId}".`);
@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
     return publicApiJsonResponse(
       {
         datasetId,
-        missionRewards: match.chunk?.missionRewards ?? null,
+        changelog: match.chunk?.changelog ?? null,
       },
       {
         headers: {
@@ -30,6 +30,6 @@ export async function onRequestGet(context) {
       },
     );
   } catch (error) {
-    return errorResponse(500, error instanceof Error ? error.message : 'Failed to load mission rewards.');
+    return errorResponse(500, error instanceof Error ? error.message : 'Failed to load changelog.');
   }
 }

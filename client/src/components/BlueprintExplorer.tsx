@@ -1,5 +1,5 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { type ElementType, useCallback, useMemo } from 'react';
+import { type ElementType, useCallback, useEffect, useMemo } from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -227,6 +227,9 @@ export function BlueprintExplorer() {
     inventoryIds,
     blueprints,
     missionRewards,
+    missionRewardsLoading,
+    ensureMissionRewardsLoaded,
+    ensureShipComponentsLoaded,
   } = useCraft();
   const { lang, t } = useI18n();
   const theme = useTheme();
@@ -491,6 +494,27 @@ export function BlueprintExplorer() {
     setWeaponTypeFilter,
   ]);
 
+  const requiresMissionRewards =
+    librarySegment === 'obtainable' ||
+    legalityFilter !== 'all' ||
+    locationFilter !== null ||
+    acquisitionEmployerFilter !== null ||
+    acquisitionScaleFilter !== null ||
+    acquisitionStandingFilter !== 'all' ||
+    blueprintSort === 'acquisition-desc';
+
+  useEffect(() => {
+    if (requiresMissionRewards) {
+      void ensureMissionRewardsLoaded();
+    }
+  }, [ensureMissionRewardsLoaded, requiresMissionRewards]);
+
+  useEffect(() => {
+    if (ENABLE_SHIP_COMPONENT_BLUEPRINTS && activeDataset.hasShipComponents) {
+      void ensureShipComponentsLoaded();
+    }
+  }, [activeDataset.hasShipComponents, ensureShipComponentsLoaded]);
+
   return (
     <Box
       component="section"
@@ -526,7 +550,9 @@ export function BlueprintExplorer() {
           value={String(blueprintStats.materialCount)}
         />
       </Box>
-      {!missionRewards && <DatasetTooOldNotice variant="caption" />}
+      {requiresMissionRewards && !missionRewardsLoading && !missionRewards && !activeDataset.hasMissionRewards && (
+        <DatasetTooOldNotice variant="caption" />
+      )}
 
       <Box
         sx={{

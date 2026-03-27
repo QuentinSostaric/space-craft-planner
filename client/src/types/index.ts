@@ -363,6 +363,7 @@ export interface Blueprint {
   identity?: BlueprintIdentity;
   media?: BlueprintMedia;
   rarity?: 'legendary' | 'rare' | 'common';
+  detailsLoaded?: boolean;
 }
 
 export type Rarity = 'legendary' | 'rare' | 'common';
@@ -416,6 +417,8 @@ export interface DatasetSummary {
   importedAt: string | null;
   updatedAt: string | null;
   hasChangelog: boolean;
+  hasResourceData?: boolean;
+  hasShipComponents?: boolean;
 }
 
 export interface DatasetDiffEntry {
@@ -845,6 +848,32 @@ export interface ShipComponentsDataset {
   entries: ShipComponentEntry[];
 }
 
+export interface DatasetResourceDataChunk {
+  datasetId: string;
+  resourceInsights: ResourceInsight[] | null;
+  materialSources: MaterialSources | null;
+}
+
+export interface DatasetShipComponentsChunk {
+  datasetId: string;
+  shipComponents: ShipComponentsDataset | null;
+}
+
+export interface DatasetChangelogChunk {
+  datasetId: string;
+  changelog: DatasetChangelog | null;
+}
+
+export interface DatasetMissionRewardsChunk {
+  datasetId: string;
+  missionRewards: MissionRewardsData | null;
+}
+
+export interface DatasetBlueprintDetailChunk {
+  datasetId: string;
+  blueprint: Blueprint | null;
+}
+
 export interface GameDataset {
   channel: DatasetChannel;
   datasetId: string;
@@ -857,6 +886,11 @@ export interface GameDataset {
   published: boolean;
   blueprintCount: number;
   resourceCount: number;
+  hasDismantling: boolean;
+  hasMissionRewards: boolean;
+  hasResourceData: boolean;
+  hasShipComponents: boolean;
+  hasChangelog: boolean;
   blueprints: Blueprint[];
   manufacturers?: Array<{
     manufacturer: string;

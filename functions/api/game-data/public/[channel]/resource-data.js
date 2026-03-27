@@ -21,17 +21,18 @@ export async function onRequestGet(context) {
       return errorResponse(404, `No dataset for channel "${channel}".`);
     }
 
-    const missionRewards = await getChannelChunk(
+    const resourceData = await getChannelChunk(
       context.request,
       context.env,
       channel,
-      'mission-rewards',
+      'resource-data',
     );
 
     return publicApiJsonResponse(
       {
         datasetId: dataset.datasetId,
-        missionRewards: missionRewards?.missionRewards ?? null,
+        resourceInsights: resourceData?.resourceInsights ?? null,
+        materialSources: resourceData?.materialSources ?? null,
       },
       {
         headers: {
@@ -40,6 +41,6 @@ export async function onRequestGet(context) {
       },
     );
   } catch (error) {
-    return errorResponse(500, error instanceof Error ? error.message : 'Failed to load mission rewards.');
+    return errorResponse(500, error instanceof Error ? error.message : 'Failed to load resource data.');
   }
 }

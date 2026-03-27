@@ -19,6 +19,7 @@ import type {
   ComparisonItem,
   CraftGoal,
   DatasetChannel,
+  DatasetChangelog,
   DatasetSummary,
   DismantlingData,
   GameDataset,
@@ -31,15 +32,21 @@ import type {
   PlannerResourceRequirements,
   RarityFilter,
   ResourceMethod,
+  ResourceInsight,
   ResourceProgress,
+  ShipComponentsDataset,
   SlotCountFilter,
   StandingBucket,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
 import {
+  fetchPublishedBlueprintDetailById,
+  fetchPublishedChangelogById,
   fetchPublishedDatasetById,
   fetchPublishedDatasetIndex,
+  fetchPublishedResourceDataById,
   fetchPublishedMissionRewardsById,
+  fetchPublishedShipComponentsById,
 } from '../hooks/gameDataApi';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 
@@ -55,6 +62,11 @@ const EMPTY_DATASET: GameDataset = {
   published: false,
   blueprintCount: 0,
   resourceCount: 0,
+  hasDismantling: false,
+  hasMissionRewards: false,
+  hasResourceData: false,
+  hasShipComponents: false,
+  hasChangelog: false,
   blueprints: [],
   resources: [],
   resourceInsights: null,
@@ -66,6 +78,23 @@ const EMPTY_DATASET: GameDataset = {
   importedAt: null,
   updatedAt: null,
 };
+
+type DatasetSelectionsStorage =
+  | Partial<Record<DatasetChannel, string>>
+  | {
+      activeChannel?: DatasetChannel | null;
+      ids?: Partial<Record<DatasetChannel, string>> | null;
+    };
+
+interface DatasetSelections {
+  activeChannel: DatasetChannel | null;
+  ids: Partial<Record<DatasetChannel, string>>;
+}
+
+interface ResourceDataChunkState {
+  resourceInsights: ResourceInsight[] | null;
+  materialSources: MaterialSources | null;
+}
 
 interface CraftState {
   appMode: AppMode;
@@ -82,6 +111,8 @@ interface CraftState {
   missionRewards: MissionRewardsData | null;
   missionRewardsLoading: boolean;
   missionRewardsError: string | null;
+  resourceDataLoading: boolean;
+  changelogLoading: boolean;
   datasetLoading: boolean;
   datasetError: string | null;
   categoryFilter: CategoryFilter;
@@ -141,6 +172,10 @@ interface CraftState {
   setActiveDatasetId: (datasetId: string) => Promise<void>;
   refreshDatasets: () => Promise<void>;
   ensureMissionRewardsLoaded: (datasetId?: string) => Promise<void>;
+  ensureResourceDataLoaded: (datasetId?: string) => Promise<void>;
+  ensureShipComponentsLoaded: (datasetId?: string) => Promise<void>;
+  ensureChangelogLoaded: (datasetId?: string) => Promise<void>;
+  ensureBlueprintDetailLoaded: (blueprintId: string, datasetId?: string) => Promise<void>;
   setCategoryFilter: (cat: CategoryFilter) => void;
   setSearchQuery: (q: string) => void;
   toggleFavorite: (blueprintId: string) => void;
@@ -177,8 +212,8 @@ interface CraftState {
 const CraftContext = createContext<CraftState | null>(null);
 
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
-  const dateA = Date.parse(a.importedAt ?? '') || 0;
-  const dateB = Date.parse(b.importedAt ?? '') || 0;
+  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
   if (dateA !== dateB) {
     return dateB - dateA;
   }
@@ -192,10 +227,74 @@ function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
   return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
 }
 
+function isDatasetChannel(value: unknown): value is DatasetChannel {
+  return value === 'live' || value === 'ptu';
+}
+
+function normalizeDatasetSelections(
+  selections: DatasetSelectionsStorage | null | undefined,
+): DatasetSelections {
+  if (!selections || typeof selections !== 'object') {
+    return { activeChannel: null, ids: {} };
+  }
+
+  if ('activeChannel' in selections || 'ids' in selections) {
+    const idsSource =
+      selections.ids && typeof selections.ids === 'object'
+        ? selections.ids
+        : {};
+
+    return {
+      activeChannel: isDatasetChannel(selections.activeChannel)
+        ? selections.activeChannel
+        : null,
+      ids: Object.fromEntries(
+        Object.entries(idsSource).filter(
+          ([channel, datasetId]) =>
+            isDatasetChannel(channel)
+            && typeof datasetId === 'string'
+            && datasetId.trim().length > 0,
+        ),
+      ) as Partial<Record<DatasetChannel, string>>,
+    };
+  }
+
+  return {
+    activeChannel: null,
+    ids: Object.fromEntries(
+      Object.entries(selections).filter(
+        ([channel, datasetId]) =>
+          isDatasetChannel(channel)
+          && typeof datasetId === 'string'
+          && datasetId.trim().length > 0,
+      ),
+    ) as Partial<Record<DatasetChannel, string>>,
+  };
+}
+
+function findDatasetById(
+  datasets: DatasetSummary[],
+  datasetId: string | null | undefined,
+): DatasetSummary | null {
+  if (!datasetId) {
+    return null;
+  }
+
+  return datasets.find((dataset) => dataset.datasetId === datasetId) ?? null;
+}
+
 function pickDatasetForChannel(
   channel: DatasetChannel,
   datasets: DatasetSummary[],
+  preferredDatasetId?: string | null,
 ): DatasetSummary | null {
+  const preferredDataset = datasets.find(
+    (dataset) => dataset.channel === channel && dataset.datasetId === preferredDatasetId,
+  );
+  if (preferredDataset) {
+    return preferredDataset;
+  }
+
   const channelDatasets = datasets
     .filter((dataset) => dataset.channel === channel)
     .sort(compareDatasetSummaries);
@@ -205,6 +304,28 @@ function pickDatasetForChannel(
   }
 
   return channelDatasets[0];
+}
+
+function pickStoredDataset(
+  datasets: DatasetSummary[],
+  selections: DatasetSelections,
+): DatasetSummary | null {
+  if (selections.activeChannel) {
+    const activeChannelDataset = findDatasetById(
+      datasets,
+      selections.ids[selections.activeChannel],
+    );
+    if (activeChannelDataset) {
+      return activeChannelDataset;
+    }
+  }
+
+  const storedDatasets = Object.values(selections.ids)
+    .map((datasetId) => findDatasetById(datasets, datasetId))
+    .filter((dataset): dataset is DatasetSummary => Boolean(dataset))
+    .sort(compareDatasetSummaries);
+
+  return storedDatasets[0] ?? null;
 }
 
 type PlannerResourceRequirementsStorage = Record<
@@ -246,19 +367,55 @@ function normalizePlannerResourceRequirements(
   );
 }
 
+function replaceBlueprintInList(
+  blueprints: Blueprint[],
+  nextBlueprint: Blueprint,
+): Blueprint[] {
+  return blueprints.map((blueprint) =>
+    blueprint.id === nextBlueprint.id ? nextBlueprint : blueprint,
+  );
+}
+
 export function CraftProvider({ children }: { children: ReactNode }) {
-  const [, setPreferredDatasetIds] = useLocalPersist<
-    Partial<Record<DatasetChannel, string>>
-  >(LS_KEYS.DATASET_SELECTIONS, {});
+  const [rawDatasetSelections, setDatasetSelections] = useLocalPersist<DatasetSelectionsStorage>(
+    LS_KEYS.DATASET_SELECTIONS,
+    {},
+  );
   const [activeDataset, setActiveDataset] = useState<GameDataset>(EMPTY_DATASET);
   const [availableDatasets, setAvailableDatasets] = useState<DatasetSummary[]>([]);
   const [datasetLoading, setDatasetLoading] = useState(true);
   const [datasetError, setDatasetError] = useState<string | null>(null);
+  const datasetInflightRef = useRef<Set<string>>(new Set());
+  const refreshInflightRef = useRef(false);
+  const missionRewardsInflightRef = useRef<Set<string>>(new Set());
+  const missionRewardsByDatasetIdRef = useRef<Record<string, MissionRewardsData | null>>({});
   const [missionRewardsByDatasetId, setMissionRewardsByDatasetId] = useState<
     Record<string, MissionRewardsData | null>
   >({});
   const [missionRewardsLoading, setMissionRewardsLoading] = useState(false);
   const [missionRewardsError, setMissionRewardsError] = useState<string | null>(null);
+  const resourceDataInflightRef = useRef<Set<string>>(new Set());
+  const resourceDataByDatasetIdRef = useRef<Record<string, ResourceDataChunkState>>({});
+  const [resourceDataByDatasetId, setResourceDataByDatasetId] = useState<
+    Record<string, ResourceDataChunkState>
+  >({});
+  const [resourceDataLoading, setResourceDataLoading] = useState(false);
+  const shipComponentsInflightRef = useRef<Set<string>>(new Set());
+  const shipComponentsByDatasetIdRef = useRef<Record<string, ShipComponentsDataset | null>>({});
+  const [shipComponentsByDatasetId, setShipComponentsByDatasetId] = useState<
+    Record<string, ShipComponentsDataset | null>
+  >({});
+  const changelogInflightRef = useRef<Set<string>>(new Set());
+  const changelogByDatasetIdRef = useRef<Record<string, DatasetChangelog | null>>({});
+  const [changelogByDatasetId, setChangelogByDatasetId] = useState<
+    Record<string, DatasetChangelog | null>
+  >({});
+  const [changelogLoading, setChangelogLoading] = useState(false);
+  const blueprintDetailsInflightRef = useRef<Set<string>>(new Set());
+  const blueprintDetailsByDatasetIdRef = useRef<Record<string, Record<string, Blueprint>>>({});
+  const [blueprintDetailsByDatasetId, setBlueprintDetailsByDatasetId] = useState<
+    Record<string, Record<string, Blueprint>>
+  >({});
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
   // Slug from URL on initial mount — resolved once blueprints load
   const pendingSlugRef = useRef<string | null>(itemSlugFromPathname(window.location.pathname));
@@ -290,6 +447,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('craft');
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const datasetSelections = useMemo(
+    () => normalizeDatasetSelections(rawDatasetSelections),
+    [rawDatasetSelections],
+  );
 
   const activeMissionRewards = activeDataset.missionRewards ?? null;
   const dismantlingData = activeDataset.dismantling ?? null;
@@ -335,28 +496,78 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const blueprints = activeDataset.blueprints;
   const activeChannel = activeDataset.channel;
 
+  // Keep ref in sync so applyDataset can read it without being a dep
+  missionRewardsByDatasetIdRef.current = missionRewardsByDatasetId;
+  resourceDataByDatasetIdRef.current = resourceDataByDatasetId;
+  shipComponentsByDatasetIdRef.current = shipComponentsByDatasetId;
+  changelogByDatasetIdRef.current = changelogByDatasetId;
+  blueprintDetailsByDatasetIdRef.current = blueprintDetailsByDatasetId;
+
+  const hydrateBlueprintsWithDetails = useCallback(
+    (datasetId: string, datasetBlueprints: Blueprint[]) => {
+      const detailsById = blueprintDetailsByDatasetIdRef.current[datasetId] ?? {};
+      return datasetBlueprints.map((blueprint) => detailsById[blueprint.id] ?? blueprint);
+    },
+    [],
+  );
+
   const applyDataset = useCallback(
     (
       dataset: GameDataset,
       datasets: DatasetSummary[],
       errorMessage: string | null,
     ) => {
-      const cachedMissionRewards = missionRewardsByDatasetId[dataset.datasetId];
+      const cachedMissionRewards = missionRewardsByDatasetIdRef.current[dataset.datasetId];
+      const hasResourceDataCache = Object.prototype.hasOwnProperty.call(
+        resourceDataByDatasetIdRef.current,
+        dataset.datasetId,
+      );
+      const cachedResourceData = resourceDataByDatasetIdRef.current[dataset.datasetId];
+      const hasShipComponentsCache = Object.prototype.hasOwnProperty.call(
+        shipComponentsByDatasetIdRef.current,
+        dataset.datasetId,
+      );
+      const cachedShipComponents = shipComponentsByDatasetIdRef.current[dataset.datasetId];
+      const hasChangelogCache = Object.prototype.hasOwnProperty.call(
+        changelogByDatasetIdRef.current,
+        dataset.datasetId,
+      );
+      const cachedChangelog = changelogByDatasetIdRef.current[dataset.datasetId];
+      const hydratedBlueprints = hydrateBlueprintsWithDetails(dataset.datasetId, dataset.blueprints);
       startTransition(() => {
         setActiveDataset({
           ...dataset,
+          blueprints: hydratedBlueprints,
+          resourceInsights: hasResourceDataCache
+            ? cachedResourceData?.resourceInsights ?? null
+            : dataset.resourceInsights ?? null,
+          materialSources: hasResourceDataCache
+            ? cachedResourceData?.materialSources ?? null
+            : dataset.materialSources ?? null,
           missionRewards:
-            cachedMissionRewards !== undefined
+            Object.prototype.hasOwnProperty.call(missionRewardsByDatasetIdRef.current, dataset.datasetId)
               ? cachedMissionRewards
               : dataset.missionRewards ?? null,
+          shipComponents: hasShipComponentsCache
+            ? cachedShipComponents ?? null
+            : dataset.shipComponents ?? null,
+          changelog: hasChangelogCache
+            ? cachedChangelog ?? null
+            : dataset.changelog ?? null,
         });
         setAvailableDatasets(datasets);
         setDatasetError(errorMessage);
         setMissionRewardsError(null);
-        setPreferredDatasetIds((previous) => ({
-          ...previous,
-          [dataset.channel]: dataset.datasetId,
-        }));
+        setDatasetSelections((previous) => {
+          const normalizedSelections = normalizeDatasetSelections(previous);
+          return {
+            activeChannel: dataset.channel,
+            ids: {
+              ...normalizedSelections.ids,
+              [dataset.channel]: dataset.datasetId,
+            },
+          };
+        });
         if (dataset.missionRewards != null) {
           setMissionRewardsByDatasetId((previous) =>
             Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
@@ -364,25 +575,62 @@ export function CraftProvider({ children }: { children: ReactNode }) {
               : { ...previous, [dataset.datasetId]: dataset.missionRewards ?? null },
           );
         }
+        if (dataset.resourceInsights != null || dataset.materialSources != null) {
+          setResourceDataByDatasetId((previous) =>
+            Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
+              ? previous
+              : {
+                  ...previous,
+                  [dataset.datasetId]: {
+                    resourceInsights: dataset.resourceInsights ?? null,
+                    materialSources: dataset.materialSources ?? null,
+                  },
+                },
+          );
+        }
+        if (dataset.shipComponents != null) {
+          setShipComponentsByDatasetId((previous) =>
+            Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
+              ? previous
+              : { ...previous, [dataset.datasetId]: dataset.shipComponents ?? null },
+          );
+        }
+        if (dataset.changelog != null) {
+          setChangelogByDatasetId((previous) =>
+            Object.prototype.hasOwnProperty.call(previous, dataset.datasetId)
+              ? previous
+              : { ...previous, [dataset.datasetId]: dataset.changelog ?? null },
+          );
+        }
         setSlotAssignments({});
         setActiveBlueprintRaw((previous) =>
-          previous ? dataset.blueprints.find((blueprint) => blueprint.id === previous.id) ?? null : null,
+          previous ? hydratedBlueprints.find((blueprint) => blueprint.id === previous.id) ?? null : null,
         );
       });
     },
-    [missionRewardsByDatasetId, setPreferredDatasetIds],
+    [hydrateBlueprintsWithDetails, setDatasetSelections],
   );
 
   const loadDataset = useCallback(
     async (summary: DatasetSummary, datasets: DatasetSummary[]) => {
-      const dataset = await fetchPublishedDatasetById(summary.datasetId, summary.channel);
-      applyDataset(dataset, datasets, null);
-      return dataset;
+      if (datasetInflightRef.current.has(summary.datasetId)) {
+        return undefined;
+      }
+      datasetInflightRef.current.add(summary.datasetId);
+      try {
+        const dataset = await fetchPublishedDatasetById(summary.datasetId, summary.channel);
+        applyDataset(dataset, datasets, null);
+        return dataset;
+      } finally {
+        datasetInflightRef.current.delete(summary.datasetId);
+      }
     },
     [applyDataset],
   );
 
   const refreshDatasets = useCallback(async () => {
+    if (refreshInflightRef.current) return;
+    refreshInflightRef.current = true;
     setDatasetLoading(true);
 
     try {
@@ -395,10 +643,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       }
 
       const sortedDatasets = [...index.datasets].sort(compareDatasetSummaries);
-      const currentDataset = activeDataset.datasetId
-        ? sortedDatasets.find((dataset) => dataset.datasetId === activeDataset.datasetId) ?? null
-        : null;
-      const targetDataset = currentDataset ?? sortedDatasets[0] ?? null;
+      const currentDataset = findDatasetById(sortedDatasets, activeDataset.datasetId);
+      const storedDataset = pickStoredDataset(sortedDatasets, datasetSelections);
+      const targetDataset = currentDataset ?? storedDataset ?? sortedDatasets[0] ?? null;
 
       if (!targetDataset) {
         throw new Error('No published dataset is available.');
@@ -409,31 +656,45 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       setDatasetError(error instanceof Error ? error.message : 'Failed to load published datasets.');
     } finally {
       setDatasetLoading(false);
+      refreshInflightRef.current = false;
     }
-  }, [activeDataset.datasetId, loadDataset]);
+  }, [activeDataset.datasetId, datasetSelections, loadDataset]);
 
   useEffect(() => {
     void refreshDatasets();
-  }, [refreshDatasets]);
+  }, []);
 
   const ensureMissionRewardsLoaded = useCallback(
     async (requestedDatasetId?: string) => {
       const datasetId = requestedDatasetId ?? activeDataset.datasetId;
       const summary = availableDatasets.find((dataset) => dataset.datasetId === datasetId);
+      const targetDatasetId = summary?.datasetId ?? datasetId;
+      const targetChannel =
+        summary?.channel ??
+        (activeDataset.datasetId === datasetId ? activeDataset.channel : undefined);
 
-      if (!summary?.hasMissionRewards) {
+      if (!summary?.hasMissionRewards && !activeDataset.hasMissionRewards) {
         return;
       }
 
-      if (Object.prototype.hasOwnProperty.call(missionRewardsByDatasetId, datasetId)) {
+      if (!targetChannel) {
         return;
       }
+
+      if (Object.prototype.hasOwnProperty.call(missionRewardsByDatasetIdRef.current, datasetId)) {
+        return;
+      }
+
+      if (missionRewardsInflightRef.current.has(datasetId)) {
+        return;
+      }
+      missionRewardsInflightRef.current.add(datasetId);
 
       setMissionRewardsLoading(true);
       setMissionRewardsError(null);
 
       try {
-        const missionRewards = await fetchPublishedMissionRewardsById(summary.datasetId, summary.channel);
+        const missionRewards = await fetchPublishedMissionRewardsById(targetDatasetId, targetChannel);
         startTransition(() => {
           setMissionRewardsByDatasetId((previous) => ({ ...previous, [datasetId]: missionRewards }));
           setActiveDataset((previous) =>
@@ -447,10 +708,208 @@ export function CraftProvider({ children }: { children: ReactNode }) {
           error instanceof Error ? error.message : 'Failed to load mission rewards.',
         );
       } finally {
+        missionRewardsInflightRef.current.delete(datasetId);
         setMissionRewardsLoading(false);
       }
     },
-    [activeDataset.datasetId, availableDatasets, missionRewardsByDatasetId],
+    [activeDataset.datasetId, activeDataset.hasMissionRewards, availableDatasets],
+  );
+
+  const ensureResourceDataLoaded = useCallback(
+    async (requestedDatasetId?: string) => {
+      const datasetId = requestedDatasetId ?? activeDataset.datasetId;
+      const summary = availableDatasets.find((dataset) => dataset.datasetId === datasetId);
+      const targetDatasetId = summary?.datasetId ?? datasetId;
+      const targetChannel =
+        summary?.channel ??
+        (activeDataset.datasetId === datasetId ? activeDataset.channel : undefined);
+
+      if (!summary?.hasResourceData && !activeDataset.hasResourceData) {
+        return;
+      }
+
+      if (!targetChannel) {
+        return;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(resourceDataByDatasetIdRef.current, datasetId)) {
+        return;
+      }
+
+      if (resourceDataInflightRef.current.has(datasetId)) {
+        return;
+      }
+      resourceDataInflightRef.current.add(datasetId);
+      setResourceDataLoading(true);
+
+      try {
+        const resourceData = await fetchPublishedResourceDataById(targetDatasetId, targetChannel);
+        const nextResourceData: ResourceDataChunkState = {
+          resourceInsights: resourceData?.resourceInsights ?? null,
+          materialSources: resourceData?.materialSources ?? null,
+        };
+
+        startTransition(() => {
+          setResourceDataByDatasetId((previous) => ({ ...previous, [datasetId]: nextResourceData }));
+          setActiveDataset((previous) =>
+            previous.datasetId === datasetId
+              ? {
+                  ...previous,
+                  resourceInsights: nextResourceData.resourceInsights,
+                  materialSources: nextResourceData.materialSources,
+                }
+              : previous,
+          );
+        });
+      } finally {
+        resourceDataInflightRef.current.delete(datasetId);
+        setResourceDataLoading(false);
+      }
+    },
+    [activeDataset.datasetId, activeDataset.hasResourceData, availableDatasets],
+  );
+
+  const ensureShipComponentsLoaded = useCallback(
+    async (requestedDatasetId?: string) => {
+      const datasetId = requestedDatasetId ?? activeDataset.datasetId;
+      const summary = availableDatasets.find((dataset) => dataset.datasetId === datasetId);
+      const targetDatasetId = summary?.datasetId ?? datasetId;
+      const targetChannel =
+        summary?.channel ??
+        (activeDataset.datasetId === datasetId ? activeDataset.channel : undefined);
+
+      if (!summary?.hasShipComponents && !activeDataset.hasShipComponents) {
+        return;
+      }
+
+      if (!targetChannel) {
+        return;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(shipComponentsByDatasetIdRef.current, datasetId)) {
+        return;
+      }
+
+      if (shipComponentsInflightRef.current.has(datasetId)) {
+        return;
+      }
+      shipComponentsInflightRef.current.add(datasetId);
+
+      try {
+        const shipComponents = await fetchPublishedShipComponentsById(targetDatasetId, targetChannel);
+        startTransition(() => {
+          setShipComponentsByDatasetId((previous) => ({
+            ...previous,
+            [datasetId]: shipComponents?.shipComponents ?? null,
+          }));
+          setActiveDataset((previous) =>
+            previous.datasetId === datasetId
+              ? { ...previous, shipComponents: shipComponents?.shipComponents ?? null }
+              : previous,
+          );
+        });
+      } finally {
+        shipComponentsInflightRef.current.delete(datasetId);
+      }
+    },
+    [activeDataset.datasetId, activeDataset.hasShipComponents, availableDatasets],
+  );
+
+  const ensureChangelogLoaded = useCallback(
+    async (requestedDatasetId?: string) => {
+      const datasetId = requestedDatasetId ?? activeDataset.datasetId;
+      const summary = availableDatasets.find((dataset) => dataset.datasetId === datasetId);
+      const targetDatasetId = summary?.datasetId ?? datasetId;
+      const targetChannel =
+        summary?.channel ??
+        (activeDataset.datasetId === datasetId ? activeDataset.channel : undefined);
+
+      if (!summary?.hasChangelog && !activeDataset.hasChangelog) {
+        return;
+      }
+
+      if (!targetChannel) {
+        return;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(changelogByDatasetIdRef.current, datasetId)) {
+        return;
+      }
+
+      if (changelogInflightRef.current.has(datasetId)) {
+        return;
+      }
+      changelogInflightRef.current.add(datasetId);
+      setChangelogLoading(true);
+
+      try {
+        const changelog = await fetchPublishedChangelogById(targetDatasetId, targetChannel);
+        startTransition(() => {
+          setChangelogByDatasetId((previous) => ({ ...previous, [datasetId]: changelog }));
+          setActiveDataset((previous) =>
+            previous.datasetId === datasetId
+              ? { ...previous, changelog }
+              : previous,
+          );
+        });
+      } finally {
+        changelogInflightRef.current.delete(datasetId);
+        setChangelogLoading(false);
+      }
+    },
+    [activeDataset.datasetId, activeDataset.hasChangelog, availableDatasets],
+  );
+
+  const ensureBlueprintDetailLoaded = useCallback(
+    async (blueprintId: string, requestedDatasetId?: string) => {
+      const datasetId = requestedDatasetId ?? activeDataset.datasetId;
+      if (!blueprintId || !datasetId) {
+        return;
+      }
+
+      if (blueprintDetailsByDatasetIdRef.current[datasetId]?.[blueprintId]) {
+        return;
+      }
+
+      const inflightKey = `${datasetId}::${blueprintId}`;
+      if (blueprintDetailsInflightRef.current.has(inflightKey)) {
+        return;
+      }
+      blueprintDetailsInflightRef.current.add(inflightKey);
+
+      try {
+        const blueprint = await fetchPublishedBlueprintDetailById(datasetId, blueprintId);
+        if (!blueprint) {
+          return;
+        }
+
+        startTransition(() => {
+          setBlueprintDetailsByDatasetId((previous) => ({
+            ...previous,
+            [datasetId]: {
+              ...(previous[datasetId] ?? {}),
+              [blueprintId]: blueprint,
+            },
+          }));
+          setActiveDataset((previous) => {
+            if (previous.datasetId !== datasetId) {
+              return previous;
+            }
+
+            return {
+              ...previous,
+              blueprints: replaceBlueprintInList(previous.blueprints, blueprint),
+            };
+          });
+          setActiveBlueprintRaw((previous) =>
+            previous?.id === blueprintId ? blueprint : previous,
+          );
+        });
+      } finally {
+        blueprintDetailsInflightRef.current.delete(inflightKey);
+      }
+    },
+    [activeDataset.datasetId],
   );
 
   const setActiveDatasetChannel = useCallback(
@@ -466,6 +925,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const targetDataset = pickDatasetForChannel(
         channel,
         datasets,
+        datasetSelections.ids[channel],
       );
 
       if (!targetDataset) {
@@ -482,7 +942,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setDatasetLoading(false);
       }
     },
-    [activeDataset.channel, availableDatasets, datasetError, loadDataset],
+    [activeDataset.channel, availableDatasets, datasetError, datasetSelections.ids, loadDataset],
   );
 
   const setActiveDatasetId = useCallback(
@@ -518,14 +978,19 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   );
 
   const setActiveBlueprint = useCallback((bp: Blueprint | null) => {
-    setActiveBlueprintRaw(bp);
+    const nextBlueprint = bp
+      ? blueprintDetailsByDatasetIdRef.current[activeDataset.datasetId]?.[bp.id]
+        ?? activeDataset.blueprints.find((blueprint) => blueprint.id === bp.id)
+        ?? bp
+      : null;
+    setActiveBlueprintRaw(nextBlueprint);
     setSlotAssignments({});
-    if (bp) {
-      navigateToPath(`/item/${toSlug(bp.name)}`, { blueprintId: bp.id });
+    if (nextBlueprint) {
+      navigateToPath(`/item/${toSlug(nextBlueprint.name)}`, { blueprintId: nextBlueprint.id });
     } else if (itemSlugFromPathname(window.location.pathname)) {
       navigateToPath('/');
     }
-  }, []);
+  }, [activeDataset.blueprints, activeDataset.datasetId]);
 
   const toggleFavorite = useCallback(
     (blueprintId: string) => {
@@ -782,6 +1247,8 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         missionRewards: activeMissionRewards,
         missionRewardsLoading,
         missionRewardsError,
+        resourceDataLoading,
+        changelogLoading,
         datasetLoading,
         datasetError,
         categoryFilter,
@@ -841,6 +1308,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setActiveDatasetId,
         refreshDatasets,
         ensureMissionRewardsLoaded,
+        ensureResourceDataLoaded,
+        ensureShipComponentsLoaded,
+        ensureChangelogLoaded,
+        ensureBlueprintDetailLoaded,
         setCategoryFilter,
         setSearchQuery,
         toggleFavorite,

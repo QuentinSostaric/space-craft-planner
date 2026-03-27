@@ -24,17 +24,5 @@ jobs:
       - name: Type check
         run: cd client && npx tsc --noEmit
 
-      - name: Patch MongoDB for CF Workers TLS
-        run: node scripts/patchMongoTls.mjs
-
-      - name: Verify MongoDB TLS patch
-        run: |
-          if grep -q 'tls-cf-shim' node_modules/mongodb/lib/cmap/connect.js; then
-            echo "MongoDB TLS patch verified"
-          else
-            echo "ERROR: MongoDB TLS patch not applied — connect.js still uses node:tls. The deploy would 500 in production."
-            exit 1
-          fi
-
       - name: Build
         run: npm run build

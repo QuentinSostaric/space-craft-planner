@@ -13,12 +13,12 @@
     "dev:api": "node scripts/devApiServer.mjs",
     "dev:cf": "wrangler pages dev client/dist --port 8788",
     "build": "npm run build --workspace client",
-    "deploy": "npm run build && node scripts/patchMongoTls.mjs && wrangler pages deploy client/dist",
+    "deploy": "npm run build && wrangler pages deploy client/dist",
     "import:ptu": "npm run import:ptu  --prefix exporter",
     "import:live": "npm run import:live --prefix exporter"
   },
   "dependencies": {
-    "mongodb": "^6.13.0"
+    "@aws-sdk/client-s3": "^3.908.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
@@ -30,7 +30,7 @@
   "keywords": [
     "react",
     "vite",
-    "mongodb"
+    "cloudflare-r2"
   ],
   "author": "TheSamon",
   "license": "MIT"

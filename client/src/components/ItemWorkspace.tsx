@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import LinearProgress from '@mui/material/LinearProgress';
+import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { aggregateBlueprintResources, getAcquisitionEntry } from '../utils/crafting';
@@ -28,27 +30,44 @@ export function ItemWorkspace() {
     addPlannerResourceRequirement,
     missionRewards,
     missionRewardsLoading,
+    resourceDataLoading,
+    ensureBlueprintDetailLoaded,
     ensureMissionRewardsLoaded,
+    ensureResourceDataLoaded,
     dismantlingData,
     materialSources,
   } = useCraft();
-  const { qualityScore, projectedStats } = useCraftSimulator(activeBlueprint, slotAssignments);
+  const detailReady = Boolean(activeBlueprint?.detailsLoaded);
+  const { qualityScore, projectedStats } = useCraftSimulator(
+    detailReady ? activeBlueprint : null,
+    slotAssignments,
+  );
   const [qty, setQty] = useState(1);
 
   // Reset quantity when a different blueprint is selected
   useEffect(() => { setQty(1); }, [activeBlueprint?.id]);
 
-  // Trigger lazy load of mission rewards
+  // Trigger lazy load of blueprint detail
+  useEffect(() => {
+    if (activeBlueprint && !activeBlueprint.detailsLoaded) {
+      void ensureBlueprintDetailLoaded(activeBlueprint.id);
+    }
+  }, [activeBlueprint, ensureBlueprintDetailLoaded]);
+
+  // Trigger lazy load of dataset chunks needed by the workspace
   useEffect(() => {
     if (activeBlueprint) {
       void ensureMissionRewardsLoaded();
+      void ensureResourceDataLoaded();
     }
-  }, [activeBlueprint, ensureMissionRewardsLoaded]);
+  // activeBlueprint?.id — re-fire only on blueprint change, not on detail hydration
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBlueprint?.id, ensureMissionRewardsLoaded, ensureResourceDataLoaded]);
 
   // Derived data
   const requiredResources = useMemo(
-    () => activeBlueprint ? aggregateBlueprintResources(activeBlueprint.slots, slotAssignments) : [],
-    [activeBlueprint, slotAssignments],
+    () => detailReady && activeBlueprint ? aggregateBlueprintResources(activeBlueprint.slots, slotAssignments) : [],
+    [activeBlueprint, detailReady, slotAssignments],
   );
 
   const acquisitionEntry = useMemo(
@@ -107,14 +126,23 @@ export function ItemWorkspace() {
           gap: { xs: 2, md: 3 },
         }}
       >
-        <CraftSection
-          blueprint={activeBlueprint}
-          slotAssignments={slotAssignments}
-          assignQuality={assignQuality}
-          clearAssignments={clearAssignments}
-          qualityScore={qualityScore}
-          projectedStats={projectedStats}
-        />
+        {detailReady ? (
+          <CraftSection
+            blueprint={activeBlueprint}
+            slotAssignments={slotAssignments}
+            assignQuality={assignQuality}
+            clearAssignments={clearAssignments}
+            qualityScore={qualityScore}
+            projectedStats={projectedStats}
+          />
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <LinearProgress />
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Loading blueprint detail...
+            </Typography>
+          </Box>
+        )}
 
         <Divider />
 
@@ -135,6 +163,8 @@ export function ItemWorkspace() {
           resources={requiredResources}
           allResources={activeDataset.resources}
           materialSources={materialSources}
+          hasResourceData={activeDataset.hasResourceData}
+          loading={resourceDataLoading}
           qty={qty}
           setQty={setQty}
           onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
@@ -148,15 +178,18 @@ export function ItemWorkspace() {
           }}
         />
 
-        <>
+        {detailReady && (
+          <>
           <Divider />
           <DismantleSection
             blueprint={activeBlueprint}
+            allResources={activeDataset.resources}
             resources={requiredResources}
             dismantleTimeSecs={dismantleTimeSecs}
             efficiency={dismantleEfficiency}
           />
-        </>
+          </>
+        )}
       </Box>
     </Box>
   );

@@ -6,7 +6,14 @@ export {
   fetchPublishedDatasetIndex,
   fetchPublishedDataset,
   fetchPublishedDatasetById,
+  fetchPublishedResourceData,
+  fetchPublishedResourceDataById,
+  fetchPublishedShipComponents,
+  fetchPublishedShipComponentsById,
+  fetchPublishedChangelog,
+  fetchPublishedChangelogById,
   fetchPublishedMissionRewards,
   fetchPublishedMissionRewardsById,
-} from '../services/mongoDbService';
-export type { DatasetIndexResponse } from '../services/mongoDbService';
+  fetchPublishedBlueprintDetailById,
+} from '../services/gameDataService';
+export type { DatasetIndexResponse } from '../services/gameDataService';

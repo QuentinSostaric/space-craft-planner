@@ -1334,10 +1334,12 @@ export function ResourcesPage() {
   const {
     activeDataset,
     blueprints,
+    ensureResourceDataLoaded,
     ensureMissionRewardsLoaded,
     materialSources,
     missionRewards,
     missionRewardsLoading,
+    resourceDataLoading,
     resourceProgress,
     setActiveBlueprint,
   } = useCraft();
@@ -1362,6 +1364,10 @@ export function ResourcesPage() {
       group.contracts.map((contract) => ({ contract, group })),
     );
   }, [missionRewards]);
+
+  useEffect(() => {
+    void ensureResourceDataLoaded();
+  }, [ensureResourceDataLoaded]);
 
   useEffect(() => {
     void ensureMissionRewardsLoaded();
@@ -1600,7 +1606,7 @@ export function ResourcesPage() {
 
           <ResourceSourcesSection
             providers={selectedProviders}
-            hasMaterialSourceData={Boolean(materialSources?.resources)}
+            hasMaterialSourceData={Boolean(materialSources?.resources) || resourceDataLoading}
           />
           <ResourceMissionSection
             selection={selectedMissionDemand}

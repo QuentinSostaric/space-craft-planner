@@ -1,5 +1,8 @@
-# Copier ce fichier en .dev.vars (jamais commité)
-# Wrangler charge .dev.vars automatiquement pour `wrangler pages dev`
+# Copier ce fichier en .dev.vars (jamais commite)
+# Le serveur API local lit directement les chunks depuis Cloudflare R2.
 
-# URI de connexion MongoDB Atlas (driver natif — nodejs_compat)
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<AppName>
+R2_ACCOUNT_ID=<cloudflare-account-id>
+R2_ACCESS_KEY_ID=<r2-access-key-id>
+R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
+R2_BUCKET_NAME=sc-craft-game-data-dev
+R2_BUCKET_REGION=auto

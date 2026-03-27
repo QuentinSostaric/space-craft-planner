@@ -195,21 +195,21 @@ export function ItemIdentity({
   const attachType = [humanizeToken(attachDef?.type), humanizeToken(attachDef?.subType)]
     .filter(Boolean)
     .join(' / ');
-  const technicalTags = [...(attachDef?.tags ?? []), ...(attachDef?.requiredTags ?? [])]
-    .filter(Boolean)
+  const technicalTags = [...new Set([...(attachDef?.tags ?? []), ...(attachDef?.requiredTags ?? [])]
+    .filter(Boolean))]
     .slice(0, 6);
   const panelSx = {
     p: 2.25,
     border: `1px solid ${theme.palette.ui.border}`,
     background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
   };
-  const typeChips = [
+  const typeChips = [...new Set([
     blueprint.baseStats.weaponType,
     blueprint.baseStats.armorType,
     blueprint.baseStats.armorSlot,
     blueprint.baseStats.ammoType,
     blueprint.baseStats.ammoFlavor,
-  ].filter(Boolean) as string[];
+  ].filter(Boolean) as string[])];
 
   return (
     <Stack spacing={2} sx={{ p: 2 }}>
@@ -288,7 +288,7 @@ export function ItemIdentity({
             {typeChips.length > 0 && (
               <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                 {typeChips.map((token) => (
-                  <Chip key={token} label={token} size="small" variant="outlined" />
+                  <Chip key={`type-${token}`} label={token} size="small" variant="outlined" />
                 ))}
               </Box>
             )}
@@ -466,7 +466,7 @@ export function ItemIdentity({
                     )}
                     {technicalTags.map((tag) => (
                       <Chip
-                        key={tag}
+                        key={`tag-${tag}`}
                         label={humanizeToken(tag) ?? tag}
                         size="small"
                         variant="outlined"

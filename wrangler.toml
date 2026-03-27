@@ -1,5 +1,9 @@
 name = "sc-craft"
 compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat_v2"]
 
 pages_build_output_dir = "client/dist"
+
+[[r2_buckets]]
+binding = "GAME_DATA"
+bucket_name = "sc-craft-game-data"
+preview_bucket_name = "sc-craft-game-data-dev"
