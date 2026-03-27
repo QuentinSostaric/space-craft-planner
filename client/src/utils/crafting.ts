@@ -55,6 +55,28 @@ export function formatContractName(debugName: string | null): string {
   return name.replace(/_/g, ' ').trim();
 }
 
+type MissionNameLike = {
+  contractDebugName?: string | null;
+  title?: {
+    displayText?: string | null;
+    template?: string | null;
+  } | null;
+};
+
+export function getMissionContractName(contract: MissionNameLike | null | undefined): string {
+  const displayText = contract?.title?.displayText?.trim();
+  if (displayText) {
+    return displayText;
+  }
+
+  const template = contract?.title?.template?.trim();
+  if (template) {
+    return template;
+  }
+
+  return formatContractName(contract?.contractDebugName ?? null);
+}
+
 type StandingLike = MissionRequiredStanding | AcquisitionStanding;
 
 function getStandingNameOnly(standing: StandingLike): string | null {

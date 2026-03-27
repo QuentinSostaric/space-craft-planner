@@ -18,12 +18,12 @@ import { alpha } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import {
-  formatContractName,
   formatMaterialProviderConfidence,
   formatMaterialProviderType,
   formatMaterialSourceMethod,
   formatMineableGroupName,
   formatScaleLabel,
+  getMissionContractName,
   getMaterialProviderProbabilityPct,
   getMaterialProviders,
 } from '../../utils/crafting';
@@ -256,7 +256,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     <List dense disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
       {matchingContracts.map(({ contract, group }, index) => {
         const missionName =
-          formatContractName(contract.contractDebugName) || t('Unknown contract', 'Contrat inconnu');
+          getMissionContractName(contract) || t('Unknown contract', 'Contrat inconnu');
         const factionName =
           contract.faction?.displayName ??
           group.faction?.displayName ??

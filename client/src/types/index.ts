@@ -525,8 +525,10 @@ export interface MissionRewardSummary {
   uniqueBlueprintPoolCount: number;
   uniqueRewardedBlueprintCount: number;
   factionGroupCount: number;
+  reputationScopeCount?: number;
   explicitItemRewardContractCount: number;
   craftResourceRewardContractCount: number;
+  resourceObjectiveContractCount?: number;
 }
 
 export interface MissionRewardFaction {
@@ -535,15 +537,38 @@ export interface MissionRewardFaction {
   factionType: string | null;
 }
 
+export interface MissionStandingTier {
+  guid?: string | null;
+  key?: string | null;
+  displayName: string | null;
+  displayNameToken?: string | null;
+  minReputation: number | null;
+  gated?: boolean | null;
+  order?: number | null;
+}
+
 export interface MissionReputationScope {
+  guid?: string | null;
   scopeName: string | null;
   displayName: string | null;
+  displayNameToken?: string | null;
+  initialReputation?: number | null;
+  reputationCeiling?: number | null;
+  standingCount?: number | null;
+  standings?: MissionStandingTier[];
 }
 
 export interface MissionRequiredStanding {
   factionName: string | null;
+  factionSlug?: string | null;
+  scopeGuid?: string | null;
+  scopeKey?: string | null;
   scopeName: string | null;
+  scopeDisplayNameToken?: string | null;
+  standingGuid?: string | null;
+  standingKey?: string | null;
   standingName: string | null;
+  standingDisplayNameToken?: string | null;
   minReputation: number | null;
 }
 
@@ -586,11 +611,23 @@ export interface MissionEmployerRef {
   notes: string | null;
 }
 
+export interface MissionText {
+  token?: string | null;
+  template?: string | null;
+  renderedText?: string | null;
+  displayText?: string | null;
+  variants?: string[];
+  placeholders?: string[];
+  resolutionStatus?: string | null;
+}
+
 export interface MissionContract {
   contractFile: string | null;
   handlerDebugName: string | null;
   contractDebugName: string | null;
   contractType: string | null;
+  title?: MissionText | null;
+  description?: MissionText | null;
   contractorDisplayName: string | null;
   employer?: MissionEmployerRef | null;
   faction: MissionRewardFaction | null;
@@ -614,20 +651,29 @@ export interface MissionRewardFactionGroup {
 export interface MissionRewardsData {
   summary: MissionRewardSummary | null;
   conclusions: MissionRewardConclusions | null;
+  reputationScopesDetailed?: MissionReputationScope[];
   factionGroups: MissionRewardFactionGroup[];
   blueprintAcquisitionGraph: AcquisitionGraphEntry[];
 }
 
 export interface AcquisitionStanding {
-  factionName: string;
+  factionName: string | null;
+  factionSlug?: string | null;
+  scopeGuid?: string | null;
+  scopeKey?: string | null;
   scopeName: string | null;
+  scopeDisplayNameToken?: string | null;
+  standingGuid?: string | null;
+  standingKey?: string | null;
   standingName: string | null;
+  standingDisplayNameToken?: string | null;
   minReputation: number | null;
 }
 
 export interface AcquisitionContract {
   contractDebugName: string;
   contractType: string | null;
+  title?: MissionText | null;
   availability: MissionAvailability;
   minimumRequiredStandings: AcquisitionStanding[];
   expectedRewardShare: number | null;

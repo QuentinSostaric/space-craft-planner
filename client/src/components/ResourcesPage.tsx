@@ -55,7 +55,6 @@ import {
 } from '../types';
 import {
   computeStatMaxima,
-  formatContractName,
   formatMaterialProviderConfidence,
   formatMaterialProviderType,
   formatMaterialSourceMethod,
@@ -63,6 +62,7 @@ import {
   formatResourceQuantity,
   formatScaleLabel,
   formatStandingSummary,
+  getMissionContractName,
   getMaterialProviderProbabilityPct,
   getMaterialProviders,
   getSlotQuantityValue,
@@ -1164,7 +1164,7 @@ function ResourceMissionSection({
                     <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                          {formatContractName(contract.contractDebugName)}
+                          {getMissionContractName(contract)}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'secondary.main' }}>
                           {employerName}
@@ -1544,8 +1544,8 @@ export function ResourcesPage() {
         contract.resourceObjectives.some((objective) => objective.resourceId === selectedResource.id),
       )
       .sort((left, right) =>
-        formatContractName(left.contract.contractDebugName).localeCompare(
-          formatContractName(right.contract.contractDebugName),
+        getMissionContractName(left.contract).localeCompare(
+          getMissionContractName(right.contract),
         ),
       );
   }, [allContracts, selectedResource]);

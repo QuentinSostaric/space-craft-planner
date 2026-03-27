@@ -45,7 +45,7 @@ import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import {
   computeStatMaxima,
-  formatContractName,
+  getMissionContractName,
   formatScaleLabel,
   formatStandingLabel,
   formatStandingSummary,
@@ -789,7 +789,7 @@ function ContractCard({
                 textTransform: 'uppercase',
               }}
             >
-              {formatContractName(contract.contractDebugName)}
+              {getMissionContractName(contract)}
             </Typography>
             <Typography
               variant="caption"
@@ -966,7 +966,7 @@ function MissionHero({
             {primaryLocation}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 420 }}>
-            {formatContractName(contract.contractDebugName)}
+            {getMissionContractName(contract)}
           </Typography>
         </Stack>
 
@@ -1043,7 +1043,7 @@ function MissionDetail({
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={2.25} divider={<Divider flexItem />}>
-            <MissionFact icon={<BusinessOutlinedIcon fontSize="small" />} label={t('Mission name', 'Mission')} value={formatContractName(contract.contractDebugName)} />
+            <MissionFact icon={<BusinessOutlinedIcon fontSize="small" />} label={t('Mission name', 'Mission')} value={getMissionContractName(contract)} />
               <MissionFact
                 icon={<VerifiedOutlinedIcon fontSize="small" />}
                 label={t('Employer', 'Employeur')}
@@ -1190,7 +1190,7 @@ function MissionDetail({
               {t('Blueprint rewards', 'Recompenses blueprint')}
             </Typography>
             <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
-              {formatContractName(contract.contractDebugName)}
+              {getMissionContractName(contract)}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 720 }}>
               {t(
@@ -1311,7 +1311,7 @@ export function MissionsPanel() {
       }
     }
     return results.sort((a, b) =>
-      formatContractName(a.contract.contractDebugName).localeCompare(formatContractName(b.contract.contractDebugName)),
+      getMissionContractName(a.contract).localeCompare(getMissionContractName(b.contract)),
     );
   }, [missionRewards]);
 
@@ -1480,6 +1480,7 @@ export function MissionsPanel() {
         return true;
       }
       const haystack = [
+        getMissionContractName(contract),
         contract.contractDebugName ?? '',
         contract.contractorDisplayName ?? '',
         group.contractorDisplayName,
@@ -1497,32 +1498,32 @@ export function MissionsPanel() {
       switch (sortBy) {
         case 'employer-asc':
           return getMissionEmployerName(left.contract, left.group).localeCompare(getMissionEmployerName(right.contract, right.group), undefined, { numeric: true, sensitivity: 'base' })
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'standing-asc':
           return getMissionMaxStanding(left.contract) - getMissionMaxStanding(right.contract)
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'standing-desc':
           return getMissionMaxStanding(right.contract) - getMissionMaxStanding(left.contract)
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'scale-asc':
           return getScaleRank(left.contract.availability.derivedScale) - getScaleRank(right.contract.availability.derivedScale)
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'location-asc':
           return String(getPrimaryMissionLocation(left.contract) ?? '').localeCompare(String(getPrimaryMissionLocation(right.contract) ?? ''), undefined, { numeric: true, sensitivity: 'base' })
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'blueprint-count-asc':
           return getMissionRewardedBlueprintCount(left.contract) - getMissionRewardedBlueprintCount(right.contract)
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'blueprint-count-desc':
           return getMissionRewardedBlueprintCount(right.contract) - getMissionRewardedBlueprintCount(left.contract)
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'chance-desc':
           return getMissionMaxChance(right.contract) - getMissionMaxChance(left.contract)
-            || formatContractName(left.contract.contractDebugName).localeCompare(formatContractName(right.contract.contractDebugName), undefined, { numeric: true, sensitivity: 'base' });
+            || getMissionContractName(left.contract).localeCompare(getMissionContractName(right.contract), undefined, { numeric: true, sensitivity: 'base' });
         case 'name-asc':
         default:
-          return formatContractName(left.contract.contractDebugName).localeCompare(
-            formatContractName(right.contract.contractDebugName),
+          return getMissionContractName(left.contract).localeCompare(
+            getMissionContractName(right.contract),
             undefined,
             { numeric: true, sensitivity: 'base' },
           );

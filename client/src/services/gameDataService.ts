@@ -48,6 +48,10 @@ function normalizeMissionRewards(missionRewards: MissionRewardsData | null | und
   return {
     summary: missionRewards.summary ?? null,
     conclusions: missionRewards.conclusions ?? null,
+    reputationScopesDetailed: (missionRewards.reputationScopesDetailed ?? []).map((scope) => ({
+      ...scope,
+      standings: scope.standings ?? [],
+    })),
     factionGroups: (missionRewards.factionGroups ?? []).map((group) => ({
       ...group,
       reputationScopes: group.reputationScopes ?? [],

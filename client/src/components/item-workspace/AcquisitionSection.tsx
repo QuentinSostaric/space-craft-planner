@@ -11,7 +11,7 @@ import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
-import { formatContractName, formatScaleLabel } from '../../utils/crafting';
+import { formatScaleLabel, getMissionContractName } from '../../utils/crafting';
 import { AppGlyph } from '../ui/AppGlyph';
 import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import { StarCitizenLicensedIcon, getLocationIconName } from '../ui/StarCitizenLicensedIcon';
@@ -366,11 +366,11 @@ export function AcquisitionSection({
                                       cursor: 'pointer',
                                     }}
                                   >
-                                    {formatContractName(contract.contractDebugName)}
+                                    {getMissionContractName(contract)}
                                   </Link>
                                 ) : (
                                   <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                                    {contract.contractDebugName ?? t('Unknown contract', 'Contrat inconnu')}
+                                    {getMissionContractName(contract) || t('Unknown contract', 'Contrat inconnu')}
                                   </Typography>
                                 )}
                                 <Chip
