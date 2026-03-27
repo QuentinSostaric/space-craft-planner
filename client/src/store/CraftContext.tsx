@@ -51,7 +51,7 @@ import {
 import { useLocalPersist } from '../hooks/useLocalPersist';
 
 const EMPTY_DATASET: GameDataset = {
-  channel: 'ptu',
+  channel: 'live',
   datasetId: '',
   label: '',
   version: '',
@@ -212,19 +212,26 @@ interface CraftState {
 const CraftContext = createContext<CraftState | null>(null);
 
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
-  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
-  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
-  if (dateA !== dateB) {
-    return dateB - dateA;
-  }
-
   const buildA = Number(a.buildNumber ?? 0);
   const buildB = Number(b.buildNumber ?? 0);
   if (buildA !== buildB) {
     return buildB - buildA;
   }
 
+  const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
+  const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
+  if (dateA !== dateB) {
+    return dateB - dateA;
+  }
+
   return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function pickDefaultDataset(datasets: DatasetSummary[]): DatasetSummary | null {
+  if (datasets.length === 0) return null;
+  const liveDatasets = datasets.filter((d) => d.channel === 'live').sort(compareDatasetSummaries);
+  if (liveDatasets.length > 0) return liveDatasets[0];
+  return [...datasets].sort(compareDatasetSummaries)[0] ?? null;
 }
 
 function isDatasetChannel(value: unknown): value is DatasetChannel {
@@ -645,7 +652,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const sortedDatasets = [...index.datasets].sort(compareDatasetSummaries);
       const currentDataset = findDatasetById(sortedDatasets, activeDataset.datasetId);
       const storedDataset = pickStoredDataset(sortedDatasets, datasetSelections);
-      const targetDataset = currentDataset ?? storedDataset ?? sortedDatasets[0] ?? null;
+      const targetDataset = currentDataset ?? storedDataset ?? pickDefaultDataset(sortedDatasets);
 
       if (!targetDataset) {
         throw new Error('No published dataset is available.');
