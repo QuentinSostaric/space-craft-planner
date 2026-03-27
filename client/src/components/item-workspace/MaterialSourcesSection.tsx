@@ -492,7 +492,7 @@ export function MaterialSourcesSection({
           }}
         >
           <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.65rem' }}>
-            {t('Blueprint qty', 'Qte blueprint')}
+            {t('Qty', 'Qte')}
           </Typography>
           <TextField
             type="number"

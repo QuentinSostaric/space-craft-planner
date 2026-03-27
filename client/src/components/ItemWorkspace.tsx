@@ -26,7 +26,6 @@ export function ItemWorkspace() {
     favoriteIds,
     toggleFavorite,
     addGoal,
-    ensureGoal,
     addPlannerResourceRequirement,
     missionRewards,
     missionRewardsLoading,
@@ -169,7 +168,6 @@ export function ItemWorkspace() {
           setQty={setQty}
           onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
           onAddResource={(resourceName, quantity, quantityUnit) => {
-            ensureGoal(qualityScore, projectedStats, qty);
             addPlannerResourceRequirement(
               resourceName,
               quantity,
