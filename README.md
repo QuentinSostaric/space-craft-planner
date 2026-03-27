@@ -61,7 +61,7 @@ Production data is runtime-driven:
 
 1. Game files are copied locally for extraction.
 2. Exporter scripts normalize and chunk data.
-3. Chunks are published to Cloudflare R2 (`craft` bucket).
+3. Chunks are published to Cloudflare R2 (`sc-craft-game-data` for prod, `sc-craft-game-data-dev` for local/dev).
 4. Cloudflare Pages Functions read chunks from R2 at runtime via the `GAME_DATA` binding.
 5. The browser fetches `/api/game-data/public*`.
 
@@ -123,7 +123,7 @@ Create a root `.dev.vars` file (never commit — already in `.gitignore`):
 R2_ACCOUNT_ID=<cloudflare-account-id>
 R2_ACCESS_KEY_ID=<r2-access-key-id>
 R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
-R2_BUCKET_NAME=craft
+R2_BUCKET_NAME=sc-craft-game-data-dev
 R2_BUCKET_REGION=auto
 ```
 
@@ -136,7 +136,7 @@ npm run dev
 This starts two processes in parallel:
 
 - Vite on `http://localhost:5173`
-- `scripts/devApiServer.mjs` on `http://127.0.0.1:8788` — a plain Node HTTP server that serves all `/api/game-data/public*` routes by reading chunks directly from R2 via `@aws-sdk/client-s3`
+- `scripts/devApiServer.mjs` on `http://127.0.0.1:8788` — a plain Node HTTP server that serves all `/api/game-data/public*` routes by reading chunks directly from the dev R2 bucket declared in `.dev.vars` via `@aws-sdk/client-s3`
 
 ### Build
 
@@ -220,14 +220,31 @@ The script detects channel, version, build number, and output label, then runs:
 
 ### Publish to R2
 
-The normal path is to publish from the extractor prompt. You can also import manually:
+The normal path is to publish from the extractor prompt. You can also import manually to production. `npm run import:*` reads `exporter/.env`, which should target the prod bucket `sc-craft-game-data`:
 
 ```bash
 npm run import:ptu
 npm run import:live
 ```
 
-Add `-- --published=true` to mark the dataset visible in the public index.
+For flags such as `published=true`, call the Node entrypoint directly:
+
+```bash
+node ./exporter/importToR2.mjs --channel=live --published=true
+```
+
+To publish to the dev bucket used by `npm run dev:api`, use the dedicated dev importer. It reads the root `.dev.vars` file and refuses to run unless `R2_BUCKET_NAME` ends with `-dev`.
+
+```bash
+npm run import:ptu:dev
+npm run import:live:dev
+```
+
+You can also call the wrapper directly:
+
+```bash
+node ./exporter/importToR2_dev.mjs --channel=live --published=true
+```
 
 ## Scripts
 
@@ -238,6 +255,8 @@ Add `-- --published=true` to mark the dataset visible in the public index.
 | `npm run deploy` | Build the client and deploy to Cloudflare Pages |
 | `npm run import:ptu` | Import the PTU dataset into R2 |
 | `npm run import:live` | Import the LIVE dataset into R2 |
+| `npm run import:ptu:dev` | Import the PTU dataset into the dev R2 bucket from `.dev.vars` |
+| `npm run import:live:dev` | Import the LIVE dataset into the dev R2 bucket from `.dev.vars` |
 
 ## Key Files
 

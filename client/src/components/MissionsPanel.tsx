@@ -141,6 +141,12 @@ function getMissionHeroAsset(contract: MissionContract, group: MissionRewardFact
   return getMissionEmployerAssetUrl(employer);
 }
 
+function getEmployerInitials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  return words.slice(0, 3).map((w) => w[0]).join('').toUpperCase();
+}
+
 type MissionActivityKind = 'combat' | 'recovery' | 'objective';
 
 function getMissionActivityKind(contract: MissionContract): MissionActivityKind {
@@ -734,12 +740,39 @@ function ContractCard({
                 }}
               />
             ) : (
-              <Stack spacing={1} alignItems="center" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-                <MissionActivityIcon kind={activityKind} size="2rem" />
-                <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  {activityLabel}
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: alpha(
+                    isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
+                    0.15,
+                  ),
+                  border: `1px solid ${alpha(
+                    isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
+                    0.25,
+                  )}`,
+                  flexShrink: 0,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: "'Khand', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
+                    letterSpacing: '0.04em',
+                    color: isUnlawful ? theme.palette.error.light : theme.palette.primary.light,
+                    lineHeight: 1,
+                    userSelect: 'none',
+                  }}
+                >
+                  {getEmployerInitials(getMissionEmployerName(contract, group))}
                 </Typography>
-              </Stack>
+              </Box>
             )}
           </Box>
         </Box>

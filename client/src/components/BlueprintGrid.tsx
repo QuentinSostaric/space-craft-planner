@@ -410,6 +410,7 @@ export function BlueprintGrid() {
     inventoryIds,
     blueprints: allBlueprints,
     missionRewards,
+    missionRewardsLoading,
     activeDataset,
   } = useCraft();
   const { t } = useI18n();
@@ -732,7 +733,9 @@ export function BlueprintGrid() {
     : librarySegment === 'favorites'
       ? t('No favorites yet. Star a blueprint to save it here.', 'Aucun favori pour le moment.')
       : librarySegment === 'obtainable'
-        ? t('No obtainable blueprints found.', 'Aucun blueprint obtenable trouvé.')
+        ? (missionRewardsLoading
+          ? t('Loading obtainable blueprints...', 'Chargement des blueprints obtenables...')
+          : t('No obtainable blueprints found.', 'Aucun blueprint obtenable trouvé.'))
         : t('No blueprints found.', 'Aucun blueprint trouvé.');
 
   const hasVisibleBlueprints = filteredBlueprints.length > 0;

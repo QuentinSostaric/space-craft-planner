@@ -129,6 +129,15 @@ function getActiveCount(flags: boolean[]): number {
   return flags.filter(Boolean).length;
 }
 
+const accordionCaretSummarySx = {
+  '& .MuiAccordionSummary-expandIconWrapper': {
+    transform: 'rotate(180deg)',
+  },
+  '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': {
+    transform: 'rotate(0deg)',
+  },
+} as const;
+
 const SHIP_COMPONENT_FAMILY_OPTIONS: Record<string, LocalizedOption> = {
   scanner: { label: ls('Scanners', 'Scanners', 'Scanner') },
   'refueling-nozzle': {
@@ -706,7 +715,10 @@ export function BlueprintExplorer() {
             '&::before': { display: 'none' },
           }}
         >
-          <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />} sx={{ minHeight: 40 }}>
+          <AccordionSummary
+            expandIcon={<AppGlyph name="caret-up" size={18} />}
+            sx={{ minHeight: 40, ...accordionCaretSummarySx }}
+          >
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                 {t('Filters', 'Filtres')}
@@ -998,12 +1010,13 @@ export function BlueprintExplorer() {
         }}
       >
         <AccordionSummary
-                    expandIcon={<AppGlyph name="caret-up" size={18} />}
+          expandIcon={<AppGlyph name="caret-up" size={18} />}
           sx={{
             minHeight: 42,
             '& .MuiAccordionSummary-content': {
               my: 0.75,
             },
+            ...accordionCaretSummarySx,
           }}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">

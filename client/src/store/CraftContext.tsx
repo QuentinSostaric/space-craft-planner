@@ -383,6 +383,22 @@ function replaceBlueprintInList(
   );
 }
 
+function omitRecordKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!Object.prototype.hasOwnProperty.call(record, key)) {
+    return record;
+  }
+
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
+function getDatasetRevisionStamp(
+  dataset: Pick<GameDataset, 'updatedAt' | 'importedAt'> | Pick<DatasetSummary, 'updatedAt' | 'importedAt'>,
+): string | null {
+  return dataset.updatedAt ?? dataset.importedAt ?? null;
+}
+
 export function CraftProvider({ children }: { children: ReactNode }) {
   const [rawDatasetSelections, setDatasetSelections] = useLocalPersist<DatasetSelectionsStorage>(
     LS_KEYS.DATASET_SELECTIONS,
@@ -396,6 +412,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const refreshInflightRef = useRef(false);
   const missionRewardsInflightRef = useRef<Set<string>>(new Set());
   const missionRewardsByDatasetIdRef = useRef<Record<string, MissionRewardsData | null>>({});
+  const datasetRevisionByIdRef = useRef<Record<string, string | null>>({});
   const [missionRewardsByDatasetId, setMissionRewardsByDatasetId] = useState<
     Record<string, MissionRewardsData | null>
   >({});
@@ -428,7 +445,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const pendingSlugRef = useRef<string | null>(itemSlugFromPathname(window.location.pathname));
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('all');
+  const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('obtainable');
   const [manufacturerFilter, setManufacturerFilter] = useState<string | null>(null);
   const [shipComponentFamilyFilter, setShipComponentFamilyFilter] = useState<string | null>(null);
   const [shipComponentProfileFilter, setShipComponentProfileFilter] = useState<string | null>(null);
@@ -524,24 +541,44 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       datasets: DatasetSummary[],
       errorMessage: string | null,
     ) => {
+      const incomingRevision = getDatasetRevisionStamp(dataset);
+      const cachedRevision = datasetRevisionByIdRef.current[dataset.datasetId] ?? null;
+      const datasetRevisionChanged =
+        cachedRevision !== null &&
+        incomingRevision !== null &&
+        cachedRevision !== incomingRevision;
+      const hasMissionRewardsCache =
+        !datasetRevisionChanged &&
+        Object.prototype.hasOwnProperty.call(missionRewardsByDatasetIdRef.current, dataset.datasetId);
       const cachedMissionRewards = missionRewardsByDatasetIdRef.current[dataset.datasetId];
       const hasResourceDataCache = Object.prototype.hasOwnProperty.call(
         resourceDataByDatasetIdRef.current,
         dataset.datasetId,
-      );
+      ) && !datasetRevisionChanged;
       const cachedResourceData = resourceDataByDatasetIdRef.current[dataset.datasetId];
       const hasShipComponentsCache = Object.prototype.hasOwnProperty.call(
         shipComponentsByDatasetIdRef.current,
         dataset.datasetId,
-      );
+      ) && !datasetRevisionChanged;
       const cachedShipComponents = shipComponentsByDatasetIdRef.current[dataset.datasetId];
       const hasChangelogCache = Object.prototype.hasOwnProperty.call(
         changelogByDatasetIdRef.current,
         dataset.datasetId,
-      );
+      ) && !datasetRevisionChanged;
       const cachedChangelog = changelogByDatasetIdRef.current[dataset.datasetId];
-      const hydratedBlueprints = hydrateBlueprintsWithDetails(dataset.datasetId, dataset.blueprints);
+      const hydratedBlueprints = datasetRevisionChanged
+        ? dataset.blueprints
+        : hydrateBlueprintsWithDetails(dataset.datasetId, dataset.blueprints);
+      datasetRevisionByIdRef.current[dataset.datasetId] = incomingRevision;
       startTransition(() => {
+        if (datasetRevisionChanged) {
+          setMissionRewardsByDatasetId((previous) => omitRecordKey(previous, dataset.datasetId));
+          setResourceDataByDatasetId((previous) => omitRecordKey(previous, dataset.datasetId));
+          setShipComponentsByDatasetId((previous) => omitRecordKey(previous, dataset.datasetId));
+          setChangelogByDatasetId((previous) => omitRecordKey(previous, dataset.datasetId));
+          setBlueprintDetailsByDatasetId((previous) => omitRecordKey(previous, dataset.datasetId));
+        }
+
         setActiveDataset({
           ...dataset,
           blueprints: hydratedBlueprints,
@@ -552,7 +589,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
             ? cachedResourceData?.materialSources ?? null
             : dataset.materialSources ?? null,
           missionRewards:
-            Object.prototype.hasOwnProperty.call(missionRewardsByDatasetIdRef.current, dataset.datasetId)
+            hasMissionRewardsCache
               ? cachedMissionRewards
               : dataset.missionRewards ?? null,
           shipComponents: hasShipComponentsCache
