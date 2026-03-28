@@ -28,6 +28,7 @@ import type {
   LibrarySegment,
   MaterialSlotQuantityUnit,
   MaterialSources,
+  MissionContract,
   MissionRewardsData,
   PlannerResourceRequirements,
   RarityFilter,
@@ -40,6 +41,7 @@ import type {
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
 import {
+  fetchFactionContracts,
   fetchPublishedBlueprintDetailById,
   fetchPublishedChangelogById,
   fetchPublishedDatasetById,
@@ -185,6 +187,9 @@ interface CraftState {
   setActiveDatasetId: (datasetId: string) => Promise<void>;
   refreshDatasets: () => Promise<void>;
   ensureMissionRewardsLoaded: (datasetId?: string) => Promise<void>;
+  ensureFactionContractsLoaded: (factionId: string, datasetId?: string) => Promise<void>;
+  factionContractsByFactionId: Record<string, MissionContract[]>;
+  factionContractsLoadingIds: ReadonlySet<string>;
   ensureResourceDataLoaded: (datasetId?: string) => Promise<void>;
   ensureShipComponentsLoaded: (datasetId?: string) => Promise<void>;
   ensureChangelogLoaded: (datasetId?: string) => Promise<void>;
@@ -431,6 +436,18 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   >({});
   const [missionRewardsLoading, setMissionRewardsLoading] = useState(false);
   const [missionRewardsError, setMissionRewardsError] = useState<string | null>(null);
+
+  // Per-faction contracts — keyed by factionId (stable slug).
+  // A factionId present in this map means the contracts are loaded (or confirmed empty).
+  const factionContractsInflightRef = useRef<Set<string>>(new Set());
+  const factionContractsByFactionIdRef = useRef<Record<string, MissionContract[]>>({});
+  const [factionContractsByFactionId, setFactionContractsByFactionId] = useState<
+    Record<string, MissionContract[]>
+  >({});
+  // IDs currently in-flight so the UI can show per-faction loading spinners.
+  const [factionContractsLoadingIds, setFactionContractsLoadingIds] = useState<Set<string>>(
+    new Set(),
+  );
   const resourceDataInflightRef = useRef<Set<string>>(new Set());
   const resourceDataByDatasetIdRef = useRef<Record<string, ResourceDataChunkState>>({});
   const [resourceDataByDatasetId, setResourceDataByDatasetId] = useState<
@@ -544,8 +561,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const blueprints = activeDataset.blueprints;
   const activeChannel = activeDataset.channel;
 
-  // Keep ref in sync so applyDataset can read it without being a dep
+  // Keep refs in sync so callbacks can read them without being deps
   missionRewardsByDatasetIdRef.current = missionRewardsByDatasetId;
+  factionContractsByFactionIdRef.current = factionContractsByFactionId;
   resourceDataByDatasetIdRef.current = resourceDataByDatasetId;
   shipComponentsByDatasetIdRef.current = shipComponentsByDatasetId;
   changelogByDatasetIdRef.current = changelogByDatasetId;
@@ -781,6 +799,48 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       }
     },
     [activeDataset.datasetId, activeDataset.hasMissionRewards, availableDatasets],
+  );
+
+  const ensureFactionContractsLoaded = useCallback(
+    async (factionId: string, requestedDatasetId?: string) => {
+      if (!factionId) return;
+
+      const datasetId = requestedDatasetId ?? activeDataset.datasetId;
+
+      if (Object.prototype.hasOwnProperty.call(factionContractsByFactionIdRef.current, factionId)) {
+        return;
+      }
+      if (factionContractsInflightRef.current.has(factionId)) {
+        return;
+      }
+      factionContractsInflightRef.current.add(factionId);
+      setFactionContractsLoadingIds((prev) => new Set([...prev, factionId]));
+
+      try {
+        const channel =
+          availableDatasets.find((d) => d.datasetId === datasetId)?.channel ??
+          (activeDataset.datasetId === datasetId ? activeDataset.channel : undefined);
+
+        const chunk = await fetchFactionContracts(datasetId, factionId, channel);
+        const contracts = chunk?.contracts ?? [];
+        startTransition(() => {
+          setFactionContractsByFactionId((previous) => ({ ...previous, [factionId]: contracts }));
+        });
+      } catch {
+        // On error, store empty array so we don't retry indefinitely.
+        startTransition(() => {
+          setFactionContractsByFactionId((previous) => ({ ...previous, [factionId]: [] }));
+        });
+      } finally {
+        factionContractsInflightRef.current.delete(factionId);
+        setFactionContractsLoadingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(factionId);
+          return next;
+        });
+      }
+    },
+    [activeDataset.datasetId, activeDataset.channel, availableDatasets],
   );
 
   const ensureResourceDataLoaded = useCallback(
@@ -1376,6 +1436,9 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setActiveDatasetId,
         refreshDatasets,
         ensureMissionRewardsLoaded,
+        ensureFactionContractsLoaded,
+        factionContractsByFactionId,
+        factionContractsLoadingIds,
         ensureResourceDataLoaded,
         ensureShipComponentsLoaded,
         ensureChangelogLoaded,
@@ -1428,7 +1491,7 @@ export function useFilteredBlueprints(): Blueprint[] {
         obtainableIds = new Set<string>();
         if (missionRewards) {
           for (const group of missionRewards.factionGroups) {
-            for (const contract of group.contracts) {
+            for (const contract of group.contracts ?? []) {
               for (const bp of contract.rewardedBlueprints) {
                 obtainableIds.add(bp.id);
               }

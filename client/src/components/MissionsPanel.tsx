@@ -1278,6 +1278,9 @@ export function MissionsPanel() {
     missionRewardsLoading,
     missionRewardsError,
     ensureMissionRewardsLoaded,
+    ensureFactionContractsLoaded,
+    factionContractsByFactionId,
+    factionContractsLoadingIds,
     blueprints,
     favoriteIds,
     inventoryIds,
@@ -1289,6 +1292,14 @@ export function MissionsPanel() {
   useEffect(() => {
     void ensureMissionRewardsLoaded();
   }, [ensureMissionRewardsLoaded]);
+
+  // As soon as the slim chunk arrives, load all faction contracts in parallel.
+  useEffect(() => {
+    if (!missionRewards) return;
+    for (const group of missionRewards.factionGroups) {
+      if (group.id) void ensureFactionContractsLoaded(group.id);
+    }
+  }, [missionRewards, ensureFactionContractsLoaded]);
 
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [scaleFilter, setScaleFilter] = useState<string | null>(null);
@@ -1312,19 +1323,20 @@ export function MissionsPanel() {
   const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
 
   const allContracts = useMemo<FlatContract[]>(() => {
-    if (!missionRewards) {
-      return [];
-    }
+    if (!missionRewards) return [];
     const results: FlatContract[] = [];
     for (const group of missionRewards.factionGroups) {
-      for (const contract of group.contracts) {
+      // New datasets: contracts are lazy-loaded per faction.
+      // Old datasets (backward compat): contracts are still embedded.
+      const contracts = factionContractsByFactionId[group.id] ?? group.contracts ?? [];
+      for (const contract of contracts) {
         results.push({ contract, group });
       }
     }
     return results.sort((a, b) =>
       getMissionContractName(a.contract).localeCompare(getMissionContractName(b.contract)),
     );
-  }, [missionRewards]);
+  }, [missionRewards, factionContractsByFactionId]);
 
   const allLocations = useMemo(() => {
     const set = new Set<string>();
@@ -1585,6 +1597,8 @@ export function MissionsPanel() {
     }
   }, [blueprints, setActiveBlueprint]);
 
+  const factionsLoading = factionContractsLoadingIds.size > 0;
+
   if (missionRewardsLoading) {
     return (
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -1622,6 +1636,7 @@ export function MissionsPanel() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {factionsLoading && <LinearProgress sx={{ flexShrink: 0 }} />}
       {!selectedMission && (
         <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
           <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 } }}>

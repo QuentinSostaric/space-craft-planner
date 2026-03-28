@@ -379,7 +379,7 @@ export function BlueprintExplorer() {
     if (!missionRewards) return [];
     const set = new Set<string>();
     for (const group of missionRewards.factionGroups) {
-      for (const contract of group.contracts) {
+      for (const contract of group.contracts ?? []) {
         for (const loc of contract.availability.localities) set.add(loc);
         for (const loc of contract.availability.explicitLocations) set.add(loc);
       }

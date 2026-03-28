@@ -12,8 +12,10 @@ import type {
   DatasetResourceDataChunk,
   DatasetShipComponentsChunk,
   DatasetSummary,
+  FactionContractsChunk,
   GameDataset,
   MaterialSlot,
+  MissionContract,
   MissionRewardsData,
 } from '../types';
 
@@ -327,6 +329,61 @@ export async function fetchPublishedMissionRewardsById(
     ),
   );
   return payload?.missionRewards ?? null;
+}
+
+function normalizeFactionContracts(
+  payload: FactionContractsChunk | null | undefined,
+): FactionContractsChunk | null {
+  if (!payload) return null;
+  return {
+    datasetId: payload.datasetId,
+    factionId: payload.factionId,
+    contracts: (payload.contracts ?? []).map((contract) => ({
+      ...contract,
+      minimumRequiredStandings: contract.minimumRequiredStandings ?? [],
+      availability: {
+        derivedScale: contract.availability?.derivedScale ?? 'unknown',
+        localities: contract.availability?.localities ?? [],
+        explicitLocations: contract.availability?.explicitLocations ?? [],
+        hasHandlerAvailabilityRules: Boolean(contract.availability?.hasHandlerAvailabilityRules),
+      },
+      rewardedBlueprints: contract.rewardedBlueprints ?? [],
+      itemAwards: contract.itemAwards ?? [],
+      resourceObjectives: contract.resourceObjectives ?? [],
+    })) as MissionContract[],
+  };
+}
+
+/**
+ * Fetches per-faction contracts.
+ * Fast-path: channel alias (mutable, up-to-date).
+ * Fallback: by-id (immutable, after the slim chunk gave us the datasetId).
+ */
+export async function fetchFactionContracts(
+  datasetId: string,
+  factionId: string,
+  channelHint?: DatasetChannel,
+): Promise<FactionContractsChunk | null> {
+  if (channelHint) {
+    try {
+      const payload = normalizeFactionContracts(
+        await apiFetch<FactionContractsChunk | null>(
+          `/api/game-data/public/${channelHint}/mission-rewards/factions/${encodeURIComponent(factionId)}`,
+        ),
+      );
+      if (payload?.datasetId === datasetId) {
+        return payload;
+      }
+    } catch {
+      // Fall back to by-id below.
+    }
+  }
+
+  return normalizeFactionContracts(
+    await apiFetch<FactionContractsChunk | null>(
+      `/api/game-data/public/by-id/${datasetId}/mission-rewards/factions/${encodeURIComponent(factionId)}`,
+    ),
+  );
 }
 
 export async function fetchPublishedResourceData(

@@ -80,6 +80,9 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     missionRewards,
     missionRewardsLoading,
     ensureMissionRewardsLoaded,
+    ensureFactionContractsLoaded,
+    factionContractsByFactionId,
+    factionContractsLoadingIds,
     materialSources,
     ensureResourceDataLoaded,
     resourceDataLoading,
@@ -88,6 +91,19 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
   const { lang, t } = useI18n();
   const miningProviders = getMaterialProviders(materialSources, resourceName);
   const hasMaterialSourceDataset = Boolean(materialSources?.resources || activeDataset.hasResourceData);
+
+  const resourceIdNorm = resourceName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  // Faction IDs that have resource-objective contracts for this resource,
+  // derived from the pre-built index in the slim chunk.
+  const relevantFactionIds = useMemo(() => {
+    if (method !== 'mission' || !missionRewards) return [];
+    return missionRewards.resourceObjectiveIndex?.[resourceIdNorm] ?? [];
+  }, [method, missionRewards, resourceIdNorm]);
 
   useEffect(() => {
     if (method === 'mission') {
@@ -98,18 +114,24 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     }
   }, [method, ensureMissionRewardsLoaded, ensureResourceDataLoaded]);
 
+  // Load only the factions that have contracts for this resource.
+  useEffect(() => {
+    if (method !== 'mission') return;
+    for (const factionId of relevantFactionIds) {
+      void ensureFactionContractsLoaded(factionId);
+    }
+  }, [method, relevantFactionIds, ensureFactionContractsLoaded]);
+
   const matchingContracts = useMemo(() => {
     if (method !== 'mission' || !missionRewards) return [];
 
-    const resourceIdNorm = resourceName
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    const results = [];
+    const results: Array<{ contract: typeof factionContractsByFactionId[string][number]; group: typeof missionRewards.factionGroups[number] }> = [];
 
     for (const group of missionRewards.factionGroups) {
-      for (const contract of group.contracts) {
+      // New datasets: use per-faction loaded contracts.
+      // Old datasets (backward compat): fall back to embedded contracts.
+      const contracts = factionContractsByFactionId[group.id] ?? group.contracts ?? [];
+      for (const contract of contracts) {
         const hasObjective = contract.resourceObjectives.some(
           (objective) => objective.resourceId === resourceIdNorm,
         );
@@ -120,7 +142,9 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     }
 
     return results;
-  }, [method, missionRewards, resourceName]);
+  }, [method, missionRewards, factionContractsByFactionId, resourceIdNorm]);
+
+  const relevantFactionsLoading = relevantFactionIds.some((id) => factionContractsLoadingIds.has(id));
 
   if (method === 'mining') {
     const mineableGroups = [
@@ -228,7 +252,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
     );
   }
 
-  if (missionRewardsLoading) {
+  if (missionRewardsLoading || relevantFactionsLoading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
         <Skeleton variant="rectangular" height={20} sx={{ borderRadius: 0.5 }} />

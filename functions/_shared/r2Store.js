@@ -57,3 +57,11 @@ export function getDatasetChunkKey(datasetId, chunkName) {
 export function getBlueprintDetailKey(datasetId, blueprintId) {
   return `datasets/${datasetId}/blueprints/${encodeURIComponent(blueprintId)}.json`;
 }
+
+export function getFactionContractsKey(datasetId, factionId) {
+  return `datasets/${datasetId}/mission-rewards/factions/${encodeURIComponent(factionId)}.json`;
+}
+
+export function getFactionContractsAliasKey(namespace, channel, factionId) {
+  return `aliases/${namespace}/${channel}/mission-rewards/factions/${encodeURIComponent(factionId)}.json`;
+}
