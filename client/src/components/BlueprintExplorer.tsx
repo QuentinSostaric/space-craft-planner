@@ -378,11 +378,8 @@ export function BlueprintExplorer() {
   const locations = useMemo(() => {
     if (!missionRewards) return [];
     const set = new Set<string>();
-    for (const group of missionRewards.factionGroups) {
-      for (const contract of group.contracts ?? []) {
-        for (const loc of contract.availability.localities) set.add(loc);
-        for (const loc of contract.availability.explicitLocations) set.add(loc);
-      }
+    for (const entry of missionRewards.blueprintAcquisitionGraph) {
+      for (const loc of entry.localities) set.add(loc);
     }
     return [...set].sort();
   }, [missionRewards]);

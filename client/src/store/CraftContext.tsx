@@ -1489,14 +1489,8 @@ export function useFilteredBlueprints(): Blueprint[] {
       let obtainableIds: Set<string> | null = null;
       if (categoryFilter === 'obtainable') {
         obtainableIds = new Set<string>();
-        if (missionRewards) {
-          for (const group of missionRewards.factionGroups) {
-            for (const contract of group.contracts ?? []) {
-              for (const bp of contract.rewardedBlueprints) {
-                obtainableIds.add(bp.id);
-              }
-            }
-          }
+        for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
+          obtainableIds.add(entry.blueprint.id);
         }
       }
 

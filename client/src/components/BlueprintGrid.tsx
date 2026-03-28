@@ -430,49 +430,31 @@ export function BlueprintGrid() {
 
   const obtainableIds = useMemo(() => {
     const ids = new Set<string>();
-    if (missionRewards) {
-      for (const group of missionRewards.factionGroups) {
-        for (const contract of group.contracts ?? []) {
-          for (const bp of contract.rewardedBlueprints) {
-            ids.add(bp.id);
-          }
-        }
-      }
+    for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
+      ids.add(entry.blueprint.id);
     }
     return ids;
   }, [missionRewards]);
 
-  // Build legality-based blueprint id set: blueprints obtainable via lawful/unlawful contracts
+  // Build legality-based blueprint id set from acquisition graph (slim chunk)
   const legalityBlueprintIds = useMemo(() => {
     if (legalityFilter === 'all' || !missionRewards) return null;
     const ids = new Set<string>();
-    for (const group of missionRewards.factionGroups) {
-      const factionType = group.faction?.factionType?.toLowerCase() ?? '';
-      if (factionType !== legalityFilter) continue;
-      for (const contract of group.contracts ?? []) {
-        for (const bp of contract.rewardedBlueprints) {
-          ids.add(bp.id);
-        }
-      }
+    for (const entry of missionRewards.blueprintAcquisitionGraph) {
+      const hasMatch = entry.factions.some(
+        (f) => f.faction?.factionType?.toLowerCase() === legalityFilter,
+      );
+      if (hasMatch) ids.add(entry.blueprint.id);
     }
     return ids;
   }, [legalityFilter, missionRewards]);
 
-  // Build location-based blueprint id set: blueprints obtainable at a specific location
+  // Build location-based blueprint id set from acquisition graph (slim chunk)
   const locationBlueprintIds = useMemo(() => {
     if (!locationFilter || !missionRewards) return null;
     const ids = new Set<string>();
-    for (const group of missionRewards.factionGroups) {
-      for (const contract of group.contracts ?? []) {
-        const locs = [
-          ...contract.availability.localities,
-          ...contract.availability.explicitLocations,
-        ];
-        if (!locs.includes(locationFilter)) continue;
-        for (const bp of contract.rewardedBlueprints) {
-          ids.add(bp.id);
-        }
-      }
+    for (const entry of missionRewards.blueprintAcquisitionGraph) {
+      if (entry.localities.includes(locationFilter)) ids.add(entry.blueprint.id);
     }
     return ids;
   }, [locationFilter, missionRewards]);
