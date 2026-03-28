@@ -432,7 +432,7 @@ export function BlueprintGrid() {
     const ids = new Set<string>();
     if (missionRewards) {
       for (const group of missionRewards.factionGroups) {
-        for (const contract of group.contracts) {
+        for (const contract of group.contracts ?? []) {
           for (const bp of contract.rewardedBlueprints) {
             ids.add(bp.id);
           }
@@ -449,7 +449,7 @@ export function BlueprintGrid() {
     for (const group of missionRewards.factionGroups) {
       const factionType = group.faction?.factionType?.toLowerCase() ?? '';
       if (factionType !== legalityFilter) continue;
-      for (const contract of group.contracts) {
+      for (const contract of group.contracts ?? []) {
         for (const bp of contract.rewardedBlueprints) {
           ids.add(bp.id);
         }
@@ -463,7 +463,7 @@ export function BlueprintGrid() {
     if (!locationFilter || !missionRewards) return null;
     const ids = new Set<string>();
     for (const group of missionRewards.factionGroups) {
-      for (const contract of group.contracts) {
+      for (const contract of group.contracts ?? []) {
         const locs = [
           ...contract.availability.localities,
           ...contract.availability.explicitLocations,

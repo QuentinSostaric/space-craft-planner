@@ -1371,7 +1371,7 @@ export function ResourcesPage() {
   const allContracts = useMemo<FlatMissionContract[]>(() => {
     if (!missionRewards) return [];
     return missionRewards.factionGroups.flatMap((group) =>
-      group.contracts.map((contract) => ({ contract, group })),
+      (group.contracts ?? []).map((contract) => ({ contract, group })),
     );
   }, [missionRewards]);
 

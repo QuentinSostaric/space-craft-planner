@@ -642,12 +642,15 @@ export interface MissionContract {
 }
 
 export interface MissionRewardFactionGroup {
+  /** Stable URL-safe slug, derived from contractorDisplayName. Present on all new datasets. */
+  id: string;
   contractorDisplayName: string;
   employer?: MissionEmployerRef | null;
   faction: MissionRewardFaction | null;
   reputationScopes: MissionReputationScope[];
   contractCount: number;
-  contracts: MissionContract[];
+  /** Absent in new slim datasets — contracts are fetched lazily per faction. */
+  contracts?: MissionContract[];
 }
 
 export interface MissionRewardsData {
@@ -656,6 +659,14 @@ export interface MissionRewardsData {
   reputationScopesDetailed?: MissionReputationScope[];
   factionGroups: MissionRewardFactionGroup[];
   blueprintAcquisitionGraph: AcquisitionGraphEntry[];
+  /** Maps resourceId → factionId[] for planner lazy-loading. Present on new datasets. */
+  resourceObjectiveIndex?: Record<string, string[]>;
+}
+
+export interface FactionContractsChunk {
+  datasetId: string;
+  factionId: string;
+  contracts: MissionContract[];
 }
 
 export interface AcquisitionStanding {

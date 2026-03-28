@@ -31,6 +31,7 @@ interface AcquisitionSectionProps {
   entry: AcquisitionGraphEntry | null;
   loading: boolean;
   missionRewards: MissionRewardsData | null;
+  factionContractsByFactionId: Record<string, MissionContract[]>;
   onMissionClick?: (contractDebugName: string, contractorDisplayName: string | null) => void;
 }
 
@@ -120,11 +121,14 @@ function normalizeMissionTypes(
   )] as Array<'fps' | 'ship'>;
 }
 
-function buildContractDetailsMap(missionRewards: MissionRewardsData | null) {
+function buildContractDetailsMap(
+  missionRewards: MissionRewardsData | null,
+  factionContractsByFactionId: Record<string, MissionContract[]>,
+) {
   const map = new Map<string, AcquisitionContractDetail>();
 
   for (const group of missionRewards?.factionGroups ?? []) {
-    for (const contract of group.contracts) {
+    for (const contract of factionContractsByFactionId[group.id] ?? group.contracts ?? []) {
       const key = buildContractKey(contract.contractDebugName, group.contractorDisplayName);
       const previous = map.get(key) ?? EMPTY_CONTRACT_DETAIL;
       const rewardedBlueprints = new Map(
@@ -158,6 +162,7 @@ export function AcquisitionSection({
   entry,
   loading,
   missionRewards,
+  factionContractsByFactionId,
   onMissionClick,
 }: AcquisitionSectionProps) {
   const { lang, t } = useI18n();
@@ -169,8 +174,8 @@ export function AcquisitionSection({
   };
 
   const contractDetailsByKey = useMemo(
-    () => buildContractDetailsMap(missionRewards),
-    [missionRewards],
+    () => buildContractDetailsMap(missionRewards, factionContractsByFactionId),
+    [missionRewards, factionContractsByFactionId],
   );
 
   const missionTypeLabels = useMemo(() => {

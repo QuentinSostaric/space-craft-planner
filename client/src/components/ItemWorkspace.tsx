@@ -33,6 +33,8 @@ export function ItemWorkspace() {
     ensureBlueprintDetailLoaded,
     ensureMissionRewardsLoaded,
     ensureResourceDataLoaded,
+    ensureFactionContractsLoaded,
+    factionContractsByFactionId,
     dismantlingData,
     materialSources,
   } = useCraft();
@@ -73,6 +75,16 @@ export function ItemWorkspace() {
     () => activeBlueprint ? getAcquisitionEntry(missionRewards, activeBlueprint.id) : null,
     [activeBlueprint, missionRewards],
   );
+
+  // Load faction contracts for factions referenced by this blueprint's acquisition entry
+  useEffect(() => {
+    if (!missionRewards || !acquisitionEntry) return;
+    const nameToId = new Map(missionRewards.factionGroups.map((g) => [g.contractorDisplayName, g.id]));
+    for (const faction of acquisitionEntry.factions) {
+      const factionId = nameToId.get(faction.contractorDisplayName ?? '');
+      if (factionId) void ensureFactionContractsLoaded(factionId);
+    }
+  }, [missionRewards, acquisitionEntry, ensureFactionContractsLoaded]);
 
   if (!activeBlueprint) return null;
 
@@ -149,6 +161,7 @@ export function ItemWorkspace() {
           entry={acquisitionEntry}
           loading={missionRewardsLoading}
           missionRewards={missionRewards}
+          factionContractsByFactionId={factionContractsByFactionId}
           onMissionClick={(contractDebugName, contractorDisplayName) => {
             const missionSlug = missionSlugFromContract(contractDebugName, contractorDisplayName);
             navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
