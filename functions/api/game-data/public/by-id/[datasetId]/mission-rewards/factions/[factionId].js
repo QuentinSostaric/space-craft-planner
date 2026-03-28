@@ -1,9 +1,9 @@
-import { errorResponse } from '../../../../../../_shared/gameData.js';
+import { errorResponse } from '../../../../../../../_shared/gameData.js';
 import {
   CACHE_CONTROL_IMMUTABLE,
   getVisibleDatasetCore,
-} from '../../../../../../_shared/r2Datasets.js';
-import { getFactionContractsKey } from '../../../../../../_shared/r2Store.js';
+} from '../../../../../../../_shared/r2Datasets.js';
+import { getFactionContractsKey } from '../../../../../../../_shared/r2Store.js';
 
 export async function onRequestGet(context) {
   const { datasetId, factionId } = context.params;

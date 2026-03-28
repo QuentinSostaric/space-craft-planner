@@ -2,9 +2,9 @@ import {
   errorResponse,
   getDatasetVisibilityNamespace,
   isValidChannel,
-} from '../../../../../_shared/gameData.js';
-import { CACHE_CONTROL_MUTABLE } from '../../../../../_shared/r2Datasets.js';
-import { getFactionContractsAliasKey } from '../../../../../_shared/r2Store.js';
+} from '../../../../../../_shared/gameData.js';
+import { CACHE_CONTROL_MUTABLE } from '../../../../../../_shared/r2Datasets.js';
+import { getFactionContractsAliasKey } from '../../../../../../_shared/r2Store.js';
 
 export async function onRequestGet(context) {
   const { channel, factionId } = context.params;
