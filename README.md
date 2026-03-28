@@ -70,35 +70,40 @@ Production URL: [itemfab.space](https://itemfab.space) (Cloudflare Pages + custo
 ### R2 storage layout
 
 ```
-indexes/public.json                          ← published datasets index
-indexes/all.json                             ← all datasets index (dev/preview)
-datasets/{datasetId}/core.json               ← blueprint catalog + resources + metadata
-datasets/{datasetId}/resource-data.json      ← resourceInsights + materialSources
-datasets/{datasetId}/ship-components.json    ← shipComponents
-datasets/{datasetId}/mission-rewards.json    ← full missionRewards
-datasets/{datasetId}/changelog.json          ← PTU vs LIVE diff
-datasets/{datasetId}/blueprints/{id}.json    ← full blueprint detail
-aliases/public/{channel}/core.json           ← latest published dataset for channel (mutable)
+indexes/public.json                                                ← published datasets index
+indexes/all.json                                                   ← all datasets index (dev/preview)
+datasets/{datasetId}/core.json                                     ← blueprint catalog + resources + metadata
+datasets/{datasetId}/resource-data.json                            ← resourceInsights + materialSources
+datasets/{datasetId}/ship-components.json                          ← shipComponents
+datasets/{datasetId}/mission-rewards.json                          ← slim missionRewards (no contracts, +blueprintAcquisitionGraph)
+datasets/{datasetId}/mission-rewards/factions/{factionId}.json     ← per-faction contracts (lazy-loaded)
+datasets/{datasetId}/changelog.json                                ← PTU vs LIVE diff
+datasets/{datasetId}/blueprints/{id}.json                          ← full blueprint detail
+aliases/public/{channel}/core.json                                 ← latest published dataset for channel (mutable)
 aliases/public/{channel}/resource-data.json
+aliases/public/{channel}/mission-rewards.json
+aliases/public/{channel}/mission-rewards/factions/{factionId}.json ← per-faction contracts alias (mutable)
 aliases/public/{channel}/...
-aliases/all/{channel}/...                    ← same for dev/preview
+aliases/all/{channel}/...                                          ← same for dev/preview
 ```
 
 ### Runtime endpoints
 
 ```
-GET /api/game-data/public                                        → dataset index
-GET /api/game-data/public/:channel                               → core (catalog blueprints + resources)
-GET /api/game-data/public/:channel/resource-data                 → resourceInsights + materialSources
-GET /api/game-data/public/:channel/ship-components               → shipComponents
-GET /api/game-data/public/:channel/mission-rewards               → full missionRewards
-GET /api/game-data/public/:channel/changelog                     → PTU vs LIVE diff
-GET /api/game-data/public/by-id/:datasetId                       → core by exact datasetId
+GET /api/game-data/public                                                    → dataset index
+GET /api/game-data/public/:channel                                           → core (catalog blueprints + resources)
+GET /api/game-data/public/:channel/resource-data                             → resourceInsights + materialSources
+GET /api/game-data/public/:channel/ship-components                           → shipComponents
+GET /api/game-data/public/:channel/mission-rewards                           → slim missionRewards (no contracts)
+GET /api/game-data/public/:channel/mission-rewards/factions/:factionId       → per-faction contracts
+GET /api/game-data/public/:channel/changelog                                 → PTU vs LIVE diff
+GET /api/game-data/public/by-id/:datasetId                                   → core by exact datasetId
 GET /api/game-data/public/by-id/:datasetId/resource-data
 GET /api/game-data/public/by-id/:datasetId/ship-components
 GET /api/game-data/public/by-id/:datasetId/mission-rewards
+GET /api/game-data/public/by-id/:datasetId/mission-rewards/factions/:factionId → per-faction contracts by datasetId
 GET /api/game-data/public/by-id/:datasetId/changelog
-GET /api/game-data/public/by-id/:datasetId/blueprints/:id        → full blueprint detail
+GET /api/game-data/public/by-id/:datasetId/blueprints/:id                   → full blueprint detail
 ```
 
 ## Quick Start
@@ -281,10 +286,13 @@ node ./exporter/importToR2_dev.mjs --channel=live --published=true
 | `functions/_shared/gameData.js` | response helpers, visibility logic, isValidChannel |
 | `functions/api/game-data/public.js` | dataset index endpoint |
 | `functions/api/game-data/public/[channel].js` | core dataset endpoint |
-| `functions/api/game-data/public/[channel]/mission-rewards.js` | mission rewards endpoint |
+| `functions/api/game-data/public/[channel]/mission-rewards.js` | slim mission rewards endpoint |
+| `functions/api/game-data/public/[channel]/mission-rewards/factions/[factionId].js` | per-faction contracts endpoint (channel alias) |
+| `functions/api/game-data/public/by-id/[datasetId]/mission-rewards/factions/[factionId].js` | per-faction contracts endpoint (by datasetId) |
 | `scripts/devApiServer.mjs` | local API server — serves all public routes from R2 |
 | `exporter/extract-game-data.ps1` | main extraction entry point |
 | `exporter/dataset-builder.mjs` | normalized dataset builder |
-| `exporter/dataset-chunks.mjs` | chunk split logic (core, resource-data, ship-components, mission-rewards, changelog, blueprint details) |
+| `exporter/dataset-chunks.mjs` | chunk split logic (core, resource-data, ship-components, mission-rewards slim + per-faction, changelog, blueprint details) |
 | `exporter/importToR2.mjs` | R2 publication pipeline |
+| `exporter/migrateMissionRewardsFactions.mjs` | one-time migration: writes per-faction contract objects to R2 from existing mission-rewards chunks |
 | `shared/r2Storage.mjs` | S3-compatible R2 client (used by exporter + devApiServer) |
