@@ -2,6 +2,12 @@ function normalizeText(value) {
   return String(value ?? '').trim();
 }
 
+function readProcessEnv(name) {
+  return typeof process !== 'undefined' && process?.env
+    ? process.env[name]
+    : undefined;
+}
+
 function normalizeBaseUrl(value) {
   const input = normalizeText(value);
   if (!input) {
@@ -50,7 +56,7 @@ function readHeader(request, name) {
 function getDiscordBotWorkerUrl(env) {
   return normalizeBaseUrl(
     env?.DISCORD_BOT_WORKER_URL ??
-      process.env.DISCORD_BOT_WORKER_URL ??
+      readProcessEnv('DISCORD_BOT_WORKER_URL') ??
       '',
   );
 }
@@ -58,7 +64,7 @@ function getDiscordBotWorkerUrl(env) {
 function getDiscordBotInternalToken(env) {
   return normalizeText(
     env?.DISCORD_BOT_INTERNAL_TOKEN ??
-      process.env.DISCORD_BOT_INTERNAL_TOKEN ??
+      readProcessEnv('DISCORD_BOT_INTERNAL_TOKEN') ??
       '',
   );
 }
@@ -81,7 +87,7 @@ export function resolveAppBaseUrlFromRequest(request, env = null) {
 
   return normalizeBaseUrl(
     env?.APP_BASE_URL ??
-      process.env.APP_BASE_URL ??
+      readProcessEnv('APP_BASE_URL') ??
       'https://itemfab.space',
   );
 }
@@ -89,7 +95,7 @@ export function resolveAppBaseUrlFromRequest(request, env = null) {
 export function resolveCraftRequestStorageScope(request, env = null) {
   const branch = normalizeText(
     env?.CF_PAGES_BRANCH ??
-      process.env.CF_PAGES_BRANCH ??
+      readProcessEnv('CF_PAGES_BRANCH') ??
       '',
   ).toLowerCase();
   if (branch) {

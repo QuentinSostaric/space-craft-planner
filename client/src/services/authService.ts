@@ -140,6 +140,8 @@ export interface StoredAccount {
   lastLoginAt: string | null;
 }
 
+const DISCORD_BOT_INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=<discord-client-id>';
+
 export interface AccountStateSnapshot {
   favoriteBlueprintIds: string[];
   inventoryBlueprintIds: string[];
@@ -343,4 +345,8 @@ export function getDiscordLoginUrl(returnTo?: string): string {
 
   const suffix = params.toString();
   return suffix ? `/api/auth/discord/login?${suffix}` : '/api/auth/discord/login';
+}
+
+export function getDiscordBotInviteUrl(): string {
+  return DISCORD_BOT_INVITE_URL;
 }

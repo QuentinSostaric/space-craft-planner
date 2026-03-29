@@ -340,14 +340,12 @@ async function handleDatasetCommand(env, interaction) {
   const publishedAt = dataset.updatedAt ?? dataset.importedAt ?? 'unknown date';
   const version = dataset.version ?? 'unknown version';
   const buildNumber = dataset.buildNumber ?? 'n/a';
-  const datasetId = dataset.datasetId ?? 'unknown';
 
   return interactionMessage(
     [
       `**${channel.toUpperCase()} dataset**`,
       `Version: \`${version}\``,
       `Build: \`${buildNumber}\``,
-      `Dataset ID: \`${datasetId}\``,
       `Updated: ${publishedAt}`,
       `${baseUrl}/blueprints`,
     ].join('\n'),
