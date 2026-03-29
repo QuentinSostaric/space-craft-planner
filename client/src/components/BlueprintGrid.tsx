@@ -1,15 +1,18 @@
 import { alpha, useTheme } from '@mui/material/styles';
 import { memo, startTransition, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CheckIcon from '@mui/icons-material/Check';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
 import Typography from '@mui/material/Typography';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { AppGlyph } from './ui/AppGlyph';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
@@ -157,6 +160,8 @@ export const BlueprintCard = memo(function BlueprintCard({
   resources,
   priority = false,
   onSelect,
+  onToggleFavorite,
+  onToggleInventory,
 }: {
   blueprint: Blueprint;
   activeBlueprintId: string | null;
@@ -166,6 +171,8 @@ export const BlueprintCard = memo(function BlueprintCard({
   resources: Resource[];
   priority?: boolean;
   onSelect: (bp: Blueprint | null) => void;
+  onToggleFavorite: (blueprintId: string) => void;
+  onToggleInventory: (blueprintId: string) => void;
 }) {
   const isActive = activeBlueprintId === blueprint.id;
   const { t, lang } = useI18n();
@@ -187,7 +194,6 @@ export const BlueprintCard = memo(function BlueprintCard({
         borderColor: isActive ? 'primary.main' : (isInInventory ? 'primary.light' : 'divider'),
         backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.05) : 'background.paper',
         transition: 'all 200ms ease',
-        cursor: 'pointer',
         '&:hover': {
           borderColor: 'primary.main',
           transform: 'translateY(-4px)',
@@ -205,7 +211,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           `Blueprint ${blueprint.rarity ? blueprint.rarity + ' ' : ''}${blueprint.name} par ${blueprint.manufacturer}`,
           `${blueprint.rarity ? blueprint.rarity + ' ' : ''}Bauplan ${blueprint.name} von ${blueprint.manufacturer}`,
         )}
-        sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
       >
         {/* Top Section: Image with overlays */}
         <Box
@@ -226,31 +232,6 @@ export const BlueprintCard = memo(function BlueprintCard({
               <RarityBadge rarity={blueprint.rarity} />
             ) : (
               <CategoryBadge category={blueprint.category} />
-            )}
-          </Box>
-
-          {/* Status Icons Overlay */}
-          <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1, display: 'flex', gap: 0.5 }}>
-            {isFavorite && (
-              <StarIcon
-                sx={{
-                  color: 'warning.main',
-                  fontSize: '1.2rem',
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-                }}
-                aria-label={t('Favorite', 'Favori')}
-              />
-            )}
-            {isInInventory && (
-              <AppGlyph
-                name="checkmark"
-                size={18}
-                ariaLabel={t('In inventory', 'En inventaire')}
-                sx={{
-                  color: 'primary.main',
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-                }}
-              />
             )}
           </Box>
 
@@ -367,6 +348,54 @@ export const BlueprintCard = memo(function BlueprintCard({
           </Box>
         </Box>
       </CardActionArea>
+
+      <Box
+        sx={{
+          p: 1.5,
+          pt: 0,
+          display: 'grid',
+          gap: 1,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          backgroundColor: alpha(theme.palette.background.default, 0.08),
+        }}
+      >
+        <Button
+          fullWidth
+          size="small"
+          color={isFavorite ? 'warning' : 'inherit'}
+          variant={isFavorite ? 'contained' : 'outlined'}
+          startIcon={isFavorite ? <StarIcon sx={{ fontSize: '1rem' }} /> : <StarBorderIcon sx={{ fontSize: '1rem' }} />}
+          onClick={() => onToggleFavorite(blueprint.id)}
+          sx={{
+            justifyContent: 'flex-start',
+            textTransform: 'none',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+          }}
+        >
+          {isFavorite
+            ? t('Remove from favorites', 'Retirer des favoris')
+            : t('Add to favorites', 'Ajouter aux favoris')}
+        </Button>
+        <Button
+          fullWidth
+          size="small"
+          color={isInInventory ? 'primary' : 'inherit'}
+          variant={isInInventory ? 'contained' : 'outlined'}
+          startIcon={isInInventory ? <CheckIcon sx={{ fontSize: '1rem' }} /> : <Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />}
+          onClick={() => onToggleInventory(blueprint.id)}
+          sx={{
+            justifyContent: 'flex-start',
+            textTransform: 'none',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+          }}
+        >
+          {isInInventory
+            ? t('Remove from inventory', 'Retirer de l\'inventaire')
+            : t('Add to inventory', 'Ajouter a l\'inventaire')}
+        </Button>
+      </Box>
     </Card>
   );
 }, (prev, next) =>
@@ -376,7 +405,9 @@ export const BlueprintCard = memo(function BlueprintCard({
   prev.isInInventory === next.isInInventory &&
   prev.statMaxima === next.statMaxima &&
   prev.resources === next.resources &&
-  prev.priority === next.priority
+  prev.priority === next.priority &&
+  prev.onToggleFavorite === next.onToggleFavorite &&
+  prev.onToggleInventory === next.onToggleInventory
 );
 
 export function BlueprintGrid() {
@@ -408,6 +439,8 @@ export function BlueprintGrid() {
     blueprintSort,
     favoriteIds,
     inventoryIds,
+    toggleFavorite,
+    toggleInventory,
     blueprints: allBlueprints,
     missionRewards,
     missionRewardsLoading,
@@ -808,6 +841,8 @@ export function BlueprintGrid() {
                       resources={resources}
                       priority={index < initialCount}
                       onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
+                      onToggleFavorite={toggleFavorite}
+                      onToggleInventory={toggleInventory}
                     />
                   ))}
                 </Box>

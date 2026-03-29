@@ -1006,6 +1006,8 @@ function MissionDetail({
   statMaxima,
   onBack,
   onBlueprintOpen,
+  onToggleFavorite,
+  onToggleInventory,
 }: {
   selection: FlatContract;
   blueprints: Blueprint[];
@@ -1015,6 +1017,8 @@ function MissionDetail({
   statMaxima: ReturnType<typeof computeStatMaxima>;
   onBack: () => void;
   onBlueprintOpen: (blueprintId: string) => void;
+  onToggleFavorite: (blueprintId: string) => void;
+  onToggleInventory: (blueprintId: string) => void;
 }) {
   const { t, lang } = useI18n();
   const theme = useTheme();
@@ -1256,6 +1260,8 @@ function MissionDetail({
                 statMaxima={statMaxima}
                 resources={resources}
                 onSelect={(bp) => { if (bp) onBlueprintOpen(bp.id); }}
+                onToggleFavorite={onToggleFavorite}
+                onToggleInventory={onToggleInventory}
               />
             ))}
           </Box>
@@ -1285,6 +1291,8 @@ export function MissionsPanel() {
     favoriteIds,
     inventoryIds,
     setActiveBlueprint,
+    toggleFavorite,
+    toggleInventory,
     activeDataset,
   } = useCraft();
   const { t } = useI18n();
@@ -1736,6 +1744,8 @@ export function MissionsPanel() {
             inventoryIds={inventoryIds}
             resources={resources}
             statMaxima={statMaxima}
+            onToggleFavorite={toggleFavorite}
+            onToggleInventory={toggleInventory}
             onBack={() => {
               setSelectedMissionSlug(null);
               navigateToPath('/missions', { mainView: 'missions' });

@@ -1245,7 +1245,7 @@ function ResourceBlueprintUsageSection({
   onOpenBlueprint: (blueprint: Blueprint) => void;
 }) {
   const { t, lang } = useI18n();
-  const { favoriteIds, inventoryIds } = useCraft();
+  const { favoriteIds, inventoryIds, toggleFavorite, toggleInventory } = useCraft();
   const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
   const categoryOptions = useMemo(
     () =>
@@ -1324,6 +1324,8 @@ function ResourceBlueprintUsageSection({
                 statMaxima={statMaxima}
                 resources={resources}
                 onSelect={(bp) => { if (bp) onOpenBlueprint(bp); }}
+                onToggleFavorite={toggleFavorite}
+                onToggleInventory={toggleInventory}
               />
             ))}
           </Box>

@@ -336,7 +336,9 @@ export function ItemIdentity({
                 ) : (
                   <RadioButtonUncheckedIcon sx={{ fontSize: '1rem' }} />
                 )}
-                {t('Owned', 'Possede')}
+                {isLooted
+                  ? t('Remove from inventory', 'Retirer de l\'inventaire')
+                  : t('Add to inventory', 'Ajouter a l\'inventaire')}
               </ToggleButton>
             </Box>
           </Stack>
