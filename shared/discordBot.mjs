@@ -10,8 +10,14 @@ function normalizeText(value) {
   return String(value ?? '').trim();
 }
 
+function readProcessEnv(name) {
+  return typeof process !== 'undefined' && process?.env
+    ? process.env[name]
+    : undefined;
+}
+
 function getAppBaseUrl(env) {
-  return normalizeText(env?.APP_BASE_URL ?? process.env.APP_BASE_URL ?? 'https://itemfab.space').replace(/\/+$/, '');
+  return normalizeText(env?.APP_BASE_URL ?? readProcessEnv('APP_BASE_URL') ?? 'https://itemfab.space').replace(/\/+$/, '');
 }
 
 function getCraftRequestBaseUrl(request, env) {
@@ -19,11 +25,11 @@ function getCraftRequestBaseUrl(request, env) {
 }
 
 function getDiscordBotToken(env) {
-  return normalizeText(env?.DISCORD_BOT_TOKEN ?? process.env.DISCORD_BOT_TOKEN ?? '');
+  return normalizeText(env?.DISCORD_BOT_TOKEN ?? readProcessEnv('DISCORD_BOT_TOKEN') ?? '');
 }
 
 function getDiscordApiBaseUrl(env) {
-  return normalizeText(env?.DISCORD_API_BASE_URL ?? process.env.DISCORD_API_BASE_URL ?? DISCORD_API_BASE_URL).replace(/\/+$/, '');
+  return normalizeText(env?.DISCORD_API_BASE_URL ?? readProcessEnv('DISCORD_API_BASE_URL') ?? DISCORD_API_BASE_URL).replace(/\/+$/, '');
 }
 
 function buildDiscordUserMention(userId) {

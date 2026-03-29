@@ -198,7 +198,7 @@ function MobileNavItem({
 
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   const { goals, plannerResourceRequirements } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
@@ -207,6 +207,11 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       goals.length
       + Object.values(plannerResourceRequirements).filter((requirement) => Number(requirement?.quantity ?? 0) > 0).length,
     [goals.length, plannerResourceRequirements],
+  );
+  const pendingIncomingCraftRequestCount = useMemo(
+    () =>
+      (account?.incomingCraftRequests ?? []).filter((request) => request.status === 'pending').length,
+    [account?.incomingCraftRequests],
   );
 
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
@@ -218,25 +223,34 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
   const canAccessOrganizations = Boolean(user);
   const accountIcon = useCallback(
     (size: number) =>
-      user ? (
-        <Avatar
-          src={user.avatarUrl ?? undefined}
-          alt={user.displayName}
-          sx={{
-            width: size,
-            height: size,
-            fontSize: Math.max(11, Math.round(size * 0.48)),
-            border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
-            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
-            color: 'primary.main',
-          }}
+      (
+        <Badge
+          badgeContent={pendingIncomingCraftRequestCount}
+          color="error"
+          invisible={pendingIncomingCraftRequestCount === 0}
+          sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
         >
-          {user.displayName.charAt(0).toUpperCase()}
-        </Avatar>
-      ) : (
-        <PersonOutlineOutlinedIcon sx={{ fontSize: `${size}px` }} />
+          {user ? (
+            <Avatar
+              src={user.avatarUrl ?? undefined}
+              alt={user.displayName}
+              sx={{
+                width: size,
+                height: size,
+                fontSize: Math.max(11, Math.round(size * 0.48)),
+                border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
+                backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                color: 'primary.main',
+              }}
+            >
+              {user.displayName.charAt(0).toUpperCase()}
+            </Avatar>
+          ) : (
+            <PersonOutlineOutlinedIcon sx={{ fontSize: `${size}px` }} />
+          )}
+        </Badge>
       ),
-    [user],
+    [pendingIncomingCraftRequestCount, user],
   );
   const mobileItems = [
     {

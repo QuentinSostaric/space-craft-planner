@@ -31,6 +31,7 @@ import {
   readLocalBlueprintCollections,
 } from '../auth/localAccountImport';
 import { useI18n } from '../i18n/I18nContext';
+import { getDiscordBotInviteUrl } from '../services/authService';
 import { useCraft } from '../store/CraftContext';
 import { computeStatMaxima } from '../utils/crafting';
 import { BlueprintCard } from './BlueprintGrid';
@@ -84,6 +85,10 @@ function normalizeOrganizationSidInput(value: string): string {
   }
 
   return input.toUpperCase();
+}
+
+function openDiscordBotInvite() {
+  window.open(getDiscordBotInviteUrl(), '_blank', 'noopener,noreferrer');
 }
 
 export function AccountPage() {
@@ -1502,6 +1507,27 @@ export function AccountPage() {
                                   {t('Quit organization', 'Quitter l organisation', 'Organisation verlassen')}
                                 </Button>
 
+                                {organization.claimedByCurrentUser && (
+                                  <Tooltip
+                                    title={t(
+                                      'Invite the ItemFab Discord bot with the minimum scopes: bot and applications.commands. No guild permissions are requested.',
+                                      'Inviter le bot Discord ItemFab avec les scopes minimums : bot et applications.commands. Aucune permission de serveur n est demandee.',
+                                      'Lade den ItemFab-Discord-Bot mit den minimalen Scopes bot und applications.commands ein. Es werden keine Server-Berechtigungen angefordert.',
+                                    )}
+                                    arrow
+                                  >
+                                    <span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={openDiscordBotInvite}
+                                      >
+                                        {t('Invite Discord bot', 'Inviter le bot Discord', 'Discord-Bot einladen')}
+                                      </Button>
+                                    </span>
+                                  </Tooltip>
+                                )}
+
                                 {organization.claimed && organization.status === 'verified_admin' && (
                                   <Button
                                     variant="secondary"
@@ -2422,9 +2448,14 @@ export function AccountPage() {
                 </Stack>
 
                 <Box>
-                  <Button variant="secondary" onClick={() => loginWithDiscord('/account')}>
-                    {t('Log in with Discord', 'Se connecter avec Discord', 'Mit Discord anmelden')}
-                  </Button>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
+                    <Button variant="secondary" onClick={() => loginWithDiscord('/account')}>
+                      {t('Log in with Discord', 'Se connecter avec Discord', 'Mit Discord anmelden')}
+                    </Button>
+                    <Button variant="ghost" onClick={openDiscordBotInvite}>
+                      {t('Invite Discord bot', 'Inviter le bot Discord', 'Discord-Bot einladen')}
+                    </Button>
+                  </Stack>
                 </Box>
 
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>

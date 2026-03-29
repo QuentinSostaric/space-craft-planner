@@ -101,9 +101,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshAccountSilently = useCallback(async () => {
+    if (!session.user) {
+      setAccount(null);
+      return;
+    }
+
+    try {
+      const nextAccount = await fetchCurrentAccount();
+      setAccount(nextAccount);
+    } catch {
+      // Keep the current account snapshot on silent refresh failures.
+    }
+  }, [session.user]);
+
   useEffect(() => {
     void refreshSession();
   }, [refreshSession]);
+
+  useEffect(() => {
+    if (!session.user) {
+      return undefined;
+    }
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'hidden') {
+        return;
+      }
+
+      void refreshAccountSilently();
+    };
+
+    const intervalId = window.setInterval(refreshIfVisible, 15000);
+    window.addEventListener('focus', refreshIfVisible);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshIfVisible);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [refreshAccountSilently, session.user]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
     window.location.assign(getDiscordLoginUrl(returnTo ?? getCurrentReturnTo()));
