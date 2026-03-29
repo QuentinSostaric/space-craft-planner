@@ -8,6 +8,9 @@ DISCORD_BOT_WORKER_URL = "https://sc-craft-discord-bot.sostaric-quentinjr.worker
 DISCORD_CLIENT_ID = "1487753855944097834"
 
 [[r2_buckets]]
-binding = "GAME_DATA"
+binding = "GAME_DATA_PROD"
 bucket_name = "sc-craft-game-data"
-preview_bucket_name = "sc-craft-game-data-dev"
+
+[[r2_buckets]]
+binding = "GAME_DATA_DEV"
+bucket_name = "sc-craft-game-data-dev"

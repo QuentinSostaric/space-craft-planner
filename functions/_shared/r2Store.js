@@ -1,3 +1,5 @@
+import { getGameDataBucket } from './runtimeBuckets.js';
+
 export const TTL_IMMUTABLE = 60 * 60 * 24 * 365;
 export const TTL_MUTABLE = 60;
 
@@ -32,7 +34,12 @@ export async function getJson(env, key, ttl = TTL_MUTABLE) {
     return cached.json();
   }
 
-  const object = await env.GAME_DATA.get(key);
+  const bucket = getGameDataBucket(env);
+  if (!bucket?.get) {
+    throw new Error('GAME_DATA bucket binding is not configured for this runtime.');
+  }
+
+  const object = await bucket.get(key);
   if (!object) {
     return null;
   }

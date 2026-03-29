@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { itemSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import type {
   AppMode,
@@ -422,6 +423,7 @@ function getDatasetRevisionStamp(
 }
 
 export function CraftProvider({ children }: { children: ReactNode }) {
+  const { account, syncAccountState } = useAuth();
   const [rawDatasetSelections, setDatasetSelections] = useLocalPersist<DatasetSelectionsStorage>(
     LS_KEYS.DATASET_SELECTIONS,
     {},
@@ -514,19 +516,19 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const dismantlingData = activeDataset.dismantling ?? null;
   const materialSources = activeDataset.materialSources ?? null;
 
-  const [rawGoals, setGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
-  const [rawPlannerResourceRequirements, setPlannerResourceRequirements] = useLocalPersist<PlannerResourceRequirementsStorage>(
+  const [rawGoals, setLocalGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
+  const [rawPlannerResourceRequirements, setLocalPlannerResourceRequirements] = useLocalPersist<PlannerResourceRequirementsStorage>(
     LS_KEYS.PLANNER_RESOURCE_REQUIREMENTS,
     {},
   );
-  const [resourceProgress, setResourceProgressRaw] = useLocalPersist<Record<string, ResourceProgress>>(
+  const [rawResourceProgress, setLocalResourceProgress] = useLocalPersist<Record<string, ResourceProgress>>(
     LS_KEYS.RESOURCE_PROGRESS,
     {},
   );
   // Migrate legacy goals: coerce qualityScore to number, normalize slot assignments
   // (old data may have stored Quality strings like "CMR" instead of numeric values)
   const LEGACY_QUALITY_VALUE: Record<string, number> = { CMR: 1000, CMP: 500, CMS: 300 };
-  const goals = useMemo(
+  const localGoals = useMemo(
     () => rawGoals.map((g) => ({
       ...g,
       qualityScore: typeof g.qualityScore === 'number' ? g.qualityScore : 0,
@@ -539,12 +541,12 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     })),
     [rawGoals], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const plannerResourceRequirements = useMemo(
+  const localPlannerResourceRequirements = useMemo(
     () => normalizePlannerResourceRequirements(rawPlannerResourceRequirements),
     [rawPlannerResourceRequirements],
   );
-  const [favoriteIds, setFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
-  const [inventoryIds, setInventoryIds] = useLocalPersist<string[]>(
+  const [localFavoriteIds, setLocalFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
+  const [localInventoryIds, setLocalInventoryIds] = useLocalPersist<string[]>(
     LS_KEYS.INVENTORY,
     [...DEFAULT_INVENTORY_IDS],
   );
@@ -558,12 +560,70 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setInventoryIds((previous) => [...new Set([...DEFAULT_INVENTORY_IDS, ...previous])]);
+    if (account) {
+      return;
+    }
+
+    setLocalInventoryIds((previous) => [...new Set([...DEFAULT_INVENTORY_IDS, ...previous])]);
     setInventorySeedVersion(INVENTORY_SEED_VERSION);
-  }, [inventorySeedVersion, setInventoryIds, setInventorySeedVersion]);
+  }, [account, inventorySeedVersion, setInventorySeedVersion, setLocalInventoryIds]);
+
+  const goals = account?.planner.goals ?? localGoals;
+  const plannerResourceRequirements =
+    account?.planner.resourceRequirements ?? localPlannerResourceRequirements;
+  const resourceProgress = account?.planner.resourceProgress ?? rawResourceProgress;
+  const favoriteIds = account?.favoriteBlueprintIds ?? localFavoriteIds;
+  const inventoryIds = account?.inventoryBlueprintIds ?? localInventoryIds;
 
   const blueprints = activeDataset.blueprints;
   const activeChannel = activeDataset.channel;
+
+  const syncAuthenticatedAccountSnapshot = useCallback(
+    async (
+      updater: (snapshot: {
+        favoriteBlueprintIds: string[];
+        inventoryBlueprintIds: string[];
+        planner: {
+          goals: CraftGoal[];
+          resourceRequirements: PlannerResourceRequirements;
+          resourceProgress: Record<string, ResourceProgress>;
+        };
+      }) => {
+        favoriteBlueprintIds: string[];
+        inventoryBlueprintIds: string[];
+        planner: {
+          goals: CraftGoal[];
+          resourceRequirements: PlannerResourceRequirements;
+          resourceProgress: Record<string, ResourceProgress>;
+        };
+      },
+    ) => {
+      if (!account) {
+        return;
+      }
+
+      const nextSnapshot = updater({
+        favoriteBlueprintIds: [...account.favoriteBlueprintIds],
+        inventoryBlueprintIds: [...account.inventoryBlueprintIds],
+        planner: {
+          goals: [...account.planner.goals],
+          resourceRequirements: { ...account.planner.resourceRequirements },
+          resourceProgress: { ...account.planner.resourceProgress },
+        },
+      });
+
+      await syncAccountState({
+        favoriteBlueprintIds: [...new Set(nextSnapshot.favoriteBlueprintIds)],
+        inventoryBlueprintIds: [...new Set(nextSnapshot.inventoryBlueprintIds)],
+        planner: {
+          goals: nextSnapshot.planner.goals,
+          resourceRequirements: nextSnapshot.planner.resourceRequirements,
+          resourceProgress: nextSnapshot.planner.resourceProgress,
+        },
+      });
+    },
+    [account, syncAccountState],
+  );
 
   // Keep refs in sync so callbacks can read them without being deps
   missionRewardsByDatasetIdRef.current = missionRewardsByDatasetId;
@@ -1126,26 +1186,46 @@ export function CraftProvider({ children }: { children: ReactNode }) {
 
   const toggleFavorite = useCallback(
     (blueprintId: string) => {
-      setFavoriteIds((prev) =>
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          favoriteBlueprintIds: snapshot.favoriteBlueprintIds.includes(blueprintId)
+            ? snapshot.favoriteBlueprintIds.filter((id) => id !== blueprintId)
+            : [...snapshot.favoriteBlueprintIds, blueprintId],
+        }));
+        return;
+      }
+
+      setLocalFavoriteIds((prev) =>
         prev.includes(blueprintId) ? prev.filter((id) => id !== blueprintId) : [...prev, blueprintId],
       );
     },
-    [setFavoriteIds],
+    [account, setLocalFavoriteIds, syncAuthenticatedAccountSnapshot],
   );
 
   const toggleInventory = useCallback(
     (blueprintId: string) => {
-      setInventoryIds((prev) =>
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          inventoryBlueprintIds: snapshot.inventoryBlueprintIds.includes(blueprintId)
+            ? snapshot.inventoryBlueprintIds.filter((id) => id !== blueprintId)
+            : [...snapshot.inventoryBlueprintIds, blueprintId],
+        }));
+        return;
+      }
+
+      setLocalInventoryIds((prev) =>
         prev.includes(blueprintId) ? prev.filter((id) => id !== blueprintId) : [...prev, blueprintId],
       );
     },
-    [setInventoryIds],
+    [account, setLocalInventoryIds, syncAuthenticatedAccountSnapshot],
   );
 
   const replaceLocalBlueprintCollections = useCallback(
     (nextState: { favoriteBlueprintIds?: string[]; inventoryBlueprintIds?: string[] }) => {
       if (Array.isArray(nextState.favoriteBlueprintIds)) {
-        setFavoriteIds([
+        setLocalFavoriteIds([
           ...new Set(
             nextState.favoriteBlueprintIds
               .map((entry) => String(entry ?? '').trim())
@@ -1155,7 +1235,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       }
 
       if (Array.isArray(nextState.inventoryBlueprintIds)) {
-        setInventoryIds([
+        setLocalInventoryIds([
           ...new Set(
             nextState.inventoryBlueprintIds
               .map((entry) => String(entry ?? '').trim())
@@ -1164,7 +1244,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         ]);
       }
     },
-    [setFavoriteIds, setInventoryIds],
+    [setLocalFavoriteIds, setLocalInventoryIds],
   );
 
   const assignQuality = useCallback((slotId: string, quality: number | undefined) => {
@@ -1175,27 +1255,72 @@ export function CraftProvider({ children }: { children: ReactNode }) {
 
   const setResourceCollected = useCallback(
     (resourceName: string, amount: number) => {
-      setResourceProgressRaw((prev) => ({
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            resourceProgress: {
+              ...snapshot.planner.resourceProgress,
+              [resourceName]: {
+                ...(snapshot.planner.resourceProgress[resourceName] ?? { method: null }),
+                collected: amount,
+              },
+            },
+          },
+        }));
+        return;
+      }
+
+      setLocalResourceProgress((prev) => ({
         ...prev,
         [resourceName]: { ...(prev[resourceName] ?? { method: null }), collected: amount },
       }));
     },
-    [setResourceProgressRaw],
+    [account, setLocalResourceProgress, syncAuthenticatedAccountSnapshot],
   );
 
   const setResourceMethod = useCallback(
     (resourceName: string, method: ResourceMethod | null) => {
-      setResourceProgressRaw((prev) => ({
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            resourceProgress: {
+              ...snapshot.planner.resourceProgress,
+              [resourceName]: {
+                ...(snapshot.planner.resourceProgress[resourceName] ?? { collected: 0 }),
+                method,
+              },
+            },
+          },
+        }));
+        return;
+      }
+
+      setLocalResourceProgress((prev) => ({
         ...prev,
         [resourceName]: { ...(prev[resourceName] ?? { collected: 0 }), method },
       }));
     },
-    [setResourceProgressRaw],
+    [account, setLocalResourceProgress, syncAuthenticatedAccountSnapshot],
   );
 
   const resetResourceProgress = useCallback(() => {
-    setResourceProgressRaw({});
-  }, [setResourceProgressRaw]);
+    if (account) {
+      void syncAuthenticatedAccountSnapshot((snapshot) => ({
+        ...snapshot,
+        planner: {
+          ...snapshot.planner,
+          resourceProgress: {},
+        },
+      }));
+      return;
+    }
+
+    setLocalResourceProgress({});
+  }, [account, setLocalResourceProgress, syncAuthenticatedAccountSnapshot]);
 
   const addPlannerResourceRequirement = useCallback(
     (
@@ -1209,7 +1334,28 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setPlannerResourceRequirements((prev) => ({
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            resourceRequirements: {
+              ...snapshot.planner.resourceRequirements,
+              [normalizedName]: {
+                quantity:
+                  Math.round(
+                    ((((snapshot.planner.resourceRequirements[normalizedName]?.quantity) ?? 0) + normalizedQuantity)
+                    * 1000),
+                  ) / 1000,
+                quantityUnit,
+              },
+            },
+          },
+        }));
+        return;
+      }
+
+      setLocalPlannerResourceRequirements((prev) => ({
         ...prev,
         [normalizedName]: {
           quantity:
@@ -1221,12 +1367,32 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         },
       }));
     },
-    [setPlannerResourceRequirements],
+    [account, setLocalPlannerResourceRequirements, syncAuthenticatedAccountSnapshot],
   );
 
   const clearPlannerResourceRequirement = useCallback(
     (resourceName: string) => {
-      setPlannerResourceRequirements((prev) => {
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => {
+          if (!Object.prototype.hasOwnProperty.call(snapshot.planner.resourceRequirements, resourceName)) {
+            return snapshot;
+          }
+
+          const nextResourceRequirements = { ...snapshot.planner.resourceRequirements };
+          delete nextResourceRequirements[resourceName];
+
+          return {
+            ...snapshot,
+            planner: {
+              ...snapshot.planner,
+              resourceRequirements: nextResourceRequirements,
+            },
+          };
+        });
+        return;
+      }
+
+      setLocalPlannerResourceRequirements((prev) => {
         if (!Object.prototype.hasOwnProperty.call(prev, resourceName)) {
           return prev;
         }
@@ -1236,7 +1402,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [setPlannerResourceRequirements],
+    [account, setLocalPlannerResourceRequirements, syncAuthenticatedAccountSnapshot],
   );
 
   const addGoal = useCallback(
@@ -1255,16 +1421,56 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         createdAt: Date.now(),
       };
 
-      setGoals((prev) => [goal, ...prev]);
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            goals: [goal, ...snapshot.planner.goals],
+          },
+        }));
+        return;
+      }
+
+      setLocalGoals((prev) => [goal, ...prev]);
     },
-    [activeBlueprint, slotAssignments, setGoals],
+    [account, activeBlueprint, setLocalGoals, slotAssignments, syncAuthenticatedAccountSnapshot],
   );
 
   const ensureGoal = useCallback(
     (qualityScore: number, projectedStats: ItemStats, quantity = 1) => {
       if (!activeBlueprint) return;
 
-      setGoals((prev) => {
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => {
+          if (snapshot.planner.goals.some((goal) => goal.blueprintId === activeBlueprint.id)) {
+            return snapshot;
+          }
+
+          const ensuredGoal: CraftGoal = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            blueprintId: activeBlueprint.id,
+            blueprintName: activeBlueprint.name,
+            category: activeBlueprint.category,
+            slotAssignments: { ...slotAssignments },
+            quantity,
+            qualityScore,
+            projectedStats,
+            createdAt: Date.now(),
+          };
+
+          return {
+            ...snapshot,
+            planner: {
+              ...snapshot.planner,
+              goals: [ensuredGoal, ...snapshot.planner.goals],
+            },
+          };
+        });
+        return;
+      }
+
+      setLocalGoals((prev) => {
         if (prev.some((goal) => goal.blueprintId === activeBlueprint.id)) {
           return prev;
         }
@@ -1284,16 +1490,40 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         return [goal, ...prev];
       });
     },
-    [activeBlueprint, slotAssignments, setGoals],
+    [account, activeBlueprint, setLocalGoals, slotAssignments, syncAuthenticatedAccountSnapshot],
   );
 
   const removeGoal = useCallback((goalId: string) => {
-    setGoals((prev) => prev.filter((goal) => goal.id !== goalId));
-  }, [setGoals]);
+    if (account) {
+      void syncAuthenticatedAccountSnapshot((snapshot) => ({
+        ...snapshot,
+        planner: {
+          ...snapshot.planner,
+          goals: snapshot.planner.goals.filter((goal) => goal.id !== goalId),
+        },
+      }));
+      return;
+    }
+
+    setLocalGoals((prev) => prev.filter((goal) => goal.id !== goalId));
+  }, [account, setLocalGoals, syncAuthenticatedAccountSnapshot]);
 
   const updateGoalQuantity = useCallback((goalId: string, quantity: number) => {
-    setGoals((prev) => prev.map((goal) => (goal.id === goalId ? { ...goal, quantity } : goal)));
-  }, [setGoals]);
+    if (account) {
+      void syncAuthenticatedAccountSnapshot((snapshot) => ({
+        ...snapshot,
+        planner: {
+          ...snapshot.planner,
+          goals: snapshot.planner.goals.map((goal) =>
+            goal.id === goalId ? { ...goal, quantity } : goal,
+          ),
+        },
+      }));
+      return;
+    }
+
+    setLocalGoals((prev) => prev.map((goal) => (goal.id === goalId ? { ...goal, quantity } : goal)));
+  }, [account, setLocalGoals, syncAuthenticatedAccountSnapshot]);
 
   const updateGoal = useCallback(
     (
@@ -1302,7 +1532,22 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       qualityScore: number,
       projectedStats: ItemStats,
     ) => {
-      setGoals((prev) =>
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            goals: snapshot.planner.goals.map((goal) =>
+              goal.id === goalId
+                ? { ...goal, slotAssignments: updatedAssignments, qualityScore, projectedStats }
+                : goal,
+            ),
+          },
+        }));
+        return;
+      }
+
+      setLocalGoals((prev) =>
         prev.map((goal) =>
           goal.id === goalId
             ? { ...goal, slotAssignments: updatedAssignments, qualityScore, projectedStats }
@@ -1310,7 +1555,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         ),
       );
     },
-    [setGoals],
+    [account, setLocalGoals, syncAuthenticatedAccountSnapshot],
   );
 
   const selectGoalBlueprint = useCallback(
