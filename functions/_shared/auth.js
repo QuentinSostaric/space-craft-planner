@@ -74,6 +74,19 @@ function getStarCitizenApiKey(env) {
   return String(env?.STARCITIZEN_API_KEY ?? '').trim();
 }
 
+function runBackgroundTask(executionContext, task) {
+  const promise = Promise.resolve()
+    .then(task)
+    .catch(() => {});
+
+  if (typeof executionContext?.waitUntil === 'function') {
+    executionContext.waitUntil(promise);
+    return null;
+  }
+
+  return promise;
+}
+
 async function requireAuthenticatedSession(request, env) {
   const session = await readSessionFromCookies(request.headers.get('cookie'), env);
   if (!session?.user?.id || !session.accountId) {
@@ -414,7 +427,7 @@ export async function handleAccountOrganizationDeleteRequest(request, env, sid) 
   }
 }
 
-export async function handleOrganizationClaimRequest(request, env, sid) {
+export async function handleOrganizationClaimRequest(request, env, sid, executionContext = null) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
     return errorResponse(401, 'Authentication required.');
@@ -426,16 +439,18 @@ export async function handleOrganizationClaimRequest(request, env, sid) {
     const nextAccount = await claimAccountOrganization(accountStore, account, sid);
     const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
     if (claimRequest?.claimRequestStatus === 'pending') {
-      void notifyOrganizationClaimRequest(env, {
-        sid: claimRequest.sid,
-        organizationName: claimRequest.name,
-        accountId: nextAccount.accountId,
-        requestedByDiscordDisplayName: nextAccount.profile.displayName,
-        requestedByDiscordUsername: nextAccount.profile.username,
-        requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
-        reviewerEmail: 'thsamon@proton.me',
-        submittedAt: claimRequest.claimRequestSubmittedAt,
-      });
+      runBackgroundTask(executionContext, () =>
+        notifyOrganizationClaimRequest(env, {
+          sid: claimRequest.sid,
+          organizationName: claimRequest.name,
+          accountId: nextAccount.accountId,
+          requestedByDiscordDisplayName: nextAccount.profile.displayName,
+          requestedByDiscordUsername: nextAccount.profile.username,
+          requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
+          reviewerEmail: 'thsamon@proton.me',
+          submittedAt: claimRequest.claimRequestSubmittedAt,
+        }),
+      );
     }
     return noStoreJson({ account: nextAccount });
   } catch (error) {
@@ -481,7 +496,7 @@ export async function handleOrganizationSharedBlueprintsRequest(request, env, si
   }
 }
 
-export async function handleOrganizationCraftRequestCreateRequest(request, env, sid) {
+export async function handleOrganizationCraftRequestCreateRequest(request, env, sid, executionContext = null) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
     return errorResponse(401, 'Authentication required.');
@@ -505,12 +520,14 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
       appBaseUrl: resolveAppBaseUrlFromRequest(request, env),
       storageScope: resolveCraftRequestStorageScope(request, env),
     });
-    void notifyCraftRequestOwnerViaWorker(
-      env,
-      result.request,
-      result.ownerAccount,
-      result.requesterAccount,
-    ).catch(() => {});
+    runBackgroundTask(executionContext, () =>
+      notifyCraftRequestOwnerViaWorker(
+        env,
+        result.request,
+        result.ownerAccount,
+        result.requesterAccount,
+      ),
+    );
     const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
     return noStoreJson({
       account: decoratedAccount,

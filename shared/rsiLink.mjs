@@ -199,6 +199,11 @@ export async function fetchRsiProfileByHandle(
     bio: profile.bio ? String(profile.bio) : '',
     profileUrl: profile?.page?.url ? String(profile.page.url) : null,
     organization: normalizeOrganizationMetadata(payload?.data?.organization),
+    affiliations: Array.isArray(payload?.data?.affiliation)
+      ? payload.data.affiliation
+          .map((organization) => normalizeOrganizationMetadata(organization))
+          .filter((organization) => organization !== null)
+      : [],
   };
 }
 
