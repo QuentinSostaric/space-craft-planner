@@ -42,6 +42,7 @@ export function AccountStateSync() {
     resourceProgress,
   } = useCraft();
   const initialSyncHandledRef = useRef(false);
+  const mirrorEstablishedRef = useRef(false);
   const lastSyncedSnapshotRef = useRef<string | null>(null);
 
   const snapshot = useMemo<AccountStateSnapshot>(
@@ -56,15 +57,23 @@ export function AccountStateSync() {
     }),
     [favoriteIds, goals, inventoryIds, plannerResourceRequirements, resourceProgress],
   );
+  const localImportPlan = useMemo(
+    () =>
+      computeLocalBlueprintImportPlan(account, {
+        favoriteBlueprintIds: favoriteIds,
+        inventoryBlueprintIds: inventoryIds,
+      }),
+    [account, favoriteIds, inventoryIds],
+  );
   const serializedSnapshot = useMemo(() => JSON.stringify(snapshot), [snapshot]);
   const serializedAccountSnapshot = useMemo(
     () => (account ? JSON.stringify(createSnapshotFromAccount(account)) : null),
     [account],
   );
-  const localImportPlan = useMemo(() => computeLocalBlueprintImportPlan(account), [account]);
 
   useEffect(() => {
     initialSyncHandledRef.current = false;
+    mirrorEstablishedRef.current = false;
     lastSyncedSnapshotRef.current = null;
   }, [account?.accountId, user?.id]);
 
@@ -86,6 +95,12 @@ export function AccountStateSync() {
     }
 
     if (serializedAccountSnapshot === serializedSnapshot) {
+      mirrorEstablishedRef.current = true;
+      lastSyncedSnapshotRef.current = serializedSnapshot;
+      return undefined;
+    }
+
+    if (!mirrorEstablishedRef.current && isSnapshotEmpty(snapshot) && hasStoredAccountState(account)) {
       lastSyncedSnapshotRef.current = serializedSnapshot;
       return undefined;
     }

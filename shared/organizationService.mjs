@@ -1,4 +1,5 @@
 import {
+  findAccountIdsSharingOrganizationBlueprints,
   readAccountIdByRsiHandle,
   readAccountRecord,
   saveAccountOrganizations,
@@ -118,6 +119,10 @@ function isSnapshotStale(record, nowMs = Date.now()) {
       record.memberSnapshot.length > 0 &&
       Date.parse(staleAt) < nowMs,
   );
+}
+
+function isVerifiedOrganizationStatus(status) {
+  return status === 'verified_member' || status === 'verified_admin';
 }
 
 function findOrganizationMemberByHandle(memberSnapshot, handle) {
@@ -937,81 +942,65 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
   if (!organizationRef) {
     throw new OrganizationServiceError(404, 'Organization not found in this account.');
   }
-  if (
-    organizationRef.status !== 'verified_member' &&
-    organizationRef.status !== 'verified_admin'
-  ) {
+  if (!isVerifiedOrganizationStatus(organizationRef.status)) {
     throw new OrganizationServiceError(
       403,
       'Only verified organization members can access shared organization blueprints.',
     );
   }
 
-  const organizationRecord = await readOrganizationRecord(store, normalizedSid);
-  const currentAccountInventoryBlueprintIdSet = new Set(
-    (account.inventoryBlueprintIds ?? []).map((blueprintId) => String(blueprintId)),
-  );
-  const currentAccountSharedBlueprintIds = (account.organizationBlueprintShares?.[normalizedSid] ?? [])
-    .map((blueprintId) => String(blueprintId))
-    .filter((blueprintId) => currentAccountInventoryBlueprintIdSet.has(blueprintId));
-  const currentAccountFallbackMember =
-    account?.rsi?.handle && currentAccountSharedBlueprintIds.length > 0
-      ? {
-          handle: account.rsi.handle,
-          display:
-            account.rsi.displayName ??
-            account.profile.displayName ??
-            account.profile.username ??
-            account.rsi.handle,
-          image: account.profile.avatarUrl ?? null,
-          rank: organizationRef.rank ?? null,
-          stars: organizationRef.stars ?? null,
-          sharedBlueprintIds: currentAccountSharedBlueprintIds,
-        }
-      : null;
+  let organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  let sharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
+    ? organizationRecord.sharedAccountIds
+    : [];
 
-  if (!organizationRecord || organizationRecord.memberSnapshot.length === 0) {
-    if (!currentAccountFallbackMember) {
-      throw new OrganizationServiceError(
-        404,
-        'No organization member snapshot is available yet.',
-      );
+  if (sharedAccountIds.length === 0) {
+    const backfilledSharedAccountIds = await findAccountIdsSharingOrganizationBlueprints(
+      store,
+      normalizedSid,
+    );
+    if (backfilledSharedAccountIds.length > 0) {
+      sharedAccountIds = backfilledSharedAccountIds;
+      if (organizationRecord) {
+        organizationRecord = await writeOrganizationRecord(store, {
+          ...organizationRecord,
+          sharedAccountIds: backfilledSharedAccountIds,
+          updatedAt: toIsoNow(),
+        });
+      }
     }
+  }
 
-    return {
-      organization: {
-        sid: organizationRef.sid,
-        name: organizationRef.name,
-        image: organizationRef.image ?? null,
-        logo: organizationRef.logo ?? null,
-        url: organizationRef.url ?? null,
-        claimed: Boolean(organizationRef.claimed),
-        lastLiveSyncAt: organizationRef.lastLiveSyncAt ?? null,
-        staleAt: organizationRef.staleAt ?? null,
-        memberCount: typeof organizationRef.memberCount === 'number' ? organizationRef.memberCount : 0,
-        syncStatus: organizationRef.syncStatus ?? 'never',
-      },
-      members: [currentAccountFallbackMember],
-    };
+  const candidateAccountIds = new Set(sharedAccountIds);
+
+  if (organizationRecord?.memberSnapshot?.length) {
+    const snapshotMemberAccountIds = await Promise.all(
+      organizationRecord.memberSnapshot.map((member) =>
+        readAccountIdByRsiHandle(store, member.handle),
+      ),
+    );
+    for (const memberAccountId of snapshotMemberAccountIds) {
+      if (memberAccountId) {
+        candidateAccountIds.add(memberAccountId);
+      }
+    }
+  }
+
+  if ((account.organizationBlueprintShares?.[normalizedSid] ?? []).length > 0) {
+    candidateAccountIds.add(account.accountId);
   }
 
   const members = (
     await Promise.all(
-      organizationRecord.memberSnapshot.map(async (member) => {
-        const memberAccountId = await readAccountIdByRsiHandle(store, member.handle);
-        if (!memberAccountId) {
-          return null;
-        }
-
+      [...candidateAccountIds].map(async (memberAccountId) => {
         const memberAccount = await readAccountRecord(store, memberAccountId);
-        if (!memberAccount) {
+        if (!memberAccount?.rsi?.handle) {
           return null;
         }
 
-        const inventoryBlueprintIds = memberAccount.inventoryBlueprintIds.map((blueprintId) =>
-          String(blueprintId),
+        const inventoryBlueprintIdSet = new Set(
+          (memberAccount.inventoryBlueprintIds ?? []).map((blueprintId) => String(blueprintId)),
         );
-        const inventoryBlueprintIdSet = new Set(inventoryBlueprintIds);
         const sharedBlueprintIds = (memberAccount.organizationBlueprintShares?.[normalizedSid] ?? [])
           .map((blueprintId) => String(blueprintId))
           .filter((blueprintId) => inventoryBlueprintIdSet.has(blueprintId));
@@ -1020,41 +1009,75 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
           return null;
         }
 
+        const memberOrganizationRef =
+          memberAccount.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+        const matchingSnapshotMember = findOrganizationMemberByHandle(
+          organizationRecord?.memberSnapshot,
+          memberAccount.rsi.handle,
+        );
+
+        if (!matchingSnapshotMember && !isVerifiedOrganizationStatus(memberOrganizationRef?.status)) {
+          return null;
+        }
+
         return {
-          handle: member.handle,
-          display: member.display,
-          image: member.image,
-          rank: member.rank,
-          stars: member.stars,
+          handle: memberAccount.rsi.handle,
+          display:
+            matchingSnapshotMember?.display ??
+            memberAccount.rsi.displayName ??
+            memberAccount.profile.displayName ??
+            memberAccount.profile.username ??
+            memberAccount.rsi.handle,
+          image: matchingSnapshotMember?.image ?? memberAccount.profile.avatarUrl ?? null,
+          rank: matchingSnapshotMember?.rank ?? memberOrganizationRef?.rank ?? null,
+          stars:
+            Number.isFinite(Number(matchingSnapshotMember?.stars))
+              ? Number(matchingSnapshotMember.stars)
+              : Number.isFinite(Number(memberOrganizationRef?.stars))
+                ? Number(memberOrganizationRef.stars)
+                : null,
           sharedBlueprintIds,
         };
       }),
     )
-  ).filter((member) => member !== null);
+  )
+    .filter((member) => member !== null)
+    .sort((left, right) =>
+      String(left.display ?? left.handle).localeCompare(String(right.display ?? right.handle), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      }),
+    );
 
-  if (
-    currentAccountFallbackMember &&
-    !members.some(
-      (member) =>
-        normalizeComparableText(member.handle) ===
-        normalizeComparableText(currentAccountFallbackMember.handle),
-    )
-  ) {
-    members.push(currentAccountFallbackMember);
+  if (members.length === 0) {
+    throw new OrganizationServiceError(
+      404,
+      'No shared blueprints are available for this organization yet.',
+    );
   }
 
   return {
     organization: {
-      sid: organizationRecord.sid,
-      name: organizationRecord.name,
-      image: organizationRecord.image ?? organizationRecord.logo ?? null,
-      logo: organizationRecord.logo ?? null,
-      url: organizationRecord.url ?? null,
-      claimed: organizationRecord.claimed,
-      lastLiveSyncAt: organizationRecord.lastLiveSyncAt,
-      staleAt: organizationRecord.staleAt,
-      memberCount: organizationRecord.memberCount,
-      syncStatus: organizationRecord.syncStatus,
+      sid: organizationRecord?.sid ?? organizationRef.sid,
+      name: organizationRecord?.name ?? organizationRef.name,
+      image:
+        organizationRecord?.image ??
+        organizationRecord?.logo ??
+        organizationRef.image ??
+        organizationRef.logo ??
+        null,
+      logo: organizationRecord?.logo ?? organizationRef.logo ?? null,
+      url: organizationRecord?.url ?? organizationRef.url ?? null,
+      claimed: Boolean(organizationRecord?.claimed ?? organizationRef.claimed),
+      lastLiveSyncAt: organizationRecord?.lastLiveSyncAt ?? organizationRef.lastLiveSyncAt ?? null,
+      staleAt: organizationRecord?.staleAt ?? organizationRef.staleAt ?? null,
+      memberCount:
+        typeof organizationRecord?.memberCount === 'number'
+          ? organizationRecord.memberCount
+          : typeof organizationRef.memberCount === 'number'
+            ? organizationRef.memberCount
+            : members.length,
+      syncStatus: organizationRecord?.syncStatus ?? organizationRef.syncStatus ?? 'never',
     },
     members,
   };
