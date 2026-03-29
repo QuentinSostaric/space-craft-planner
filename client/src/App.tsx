@@ -16,6 +16,9 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { createAppTheme } from './theme';
 import { useTheme } from './hooks/useTheme';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
+import { AuthProvider } from './auth/AuthContext';
+import { AccountStateSync } from './auth/AccountStateSync';
+import { useAuth } from './auth/AuthContext';
 import { CraftProvider } from './store/CraftContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
@@ -31,7 +34,7 @@ const LazyBlueprintsView = lazy(() =>
   import('./components/BlueprintGrid').then(({ BlueprintGrid }) => ({
     default: function BlueprintsView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <BlueprintGrid />
           <Footer />
         </Box>
@@ -44,7 +47,7 @@ const LazyWorkspaceView = lazy(() =>
   import('./components/ItemWorkspace').then(({ ItemWorkspace }) => ({
     default: function WorkspaceView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <ItemWorkspace />
           <Footer />
         </Box>
@@ -57,7 +60,7 @@ const LazyMissionsView = lazy(() =>
   import('./components/MissionsPanel').then(({ MissionsPanel }) => ({
     default: function MissionsView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <MissionsPanel />
           <Footer />
         </Box>
@@ -70,8 +73,21 @@ const LazyResourcesView = lazy(() =>
   import('./components/ResourcesPage').then(({ ResourcesPage }) => ({
     default: function ResourcesView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <ResourcesPage />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyOrganizationsView = lazy(() =>
+  import('./components/OrganizationsPage').then(({ OrganizationsPage }) => ({
+    default: function OrganizationsView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <OrganizationsPage />
           <Footer />
         </Box>
       );
@@ -83,8 +99,21 @@ const LazyPlannerView = lazy(() =>
   import('./components/PlannerPage').then(({ PlannerPage }) => ({
     default: function PlannerView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <PlannerPage />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
+const LazyAccountView = lazy(() =>
+  import('./components/AccountPage').then(({ AccountPage }) => ({
+    default: function AccountView() {
+      return (
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <AccountPage />
           <Footer />
         </Box>
       );
@@ -104,7 +133,14 @@ const LazyDatasetChangelog = lazy(() =>
   })),
 );
 
-type ResolvedMainView = 'blueprints' | 'workspace' | 'missions' | 'resources' | 'planner';
+type ResolvedMainView =
+  | 'blueprints'
+  | 'workspace'
+  | 'missions'
+  | 'resources'
+  | 'organizations'
+  | 'planner'
+  | 'account';
 
 function BlueprintGridFallback() {
   return (
@@ -335,6 +371,39 @@ function ResourcesFallback() {
   );
 }
 
+function OrganizationsFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper', p: 1.5 }}>
+        <Stack spacing={1.25}>
+          <Skeleton width={220} height={36} />
+          <Skeleton width="72%" height={20} />
+        </Stack>
+      </Box>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1 }}>
+        <Stack spacing={1.5}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Paper key={index} variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1.5}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <Skeleton variant="rounded" width={52} height={52} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton width="32%" height={24} />
+                    <Skeleton width="18%" height={18} />
+                  </Box>
+                </Stack>
+                <Skeleton variant="rounded" height={54} />
+                <Skeleton variant="rounded" height={220} />
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
 function PlannerFallback() {
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -390,14 +459,34 @@ function PlannerFallback() {
   );
 }
 
+function AccountFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1 }}>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Skeleton width={120} height={20} sx={{ mb: 1.5 }} />
+          <Skeleton width={180} height={42} sx={{ mb: 1.5 }} />
+          <Skeleton width="72%" height={20} sx={{ mb: 3 }} />
+          <Skeleton variant="rounded" height={220} />
+        </Paper>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
 function MainContentFallback({ view }: { view: ResolvedMainView }) {
   switch (view) {
     case 'missions':
       return <MissionsFallback />;
     case 'resources':
       return <ResourcesFallback />;
+    case 'organizations':
+      return <OrganizationsFallback />;
     case 'planner':
       return <PlannerFallback />;
+    case 'account':
+      return <AccountFallback />;
     case 'workspace':
       return <WorkspaceFallback />;
     case 'blueprints':
@@ -463,8 +552,12 @@ function MainContent({ mainView }: { mainView: MainView }) {
       ? 'missions'
       : mainView === 'resources'
         ? 'resources'
+      : mainView === 'organizations'
+        ? 'organizations'
       : mainView === 'planner'
         ? 'planner'
+      : mainView === 'account'
+        ? 'account'
         : activeBlueprint
           ? 'workspace'
           : 'blueprints';
@@ -474,8 +567,12 @@ function MainContent({ mainView }: { mainView: MainView }) {
       ? LazyMissionsView
       : resolvedView === 'resources'
         ? LazyResourcesView
+      : resolvedView === 'organizations'
+        ? LazyOrganizationsView
       : resolvedView === 'planner'
         ? LazyPlannerView
+      : resolvedView === 'account'
+        ? LazyAccountView
         : resolvedView === 'workspace'
           ? LazyWorkspaceView
           : LazyBlueprintsView;
@@ -483,7 +580,7 @@ function MainContent({ mainView }: { mainView: MainView }) {
   return (
     <Suspense fallback={<MainContentFallback view={resolvedView} />}>
       <Fade in timeout={resolvedView === 'workspace' ? 200 : 180}>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <SelectedView />
         </Box>
       </Fade>
@@ -500,6 +597,7 @@ function AppShell() {
     comparisonOpen,
     changelogOpen,
   } = useCraft();
+  const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
   const [themeMode] = useTheme();
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
@@ -537,21 +635,37 @@ function AppShell() {
     return () => window.removeEventListener('popstate', syncViewFromPath);
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && !user && mainView === 'organizations' && window.location.pathname.startsWith('/organizations')) {
+      navigateToPath('/account', { mainView: 'account' });
+    }
+  }, [authLoading, mainView, user]);
+
+  const guardedMainView: MainView =
+    !authLoading && !user && mainView === 'organizations'
+      ? 'account'
+      : mainView;
+
   const handleChangeView = useCallback((view: MainView) => {
-    const path =
-      view === 'missions'
+      const nextView = !user && view === 'organizations' ? 'account' : view;
+      const path =
+      nextView === 'missions'
         ? '/missions'
-        : view === 'resources'
+        : nextView === 'resources'
           ? '/resources'
-          : view === 'planner'
+        : nextView === 'organizations'
+          ? '/organizations'
+        : nextView === 'planner'
             ? '/planner'
+          : nextView === 'account'
+            ? '/account'
             : '/';
-    navigateToPath(path, { mainView: view });
-  }, []);
+    navigateToPath(path, { mainView: nextView });
+  }, [user]);
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
         <Header />
         <LinearProgress sx={{ height: 2 }} />
         <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -577,7 +691,7 @@ function AppShell() {
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
         <Header />
         <LinearProgress sx={{ height: 2 }} />
         <Box
@@ -590,7 +704,7 @@ function AppShell() {
           }}
         >
           <NavRail
-            mainView={mainView}
+            mainView={guardedMainView}
             onChangeView={handleChangeView}
             collapsed={navCollapsed}
             onToggleCollapsed={toggleNavCollapsed}
@@ -631,7 +745,7 @@ function AppShell() {
 
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
         <Header />
         <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
@@ -655,7 +769,7 @@ function AppShell() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
       <Header />
       {isPending && <LinearProgress sx={{ height: 2 }} />}
       <Box
@@ -668,7 +782,7 @@ function AppShell() {
         }}
       >
         <NavRail
-          mainView={mainView}
+          mainView={guardedMainView}
           onChangeView={handleChangeView}
           collapsed={navCollapsed}
           onToggleCollapsed={toggleNavCollapsed}
@@ -686,7 +800,7 @@ function AppShell() {
           }}
           aria-label={t('Content', 'Contenu')}
         >
-          <MainContent mainView={mainView} />
+          <MainContent mainView={guardedMainView} />
         </Box>
       </Box>
       {comparisonOpen && (
@@ -711,13 +825,28 @@ function AppContent() {
     <ThemeProvider theme={theme}>
       <CssBaseline enableColorScheme />
       <GlobalStyles styles={{
-        'html, body': { height: '100%', margin: 0, padding: 0 },
-        '#root': { height: '100%', display: 'flex', flexDirection: 'column' },
+        html: { height: '100%' },
+        body: {
+          minHeight: '100dvh',
+          margin: 0,
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        },
+        '#root': {
+          flex: 1,
+          minHeight: '100dvh',
+          display: 'flex',
+          flexDirection: 'column',
+        },
       }} />
       <I18nProvider>
-        <CraftProvider>
-          <AppShell />
-        </CraftProvider>
+        <AuthProvider>
+          <CraftProvider>
+            <AccountStateSync />
+            <AppShell />
+          </CraftProvider>
+        </AuthProvider>
       </I18nProvider>
     </ThemeProvider>
   );

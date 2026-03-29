@@ -6,3 +6,16 @@ R2_ACCESS_KEY_ID=<r2-access-key-id>
 R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
 R2_BUCKET_NAME=sc-craft-game-data-dev
 R2_BUCKET_REGION=auto
+
+# Optional Discord OAuth 2 foundation
+# Register http://localhost:5173/api/auth/discord/callback in the Discord developer portal.
+DISCORD_CLIENT_ID=<discord-client-id>
+DISCORD_CLIENT_SECRET=<discord-client-secret>
+AUTH_SESSION_SECRET=<long-random-secret>
+AUTH_PUBLIC_ORIGIN=http://localhost:5173
+DISCORD_BOT_WORKER_URL=<discord-bot-worker-url>
+DISCORD_BOT_INTERNAL_TOKEN=<shared-secret-between-site-and-bot-worker>
+STARCITIZEN_API_KEY=<starcitizen-api-key>
+# Optional overrides:
+# DISCORD_OAUTH_SCOPES=identify
+# DISCORD_REDIRECT_URI=http://localhost:5173/api/auth/discord/callback

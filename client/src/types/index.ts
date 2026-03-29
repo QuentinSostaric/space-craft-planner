@@ -18,6 +18,7 @@ export const LS_KEYS = {
   INVENTORY_SEED_VERSION: 'sc-craft-inventory-seed-version',
   NAV_COLLAPSED: 'sc-craft-nav-collapsed',
   RESOURCE_PROGRESS: 'sc-craft-resource-progress',
+  ORGANIZATIONS_ACCORDIONS: 'sc-craft-organizations-accordions',
 } as const;
 
 export interface GppModifier {

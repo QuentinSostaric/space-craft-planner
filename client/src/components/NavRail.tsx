@@ -1,24 +1,38 @@
 import Box from '@mui/material/Box';
+import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import Badge from '@mui/material/Badge';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useCallback, useMemo } from 'react';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
+import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 
-export type MainView = 'blueprints' | 'missions' | 'resources' | 'planner';
+export type MainView =
+  | 'blueprints'
+  | 'missions'
+  | 'resources'
+  | 'organizations'
+  | 'planner'
+  | 'account';
 
 const EXPANDED_WIDTH = 200;
 const COLLAPSED_WIDTH = 64;
+const DESKTOP_ICON_SIZE = 20;
+const MOBILE_ICON_SIZE = 20;
+const DESKTOP_LABEL_FONT_SIZE = '0.8rem';
+const MOBILE_LABEL_FONT_SIZE = '0.7rem';
 
 interface NavRailProps {
   mainView: MainView;
@@ -46,7 +60,7 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
         justifyContent: 'flex-start',
         gap: 2,
         width: '100%',
-        height: 48,
+        height: 46,
         px: 2,
         position: 'relative',
         transition: 'background-color 160ms ease, color 160ms ease',
@@ -91,7 +105,7 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
         sx={{
           fontFamily: "'Khand', sans-serif",
           fontWeight: 700,
-          fontSize: '0.85rem',
+          fontSize: DESKTOP_LABEL_FONT_SIZE,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
           whiteSpace: 'nowrap',
@@ -165,7 +179,7 @@ function MobileNavItem({
         sx={{
           fontFamily: "'Khand', sans-serif",
           fontWeight: 700,
-          fontSize: '0.7rem',
+          fontSize: MOBILE_LABEL_FONT_SIZE,
           lineHeight: 0.9,
           letterSpacing: '0.03em',
           textTransform: 'uppercase',
@@ -184,6 +198,7 @@ function MobileNavItem({
 
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const { goals, plannerResourceRequirements } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
@@ -197,7 +212,87 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
   const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
   const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
+  const goToOrganizations = useCallback(() => onChangeView('organizations'), [onChangeView]);
   const goToPlanner = useCallback(() => onChangeView('planner'), [onChangeView]);
+  const goToAccount = useCallback(() => onChangeView('account'), [onChangeView]);
+  const canAccessOrganizations = Boolean(user);
+  const accountIcon = useCallback(
+    (size: number) =>
+      user ? (
+        <Avatar
+          src={user.avatarUrl ?? undefined}
+          alt={user.displayName}
+          sx={{
+            width: size,
+            height: size,
+            fontSize: Math.max(11, Math.round(size * 0.48)),
+            border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
+            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
+            color: 'primary.main',
+          }}
+        >
+          {user.displayName.charAt(0).toUpperCase()}
+        </Avatar>
+      ) : (
+        <PersonOutlineOutlinedIcon sx={{ fontSize: `${size}px` }} />
+      ),
+    [user],
+  );
+  const mobileItems = [
+    {
+      key: 'blueprints',
+      active: mainView === 'blueprints',
+      label: t('Blueprints', 'Blueprints'),
+      icon: <DescriptionOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      onClick: goToBlueprints,
+    },
+    {
+      key: 'missions',
+      active: mainView === 'missions',
+      label: t('Missions', 'Missions'),
+      icon: <FlagIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      onClick: goToMissions,
+    },
+    {
+      key: 'resources',
+      active: mainView === 'resources',
+      label: t('Resources', 'Ressources'),
+      icon: <ScienceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      onClick: goToResources,
+    },
+    ...(canAccessOrganizations
+      ? [{
+          key: 'organizations',
+          active: mainView === 'organizations',
+          label: t('Organizations', 'Organisations', 'Organisationen'),
+          icon: <GroupsOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+          onClick: goToOrganizations,
+        }]
+      : []),
+    {
+      key: 'planner',
+      active: mainView === 'planner',
+      label: t('Planner', 'Planificateur'),
+      icon: (
+        <Badge
+          badgeContent={plannerBadgeCount}
+          color="primary"
+          invisible={plannerBadgeCount === 0}
+          sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
+        >
+          <AssignmentIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
+        </Badge>
+      ),
+      onClick: goToPlanner,
+    },
+    {
+      key: 'account',
+      active: mainView === 'account',
+      label: t('Account', 'Compte', 'Konto'),
+      icon: accountIcon(MOBILE_ICON_SIZE),
+      onClick: goToAccount,
+    },
+  ];
 
   if (isCompactLayout) {
     return (
@@ -209,42 +304,20 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           backgroundColor: 'background.paper',
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
         }}
       >
-        <MobileNavItem
-          active={mainView === 'blueprints'}
-          label={t('Blueprints', 'Blueprints')}
-          icon={<DescriptionOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
-          onClick={goToBlueprints}
-        />
-        <MobileNavItem
-          active={mainView === 'missions'}
-          label={t('Missions', 'Missions')}
-          icon={<FlagIcon sx={{ fontSize: '1.1rem' }} />}
-          onClick={goToMissions}
-        />
-        <MobileNavItem
-          active={mainView === 'resources'}
-          label={t('Resources', 'Ressources')}
-          icon={<ScienceOutlinedIcon sx={{ fontSize: '1.1rem' }} />}
-          onClick={goToResources}
-        />
-        <MobileNavItem
-          active={mainView === 'planner'}
-          label={t('Planner', 'Planificateur')}
-          icon={
-              <Badge
-              badgeContent={plannerBadgeCount}
-              color="primary"
-              invisible={plannerBadgeCount === 0}
-              sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
-            >
-              <AssignmentIcon sx={{ fontSize: '1.1rem' }} />
-            </Badge>
-          }
-          onClick={goToPlanner}
-        />
+        <Box sx={{ display: 'contents' }}>
+          {mobileItems.map((item) => (
+            <MobileNavItem
+              key={item.key}
+              active={item.active}
+              label={item.label}
+              icon={item.icon}
+              onClick={item.onClick}
+            />
+          ))}
+        </Box>
       </Box>
     );
   }
@@ -257,6 +330,8 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
         minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
         alignSelf: 'stretch',
+        height: '100%',
+        maxHeight: '100%',
         backgroundColor: 'background.paper',
         borderRight: (theme) => `1px solid ${theme.palette.divider}`,
         display: 'flex',
@@ -268,29 +343,58 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       }}
     >
       {/* Nav items */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, py: 2, flex: 1 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5,
+          py: 2,
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+      >
         <NavItem
           active={mainView === 'blueprints'}
           collapsed={collapsed}
           label={t('Blueprints', 'Blueprints')}
-          icon={<DescriptionOutlinedIcon sx={{ fontSize: '1.2rem' }} />}
+          icon={<DescriptionOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           onClick={goToBlueprints}
         />
         <NavItem
           active={mainView === 'missions'}
           collapsed={collapsed}
           label={t('Missions', 'Missions')}
-          icon={<FlagIcon sx={{ fontSize: '1.2rem' }} />}
+          icon={<FlagIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           onClick={goToMissions}
         />
         <NavItem
           active={mainView === 'resources'}
           collapsed={collapsed}
           label={t('Resources', 'Ressources')}
-          icon={<ScienceOutlinedIcon sx={{ fontSize: '1.2rem' }} />}
+          icon={<ScienceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           onClick={goToResources}
         />
-        <Box sx={{ mt: 'auto' }}>
+        {canAccessOrganizations && (
+          <NavItem
+            active={mainView === 'organizations'}
+            collapsed={collapsed}
+            label={t('Organizations', 'Organisations', 'Organisationen')}
+            icon={<GroupsOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
+            onClick={goToOrganizations}
+          />
+        )}
+        <Box
+          sx={{
+            mt: 'auto',
+            position: 'sticky',
+            bottom: 0,
+            pt: 1,
+            backgroundColor: 'background.paper',
+            zIndex: 1,
+          }}
+        >
           <NavItem
             active={mainView === 'planner'}
             collapsed={collapsed}
@@ -302,10 +406,17 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
                 invisible={plannerBadgeCount === 0}
                 sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
               >
-                <AssignmentIcon sx={{ fontSize: '1.2rem' }} />
+                <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
               </Badge>
             }
             onClick={goToPlanner}
+          />
+          <NavItem
+            active={mainView === 'account'}
+            collapsed={collapsed}
+            label={t('Account', 'Compte', 'Konto')}
+            icon={accountIcon(DESKTOP_ICON_SIZE)}
+            onClick={goToAccount}
           />
         </Box>
       </Box>
@@ -317,6 +428,7 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         display: 'flex',
         justifyContent: collapsed ? 'center' : 'flex-end',
         flexShrink: 0,
+        backgroundColor: 'background.paper',
       }}>
         <IconButton
           onClick={onToggleCollapsed}

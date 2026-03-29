@@ -23,6 +23,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
@@ -575,9 +576,58 @@ function ResourcesFilterBar({
   const { t, lang } = useI18n();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    familyFilter !== 'all' ||
+    systemFilter !== null ||
+    sourceTypeFilter !== 'all' ||
+    missionFilter !== 'all' ||
+    blueprintCategoryFilter !== null;
+
+  const resetFilters = () => {
+    onSearchChange('');
+    onFamilyFilterChange('all');
+    onSystemFilterChange(null);
+    onSourceTypeFilterChange('all');
+    onMissionFilterChange('all');
+    onBlueprintCategoryFilterChange(null);
+  };
 
   const content = (
-    <Stack spacing={1}>
+    <Stack spacing={1.25}>
+      <Stack
+        direction={{ xs: 'column', xl: 'row' }}
+        spacing={1}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', xl: 'center' }}
+      >
+        <Box>
+          <Typography
+            variant="overline"
+            sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
+          >
+            {t('Resource filters', 'Filtres ressources', 'Ressourcenfilter')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t(
+              'Search the dataset, focus a family, then narrow sources, mission links or blueprint usage.',
+              'Recherche dans le dataset, cible une famille puis affine les sources, les liens mission ou l usage blueprint.',
+              'Durchsuche den Datensatz, fokussiere eine Familie und verfeinere danach Quellen, Missionsbezug oder Blueprint-Nutzung.',
+            )}
+          </Typography>
+        </Box>
+        {hasActiveFilters && (
+          <Button
+            variant="outlined"
+            startIcon={<FilterListOffOutlinedIcon />}
+            onClick={resetFilters}
+            sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
+          </Button>
+        )}
+      </Stack>
+
       <Box
         sx={{
           display: 'grid',
@@ -740,29 +790,47 @@ function ResourcesFilterBar({
 
   if (!isCompact) {
     return (
-      <Box
+      <Paper
+        variant="outlined"
         sx={{
-          p: 1.5,
-          borderBottom: 1,
-          borderColor: 'divider',
-          backgroundColor: 'background.paper',
+          p: { xs: 1.25, md: 1.5 },
+          borderColor: alpha(theme.palette.primary.main, 0.14),
+          backgroundColor: alpha(theme.palette.background.default, 0.24),
         }}
       >
         {content}
-      </Box>
+      </Paper>
     );
   }
 
   return (
-    <Accordion disableGutters defaultExpanded sx={{ borderBottom: 1, borderColor: 'divider' }}>
-      <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Typography variant="subtitle2">{t('Resource filters', 'Filtres de ressources')}</Typography>
-          <Chip size="small" label={t('Compact mobile', 'Mobile compact')} />
-        </Stack>
-      </AccordionSummary>
-      <AccordionDetails sx={{ pt: 0 }}>{content}</AccordionDetails>
-    </Accordion>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 0.75,
+        borderColor: alpha(theme.palette.primary.main, 0.14),
+        backgroundColor: alpha(theme.palette.background.default, 0.24),
+      }}
+    >
+      <Accordion
+        disableGutters
+        defaultExpanded
+        sx={{
+          backgroundColor: 'transparent',
+          '&::before': { display: 'none' },
+        }}
+      >
+        <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <Typography variant="subtitle2">{t('Resource filters', 'Filtres de ressources')}</Typography>
+            {hasActiveFilters && (
+              <Chip size="small" variant="outlined" color="primary" label={t('Active', 'Actifs', 'Aktiv')} />
+            )}
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>{content}</AccordionDetails>
+      </Accordion>
+    </Paper>
   );
 }
 

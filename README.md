@@ -64,6 +64,7 @@ Production data is runtime-driven:
 3. Chunks are published to Cloudflare R2 (`sc-craft-game-data` for prod, `sc-craft-game-data-dev` for local/dev).
 4. Cloudflare Pages Functions read chunks from R2 at runtime via the `GAME_DATA` binding.
 5. The browser fetches `/api/game-data/public*`.
+6. Account auth, when configured, flows through `/api/auth/*` with Discord OAuth 2 and a signed HttpOnly session cookie.
 
 Production URL: [itemfab.space](https://itemfab.space) (Cloudflare Pages + custom domain)
 
@@ -104,7 +105,32 @@ GET /api/game-data/public/by-id/:datasetId/mission-rewards
 GET /api/game-data/public/by-id/:datasetId/mission-rewards/factions/:factionId → per-faction contracts by datasetId
 GET /api/game-data/public/by-id/:datasetId/changelog
 GET /api/game-data/public/by-id/:datasetId/blueprints/:id                   → full blueprint detail
+GET /api/auth/session                                                        → current auth session (`enabled`, provider, user)
+GET /api/auth/discord/login?returnTo=/path                                   → start Discord OAuth 2 redirect
+GET /api/auth/discord/callback                                               → Discord OAuth 2 callback, sets signed session cookie
+POST /api/auth/logout                                                        → clear auth session cookies
 ```
+
+### Auth foundation
+
+Current account/auth scope:
+
+- Provider: Discord OAuth 2
+- Default scope: `identify`
+- Session storage: signed stateless HttpOnly cookie (`sc_craft_session`)
+- CSRF protection: signed short-lived OAuth state cookie (`sc_craft_discord_oauth_state`)
+- Stored identity: Discord profile only for now, no local account database yet
+- Discord access tokens are exchanged server-side and discarded after `/users/@me`
+
+## Discord Bot Worker
+
+A dedicated Discord bot Worker scaffold is available in [`workers/discord-bot`](./workers/discord-bot).
+
+- Runtime: separate Cloudflare Worker
+- Commands included: `/ping`, `/open`, `/dataset`, `/help`
+- Local dev: `npm run discord:bot:dev`
+- Registration: `npm run discord:bot:register:guild` or `npm run discord:bot:register:global`
+- Deploy: `npm run discord:bot:deploy`
 
 ## Quick Start
 
@@ -130,6 +156,13 @@ R2_ACCESS_KEY_ID=<r2-access-key-id>
 R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
 R2_BUCKET_NAME=sc-craft-game-data-dev
 R2_BUCKET_REGION=auto
+
+# Optional Discord OAuth 2 foundation
+# Register http://localhost:5173/api/auth/discord/callback in the Discord developer portal.
+DISCORD_CLIENT_ID=<discord-client-id>
+DISCORD_CLIENT_SECRET=<discord-client-secret>
+AUTH_SESSION_SECRET=<long-random-secret>
+AUTH_PUBLIC_ORIGIN=http://localhost:5173
 ```
 
 Then run:
@@ -142,6 +175,8 @@ This starts two processes in parallel:
 
 - Vite on `http://localhost:5173`
 - `scripts/devApiServer.mjs` on `http://127.0.0.1:8788` — a plain Node HTTP server that serves all `/api/game-data/public*` routes by reading chunks directly from the dev R2 bucket declared in `.dev.vars` via `@aws-sdk/client-s3`
+
+If Discord auth is enabled locally, keep `AUTH_PUBLIC_ORIGIN=http://localhost:5173` so the OAuth callback returns to the frontend host and Vite proxies `/api/auth/*` back to the local API server. Otherwise the session cookie lands on the wrong host (`127.0.0.1` vs `localhost`).
 
 ### Build
 

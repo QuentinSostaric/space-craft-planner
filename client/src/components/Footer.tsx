@@ -15,6 +15,7 @@ export function Footer() {
         px: { xs: 1.5, sm: 3 },
         py: 1.5,
         textAlign: 'center',
+        mt: 'auto',
         flexShrink: 0,
       }}
     >

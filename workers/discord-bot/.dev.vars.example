@@ -1,0 +1,6 @@
+DISCORD_APPLICATION_ID=<discord-application-id>
+DISCORD_PUBLIC_KEY=<discord-interactions-public-key>
+DISCORD_BOT_TOKEN=<discord-bot-token>
+DISCORD_BOT_INTERNAL_TOKEN=<shared-secret-between-site-and-bot-worker>
+DISCORD_GUILD_ID=<discord-guild-id-for-fast-dev-registration>
+APP_BASE_URL=http://localhost:5173

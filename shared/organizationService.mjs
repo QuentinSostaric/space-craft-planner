@@ -1,0 +1,1061 @@
+import {
+  readAccountIdByRsiHandle,
+  readAccountRecord,
+  saveAccountOrganizations,
+} from './accountStorage.mjs';
+import {
+  ORGANIZATION_LIVE_SYNC_COOLDOWN_MS,
+  ORGANIZATION_SNAPSHOT_STALE_MS,
+  readOrganizationRecord,
+  upsertOrganizationMetadata,
+  writeOrganizationRecord,
+} from './organizationStorage.mjs';
+import {
+  readOrganizationClaimRequest,
+  writeOrganizationClaimRequest,
+} from './organizationClaimRequestStorage.mjs';
+import {
+  fetchAllRsiOrganizationMembers,
+  fetchRsiApiKeyStatus,
+  findRsiOrganizationMemberByHandle,
+  fetchRsiOrganizationBySid,
+  fetchRsiProfileByHandle,
+  isOrganizationAdminCandidate,
+} from './rsiLink.mjs';
+
+const PROFILE_MAIN_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
+
+function toIsoNow() {
+  return new Date().toISOString();
+}
+
+function normalizeComparableText(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function isLikelyNotFoundError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalizedMessage = message.toLowerCase();
+  return normalizedMessage.includes('404') || normalizedMessage.includes('not found');
+}
+
+function normalizeOrganizationSid(value) {
+  const input = String(value ?? '').trim();
+  if (!input) {
+    return null;
+  }
+
+  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
+  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
+  return sid || null;
+}
+
+function normalizeIsoTimestamp(value) {
+  const timestamp = String(value ?? '').trim();
+  if (!timestamp) {
+    return null;
+  }
+
+  return Number.isNaN(Date.parse(timestamp)) ? null : timestamp;
+}
+
+function isTimestampWithinWindow(timestamp, windowMs, nowMs = Date.now()) {
+  const normalizedTimestamp = normalizeIsoTimestamp(timestamp);
+  if (!normalizedTimestamp) {
+    return false;
+  }
+
+  return nowMs - Date.parse(normalizedTimestamp) < windowMs;
+}
+
+function isSnapshotFreshForMembership(record, nowMs = Date.now()) {
+  const staleAt = normalizeIsoTimestamp(record?.staleAt);
+  return Boolean(
+    staleAt &&
+      Array.isArray(record?.memberSnapshot) &&
+      record.memberSnapshot.length > 0 &&
+      Date.parse(staleAt) >= nowMs,
+  );
+}
+
+function shouldRefreshProfileMainOrganization(account, nowMs = Date.now()) {
+  if (!account?.rsi?.handle) {
+    return false;
+  }
+
+  const profileMainRef =
+    Array.isArray(account.organizations)
+      ? account.organizations.find((ref) => ref.source === 'profile-main') ?? null
+      : null;
+  if (!profileMainRef) {
+    return true;
+  }
+
+  if (profileMainRef.status === 'observed') {
+    return true;
+  }
+
+  return !isTimestampWithinWindow(profileMainRef.lastSeenAt, PROFILE_MAIN_SYNC_COOLDOWN_MS, nowMs);
+}
+
+function isOrganizationIgnored(account, sid) {
+  return (account?.ignoredOrganizationSids ?? []).includes(sid);
+}
+
+function isSnapshotReusableForClaim(record, nowMs = Date.now()) {
+  return (
+    Array.isArray(record?.memberSnapshot) &&
+    record.memberSnapshot.length > 0 &&
+    isTimestampWithinWindow(record?.lastLiveSyncAt, ORGANIZATION_LIVE_SYNC_COOLDOWN_MS, nowMs)
+  );
+}
+
+function isSnapshotStale(record, nowMs = Date.now()) {
+  const staleAt = normalizeIsoTimestamp(record?.staleAt);
+  return Boolean(
+    staleAt &&
+      Array.isArray(record?.memberSnapshot) &&
+      record.memberSnapshot.length > 0 &&
+      Date.parse(staleAt) < nowMs,
+  );
+}
+
+function findOrganizationMemberByHandle(memberSnapshot, handle) {
+  const normalizedHandle = normalizeComparableText(handle);
+  if (!normalizedHandle || !Array.isArray(memberSnapshot)) {
+    return null;
+  }
+
+  return (
+    memberSnapshot.find(
+      (member) => normalizeComparableText(member?.handle) === normalizedHandle,
+    ) ?? null
+  );
+}
+
+async function resolveOrganizationMembershipEvidence(
+  apiKey,
+  sid,
+  account,
+  memberSnapshot,
+  { fetchImpl = fetch } = {},
+) {
+  const snapshotMember = findOrganizationMemberByHandle(memberSnapshot, account?.rsi?.handle);
+  if (snapshotMember) {
+    return snapshotMember;
+  }
+
+  if (!apiKey || !account?.rsi?.handle) {
+    return null;
+  }
+
+  try {
+    const profile = await fetchRsiProfileByHandle(apiKey, account.rsi.handle, {
+      fetchImpl,
+      mode: 'cache',
+    });
+    if (profile.organization?.sid !== sid) {
+      return null;
+    }
+
+    const fallbackMember = {
+      handle: profile.handle,
+      display: profile.displayName ?? profile.handle,
+      image: null,
+      rank: profile.organization?.rank ?? null,
+      stars: null,
+      roles: [],
+    };
+
+    return {
+      ...fallbackMember,
+      isAdminCandidate: isOrganizationAdminCandidate(fallbackMember),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildObservedOrganizationRef(ref, overrides = {}) {
+  return {
+    ...ref,
+    ...overrides,
+    status: 'observed',
+    stars: null,
+    lastVerifiedAt: null,
+    rank:
+      ref?.source === 'profile-main'
+        ? overrides.rank ?? ref.rank ?? null
+        : overrides.rank ?? null,
+  };
+}
+
+function buildVerifiedOrganizationRef(ref, member, verifiedAt, overrides = {}) {
+  const adminCandidate = isOrganizationAdminCandidate(member);
+  return {
+    ...ref,
+    ...overrides,
+    status: adminCandidate ? 'verified_admin' : 'verified_member',
+    rank: member?.rank ?? overrides.rank ?? ref.rank ?? null,
+    stars: Number.isFinite(Number(member?.stars)) ? Number(member.stars) : null,
+    lastVerifiedAt: normalizeIsoTimestamp(verifiedAt) ?? toIsoNow(),
+  };
+}
+
+function sortOrganizationRefs(refs) {
+  return [...refs].sort((left, right) => {
+    if (left.source !== right.source) {
+      return left.source === 'profile-main' ? -1 : 1;
+    }
+
+    return String(left.name ?? left.sid).localeCompare(String(right.name ?? right.sid), undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    });
+  });
+}
+
+function upsertOrganizationRef(refs, nextRef) {
+  const nextSid = normalizeOrganizationSid(nextRef?.sid);
+  if (!nextSid) {
+    return refs;
+  }
+
+  const existingRef = refs.find((ref) => ref.sid === nextSid) ?? null;
+  const filteredRefs = refs.filter((ref) => ref.sid !== nextSid);
+  const mergedRef = existingRef
+    ? {
+        ...existingRef,
+        ...nextRef,
+        sid: nextSid,
+        source:
+          existingRef.source === 'profile-main' || nextRef.source === 'profile-main'
+            ? 'profile-main'
+            : 'manual',
+      }
+    : {
+        ...nextRef,
+        sid: nextSid,
+      };
+
+  return sortOrganizationRefs([...filteredRefs, mergedRef]);
+}
+
+function decorateOrganizationRef(ref, organizationRecord, accountId, nowMs = Date.now()) {
+  const staleAt = normalizeIsoTimestamp(organizationRecord?.staleAt);
+  const isStale = Boolean(staleAt && Date.parse(staleAt) < nowMs);
+  const syncStatus = organizationRecord
+    ? organizationRecord.syncStatus === 'never'
+      ? 'never'
+      : isStale
+        ? 'stale'
+        : 'fresh'
+    : 'never';
+
+  return {
+    ...ref,
+    image: organizationRecord?.image ?? organizationRecord?.logo ?? ref.image ?? null,
+    logo: organizationRecord?.logo ?? null,
+    url: organizationRecord?.url ?? null,
+    archetype: organizationRecord?.archetype ?? null,
+    commitment: organizationRecord?.commitment ?? null,
+    primaryFocus: organizationRecord?.primaryFocus ?? null,
+    secondaryFocus: organizationRecord?.secondaryFocus ?? null,
+    lang: organizationRecord?.lang ?? null,
+    claimed: Boolean(organizationRecord?.claimed),
+    claimedByAccountId: organizationRecord?.claimedByAccountId ?? null,
+    adminAccountIds: organizationRecord?.adminAccountIds ?? [],
+    lastLiveSyncAt: normalizeIsoTimestamp(organizationRecord?.lastLiveSyncAt),
+    nextEligibleLiveSyncAt: normalizeIsoTimestamp(organizationRecord?.nextEligibleLiveSyncAt),
+    staleAt,
+    memberCount: Number.isFinite(Number(organizationRecord?.memberCount))
+      ? Number(organizationRecord.memberCount)
+      : 0,
+    syncStatus,
+    claimRequestStatus: null,
+    claimRequestSubmittedAt: null,
+    claimedByCurrentUser:
+      Boolean(organizationRecord?.claimedByAccountId) &&
+      organizationRecord.claimedByAccountId === accountId,
+  };
+}
+
+async function readOrganizationRecordsBySid(store, refs) {
+  const entries = await Promise.all(
+    refs.map(async (ref) => [ref.sid, await readOrganizationRecord(store, ref.sid)]),
+  );
+
+  return new Map(entries);
+}
+
+async function readOrganizationClaimRequestsBySid(store, accountId, refs) {
+  const entries = await Promise.all(
+    refs.map(async (ref) => [
+      ref.sid,
+      await readOrganizationClaimRequest(store, ref.sid, accountId),
+    ]),
+  );
+
+  return new Map(entries);
+}
+
+async function syncProfileMainOrganization(store, account, apiKey, { fetchImpl = fetch } = {}) {
+  if (!account?.rsi?.handle || !apiKey) {
+    return account;
+  }
+  if (!shouldRefreshProfileMainOrganization(account)) {
+    return account;
+  }
+
+  const profile = await fetchRsiProfileByHandle(apiKey, account.rsi.handle, {
+    fetchImpl,
+    mode: 'cache',
+  });
+  const profileOrganization = profile.organization;
+  const currentRefs = Array.isArray(account.organizations) ? account.organizations : [];
+  const refsWithoutProfileMain = currentRefs.filter((ref) => ref.source !== 'profile-main');
+  const now = toIsoNow();
+
+  if (!profileOrganization) {
+    if (refsWithoutProfileMain.length === currentRefs.length) {
+      return account;
+    }
+
+    return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile);
+  }
+
+  if (isOrganizationIgnored(account, profileOrganization.sid)) {
+    if (refsWithoutProfileMain.length === currentRefs.length) {
+      return account;
+    }
+
+    return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile);
+  }
+
+  await upsertOrganizationMetadata(store, {
+    ...profileOrganization,
+    image: profileOrganization.image ?? profileOrganization.logo ?? null,
+  });
+
+  const existingRef =
+    currentRefs.find((ref) => ref.sid === profileOrganization.sid) ?? null;
+  const profileMainStatus =
+    existingRef?.status === 'verified_admin'
+      ? 'verified_admin'
+      : 'verified_member';
+  const profileMainRef = {
+    sid: profileOrganization.sid,
+    source: 'profile-main',
+    name: profileOrganization.name,
+    image: profileOrganization.image ?? profileOrganization.logo ?? null,
+    status: profileMainStatus,
+    rank:
+      existingRef?.status === 'verified_admin'
+        ? existingRef?.rank ?? profileOrganization.rank ?? null
+        : profileOrganization.rank ?? existingRef?.rank ?? null,
+    stars: existingRef?.stars ?? null,
+    lastSeenAt: now,
+    lastVerifiedAt:
+      existingRef?.status === 'verified_admin'
+        ? existingRef?.lastVerifiedAt ?? now
+        : now,
+  };
+
+  const nextRefs = upsertOrganizationRef(refsWithoutProfileMain, profileMainRef);
+  const currentSerialized = JSON.stringify(sortOrganizationRefs(currentRefs));
+  const nextSerialized = JSON.stringify(sortOrganizationRefs(nextRefs));
+  if (currentSerialized === nextSerialized) {
+    return account;
+  }
+
+  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
+}
+
+async function applyFreshMembershipSnapshots(store, account) {
+  if (!account?.rsi?.handle || !Array.isArray(account.organizations) || account.organizations.length === 0) {
+    return account;
+  }
+
+  const organizationRecordsBySid = await readOrganizationRecordsBySid(store, account.organizations);
+  const nowMs = Date.now();
+  let hasChanges = false;
+  const nextRefs = account.organizations.map((ref) => {
+    const organizationRecord = organizationRecordsBySid.get(ref.sid) ?? null;
+    if (!organizationRecord || !isSnapshotFreshForMembership(organizationRecord, nowMs)) {
+      return ref;
+    }
+
+    const matchingMember = findOrganizationMemberByHandle(
+      organizationRecord.memberSnapshot,
+      account.rsi.handle,
+    );
+    if (!matchingMember) {
+      if (ref.source === 'profile-main') {
+        const preservedRef = {
+          ...ref,
+          lastSeenAt: organizationRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
+        };
+        hasChanges ||= JSON.stringify(preservedRef) !== JSON.stringify(ref);
+        return preservedRef;
+      }
+
+      const observedRef = buildObservedOrganizationRef(ref, {
+        lastSeenAt: ref.lastSeenAt ?? organizationRecord.lastLiveSyncAt ?? ref.lastSeenAt,
+      });
+      hasChanges ||= JSON.stringify(observedRef) !== JSON.stringify(ref);
+      return observedRef;
+    }
+
+    const verifiedRef = buildVerifiedOrganizationRef(
+      ref,
+      matchingMember,
+      organizationRecord.lastLiveSyncAt,
+      {
+        lastSeenAt: organizationRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
+      },
+    );
+    hasChanges ||= JSON.stringify(verifiedRef) !== JSON.stringify(ref);
+    return verifiedRef;
+  });
+
+  if (!hasChanges) {
+    return account;
+  }
+
+  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
+}
+
+function decorateAccountOrganizations(account, organizationRecordsBySid, claimRequestsBySid = new Map()) {
+  const nowMs = Date.now();
+  return {
+    ...account,
+    organizations: account.organizations.map((ref) =>
+      ({
+        ...decorateOrganizationRef(
+          ref,
+          organizationRecordsBySid.get(ref.sid) ?? null,
+          account.accountId,
+          nowMs,
+        ),
+        claimRequestStatus:
+          claimRequestsBySid.get(ref.sid)?.status ?? null,
+        claimRequestSubmittedAt:
+          claimRequestsBySid.get(ref.sid)?.submittedAt ?? null,
+      })
+    ),
+  };
+}
+
+async function decorateAccountOrganizationsFromStore(store, account) {
+  const organizationRecordsBySid = await readOrganizationRecordsBySid(store, account.organizations);
+  const claimRequestsBySid = await readOrganizationClaimRequestsBySid(
+    store,
+    account.accountId,
+    account.organizations,
+  );
+  return decorateAccountOrganizations(account, organizationRecordsBySid, claimRequestsBySid);
+}
+
+function canAutoRefreshStaleSnapshot(account, organizationRef, organizationRecord, nowMs = Date.now()) {
+  if (!organizationRecord || !isSnapshotStale(organizationRecord, nowMs)) {
+    return false;
+  }
+
+  return Boolean(
+    organizationRecord.claimedByAccountId === account.accountId ||
+      organizationRecord.adminAccountIds.includes(account.accountId) ||
+      organizationRef?.status === 'verified_admin',
+  );
+}
+
+async function refreshStaleOrganizationSnapshots(
+  store,
+  account,
+  apiKey,
+  { fetchImpl = fetch } = {},
+) {
+  if (!apiKey || !Array.isArray(account?.organizations) || account.organizations.length === 0) {
+    return account;
+  }
+
+  const organizationRecordsBySid = await readOrganizationRecordsBySid(store, account.organizations);
+  const nowMs = Date.now();
+
+  for (const organizationRef of account.organizations) {
+    const organizationRecord = organizationRecordsBySid.get(organizationRef.sid) ?? null;
+    if (!canAutoRefreshStaleSnapshot(account, organizationRef, organizationRecord, nowMs)) {
+      continue;
+    }
+
+    try {
+      const refreshedRecord = await refreshLiveOrganizationSnapshot(store, apiKey, organizationRef.sid, {
+        fetchImpl,
+      });
+      organizationRecordsBySid.set(organizationRef.sid, refreshedRecord);
+      break;
+    } catch (error) {
+      if (error instanceof OrganizationServiceError && error.status === 429) {
+        break;
+      }
+    }
+  }
+
+  return account;
+}
+
+async function safeSyncAndDecorateAccountOrganizations(
+  store,
+  account,
+  apiKey,
+  { fetchImpl = fetch } = {},
+) {
+  try {
+    return await syncAndDecorateAccountOrganizations(store, account, apiKey, { fetchImpl });
+  } catch {
+    return decorateAccountOrganizationsFromStore(store, account);
+  }
+}
+
+async function refreshLiveOrganizationSnapshot(store, apiKey, sid, { fetchImpl = fetch } = {}) {
+  const quotaStatus = await fetchRsiApiKeyStatus(apiKey, { fetchImpl });
+  if (quotaStatus.remainingLiveRequests <= 0) {
+    throw new OrganizationServiceError(
+      429,
+      'The daily live RSI verification limit has been reached. Try again tomorrow.',
+    );
+  }
+
+  let metadata;
+  try {
+    metadata = await fetchRsiOrganizationBySid(apiKey, sid, {
+      fetchImpl,
+      mode: 'cache',
+    });
+  } catch (error) {
+    if (!isLikelyNotFoundError(error)) {
+      throw error;
+    }
+
+    metadata = await fetchRsiOrganizationBySid(apiKey, sid, {
+      fetchImpl,
+      mode: 'auto',
+    });
+  }
+  const members = await fetchAllRsiOrganizationMembers(apiKey, sid, { fetchImpl });
+  const existingRecord = await readOrganizationRecord(store, sid);
+  const now = toIsoNow();
+  const nextRecord = {
+    ...(existingRecord ?? {
+      sid: metadata.sid,
+      claimed: false,
+      claimedByAccountId: null,
+      adminAccountIds: [],
+      createdAt: now,
+    }),
+    ...metadata,
+    image: metadata.image ?? metadata.logo ?? existingRecord?.image ?? null,
+    memberSnapshot: members,
+    lastLiveSyncAt: now,
+    nextEligibleLiveSyncAt: new Date(Date.now() + ORGANIZATION_LIVE_SYNC_COOLDOWN_MS).toISOString(),
+    staleAt: new Date(Date.now() + ORGANIZATION_SNAPSHOT_STALE_MS).toISOString(),
+    memberCount: members.length,
+    syncStatus: 'fresh',
+    updatedAt: now,
+  };
+
+  return writeOrganizationRecord(store, nextRecord);
+}
+
+async function ensureAccountHasOrganizationRef(store, account, sid, apiKey, { fetchImpl = fetch } = {}) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const existingRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (existingRef) {
+    return account;
+  }
+
+  const metadata = await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
+    fetchImpl,
+    mode: 'cache',
+  });
+  await upsertOrganizationMetadata(store, metadata);
+
+  const nextRef = {
+    sid: normalizedSid,
+    source: 'manual',
+    name: metadata.name,
+    image: metadata.image ?? metadata.logo ?? null,
+    status: 'observed',
+    rank: null,
+    stars: null,
+    lastSeenAt: toIsoNow(),
+    lastVerifiedAt: null,
+  };
+  const nextRefs = upsertOrganizationRef(account.organizations, nextRef);
+  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
+}
+
+function assertLinkedRsiHandle(account) {
+  if (!account?.rsi?.handle) {
+    throw new OrganizationServiceError(400, 'Link an RSI account before managing organizations.');
+  }
+}
+
+export class OrganizationServiceError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.name = 'OrganizationServiceError';
+    this.status = status;
+  }
+}
+
+export async function syncAndDecorateAccountOrganizations(
+  store,
+  account,
+  apiKey,
+  { fetchImpl = fetch } = {},
+) {
+  let nextAccount = account;
+  if (nextAccount?.rsi?.handle && apiKey) {
+    nextAccount = await syncProfileMainOrganization(store, nextAccount, apiKey, { fetchImpl });
+  }
+
+  nextAccount = await refreshStaleOrganizationSnapshots(store, nextAccount, apiKey, { fetchImpl });
+  nextAccount = await applyFreshMembershipSnapshots(store, nextAccount);
+  const organizationRecordsBySid = await readOrganizationRecordsBySid(store, nextAccount.organizations);
+  const claimRequestsBySid = await readOrganizationClaimRequestsBySid(
+    store,
+    nextAccount.accountId,
+    nextAccount.organizations,
+  );
+  return decorateAccountOrganizations(nextAccount, organizationRecordsBySid, claimRequestsBySid);
+}
+
+export async function addAccountOrganizationBySid(
+  store,
+  account,
+  apiKey,
+  sid,
+  { fetchImpl = fetch } = {},
+) {
+  assertLinkedRsiHandle(account);
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const existingRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (existingRef) {
+    throw new OrganizationServiceError(409, 'This organization is already linked to your account.');
+  }
+
+  let metadata;
+  try {
+    metadata = await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
+      fetchImpl,
+      mode: 'cache',
+    });
+  } catch (error) {
+    if (!isLikelyNotFoundError(error)) {
+      throw error;
+    }
+
+    metadata = await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
+      fetchImpl,
+      mode: 'auto',
+    });
+  }
+
+  const existingMetadataRef = account.organizations.find((ref) => ref.sid === metadata.sid) ?? null;
+  if (existingMetadataRef) {
+    throw new OrganizationServiceError(409, 'This organization is already linked to your account.');
+  }
+
+  await upsertOrganizationMetadata(store, metadata);
+
+  const existingRecord = await readOrganizationRecord(store, metadata.sid);
+  let matchingMember = existingRecord && isSnapshotFreshForMembership(existingRecord)
+    ? findOrganizationMemberByHandle(existingRecord.memberSnapshot, account.rsi.handle)
+    : null;
+
+  if (!matchingMember) {
+    matchingMember = await resolveOrganizationMembershipEvidence(
+      apiKey,
+      metadata.sid,
+      account,
+      null,
+      { fetchImpl },
+    );
+  }
+
+  if (!matchingMember) {
+    const quotaStatus = await fetchRsiApiKeyStatus(apiKey, { fetchImpl });
+    if (quotaStatus.remainingLiveRequests <= 0) {
+      throw new OrganizationServiceError(
+        429,
+        'The daily live RSI verification limit has been reached. Try again tomorrow.',
+      );
+    }
+
+    const membershipProof = await findRsiOrganizationMemberByHandle(
+      apiKey,
+      metadata.sid,
+      account.rsi.handle,
+      { fetchImpl },
+    );
+    matchingMember = membershipProof?.member ?? null;
+  }
+
+  if (!matchingMember) {
+    throw new OrganizationServiceError(
+      403,
+      'Your linked RSI handle was not found in this organization.',
+    );
+  }
+
+  const nextRef = {
+    sid: metadata.sid,
+    source: 'manual',
+    name: metadata.name,
+    image: metadata.image ?? metadata.logo ?? null,
+    status: isOrganizationAdminCandidate(matchingMember) ? 'verified_admin' : 'verified_member',
+    rank: matchingMember.rank ?? null,
+    stars: Number.isFinite(Number(matchingMember.stars)) ? Number(matchingMember.stars) : null,
+    lastSeenAt: toIsoNow(),
+    lastVerifiedAt: toIsoNow(),
+  };
+  const nextRefs = upsertOrganizationRef(account.organizations, nextRef);
+  const nextIgnoredOrganizationSids = (account.ignoredOrganizationSids ?? []).filter(
+    (ignoredSid) => ignoredSid !== metadata.sid,
+  );
+  const nextAccount = await saveAccountOrganizations(
+    store,
+    account.accountId,
+    nextRefs,
+    account.profile,
+    {
+      ignoredOrganizationSids: nextIgnoredOrganizationSids,
+    },
+  );
+  return safeSyncAndDecorateAccountOrganizations(store, nextAccount, apiKey, { fetchImpl });
+}
+
+export async function removeAccountOrganizationBySid(store, account, sid) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const existingRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (!existingRef) {
+    throw new OrganizationServiceError(404, 'Organization not found in this account.');
+  }
+
+  const nextRefs = account.organizations.filter((ref) => ref.sid !== normalizedSid);
+  const nextIgnoredOrganizationSids =
+    existingRef.source === 'profile-main'
+      ? Array.from(new Set([...(account.ignoredOrganizationSids ?? []), normalizedSid]))
+      : (account.ignoredOrganizationSids ?? []).filter((ignoredSid) => ignoredSid !== normalizedSid);
+
+  const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  if (organizationRecord) {
+    const nextAdminAccountIds = (organizationRecord.adminAccountIds ?? []).filter(
+      (accountId) => accountId !== account.accountId,
+    );
+    const nextClaimedByAccountId =
+      organizationRecord.claimedByAccountId === account.accountId
+        ? null
+        : organizationRecord.claimedByAccountId;
+
+    await writeOrganizationRecord(store, {
+      ...organizationRecord,
+      claimed: Boolean(nextClaimedByAccountId),
+      claimedByAccountId: nextClaimedByAccountId,
+      adminAccountIds: nextAdminAccountIds,
+      updatedAt: toIsoNow(),
+    });
+  }
+
+  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile, {
+    ignoredOrganizationSids: nextIgnoredOrganizationSids,
+  });
+}
+
+export async function claimAccountOrganization(
+  store,
+  account,
+  sid,
+) {
+  assertLinkedRsiHandle(account);
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const organizationRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (!organizationRef) {
+    throw new OrganizationServiceError(404, 'Organization not found in this account.');
+  }
+
+  const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  if (organizationRecord?.claimed) {
+    throw new OrganizationServiceError(
+      409,
+      'This organization is already claimed in the app.',
+    );
+  }
+
+  const existingRequest = await readOrganizationClaimRequest(store, normalizedSid, account.accountId);
+  if (existingRequest?.status === 'pending') {
+    throw new OrganizationServiceError(
+      409,
+      'A claim review is already pending for this organization.',
+    );
+  }
+
+  await writeOrganizationClaimRequest(store, {
+    sid: normalizedSid,
+    accountId: account.accountId,
+    organizationName: organizationRef.name,
+    organizationSource: organizationRef.source,
+    requestedByDiscordId: account.profile.id,
+    requestedByDiscordUsername: account.profile.username,
+    requestedByDiscordDisplayName: account.profile.displayName,
+    requestedByRsiHandle: account.rsi?.handle ?? null,
+    requestedByRsiDisplayName: account.rsi?.displayName ?? account.rsi?.handle ?? null,
+    reviewerEmail: 'thsamon@proton.me',
+    status: 'pending',
+    submittedAt: toIsoNow(),
+    updatedAt: toIsoNow(),
+  });
+
+  return decorateAccountOrganizationsFromStore(store, account);
+}
+
+export async function refreshAccountOrganizationMembers(
+  store,
+  account,
+  apiKey,
+  sid,
+  { fetchImpl = fetch } = {},
+) {
+  assertLinkedRsiHandle(account);
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const organizationRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (!organizationRef) {
+    throw new OrganizationServiceError(404, 'Organization not found in this account.');
+  }
+
+  const existingRecord = await readOrganizationRecord(store, normalizedSid);
+  if (!existingRecord) {
+    throw new OrganizationServiceError(404, 'Organization data is not available yet.');
+  }
+  if (!existingRecord.claimed) {
+    throw new OrganizationServiceError(
+      400,
+      'Claim the organization first before refreshing members.',
+    );
+  }
+
+  const isKnownAdmin =
+    existingRecord.adminAccountIds.includes(account.accountId) ||
+    organizationRef.status === 'verified_admin';
+  if (!isKnownAdmin) {
+    throw new OrganizationServiceError(
+      403,
+      'Only verified organization admins can refresh organization members.',
+    );
+  }
+
+  const nextEligibleAt = normalizeIsoTimestamp(existingRecord.nextEligibleLiveSyncAt);
+  if (nextEligibleAt && Date.parse(nextEligibleAt) > Date.now()) {
+    throw new OrganizationServiceError(
+      429,
+      `Organization members can be refreshed only once every 24 hours. Try again after ${nextEligibleAt}.`,
+    );
+  }
+
+  const refreshedRecord = await refreshLiveOrganizationSnapshot(store, apiKey, normalizedSid, {
+    fetchImpl,
+  });
+  const matchingMember = await resolveOrganizationMembershipEvidence(
+    apiKey,
+    normalizedSid,
+    account,
+    refreshedRecord.memberSnapshot,
+    { fetchImpl },
+  );
+  const adminAccountIds = isOrganizationAdminCandidate(matchingMember)
+    ? Array.from(new Set([...(refreshedRecord.adminAccountIds ?? []), account.accountId]))
+    : (refreshedRecord.adminAccountIds ?? []).filter((accountId) => accountId !== account.accountId);
+
+  await writeOrganizationRecord(store, {
+    ...refreshedRecord,
+    adminAccountIds,
+    updatedAt: toIsoNow(),
+  });
+
+  const nextRefs = account.organizations.map((ref) => {
+    if (ref.sid !== normalizedSid) {
+      return ref;
+    }
+
+    if (!matchingMember) {
+      return buildObservedOrganizationRef(ref, {
+        lastSeenAt: refreshedRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
+      });
+    }
+
+    return buildVerifiedOrganizationRef(
+      ref,
+      matchingMember,
+      refreshedRecord.lastLiveSyncAt,
+      {
+        lastSeenAt: refreshedRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
+      },
+    );
+  });
+
+  const nextAccount = await saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
+  return safeSyncAndDecorateAccountOrganizations(store, nextAccount, apiKey, { fetchImpl });
+}
+
+export async function buildOrganizationSharedBlueprints(store, account, sid) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const organizationRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (!organizationRef) {
+    throw new OrganizationServiceError(404, 'Organization not found in this account.');
+  }
+  if (
+    organizationRef.status !== 'verified_member' &&
+    organizationRef.status !== 'verified_admin'
+  ) {
+    throw new OrganizationServiceError(
+      403,
+      'Only verified organization members can access shared organization blueprints.',
+    );
+  }
+
+  const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  const currentAccountInventoryBlueprintIdSet = new Set(
+    (account.inventoryBlueprintIds ?? []).map((blueprintId) => String(blueprintId)),
+  );
+  const currentAccountSharedBlueprintIds = (account.organizationBlueprintShares?.[normalizedSid] ?? [])
+    .map((blueprintId) => String(blueprintId))
+    .filter((blueprintId) => currentAccountInventoryBlueprintIdSet.has(blueprintId));
+  const currentAccountFallbackMember =
+    account?.rsi?.handle && currentAccountSharedBlueprintIds.length > 0
+      ? {
+          handle: account.rsi.handle,
+          display:
+            account.rsi.displayName ??
+            account.profile.displayName ??
+            account.profile.username ??
+            account.rsi.handle,
+          image: account.profile.avatarUrl ?? null,
+          rank: organizationRef.rank ?? null,
+          stars: organizationRef.stars ?? null,
+          sharedBlueprintIds: currentAccountSharedBlueprintIds,
+        }
+      : null;
+
+  if (!organizationRecord || organizationRecord.memberSnapshot.length === 0) {
+    if (!currentAccountFallbackMember) {
+      throw new OrganizationServiceError(
+        404,
+        'No organization member snapshot is available yet.',
+      );
+    }
+
+    return {
+      organization: {
+        sid: organizationRef.sid,
+        name: organizationRef.name,
+        image: organizationRef.image ?? null,
+        logo: organizationRef.logo ?? null,
+        url: organizationRef.url ?? null,
+        claimed: Boolean(organizationRef.claimed),
+        lastLiveSyncAt: organizationRef.lastLiveSyncAt ?? null,
+        staleAt: organizationRef.staleAt ?? null,
+        memberCount: typeof organizationRef.memberCount === 'number' ? organizationRef.memberCount : 0,
+        syncStatus: organizationRef.syncStatus ?? 'never',
+      },
+      members: [currentAccountFallbackMember],
+    };
+  }
+
+  const members = (
+    await Promise.all(
+      organizationRecord.memberSnapshot.map(async (member) => {
+        const memberAccountId = await readAccountIdByRsiHandle(store, member.handle);
+        if (!memberAccountId) {
+          return null;
+        }
+
+        const memberAccount = await readAccountRecord(store, memberAccountId);
+        if (!memberAccount) {
+          return null;
+        }
+
+        const inventoryBlueprintIds = memberAccount.inventoryBlueprintIds.map((blueprintId) =>
+          String(blueprintId),
+        );
+        const inventoryBlueprintIdSet = new Set(inventoryBlueprintIds);
+        const sharedBlueprintIds = (memberAccount.organizationBlueprintShares?.[normalizedSid] ?? [])
+          .map((blueprintId) => String(blueprintId))
+          .filter((blueprintId) => inventoryBlueprintIdSet.has(blueprintId));
+
+        if (sharedBlueprintIds.length === 0) {
+          return null;
+        }
+
+        return {
+          handle: member.handle,
+          display: member.display,
+          image: member.image,
+          rank: member.rank,
+          stars: member.stars,
+          sharedBlueprintIds,
+        };
+      }),
+    )
+  ).filter((member) => member !== null);
+
+  if (
+    currentAccountFallbackMember &&
+    !members.some(
+      (member) =>
+        normalizeComparableText(member.handle) ===
+        normalizeComparableText(currentAccountFallbackMember.handle),
+    )
+  ) {
+    members.push(currentAccountFallbackMember);
+  }
+
+  return {
+    organization: {
+      sid: organizationRecord.sid,
+      name: organizationRecord.name,
+      image: organizationRecord.image ?? organizationRecord.logo ?? null,
+      logo: organizationRecord.logo ?? null,
+      url: organizationRecord.url ?? null,
+      claimed: organizationRecord.claimed,
+      lastLiveSyncAt: organizationRecord.lastLiveSyncAt,
+      staleAt: organizationRecord.staleAt,
+      memberCount: organizationRecord.memberCount,
+      syncStatus: organizationRecord.syncStatus,
+    },
+    members,
+  };
+}

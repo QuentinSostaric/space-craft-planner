@@ -1,4 +1,9 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 function requireEnv(env, key) {
   const value = env[key];
@@ -73,4 +78,31 @@ export async function putJsonObject(
       CacheControl: cacheControl ?? undefined,
     }),
   );
+}
+
+export async function listObjectKeys(client, bucketName, prefix) {
+  const keys = [];
+  let continuationToken = undefined;
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    for (const entry of response.Contents ?? []) {
+      if (entry.Key) {
+        keys.push(entry.Key);
+      }
+    }
+
+    continuationToken = response.IsTruncated
+      ? response.NextContinuationToken
+      : undefined;
+  } while (continuationToken);
+
+  return keys;
 }

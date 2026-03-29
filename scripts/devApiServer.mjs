@@ -2,10 +2,59 @@ import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  buildAuthSessionPayload,
+  buildDiscordAuthorizationUrl,
+  buildExpiredCookie,
+  createOauthStateCookie,
+  createSessionCookie,
+  exchangeDiscordCode,
+  fetchDiscordUserProfile,
+  getOauthStateCookieName,
+  getSessionCookieName,
+  isDiscordAuthConfigured,
+  readOauthStateFromCookies,
+  readSessionFromCookies,
+  sanitizeReturnTo,
+  appendQueryParam,
+} from '../shared/discordAuth.mjs';
+import {
   createR2Client,
   getJsonObject,
   getR2Config,
 } from '../shared/r2Storage.mjs';
+import {
+  clearRsiAccountLink,
+  createS3AccountStore,
+  deleteAccountRecord,
+  getNextAllowedRsiLinkAt,
+  isRsiLinkRateLimited,
+  readAccountRecord,
+  saveAccountOrganizationBlueprintShares,
+  saveAccountState,
+  saveRsiAccountLink,
+  upsertDiscordAccount,
+} from '../shared/accountStorage.mjs';
+import {
+  addAccountOrganizationBySid,
+  buildOrganizationSharedBlueprints,
+  claimAccountOrganization,
+  OrganizationServiceError,
+  refreshAccountOrganizationMembers,
+  removeAccountOrganizationBySid,
+  syncAndDecorateAccountOrganizations,
+} from '../shared/organizationService.mjs';
+import { notifyOrganizationClaimRequest } from '../shared/organizationClaimNotification.mjs';
+import {
+  createOrganizationCraftRequest,
+  CraftRequestServiceError,
+  respondToCraftRequest,
+} from '../shared/craftRequestService.mjs';
+import {
+  notifyCraftRequestOwnerViaWorker,
+  resolveAppBaseUrlFromRequest,
+  resolveCraftRequestStorageScope,
+} from '../shared/discordBotRelay.mjs';
+import { verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
 
 const PORT = 8788;
 
@@ -31,22 +80,83 @@ function loadDevVars() {
   }
 }
 
-function sendJson(response, status, payload) {
+function sendJson(response, status, payload, headers = {}) {
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': '*',
+    ...headers,
   });
   response.end(JSON.stringify(payload));
 }
 
-function sendError(response, status, message) {
-  sendJson(response, status, { message });
+function sendError(response, status, message, headers = {}) {
+  sendJson(response, status, { message }, headers);
+}
+
+function sendRedirect(response, location, headers = {}) {
+  response.writeHead(302, {
+    Location: location,
+    'Cache-Control': 'no-store',
+    ...headers,
+  });
+  response.end();
+}
+
+async function readJsonBody(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
+  }
+
+  const rawBody = Buffer.concat(chunks).toString('utf8').trim();
+  if (!rawBody) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    throw new Error('Invalid JSON body.');
+  }
 }
 
 loadDevVars();
 
 const r2Config = getR2Config(process.env);
 const client = createR2Client(process.env);
+const accountStore = createS3AccountStore(client, r2Config.bucketName);
+
+function getStarCitizenApiKey() {
+  return String(process.env.STARCITIZEN_API_KEY ?? '').trim();
+}
+
+async function buildDecoratedAccount(account) {
+  try {
+    return await syncAndDecorateAccountOrganizations(
+      accountStore,
+      account,
+      getStarCitizenApiKey(),
+    );
+  } catch {
+    return account;
+  }
+}
+
+function sendOrganizationError(response, error, fallbackMessage) {
+  const status = error instanceof OrganizationServiceError ? error.status : 400;
+  const message = error instanceof Error ? error.message : fallbackMessage;
+  sendError(response, status, message, {
+    'Cache-Control': 'no-store',
+  });
+}
+
+function sendCraftRequestError(response, error, fallbackMessage) {
+  const status = error instanceof CraftRequestServiceError ? error.status : 400;
+  const message = error instanceof Error ? error.message : fallbackMessage;
+  sendError(response, status, message, {
+    'Cache-Control': 'no-store',
+  });
+}
 
 async function readJson(key) {
   return getJsonObject(client, r2Config.bucketName, key);
@@ -117,6 +227,678 @@ async function getBlueprintDetail(response, datasetId, blueprintId) {
   });
 }
 
+async function getFactionContractsById(response, datasetId, factionId) {
+  const dataset = await readJson(`datasets/${datasetId}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No dataset for id "${datasetId}".`);
+    return;
+  }
+
+  const chunk = await readJson(
+    `datasets/${datasetId}/mission-rewards/factions/${encodeURIComponent(factionId)}.json`,
+  );
+  if (!chunk) {
+    sendError(response, 404, `No faction contracts for "${factionId}" in dataset "${datasetId}".`);
+    return;
+  }
+
+  sendJson(response, 200, chunk);
+}
+
+async function getFactionContractsByChannel(response, channel, factionId) {
+  const dataset = await readJson(`aliases/all/${channel}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No dataset for channel "${channel}".`);
+    return;
+  }
+
+  const chunk = await readJson(
+    `aliases/all/${channel}/mission-rewards/factions/${encodeURIComponent(factionId)}.json`,
+  );
+  if (!chunk) {
+    sendError(response, 404, `No faction contracts for "${factionId}" in channel "${channel}".`);
+    return;
+  }
+
+  sendJson(response, 200, chunk);
+}
+
+async function handleAuthSession(request, response) {
+  const session = await readSessionFromCookies(request.headers.cookie, process.env);
+  sendJson(
+    response,
+    200,
+    buildAuthSessionPayload(process.env, session),
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
+async function requireAuthenticatedSession(request) {
+  const session = await readSessionFromCookies(request.headers.cookie, process.env);
+  if (!session?.user?.id || !session.accountId) {
+    return null;
+  }
+
+  return session;
+}
+
+async function ensureAccountForSession(session) {
+  const existingAccount = await readAccountRecord(accountStore, session.accountId, session.user);
+  if (existingAccount) {
+    return existingAccount;
+  }
+
+  return upsertDiscordAccount(accountStore, session.user);
+}
+
+async function handleDiscordLogin(request, response, url) {
+  if (!isDiscordAuthConfigured(process.env)) {
+    sendError(response, 503, 'Discord auth is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const returnTo = sanitizeReturnTo(url.searchParams.get('returnTo'));
+  const { state, cookie } = await createOauthStateCookie(url.toString(), process.env, returnTo);
+  const authorizationUrl = buildDiscordAuthorizationUrl(url.toString(), process.env, state);
+
+  sendRedirect(response, authorizationUrl, {
+    'Set-Cookie': cookie,
+  });
+}
+
+async function handleDiscordCallback(request, response, url) {
+  if (!isDiscordAuthConfigured(process.env)) {
+    sendError(response, 503, 'Discord auth is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const oauthState = await readOauthStateFromCookies(request.headers.cookie, process.env);
+  const returnTo = oauthState?.returnTo ?? '/';
+  const expiredStateCookie = buildExpiredCookie(getOauthStateCookieName(), url.toString(), process.env);
+  const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), url.toString(), process.env);
+
+  if (!code || !state || !oauthState || oauthState.nonce !== state) {
+    sendRedirect(response, appendQueryParam(returnTo, 'auth_error', 'state_mismatch'), {
+      'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
+    });
+    return;
+  }
+
+  try {
+    const tokenPayload = await exchangeDiscordCode(url.toString(), process.env, code);
+    const user = await fetchDiscordUserProfile(tokenPayload.access_token);
+    const account = await upsertDiscordAccount(accountStore, user);
+    const sessionCookie = await createSessionCookie(
+      url.toString(),
+      process.env,
+      user,
+      account.accountId,
+    );
+
+    sendRedirect(response, returnTo, {
+      'Set-Cookie': [sessionCookie, expiredStateCookie],
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'discord_oauth_failed';
+    sendRedirect(response, appendQueryParam(returnTo, 'auth_error', message), {
+      'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
+    });
+  }
+}
+
+function handleLogout(url, response) {
+  sendJson(
+    response,
+    200,
+    { ok: true },
+    {
+      'Cache-Control': 'no-store',
+      'Set-Cookie': [
+        buildExpiredCookie(getSessionCookieName(), url.toString(), process.env),
+        buildExpiredCookie(getOauthStateCookieName(), url.toString(), process.env),
+      ],
+    },
+  );
+}
+
+async function handleAccount(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const account = await ensureAccountForSession(session);
+  const decoratedAccount = await buildDecoratedAccount(account);
+  sendJson(
+    response,
+    200,
+    { account: decoratedAccount },
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
+async function handleAccountUpdate(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  await ensureAccountForSession(session);
+  const account = await saveAccountState(accountStore, session.accountId, payload, session.user);
+  const decoratedAccount = await buildDecoratedAccount(account);
+  sendJson(
+    response,
+    200,
+    { account: decoratedAccount },
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
+async function handleAccountSharedBlueprintsUpdate(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  await ensureAccountForSession(session);
+  const account = await saveAccountOrganizationBlueprintShares(
+    accountStore,
+    session.accountId,
+    payload?.organizationBlueprintShares,
+    session.user,
+  );
+  const decoratedAccount = await buildDecoratedAccount(account);
+  sendJson(
+    response,
+    200,
+    { account: decoratedAccount },
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
+async function handleRsiLink(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const apiKey = String(process.env.STARCITIZEN_API_KEY ?? '').trim();
+  if (!apiKey) {
+    sendError(response, 503, 'Star Citizen API is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  const handle = String(payload?.handle ?? '').trim();
+  const code = String(payload?.code ?? '').trim().toUpperCase();
+  if (!handle) {
+    sendError(response, 400, 'RSI handle is required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+  if (!code) {
+    sendError(response, 400, 'Verification code is required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const existingAccount = await ensureAccountForSession(session);
+    if (isRsiLinkRateLimited(existingAccount)) {
+      const nextAllowedAt = getNextAllowedRsiLinkAt(existingAccount);
+      sendError(
+        response,
+        429,
+        nextAllowedAt
+          ? `You can link an RSI account only once every 5 days. Try again after ${nextAllowedAt}.`
+          : 'You can link an RSI account only once every 5 days.',
+        {
+          'Cache-Control': 'no-store',
+        },
+      );
+      return;
+    }
+
+    const verifiedLink = await verifyRsiHandleOwnership(apiKey, handle, code);
+    const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    const decoratedAccount = await buildDecoratedAccount(account);
+    sendJson(
+      response,
+      200,
+      { account: decoratedAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Failed to verify the RSI account.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  }
+}
+
+async function handleRsiUnlink(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    await ensureAccountForSession(session);
+    const account = await clearRsiAccountLink(accountStore, session.accountId, session.user);
+    const decoratedAccount = await buildDecoratedAccount(account);
+    sendJson(
+      response,
+      200,
+      { account: decoratedAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Failed to remove the RSI account link.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  }
+}
+
+async function handleAccountOrganizationsCreate(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const apiKey = getStarCitizenApiKey();
+  if (!apiKey) {
+    sendError(response, 503, 'Star Citizen API is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const nextAccount = await addAccountOrganizationBySid(
+      accountStore,
+      account,
+      apiKey,
+      payload?.sid,
+    );
+    sendJson(
+      response,
+      200,
+      { account: nextAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to add the organization.');
+  }
+}
+
+async function handleAccountOrganizationDelete(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const nextAccount = await removeAccountOrganizationBySid(accountStore, account, sid);
+    const decoratedAccount = await buildDecoratedAccount(nextAccount);
+    sendJson(
+      response,
+      200,
+      { account: decoratedAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to remove the organization.');
+  }
+}
+
+async function handleOrganizationClaim(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const nextAccount = await claimAccountOrganization(accountStore, account, sid);
+    const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
+    if (claimRequest?.claimRequestStatus === 'pending') {
+      void notifyOrganizationClaimRequest(process.env, {
+        sid: claimRequest.sid,
+        organizationName: claimRequest.name,
+        accountId: nextAccount.accountId,
+        requestedByDiscordDisplayName: nextAccount.profile.displayName,
+        requestedByDiscordUsername: nextAccount.profile.username,
+        requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
+        reviewerEmail: 'thsamon@proton.me',
+        submittedAt: claimRequest.claimRequestSubmittedAt,
+      });
+    }
+    sendJson(
+      response,
+      200,
+      { account: nextAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to submit the organization claim request.');
+  }
+}
+
+async function handleOrganizationRefresh(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const apiKey = getStarCitizenApiKey();
+  if (!apiKey) {
+    sendError(response, 503, 'Star Citizen API is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, apiKey, sid);
+    sendJson(
+      response,
+      200,
+      { account: nextAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to refresh organization members.');
+  }
+}
+
+async function handleOrganizationSharedBlueprints(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const decoratedAccount = await buildDecoratedAccount(account);
+    const payload = await buildOrganizationSharedBlueprints(accountStore, decoratedAccount, sid);
+    sendJson(
+      response,
+      200,
+      payload,
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to load shared organization blueprints.');
+  }
+}
+
+async function handleOrganizationCraftRequestCreate(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const result = await createOrganizationCraftRequest(accountStore, account, {
+      organizationSid: sid,
+      blueprintId: payload?.blueprintId,
+      blueprintName: payload?.blueprintName,
+      ownerHandle: payload?.ownerHandle,
+      appBaseUrl: resolveAppBaseUrlFromRequest(request, process.env),
+      storageScope: resolveCraftRequestStorageScope(request, process.env),
+    });
+    void notifyCraftRequestOwnerViaWorker(
+      process.env,
+      result.request,
+      result.ownerAccount,
+      result.requesterAccount,
+    ).catch(() => {});
+    const decoratedAccount = await buildDecoratedAccount(result.account);
+    sendJson(
+      response,
+      200,
+      {
+        account: decoratedAccount,
+        request: result.request,
+      },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendCraftRequestError(response, error, 'Failed to create the craft request.');
+  }
+}
+
+async function handleCraftRequestDecision(request, response, requestId) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const result = await respondToCraftRequest(
+      accountStore,
+      account,
+      requestId,
+      payload?.decision,
+    );
+    const decoratedAccount = await buildDecoratedAccount(result.account);
+    sendJson(
+      response,
+      200,
+      {
+        account: decoratedAccount,
+        requestId: result.requestId,
+        status: result.status,
+      },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendCraftRequestError(response, error, 'Failed to answer the craft request.');
+  }
+}
+
+async function handleDeleteAccount(request, response, url) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  await deleteAccountRecord(accountStore, session.accountId);
+  sendJson(
+    response,
+    200,
+    { ok: true },
+    {
+      'Cache-Control': 'no-store',
+      'Set-Cookie': [
+        buildExpiredCookie(getSessionCookieName(), url.toString(), process.env),
+        buildExpiredCookie(getOauthStateCookieName(), url.toString(), process.env),
+      ],
+    },
+  );
+}
+
 const server = http.createServer(async (request, response) => {
   if (!request.url) {
     sendError(response, 400, 'Missing request URL.');
@@ -130,10 +912,129 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'OPTIONS') {
       response.writeHead(204, {
         'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET,OPTIONS',
+        'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'access-control-allow-headers': 'content-type',
       });
       response.end();
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/session') {
+      await handleAuthSession(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/discord/login') {
+      await handleDiscordLogin(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/discord/callback') {
+      await handleDiscordCallback(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && path === '/api/auth/logout') {
+      handleLogout(url, response);
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/account') {
+      await handleAccount(request, response);
+      return;
+    }
+
+    if (request.method === 'PUT' && path === '/api/auth/account') {
+      await handleAccountUpdate(request, response);
+      return;
+    }
+
+    if (request.method === 'PUT' && path === '/api/auth/account/shared-blueprints') {
+      await handleAccountSharedBlueprintsUpdate(request, response);
+      return;
+    }
+
+    if (request.method === 'DELETE' && path === '/api/auth/account') {
+      await handleDeleteAccount(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && path === '/api/auth/account/organizations') {
+      await handleAccountOrganizationsCreate(request, response);
+      return;
+    }
+
+    const accountOrganizationDeleteMatch = path.match(/^\/api\/auth\/account\/organizations\/([^/]+)$/);
+    if (request.method === 'DELETE' && accountOrganizationDeleteMatch) {
+      await handleAccountOrganizationDelete(
+        request,
+        response,
+        decodeURIComponent(accountOrganizationDeleteMatch[1]),
+      );
+      return;
+    }
+
+    if (request.method === 'POST' && path === '/api/auth/account/rsi-link') {
+      await handleRsiLink(request, response);
+      return;
+    }
+
+    if (request.method === 'DELETE' && path === '/api/auth/account/rsi-link') {
+      await handleRsiUnlink(request, response);
+      return;
+    }
+
+    const organizationClaimMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/claim$/);
+    if (request.method === 'POST' && organizationClaimMatch) {
+      await handleOrganizationClaim(
+        request,
+        response,
+        decodeURIComponent(organizationClaimMatch[1]),
+      );
+      return;
+    }
+
+    const organizationRefreshMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/refresh$/);
+    if (request.method === 'POST' && organizationRefreshMatch) {
+      await handleOrganizationRefresh(
+        request,
+        response,
+        decodeURIComponent(organizationRefreshMatch[1]),
+      );
+      return;
+    }
+
+    const organizationSharedBlueprintsMatch = path.match(
+      /^\/api\/auth\/organizations\/([^/]+)\/shared-blueprints$/,
+    );
+    if (request.method === 'GET' && organizationSharedBlueprintsMatch) {
+      await handleOrganizationSharedBlueprints(
+        request,
+        response,
+        decodeURIComponent(organizationSharedBlueprintsMatch[1]),
+      );
+      return;
+    }
+
+    const organizationCraftRequestsMatch = path.match(
+      /^\/api\/auth\/organizations\/([^/]+)\/craft-requests$/,
+    );
+    if (request.method === 'POST' && organizationCraftRequestsMatch) {
+      await handleOrganizationCraftRequestCreate(
+        request,
+        response,
+        decodeURIComponent(organizationCraftRequestsMatch[1]),
+      );
+      return;
+    }
+
+    const craftRequestDecisionMatch = path.match(/^\/api\/auth\/craft-requests\/([^/]+)$/);
+    if (request.method === 'POST' && craftRequestDecisionMatch) {
+      await handleCraftRequestDecision(
+        request,
+        response,
+        decodeURIComponent(craftRequestDecisionMatch[1]),
+      );
       return;
     }
 
@@ -187,6 +1088,18 @@ const server = http.createServer(async (request, response) => {
         datasetId,
         missionRewards: chunk?.missionRewards ?? null,
       }));
+      return;
+    }
+
+    const byIdFactionContractsMatch = path.match(
+      /^\/api\/game-data\/public\/by-id\/([^/]+)\/mission-rewards\/factions\/([^/]+)$/,
+    );
+    if (byIdFactionContractsMatch) {
+      await getFactionContractsById(
+        response,
+        decodeURIComponent(byIdFactionContractsMatch[1]),
+        decodeURIComponent(byIdFactionContractsMatch[2]),
+      );
       return;
     }
 
@@ -252,6 +1165,18 @@ const server = http.createServer(async (request, response) => {
         datasetId: dataset.datasetId,
         missionRewards: chunk?.missionRewards ?? null,
       });
+      return;
+    }
+
+    const factionContractsByChannelMatch = path.match(
+      /^\/api\/game-data\/public\/(live|ptu)\/mission-rewards\/factions\/([^/]+)$/,
+    );
+    if (factionContractsByChannelMatch) {
+      await getFactionContractsByChannel(
+        response,
+        factionContractsByChannelMatch[1],
+        decodeURIComponent(factionContractsByChannelMatch[2]),
+      );
       return;
     }
 
