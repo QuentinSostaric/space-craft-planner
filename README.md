@@ -2,143 +2,140 @@
 
 **[itemfab.space](https://itemfab.space)**
 
-React + TypeScript app for Star Citizen crafting, dismantling analysis, mission reward browsing, and resource planning.
+React + TypeScript app for Star Citizen crafting, dismantling analysis, mission reward browsing, resource planning, account sync, organizations, and Discord-assisted craft requests.
 
 ## Features
 
-- **Blueprint Library** — search, segmented control (All / Inventory / Favorites / Obtainable), category accordions, manufacturer / legality / rarity / slot / craft-time filters. Compact cards with item thumbnails, manufacturer logos, and category icon fallbacks.
-- **Item Workspace** — two-column layout: identity + acquisition left (sticky), craft simulator + material sources + dismantling right (scrollable).
-- **Craft Simulator** — slot quality picker with +/− controls, per-category stat panel (weapons / armor / magazines), GPP modifier sparkline, stat impact radar, material resource summary.
-- **Acquisition Sources** — per-blueprint mission contracts with employer, faction, standing, location, and availability scale.
-- **Dismantling** — contextual dismantling metadata (efficiency, queues, global parameters).
-- **Mission Directory** — faction accordions, contract cards, filters by location / scale / standing / text search. Blueprint reward chips navigate to the Item Workspace.
-- **Resources** — resource card grid with filters (family, source type, system, mission demand, blueprint category) and an inline detail panel (identity, best sources, mission demand, blueprint usage).
-- **Planner** — full-page crafting plan: goal list with quality assignments, aggregated resources with per-resource method selector (Mission / Mining / Dismantle / Buy), SCU slider, mission contract accordion, copy text / JSON export.
-- **NavRail** — 4-item side rail (Blueprints / Missions / Resources / Planner). Desktop: collapsible 200 px / 64 px. Mobile: 4-column tab bar.
-- **Comparison** — side-by-side stat comparison for up to 4 blueprints with color-coded deltas.
-- **Dataset Changelog** — PTU vs LIVE diff accessible via the header Δ button.
-- **External Media** — blueprint images and manufacturer logos resolved from starcitizen.tools wiki.
+- **Account Layer** - Discord sign-in, cloud-synced favorites / inventory / planner state, and local blueprint import after login.
+- **RSI Linking** - verify an RSI handle from the account page and unlock organization-aware features.
+- **Blueprint Library** - search, segmented control, category accordions, advanced filters, and responsive blueprint cards.
+- **Item Workspace** - sticky identity / acquisition column plus craft simulator, material sources, and dismantling panels.
+- **Mission Directory** - faction accordions, contract cards, standing / location filters, and blueprint reward navigation.
+- **Resources** - resource explorer with filters, detail panel, mission demand, and blueprint usage.
+- **Planner** - full-page crafting plan with goals, aggregated resources, collection progress, and export actions.
+- **Organizations** - link organizations from RSI profile or by SID / URL, browse shared blueprints per org, and request manual org claim review.
+- **Craft Requests** - request a craft from another organization member and track `Pending`, `Accepted`, `Denied`, and `Closed`.
+- **Discord Bot** - dedicated Cloudflare Worker that DMs blueprint owners with `Accept`, `Deny`, and `Get in touch`.
+- **Comparison** - compare up to 4 blueprints side by side.
+- **Dataset Changelog** - PTU vs LIVE diff from the header.
 
 ## Architecture
 
-### Component Map
-
-```mermaid
-graph TD
-    App[App.tsx] --> Providers[Providers: Theme, I18n, Craft]
-    Providers --> AppShell[AppShell]
-
-    AppShell --> Header[Header.tsx]
-    AppShell --> NavRail[NavRail.tsx]
-    AppShell --> Views[Lazy Views — Suspense / useTransition]
-    AppShell --> Modals[Modals: Comparison, Changelog]
-
-    Views --> BlueprintExplorer[BlueprintExplorer.tsx]
-    Views --> BlueprintGrid[BlueprintGrid.tsx]
-    Views --> ItemWorkspace[ItemWorkspace.tsx]
-    Views --> MissionsPanel[MissionsPanel.tsx]
-    Views --> ResourcesPage[ResourcesPage.tsx]
-    Views --> PlannerPage[PlannerPage.tsx]
-
-    ItemWorkspace --> CraftSection[CraftSection.tsx]
-    ItemWorkspace --> AcquisitionSection[AcquisitionSection.tsx]
-    ItemWorkspace --> DismantleSection[DismantleSection.tsx]
-    ItemWorkspace --> MaterialSourcesSection[MaterialSourcesSection.tsx]
-
-    PlannerPage --> GoalsList[GoalsList.tsx]
-    PlannerPage --> ResourcesList[ResourcesList.tsx]
-
-    subgraph State
-        CraftContext[CraftContext.tsx]
-        gameDataService[gameDataService.ts]
-    end
-
-    CraftContext -.->|Provides State| AppShell
-    gameDataService -->|Fetches Data| CraftContext
-```
-
-Production data is runtime-driven:
+Production data and account flow are runtime-driven:
 
 1. Game files are copied locally for extraction.
-2. Exporter scripts normalize and chunk data.
-3. Chunks are published to Cloudflare R2 (`sc-craft-game-data` for prod, `sc-craft-game-data-dev` for local/dev).
-4. Cloudflare Pages Functions read chunks from R2 at runtime via the `GAME_DATA` binding.
+2. Exporter scripts normalize and chunk datasets.
+3. Chunks are published to Cloudflare R2.
+4. Cloudflare Pages Functions read dataset chunks from the `GAME_DATA` binding.
 5. The browser fetches `/api/game-data/public*`.
-6. Account auth, when configured, flows through `/api/auth/*` with Discord OAuth 2 and a signed HttpOnly session cookie.
+6. `/api/auth/*` handles Discord OAuth, account state, RSI link, organizations, sharing, and craft requests backed by R2 records.
+7. Craft request notifications are relayed to a dedicated Discord bot Worker. Only the bot Worker stores the Discord bot token.
 
-Production URL: [itemfab.space](https://itemfab.space) (Cloudflare Pages + custom domain)
+Production URL: [itemfab.space](https://itemfab.space)
 
-### R2 storage layout
+## R2 Layout
 
-```
-indexes/public.json                                                ← published datasets index
-indexes/all.json                                                   ← all datasets index (dev/preview)
-datasets/{datasetId}/core.json                                     ← blueprint catalog + resources + metadata
-datasets/{datasetId}/resource-data.json                            ← resourceInsights + materialSources
-datasets/{datasetId}/ship-components.json                          ← shipComponents
-datasets/{datasetId}/mission-rewards.json                          ← slim missionRewards (no contracts, +blueprintAcquisitionGraph)
-datasets/{datasetId}/mission-rewards/factions/{factionId}.json     ← per-faction contracts (lazy-loaded)
-datasets/{datasetId}/changelog.json                                ← PTU vs LIVE diff
-datasets/{datasetId}/blueprints/{id}.json                          ← full blueprint detail
-aliases/public/{channel}/core.json                                 ← latest published dataset for channel (mutable)
-aliases/public/{channel}/resource-data.json
-aliases/public/{channel}/mission-rewards.json
-aliases/public/{channel}/mission-rewards/factions/{factionId}.json ← per-faction contracts alias (mutable)
+```text
+indexes/public.json
+indexes/all.json
+datasets/{datasetId}/core.json
+datasets/{datasetId}/resource-data.json
+datasets/{datasetId}/ship-components.json
+datasets/{datasetId}/mission-rewards.json
+datasets/{datasetId}/mission-rewards/factions/{factionId}.json
+datasets/{datasetId}/changelog.json
+datasets/{datasetId}/blueprints/{id}.json
 aliases/public/{channel}/...
-aliases/all/{channel}/...                                          ← same for dev/preview
+aliases/all/{channel}/...
+accounts/{accountId}.json
+organizations/{sid}.json
+organization-claim-requests/{sid}/{accountId}.json
 ```
 
-### Runtime endpoints
+Production dataset bucket: `sc-craft-game-data`
 
-```
-GET /api/game-data/public                                                    → dataset index
-GET /api/game-data/public/:channel                                           → core (catalog blueprints + resources)
-GET /api/game-data/public/:channel/resource-data                             → resourceInsights + materialSources
-GET /api/game-data/public/:channel/ship-components                           → shipComponents
-GET /api/game-data/public/:channel/mission-rewards                           → slim missionRewards (no contracts)
-GET /api/game-data/public/:channel/mission-rewards/factions/:factionId       → per-faction contracts
-GET /api/game-data/public/:channel/changelog                                 → PTU vs LIVE diff
-GET /api/game-data/public/by-id/:datasetId                                   → core by exact datasetId
+Dev / preview dataset bucket: `sc-craft-game-data-dev`
+
+## Runtime Endpoints
+
+### Public dataset endpoints
+
+```text
+GET /api/game-data/public
+GET /api/game-data/public/:channel
+GET /api/game-data/public/:channel/resource-data
+GET /api/game-data/public/:channel/ship-components
+GET /api/game-data/public/:channel/mission-rewards
+GET /api/game-data/public/:channel/mission-rewards/factions/:factionId
+GET /api/game-data/public/:channel/changelog
+GET /api/game-data/public/by-id/:datasetId
 GET /api/game-data/public/by-id/:datasetId/resource-data
 GET /api/game-data/public/by-id/:datasetId/ship-components
 GET /api/game-data/public/by-id/:datasetId/mission-rewards
-GET /api/game-data/public/by-id/:datasetId/mission-rewards/factions/:factionId → per-faction contracts by datasetId
+GET /api/game-data/public/by-id/:datasetId/mission-rewards/factions/:factionId
 GET /api/game-data/public/by-id/:datasetId/changelog
-GET /api/game-data/public/by-id/:datasetId/blueprints/:id                   → full blueprint detail
-GET /api/auth/session                                                        → current auth session (`enabled`, provider, user)
-GET /api/auth/discord/login?returnTo=/path                                   → start Discord OAuth 2 redirect
-GET /api/auth/discord/callback                                               → Discord OAuth 2 callback, sets signed session cookie
-POST /api/auth/logout                                                        → clear auth session cookies
+GET /api/game-data/public/by-id/:datasetId/blueprints/:id
 ```
 
-### Auth foundation
+### Auth / account endpoints
 
-Current account/auth scope:
+```text
+GET /api/auth/session
+GET /api/auth/discord/login?returnTo=/path
+GET /api/auth/discord/callback
+POST /api/auth/logout
+
+GET /api/auth/account
+PUT /api/auth/account
+DELETE /api/auth/account
+
+POST /api/auth/account/rsi-link
+DELETE /api/auth/account/rsi-link
+
+POST /api/auth/account/organizations
+DELETE /api/auth/account/organizations/:sid
+
+PUT /api/auth/account/shared-blueprints
+
+POST /api/auth/organizations/:sid/claim
+POST /api/auth/organizations/:sid/refresh
+GET /api/auth/organizations/:sid/shared-blueprints
+POST /api/auth/organizations/:sid/craft-requests
+
+POST /api/auth/craft-requests/:requestId
+```
+
+## Auth and Account Model
 
 - Provider: Discord OAuth 2
 - Default scope: `identify`
-- Session storage: signed stateless HttpOnly cookie (`sc_craft_session`)
-- CSRF protection: signed short-lived OAuth state cookie (`sc_craft_discord_oauth_state`)
-- Stored identity: Discord profile only for now, no local account database yet
-- Discord access tokens are exchanged server-side and discarded after `/users/@me`
+- Session storage: signed stateless HttpOnly cookie
+- RSI link: optional verified handle stored on the account
+- Account persistence: favorites, inventory, planner state, linked orgs, per-org blueprint shares, craft requests
+- Organization persistence: metadata, member snapshot, admin state, review requests
 
 ## Discord Bot Worker
 
-A dedicated Discord bot Worker scaffold is available in [`workers/discord-bot`](./workers/discord-bot).
+The bot lives in [`workers/discord-bot`](./workers/discord-bot).
 
 - Runtime: separate Cloudflare Worker
-- Commands included: `/ping`, `/open`, `/dataset`, `/help`
-- Local dev: `npm run discord:bot:dev`
-- Registration: `npm run discord:bot:register:guild` or `npm run discord:bot:register:global`
-- Deploy: `npm run discord:bot:deploy`
+- Slash commands: `/ping`, `/open`, `/dataset`, `/help`
+- Craft request flow:
+  - owner receives a DM with a rich embed
+  - actions: `Accept`, `Deny`, `Get in touch`
+  - owner can answer without opening the app
+- Security model:
+  - the main site does not need `DISCORD_BOT_TOKEN`
+  - the site calls the bot through a signed internal endpoint
+  - only the bot Worker stores the Discord bot token
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 24+
-- Cloudflare R2 credentials (see Local dev section)
-- Copied Star Citizen game files in `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE` (only needed for re-extraction)
+- Cloudflare R2 credentials
+- Copied Star Citizen game files for extraction if you need to rebuild datasets
 
 ### Install
 
@@ -148,7 +145,7 @@ npm install
 
 ### Local dev
 
-Create a root `.dev.vars` file (never commit — already in `.gitignore`):
+Create a root `.dev.vars` file:
 
 ```bash
 R2_ACCOUNT_ID=<cloudflare-account-id>
@@ -157,26 +154,43 @@ R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
 R2_BUCKET_NAME=sc-craft-game-data-dev
 R2_BUCKET_REGION=auto
 
-# Optional Discord OAuth 2 foundation
-# Register http://localhost:5173/api/auth/discord/callback in the Discord developer portal.
 DISCORD_CLIENT_ID=<discord-client-id>
 DISCORD_CLIENT_SECRET=<discord-client-secret>
 AUTH_SESSION_SECRET=<long-random-secret>
 AUTH_PUBLIC_ORIGIN=http://localhost:5173
+
+DISCORD_BOT_WORKER_URL=https://sc-craft-discord-bot.<your-subdomain>.workers.dev
+DISCORD_BOT_INTERNAL_TOKEN=<shared-secret-between-site-and-bot-worker>
+
+STARCITIZEN_API_KEY=<starcitizen-api-key>
 ```
 
-Then run:
+Create `workers/discord-bot/.dev.vars`:
+
+```bash
+DISCORD_APPLICATION_ID=<discord-application-id>
+DISCORD_PUBLIC_KEY=<discord-interactions-public-key>
+DISCORD_BOT_TOKEN=<discord-bot-token>
+DISCORD_BOT_INTERNAL_TOKEN=<same-shared-secret-as-root-dev-vars>
+APP_BASE_URL=http://localhost:5173
+```
+
+Run the app:
 
 ```bash
 npm run dev
 ```
 
-This starts two processes in parallel:
+This starts:
 
 - Vite on `http://localhost:5173`
-- `scripts/devApiServer.mjs` on `http://127.0.0.1:8788` — a plain Node HTTP server that serves all `/api/game-data/public*` routes by reading chunks directly from the dev R2 bucket declared in `.dev.vars` via `@aws-sdk/client-s3`
+- Local API on `http://127.0.0.1:8788`
 
-If Discord auth is enabled locally, keep `AUTH_PUBLIC_ORIGIN=http://localhost:5173` so the OAuth callback returns to the frontend host and Vite proxies `/api/auth/*` back to the local API server. Otherwise the session cookie lands on the wrong host (`127.0.0.1` vs `localhost`).
+Run the bot locally if needed:
+
+```bash
+npm run discord:bot:dev
+```
 
 ### Build
 
@@ -190,144 +204,68 @@ npm run build
 npm run deploy
 ```
 
-This builds the client and deploys `client/dist` to Cloudflare Pages.
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Vite dev server plus local API server |
+| `npm run build` | Type-check and build the client |
+| `npm run deploy` | Build and deploy the Pages app |
+| `npm run claims:org` | Review manual organization claim requests from R2 |
+| `npm run discord:bot:dev` | Run the Discord bot Worker locally |
+| `npm run discord:bot:deploy` | Deploy the Discord bot Worker |
+| `npm run discord:bot:register:guild` | Register slash commands in one Discord guild |
+| `npm run discord:bot:register:global` | Register slash commands globally |
+| `npm run import:ptu` | Import the PTU dataset into the production bucket |
+| `npm run import:live` | Import the LIVE dataset into the production bucket |
+| `npm run import:ptu:dev` | Import the PTU dataset into the dev bucket |
+| `npm run import:live:dev` | Import the LIVE dataset into the dev bucket |
+
+## Key Files
+
+| File | Purpose |
+| --- | --- |
+| `client/src/App.tsx` | App shell, top-level routing, lazy views |
+| `client/src/auth/AuthContext.tsx` | Authenticated client state and `/api/auth/*` actions |
+| `client/src/components/AccountPage.tsx` | Account identity, organizations, shares, craft requests |
+| `client/src/components/OrganizationsPage.tsx` | Shared blueprint explorer per organization |
+| `client/src/components/BlueprintExplorer.tsx` | Blueprint filters and explorer sidebar |
+| `client/src/components/BlueprintGrid.tsx` | Responsive blueprint grid and card actions |
+| `client/src/components/MissionsPanel.tsx` | Mission directory |
+| `client/src/components/ResourcesPage.tsx` | Resource explorer |
+| `client/src/components/NavRail.tsx` | Fixed-height side navigation |
+| `client/src/store/CraftContext.tsx` | Central dataset and UI state |
+| `client/src/services/authService.ts` | Typed auth/account/organization client |
+| `functions/_shared/auth.js` | Shared Pages auth/account/organization handlers |
+| `functions/api/auth/` | Pages auth/account endpoints |
+| `scripts/devApiServer.mjs` | Local API server backed by R2 |
+| `scripts/manageOrganizationClaims.mjs` | CLI reviewer for org claim requests |
+| `shared/accountStorage.mjs` | Normalized account storage in R2 |
+| `shared/organizationService.mjs` | Org sync, decoration, sharing, access rules |
+| `shared/craftRequestService.mjs` | Craft request create / update logic |
+| `shared/discordBotRelay.mjs` | Signed site-to-bot relay |
+| `shared/discordBot.mjs` | Discord DM payload builders and API helpers |
+| `shared/rsiLink.mjs` | StarCitizen API integration |
+| `workers/discord-bot/` | Dedicated Discord bot Worker |
 
 ## Game Data Rules
-
-These rules are important when changing the app or the exporter.
 
 ### Crafting
 
 - Each crafting slot resolves to one fixed required material.
 - `minQuality` is a raw numeric threshold from game data.
 - Material quality is a numeric stack value on a `0-1000` scale.
-- Do not model quality as source-of-truth tiers like `CMS`, `CMP`, `CMR`, `chunks`, `scraps`, or `powder`.
 
 ### Dismantling
 
-- The dataset proves one global dismantle process.
-- Dismantling metadata such as efficiency, time, queues, and default composition quality must come from extracted game files.
-- The current extraction does not prove a complete per-item dismantle yield table.
-- `dismantling.perItemYieldModel.resolved` must remain authoritative.
+- Dismantling metadata must come from extracted game files.
+- The dataset currently proves one global dismantle process.
+- Do not invent per-item dismantle yields when extraction does not prove them.
 
 ### Mission rewards
 
-- Mission giver / faction grouping comes from extracted contract data.
-- Reputation scopes, minimum standings, and availability scale come from extracted mission records.
-- Current PTU 4.7 extraction proves blueprint reward contracts.
-- Current PTU 4.7 extraction does not prove explicit craft-resource reward contracts in contract XML.
+- Grouping, standing requirements, and location scope come from extracted contracts.
+- Current extraction proves blueprint reward contracts.
+- Current extraction does not prove explicit craft-resource reward contracts in contract XML.
 
 Detailed reference: [CRAFTING_AND_DISMANTLING_MECHANICS.md](./CRAFTING_AND_DISMANTLING_MECHANICS.md)
-
-## Extraction Pipeline
-
-The extractor works from copied game files only. It must not touch a live game installation.
-
-### Required copied files
-
-Place a copied dataset under `exporter/source-game-files/PTU` or `exporter/source-game-files/LIVE`:
-
-- `Data.p4k` required
-- `build_manifest.id` recommended
-- `Game.log` optional fallback
-
-### Main extraction command
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\exporter\extract-game-data.ps1 -SourcePath .\exporter\source-game-files\PTU
-```
-
-The script detects channel, version, build number, and output label, then runs:
-
-1. blueprint extraction
-2. localization and item stat extraction
-3. mission reward extraction
-4. dismantling extraction
-5. material sources extraction
-6. resource image extraction
-7. optional R2 publication prompt
-
-### Main exported files
-
-- `exporter/output/<label>-crafting-blueprints.json`
-- `exporter/output/<label>-localizations.json`
-- `exporter/output/<label>-item-stats.json`
-- `exporter/output/<label>-mission-rewards.json`
-- `exporter/output/<label>-dismantling.json`
-- `exporter/output/<label>-material-sources.json`
-- `exporter/output/<label>-resource-images.json`
-- `exporter/output/<label>-build-manifest.json`
-
-### Publish to R2
-
-The normal path is to publish from the extractor prompt. You can also import manually to production. `npm run import:*` reads `exporter/.env`, which should target the prod bucket `sc-craft-game-data`:
-
-```bash
-npm run import:ptu
-npm run import:live
-```
-
-For flags such as `published=true`, call the Node entrypoint directly:
-
-```bash
-node ./exporter/importToR2.mjs --channel=live --published=true
-```
-
-To publish to the dev bucket used by `npm run dev:api`, use the dedicated dev importer. It reads the root `.dev.vars` file and refuses to run unless `R2_BUCKET_NAME` ends with `-dev`.
-
-```bash
-npm run import:ptu:dev
-npm run import:live:dev
-```
-
-You can also call the wrapper directly:
-
-```bash
-node ./exporter/importToR2_dev.mjs --channel=live --published=true
-```
-
-## Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Vite dev server plus local R2 API server |
-| `npm run build` | Type-check and build the client |
-| `npm run deploy` | Build the client and deploy to Cloudflare Pages |
-| `npm run import:ptu` | Import the PTU dataset into R2 |
-| `npm run import:live` | Import the LIVE dataset into R2 |
-| `npm run import:ptu:dev` | Import the PTU dataset into the dev R2 bucket from `.dev.vars` |
-| `npm run import:live:dev` | Import the LIVE dataset into the dev R2 bucket from `.dev.vars` |
-
-## Key Files
-
-| File | Purpose |
-| --- | --- |
-| `client/src/App.tsx` | root shell — lazy views, Suspense/useTransition, view routing |
-| `client/src/store/CraftContext.tsx` | central frontend state and dataset loading |
-| `client/src/services/gameDataService.ts` | runtime fetch client (all chunk loaders) |
-| `client/src/components/NavRail.tsx` | side nav (Blueprints / Missions / Resources / Planner) |
-| `client/src/components/Header.tsx` | top bar |
-| `client/src/components/BlueprintExplorer.tsx` | blueprint library sidebar (search, filters, sort) |
-| `client/src/components/BlueprintGrid.tsx` | responsive blueprint card grid |
-| `client/src/components/ItemWorkspace.tsx` | two-column item detail view |
-| `client/src/components/item-workspace/CraftSection.tsx` | craft simulator |
-| `client/src/components/MissionsPanel.tsx` | mission directory (faction accordions, contract cards, filters) |
-| `client/src/components/ResourcesPage.tsx` | resource explorer (card grid + detail panel) |
-| `client/src/components/PlannerPage.tsx` | full-page planner (goals + resource tracking) |
-| `client/src/components/planner/` | planner sub-components (GoalsList, ResourcesList, ResourceRow, …) |
-| `client/src/components/item-workspace/` | item workspace sub-components |
-| `functions/_shared/r2Store.js` | raw R2 access via GAME_DATA binding + caches.default |
-| `functions/_shared/r2Datasets.js` | higher-level R2 helpers (index, channel alias, by-id with visibility) |
-| `functions/_shared/gameData.js` | response helpers, visibility logic, isValidChannel |
-| `functions/api/game-data/public.js` | dataset index endpoint |
-| `functions/api/game-data/public/[channel].js` | core dataset endpoint |
-| `functions/api/game-data/public/[channel]/mission-rewards.js` | slim mission rewards endpoint |
-| `functions/api/game-data/public/[channel]/mission-rewards/factions/[factionId].js` | per-faction contracts endpoint (channel alias) |
-| `functions/api/game-data/public/by-id/[datasetId]/mission-rewards/factions/[factionId].js` | per-faction contracts endpoint (by datasetId) |
-| `scripts/devApiServer.mjs` | local API server — serves all public routes from R2 |
-| `exporter/extract-game-data.ps1` | main extraction entry point |
-| `exporter/dataset-builder.mjs` | normalized dataset builder |
-| `exporter/dataset-chunks.mjs` | chunk split logic (core, resource-data, ship-components, mission-rewards slim + per-faction, changelog, blueprint details) |
-| `exporter/importToR2.mjs` | R2 publication pipeline |
-| `exporter/migrateMissionRewardsFactions.mjs` | one-time migration: writes per-faction contract objects to R2 from existing mission-rewards chunks |
-| `shared/r2Storage.mjs` | S3-compatible R2 client (used by exporter + devApiServer) |
