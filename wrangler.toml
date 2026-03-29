@@ -1,7 +1,10 @@
-name = "sc-craft"
+name = "space-craft-planner"
 compatibility_date = "2024-09-23"
 
 pages_build_output_dir = "client/dist"
+
+[vars]
+DISCORD_BOT_WORKER_URL = "https://sc-craft-discord-bot.sostaric-quentinjr.workers.dev"
 
 [[r2_buckets]]
 binding = "GAME_DATA"

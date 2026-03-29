@@ -198,6 +198,10 @@ interface CraftState {
   setSearchQuery: (q: string) => void;
   toggleFavorite: (blueprintId: string) => void;
   toggleInventory: (blueprintId: string) => void;
+  replaceLocalBlueprintCollections: (nextState: {
+    favoriteBlueprintIds?: string[];
+    inventoryBlueprintIds?: string[];
+  }) => void;
   assignQuality: (slotId: string, quality: number | undefined) => void;
   clearAssignments: () => void;
   addGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
@@ -1138,6 +1142,31 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     [setInventoryIds],
   );
 
+  const replaceLocalBlueprintCollections = useCallback(
+    (nextState: { favoriteBlueprintIds?: string[]; inventoryBlueprintIds?: string[] }) => {
+      if (Array.isArray(nextState.favoriteBlueprintIds)) {
+        setFavoriteIds([
+          ...new Set(
+            nextState.favoriteBlueprintIds
+              .map((entry) => String(entry ?? '').trim())
+              .filter(Boolean),
+          ),
+        ]);
+      }
+
+      if (Array.isArray(nextState.inventoryBlueprintIds)) {
+        setInventoryIds([
+          ...new Set(
+            nextState.inventoryBlueprintIds
+              .map((entry) => String(entry ?? '').trim())
+              .filter(Boolean),
+          ),
+        ]);
+      }
+    },
+    [setFavoriteIds, setInventoryIds],
+  );
+
   const assignQuality = useCallback((slotId: string, quality: number | undefined) => {
     setSlotAssignments((prev) => ({ ...prev, [slotId]: quality }));
   }, []);
@@ -1447,6 +1476,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setSearchQuery,
         toggleFavorite,
         toggleInventory,
+        replaceLocalBlueprintCollections,
         assignQuality,
         clearAssignments,
         addGoal,

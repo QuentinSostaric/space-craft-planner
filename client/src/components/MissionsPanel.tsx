@@ -25,6 +25,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
+import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import FlagIcon from '@mui/icons-material/Flag';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
@@ -383,7 +384,65 @@ function MissionsFilterBar({
   ].filter(Boolean).length;
 
   return (
-    <Box component="section" aria-label={t('Mission filters', 'Filtres de mission')} sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Paper
+      variant="outlined"
+      component="section"
+      aria-label={t('Mission filters', 'Filtres de mission')}
+      sx={{
+        p: { xs: 1.25, md: 1.5 },
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.25,
+        borderColor: alpha(theme.palette.primary.main, 0.14),
+        backgroundColor: alpha(theme.palette.background.default, 0.24),
+      }}
+    >
+      <Stack
+        direction={{ xs: 'column', xl: 'row' }}
+        spacing={1}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', xl: 'center' }}
+      >
+        <Box>
+          <Typography
+            variant="overline"
+            sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
+          >
+            {t('Mission filters', 'Filtres missions', 'Missionsfilter')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t(
+              'Search contract pools first, then tighten rewards, standing, faction and resource objectives only when needed.',
+              'Commence par rechercher les contrats, puis affine recompenses, reputation, faction et objectifs ressource seulement quand c est necessaire.',
+              'Suche zuerst im Vertrags-Pool und verfeinere danach bei Bedarf Belohnungen, Ruf, Fraktion und Ressourcenziele.',
+            )}
+          </Typography>
+        </Box>
+        {hasActiveFilters && (
+          <Button
+            variant="outlined"
+            startIcon={<FilterListOffOutlinedIcon />}
+            onClick={() => {
+              onLocationChange(null);
+              onScaleChange(null);
+              onContractorChange(null);
+              onEmployerChange(null);
+              onFactionChange(null);
+              onLegalityChange('all');
+              onStandingBucketChange('all');
+              onRewardCategoryChange('all');
+              onRewardManufacturerChange(null);
+              onRewardBlueprintChange(null);
+              onResourceObjectiveResourceChange(null);
+              onResourceObjectiveModeChange('all');
+            }}
+            sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
+          </Button>
+        )}
+      </Stack>
+
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
           type="search"
@@ -471,28 +530,6 @@ function MissionsFilterBar({
             renderInput={(params) => <TextField {...params} placeholder={t('Scale', 'Echelle')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
             slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
-          {hasActiveFilters && (
-            <Chip
-              label={t('Clear', 'Effacer')}
-              size="small"
-              variant="outlined"
-              onDelete={() => {
-                onLocationChange(null);
-                onScaleChange(null);
-                onContractorChange(null);
-                onEmployerChange(null);
-                onFactionChange(null);
-                onLegalityChange('all');
-                onStandingBucketChange('all');
-                onRewardCategoryChange('all');
-                onRewardManufacturerChange(null);
-                onRewardBlueprintChange(null);
-                onResourceObjectiveResourceChange(null);
-                onResourceObjectiveModeChange('all');
-              }}
-              sx={{ height: 24, fontSize: '.6rem' }}
-            />
-          )}
         </Stack>
       </Box>
 
@@ -501,7 +538,7 @@ function MissionsFilterBar({
         elevation={0}
         sx={{
           backgroundColor: 'transparent',
-          border: (theme) => `1px solid ${theme.palette.divider}`,
+          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
           '&::before': { display: 'none' },
         }}
       >
@@ -583,7 +620,7 @@ function MissionsFilterBar({
           </Box>
         </AccordionDetails>
       </Accordion>
-    </Box>
+    </Paper>
   );
 }
 
@@ -1366,22 +1403,39 @@ export function MissionsPanel() {
 
   const allContractors = useMemo(() => {
     const set = new Set<string>();
+    for (const group of missionRewards?.factionGroups ?? []) {
+      if (group.contractorDisplayName) {
+        set.add(group.contractorDisplayName);
+      }
+    }
     for (const { group } of allContracts) {
       set.add(group.contractorDisplayName);
     }
     return [...set].sort();
-  }, [allContracts]);
+  }, [allContracts, missionRewards]);
 
   const allEmployers = useMemo(() => {
     const set = new Set<string>();
+    for (const group of missionRewards?.factionGroups ?? []) {
+      const employerLabel = group.employer?.displayName ?? group.contractorDisplayName;
+      if (employerLabel) {
+        set.add(employerLabel);
+      }
+    }
     for (const { contract, group } of allContracts) {
       set.add(getMissionEmployerName(contract, group));
     }
     return [...set].sort();
-  }, [allContracts]);
+  }, [allContracts, missionRewards]);
 
   const allFactions = useMemo(() => {
     const set = new Set<string>();
+    for (const group of missionRewards?.factionGroups ?? []) {
+      const label = group.faction?.displayName;
+      if (label) {
+        set.add(label);
+      }
+    }
     for (const { group, contract } of allContracts) {
       const label = group.faction?.displayName ?? contract.faction?.displayName;
       if (label) {
@@ -1389,7 +1443,7 @@ export function MissionsPanel() {
       }
     }
     return [...set].sort();
-  }, [allContracts]);
+  }, [allContracts, missionRewards]);
 
   const allRewardCategories = useMemo(() => {
     const set = new Set<ItemCategory>();

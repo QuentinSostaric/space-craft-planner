@@ -1,12 +1,17 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { memo, startTransition, useMemo, useState } from 'react';
+import { memo, startTransition, useMemo, useState, type ReactNode } from 'react';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import CheckIcon from '@mui/icons-material/Check';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
+import CircularProgress from '@mui/material/CircularProgress';
+import ToggleButton from '@mui/material/ToggleButton';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import GroupsIcon from '@mui/icons-material/Groups';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
@@ -151,11 +156,27 @@ function compareNumberDesc(left: number | null | undefined, right: number | null
   return rightValue - leftValue;
 }
 
+export interface BlueprintCardQuickAction {
+  key: string;
+  label: string;
+  ariaLabel: string;
+  tooltip: string;
+  onClick: (blueprintId: string) => void;
+  selected?: boolean;
+  busy?: boolean;
+  disabled?: boolean;
+  icon?: ReactNode;
+  avatarSrc?: string | null;
+  avatarAlt?: string;
+}
+
 export const BlueprintCard = memo(function BlueprintCard({
   blueprint,
   activeBlueprintId,
   isFavorite,
   isInInventory,
+  organizationShareAction,
+  extraQuickActions,
   statMaxima,
   resources,
   priority = false,
@@ -167,6 +188,16 @@ export const BlueprintCard = memo(function BlueprintCard({
   activeBlueprintId: string | null;
   isFavorite: boolean;
   isInInventory: boolean;
+  organizationShareAction?: {
+    selected: boolean;
+    busy?: boolean;
+    disabled?: boolean;
+    label: string;
+    ariaLabel: string;
+    tooltip: string;
+    onToggle: (blueprintId: string) => void;
+  } | null;
+  extraQuickActions?: BlueprintCardQuickAction[];
   statMaxima: Map<ItemCategory, Map<NumericItemStatKey, number>>;
   resources: Resource[];
   priority?: boolean;
@@ -183,6 +214,29 @@ export const BlueprintCard = memo(function BlueprintCard({
 
   const cardStats = CARD_STATS[blueprint.category] ?? [];
   const categoryMax = statMaxima.get(blueprint.category);
+  const quickActionBaseSx = {
+    flex: 1,
+    minWidth: 0,
+    gap: 0.625,
+    px: 1.1,
+    py: 0.8,
+    justifyContent: 'flex-start',
+    textTransform: 'none',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    lineHeight: 1.15,
+    borderColor: 'divider',
+    backgroundColor: alpha(theme.palette.background.default, 0.22),
+    color: 'text.secondary',
+    '& .MuiSvgIcon-root': {
+      fontSize: '1rem',
+    },
+    '&:hover': {
+      borderColor: 'primary.main',
+      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+      color: 'text.primary',
+    },
+  } as const;
 
   return (
     <Card
@@ -351,50 +405,148 @@ export const BlueprintCard = memo(function BlueprintCard({
 
       <Box
         sx={{
-          p: 1.5,
-          pt: 0,
-          display: 'grid',
-          gap: 1,
+          px: 1.5,
+          pb: 1.5,
+          pt: 0.5,
+          display: 'flex',
+          gap: 0.9,
+          flexWrap: 'wrap',
           borderTop: `1px solid ${theme.palette.divider}`,
           backgroundColor: alpha(theme.palette.background.default, 0.08),
         }}
       >
-        <Button
-          fullWidth
-          size="small"
-          color={isFavorite ? 'warning' : 'inherit'}
-          variant={isFavorite ? 'contained' : 'outlined'}
-          startIcon={isFavorite ? <StarIcon sx={{ fontSize: '1rem' }} /> : <StarBorderIcon sx={{ fontSize: '1rem' }} />}
-          onClick={() => onToggleFavorite(blueprint.id)}
-          sx={{
-            justifyContent: 'flex-start',
-            textTransform: 'none',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-          }}
+        <Tooltip
+          title={
+            isFavorite
+              ? t('Remove from favorites', 'Retirer des favoris', 'Aus Favoriten entfernen')
+              : t('Add to favorites', 'Ajouter aux favoris', 'Zu Favoriten hinzufugen')
+          }
         >
-          {isFavorite
-            ? t('Remove from favorites', 'Retirer des favoris')
-            : t('Add to favorites', 'Ajouter aux favoris')}
-        </Button>
-        <Button
-          fullWidth
-          size="small"
-          color={isInInventory ? 'primary' : 'inherit'}
-          variant={isInInventory ? 'contained' : 'outlined'}
-          startIcon={isInInventory ? <CheckIcon sx={{ fontSize: '1rem' }} /> : <Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />}
-          onClick={() => onToggleInventory(blueprint.id)}
-          sx={{
-            justifyContent: 'flex-start',
-            textTransform: 'none',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-          }}
+          <ToggleButton
+            value="favorite"
+            size="small"
+            selected={isFavorite}
+            aria-pressed={isFavorite}
+            aria-label={
+              isFavorite
+                ? t('Remove from favorites', 'Retirer des favoris', 'Aus Favoriten entfernen')
+                : t('Add to favorites', 'Ajouter aux favoris', 'Zu Favoriten hinzufugen')
+            }
+            onClick={() => onToggleFavorite(blueprint.id)}
+            sx={{
+              ...quickActionBaseSx,
+              ...(isFavorite && {
+                color: 'warning.main',
+                borderColor: 'warning.main',
+                backgroundColor: alpha(theme.palette.warning.main, 0.12),
+              }),
+            }}
+          >
+            {isFavorite ? <StarIcon /> : <StarBorderIcon />}
+            {t('Favorite', 'Favori', 'Favorit')}
+          </ToggleButton>
+        </Tooltip>
+        <Tooltip
+          title={
+            isInInventory
+              ? t('Remove from inventory', 'Retirer de l\'inventaire', 'Aus Inventar entfernen')
+              : t('Add to inventory', 'Ajouter a l\'inventaire', 'Zum Inventar hinzufugen')
+          }
         >
-          {isInInventory
-            ? t('Remove from inventory', 'Retirer de l\'inventaire')
-            : t('Add to inventory', 'Ajouter a l\'inventaire')}
-        </Button>
+          <ToggleButton
+            value="inventory"
+            size="small"
+            selected={isInInventory}
+            aria-pressed={isInInventory}
+            aria-label={
+              isInInventory
+                ? t('Remove from inventory', 'Retirer de l\'inventaire', 'Aus Inventar entfernen')
+                : t('Add to inventory', 'Ajouter a l\'inventaire', 'Zum Inventar hinzufugen')
+            }
+            onClick={() => onToggleInventory(blueprint.id)}
+            sx={{
+              ...quickActionBaseSx,
+              ...(isInInventory && {
+                color: 'primary.main',
+                borderColor: 'primary.main',
+                backgroundColor: alpha(theme.palette.primary.main, 0.12),
+              }),
+            }}
+          >
+            {isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
+            {t('Inventory', 'Inventaire', 'Inventar')}
+          </ToggleButton>
+        </Tooltip>
+        {organizationShareAction && (
+          <Tooltip title={organizationShareAction.tooltip}>
+            <span style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+              <ToggleButton
+                value="organization-share"
+                size="small"
+                selected={organizationShareAction.selected}
+                aria-pressed={organizationShareAction.selected}
+                aria-label={organizationShareAction.ariaLabel}
+                disabled={organizationShareAction.disabled || organizationShareAction.busy}
+                onClick={() => organizationShareAction.onToggle(blueprint.id)}
+                sx={{
+                  ...quickActionBaseSx,
+                  ...(organizationShareAction.selected && {
+                    color: 'primary.main',
+                    borderColor: 'primary.main',
+                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                  }),
+                }}
+              >
+                {organizationShareAction.busy ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : organizationShareAction.selected ? (
+                  <GroupsIcon />
+                ) : (
+                  <GroupsOutlinedIcon />
+                )}
+                {organizationShareAction.label}
+              </ToggleButton>
+            </span>
+          </Tooltip>
+        )}
+        {(extraQuickActions ?? []).map((action) => (
+          <Tooltip key={action.key} title={action.tooltip}>
+            <span style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+              <ToggleButton
+                value={action.key}
+                size="small"
+                selected={Boolean(action.selected)}
+                aria-pressed={Boolean(action.selected)}
+                aria-label={action.ariaLabel}
+                disabled={action.disabled || action.busy}
+                onClick={() => action.onClick(blueprint.id)}
+                sx={{
+                  ...quickActionBaseSx,
+                  ...(action.selected && {
+                    color: 'primary.main',
+                    borderColor: 'primary.main',
+                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                  }),
+                }}
+              >
+                {action.busy ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : action.avatarSrc ? (
+                  <Avatar
+                    src={action.avatarSrc}
+                    alt={action.avatarAlt ?? action.label}
+                    sx={{ width: 18, height: 18 }}
+                  >
+                    {(action.avatarAlt ?? action.label).charAt(0).toUpperCase()}
+                  </Avatar>
+                ) : (
+                  action.icon
+                )}
+                {action.label}
+              </ToggleButton>
+            </span>
+          </Tooltip>
+        ))}
       </Box>
     </Card>
   );
@@ -403,6 +555,13 @@ export const BlueprintCard = memo(function BlueprintCard({
   prev.activeBlueprintId === next.activeBlueprintId &&
   prev.isFavorite === next.isFavorite &&
   prev.isInInventory === next.isInInventory &&
+  prev.organizationShareAction?.selected === next.organizationShareAction?.selected &&
+  prev.organizationShareAction?.busy === next.organizationShareAction?.busy &&
+  prev.organizationShareAction?.disabled === next.organizationShareAction?.disabled &&
+  prev.organizationShareAction?.label === next.organizationShareAction?.label &&
+  prev.organizationShareAction?.ariaLabel === next.organizationShareAction?.ariaLabel &&
+  prev.organizationShareAction?.tooltip === next.organizationShareAction?.tooltip &&
+  prev.extraQuickActions === next.extraQuickActions &&
   prev.statMaxima === next.statMaxima &&
   prev.resources === next.resources &&
   prev.priority === next.priority &&

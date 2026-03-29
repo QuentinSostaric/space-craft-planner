@@ -5,11 +5,13 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -18,6 +20,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import CloseIcon from '@mui/icons-material/Close';
+import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
@@ -560,158 +563,201 @@ export function BlueprintExplorer() {
         <DatasetTooOldNotice variant="caption" />
       )}
 
-      <Box
+      <Paper
+        variant="outlined"
         sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            md: 'minmax(260px, 1fr) auto minmax(190px, 220px)',
-          },
-          gap: 1,
-          alignItems: 'center',
+          p: { xs: 1.25, md: 1.5 },
+          borderColor: alpha(theme.palette.primary.main, 0.14),
+          backgroundColor: alpha(theme.palette.background.default, 0.24),
         }}
       >
-        <TextField
-          type="search"
-          size="small"
-          placeholder={t('Search blueprints...', 'Rechercher des blueprints...')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                  <AppGlyph name="search" size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{
-            minWidth: 0,
-            '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
-          }}
-        />
-
-        <ToggleButtonGroup
-          value={librarySegment}
-          exclusive
-          onChange={(_e, val) => {
-            if (val) setLibrarySegment(val as LibrarySegment);
-          }}
-          size="small"
-          aria-label={t('Library filter', 'Filtre bibliotheque')}
-          sx={{
-            width: { xs: '100%', sm: 'auto' },
-            display: { xs: 'grid', sm: 'inline-flex' },
-            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'none' },
-            gridAutoRows: { xs: 'minmax(34px, auto)', sm: 'auto' },
-            '& .MuiToggleButton-root': {
-              fontSize: { xs: '.58rem', sm: '.65rem' },
-              px: { xs: 0.75, sm: 1.25 },
-              minWidth: 0,
-              minHeight: 34,
-              lineHeight: 1.1,
-              whiteSpace: 'normal',
-              textAlign: 'center',
-            },
-          }}
-        >
-          {SEGMENTS.map((segment) => (
-            <ToggleButton
-              key={segment.value}
-              value={segment.value}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 0.5,
-              }}
-            >
-              {segment.icon && <segment.icon sx={{ fontSize: '.72rem', flexShrink: 0 }} />}
-              <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {getOptionText(segment, lang)}
-              </Box>
-              {segment.value === 'inventory' && inventoryIds.length > 0 && (
-                <Box component="span" sx={{ fontSize: '.52rem', opacity: 0.7, flexShrink: 0 }}>
-                  {inventoryIds.length}
-                </Box>
-              )}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-
-        <FormControl
-          size="small"
-          sx={{
-            minWidth: { xs: '100%', sm: 220 },
-            width: '100%',
-            '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
-          }}
-        >
-          <Select
-            value={blueprintSort}
-            onChange={(event) => setBlueprintSort(event.target.value as BlueprintSort)}
-            displayEmpty
-            inputProps={{ 'aria-label': t('Sort blueprints', 'Trier les blueprints') }}
+        <Stack spacing={1.25}>
+          <Stack
+            direction={{ xs: 'column', xl: 'row' }}
+            spacing={1}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', xl: 'center' }}
           >
-            {SORT_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {getOptionText(option, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            <Box>
+              <Typography
+                variant="overline"
+                sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
+              >
+                {t('Blueprint filters', 'Filtres blueprints', 'Blueprint-Filter')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {t(
+                  'Search the library, narrow the category and refine legality, materials or acquisition when needed.',
+                  'Recherche dans la bibliotheque, reduis la categorie puis affine legalite, materiaux ou acquisition seulement quand c est utile.',
+                  'Durchsuche die Bibliothek, begrenze die Kategorie und verfeinere bei Bedarf Legalitat, Materialien oder Erwerb.',
+                )}
+              </Typography>
+            </Box>
+            {hasActiveFilters && (
+              <Button
+                variant="outlined"
+                startIcon={<FilterListOffOutlinedIcon />}
+                onClick={clearAllFilters}
+                sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
+              </Button>
+            )}
+          </Stack>
 
-        {activeBlueprint && (
           <Box
             sx={{
-              display: 'flex',
-              alignItems: 'center',
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: 'minmax(260px, 1fr) auto minmax(190px, 220px)',
+              },
               gap: 1,
-              px: 1,
-              height: 32,
-              backgroundColor: 'background.paper',
-              border: (theme) => `1px solid ${theme.palette.primary.main}`,
-              borderRadius: 1,
-              width: { xs: '100%', md: 'auto' },
-              minWidth: 0,
+              alignItems: 'center',
             }}
           >
-            <CategoryBadge category={activeBlueprint.category} iconOnly />
-            <Typography
-              variant="body2"
+            <TextField
+              type="search"
+              size="small"
+              label={t('Search', 'Recherche', 'Suche')}
+              placeholder={t('Search blueprints...', 'Rechercher des blueprints...', 'Blueprints suchen...')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
+                      <AppGlyph name="search" size={18} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
               sx={{
-                maxWidth: 180,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontSize: '.75rem',
+                minWidth: 0,
+                '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
+              }}
+            />
+
+            <ToggleButtonGroup
+              value={librarySegment}
+              exclusive
+              onChange={(_e, val) => {
+                if (val) setLibrarySegment(val as LibrarySegment);
+              }}
+              size="small"
+              aria-label={t('Library filter', 'Filtre bibliotheque')}
+              sx={{
+                width: { xs: '100%', sm: 'auto' },
+                display: { xs: 'grid', sm: 'inline-flex' },
+                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'none' },
+                gridAutoRows: { xs: 'minmax(34px, auto)', sm: 'auto' },
+                '& .MuiToggleButton-root': {
+                  fontSize: { xs: '.58rem', sm: '.65rem' },
+                  px: { xs: 0.75, sm: 1.25 },
+                  minWidth: 0,
+                  minHeight: 34,
+                  lineHeight: 1.1,
+                  whiteSpace: 'normal',
+                  textAlign: 'center',
+                },
               }}
             >
-              {activeBlueprint.name}
-            </Typography>
-            <IconButton
-              onClick={() => setActiveBlueprint(null)}
-              aria-label={t('Back to library', 'Retour a la bibliotheque')}
-              size="small"
-              sx={{ p: 0.25 }}
-            >
-              <CloseIcon sx={{ fontSize: '.9rem' }} />
-            </IconButton>
-          </Box>
-        )}
-      </Box>
+              {SEGMENTS.map((segment) => (
+                <ToggleButton
+                  key={segment.value}
+                  value={segment.value}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  {segment.icon && <segment.icon sx={{ fontSize: '.72rem', flexShrink: 0 }} />}
+                  <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {getOptionText(segment, lang)}
+                  </Box>
+                  {segment.value === 'inventory' && inventoryIds.length > 0 && (
+                    <Box component="span" sx={{ fontSize: '.52rem', opacity: 0.7, flexShrink: 0 }}>
+                      {inventoryIds.length}
+                    </Box>
+                  )}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
 
-      {isCompactMobile && (
-        <Accordion
-          disableGutters
-          elevation={0}
-          sx={{
-            backgroundColor: 'transparent',
-            border: (theme) => `1px solid ${theme.palette.divider}`,
-            '&::before': { display: 'none' },
-          }}
-        >
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: '100%', sm: 220 },
+                width: '100%',
+                '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
+              }}
+            >
+              <Select
+                value={blueprintSort}
+                onChange={(event) => setBlueprintSort(event.target.value as BlueprintSort)}
+                displayEmpty
+                inputProps={{ 'aria-label': t('Sort blueprints', 'Trier les blueprints') }}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {getOptionText(option, lang)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {activeBlueprint && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 1,
+                  height: 32,
+                  backgroundColor: 'background.paper',
+                  border: (theme) => `1px solid ${theme.palette.primary.main}`,
+                  borderRadius: 1,
+                  width: { xs: '100%', md: 'auto' },
+                  minWidth: 0,
+                }}
+              >
+                <CategoryBadge category={activeBlueprint.category} iconOnly />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    maxWidth: 180,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: '.75rem',
+                  }}
+                >
+                  {activeBlueprint.name}
+                </Typography>
+                <IconButton
+                  onClick={() => setActiveBlueprint(null)}
+                  aria-label={t('Back to library', 'Retour a la bibliotheque')}
+                  size="small"
+                  sx={{ p: 0.25 }}
+                >
+                  <CloseIcon sx={{ fontSize: '.9rem' }} />
+                </IconButton>
+              </Box>
+            )}
+          </Box>
+
+          {isCompactMobile && (
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{
+                backgroundColor: 'transparent',
+                border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
+                '&::before': { display: 'none' },
+              }}
+            >
           <AccordionSummary
             expandIcon={<AppGlyph name="caret-up" size={18} />}
             sx={{ minHeight: 40, ...accordionCaretSummarySx }}
@@ -842,19 +888,6 @@ export function BlueprintExplorer() {
                 slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
               />
 
-              {hasActiveFilters && (
-                <Chip
-                  label={t('Clear filters', 'Effacer les filtres')}
-                  onDelete={clearAllFilters}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    height: 28,
-                    fontSize: '.7rem',
-                    justifySelf: 'start',
-                  }}
-                />
-              )}
             </Box>
           </AccordionDetails>
         </Accordion>
@@ -981,20 +1014,6 @@ export function BlueprintExplorer() {
           slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
         />
 
-        {hasActiveFilters && (
-          <Chip
-            label={t('Clear filters', 'Effacer les filtres')}
-            onDelete={clearAllFilters}
-            size="small"
-            variant="outlined"
-            sx={{
-              height: 28,
-              fontSize: '.7rem',
-              justifySelf: { xs: 'start', xl: 'end' },
-              alignSelf: 'center',
-            }}
-          />
-        )}
       </Box>
 
       <Accordion
@@ -1002,7 +1021,7 @@ export function BlueprintExplorer() {
         elevation={0}
         sx={{
           backgroundColor: 'transparent',
-          border: (theme) => `1px solid ${theme.palette.divider}`,
+          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
           '&::before': { display: 'none' },
         }}
       >
@@ -1245,6 +1264,8 @@ export function BlueprintExplorer() {
           )}
         </AccordionDetails>
       </Accordion>
+        </Stack>
+      </Paper>
     </Box>
   );
 }
