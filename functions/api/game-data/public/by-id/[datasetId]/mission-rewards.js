@@ -4,6 +4,7 @@ import {
   getVisibleDatasetCore,
 } from '../../../../../_shared/r2Datasets.js';
 import { getDatasetChunkKey } from '../../../../../_shared/r2Store.js';
+import { getGameDataBucket } from '../../../../../_shared/runtimeBuckets.js';
 
 export async function onRequestGet(context) {
   const { datasetId } = context.params;
@@ -19,7 +20,8 @@ export async function onRequestGet(context) {
       return errorResponse(404, `No dataset for id "${datasetId}".`);
     }
 
-    const object = await context.env.GAME_DATA.get(
+    const bucket = getGameDataBucket(context.env, context.request);
+    const object = await bucket?.get(
       getDatasetChunkKey(datasetId, 'mission-rewards'),
     );
 

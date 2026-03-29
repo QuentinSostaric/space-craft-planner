@@ -1,4 +1,4 @@
-import { getGameDataBucket } from './runtimeBuckets.js';
+import { getGameDataBucket, resolveRuntimeStorageScope } from './runtimeBuckets.js';
 
 export const TTL_IMMUTABLE = 60 * 60 * 24 * 365;
 export const TTL_MUTABLE = 60;
@@ -12,13 +12,13 @@ function buildCacheControl(ttl) {
   return ttl >= TTL_IMMUTABLE ? CACHE_CONTROL_IMMUTABLE : CACHE_CONTROL_MUTABLE;
 }
 
-function buildCacheKey(key) {
-  return new Request(`https://game-data-cache.internal/${key}`);
+function buildCacheKey(scope, key) {
+  return new Request(`https://game-data-cache.internal/${scope}/${key}`);
 }
 
-async function putCachedJson(key, text, ttl) {
+async function putCachedJson(scope, key, text, ttl) {
   await caches.default.put(
-    buildCacheKey(key),
+    buildCacheKey(scope, key),
     new Response(text, {
       headers: {
         'content-type': 'application/json; charset=utf-8',
@@ -28,13 +28,14 @@ async function putCachedJson(key, text, ttl) {
   );
 }
 
-export async function getJson(env, key, ttl = TTL_MUTABLE) {
-  const cached = await caches.default.match(buildCacheKey(key));
+export async function getJson(env, key, ttl = TTL_MUTABLE, request = null) {
+  const scope = resolveRuntimeStorageScope(env, request);
+  const cached = await caches.default.match(buildCacheKey(scope, key));
   if (cached) {
     return cached.json();
   }
 
-  const bucket = getGameDataBucket(env);
+  const bucket = getGameDataBucket(env, request);
   if (!bucket?.get) {
     throw new Error('GAME_DATA bucket binding is not configured for this runtime.');
   }
@@ -45,7 +46,7 @@ export async function getJson(env, key, ttl = TTL_MUTABLE) {
   }
 
   const text = await object.text();
-  await putCachedJson(key, text, ttl);
+  await putCachedJson(scope, key, text, ttl);
   return JSON.parse(text);
 }
 

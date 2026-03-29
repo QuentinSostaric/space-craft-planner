@@ -5,6 +5,7 @@ import {
 } from '../../../../../../_shared/gameData.js';
 import { CACHE_CONTROL_MUTABLE } from '../../../../../../_shared/r2Datasets.js';
 import { getFactionContractsAliasKey } from '../../../../../../_shared/r2Store.js';
+import { getGameDataBucket } from '../../../../../../_shared/runtimeBuckets.js';
 
 export async function onRequestGet(context) {
   const { channel, factionId } = context.params;
@@ -16,7 +17,8 @@ export async function onRequestGet(context) {
 
   try {
     const namespace = getDatasetVisibilityNamespace(context.request, context.env);
-    const object = await context.env.GAME_DATA.get(
+    const bucket = getGameDataBucket(context.env, context.request);
+    const object = await bucket?.get(
       getFactionContractsAliasKey(namespace, channel, factionId),
     );
 

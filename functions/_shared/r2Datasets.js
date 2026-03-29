@@ -19,16 +19,16 @@ export {
 
 export async function getDatasetIndex(request, env) {
   const namespace = getDatasetVisibilityNamespace(request, env);
-  return getJson(env, getIndexKey(namespace), TTL_MUTABLE);
+  return getJson(env, getIndexKey(namespace), TTL_MUTABLE, request);
 }
 
 export async function getChannelChunk(request, env, channel, chunkName) {
   const namespace = getDatasetVisibilityNamespace(request, env);
-  return getJson(env, getAliasChunkKey(namespace, channel, chunkName), TTL_MUTABLE);
+  return getJson(env, getAliasChunkKey(namespace, channel, chunkName), TTL_MUTABLE, request);
 }
 
 export async function getVisibleDatasetCore(request, env, datasetId) {
-  const core = await getJson(env, getDatasetChunkKey(datasetId, 'core'), TTL_IMMUTABLE);
+  const core = await getJson(env, getDatasetChunkKey(datasetId, 'core'), TTL_IMMUTABLE, request);
   if (!core) {
     return null;
   }
@@ -51,7 +51,7 @@ export async function getVisibleDatasetChunk(request, env, datasetId, chunkName)
     return core;
   }
 
-  const chunk = await getJson(env, getDatasetChunkKey(datasetId, chunkName), TTL_IMMUTABLE);
+  const chunk = await getJson(env, getDatasetChunkKey(datasetId, chunkName), TTL_IMMUTABLE, request);
   return {
     core,
     chunk,

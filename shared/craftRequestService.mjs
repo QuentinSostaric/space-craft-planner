@@ -89,6 +89,12 @@ function hasVerifiedOrganizationMembership(account, sid) {
   );
 }
 
+function getOrganizationRefBySid(account, sid) {
+  return (
+    account?.organizations?.find((organization) => organization.sid === sid) ?? null
+  );
+}
+
 function hasPendingDuplicateRequest(account, { organizationSid, blueprintId, ownerAccountId }) {
   return (account?.outgoingCraftRequests ?? []).some(
     (request) =>
@@ -151,33 +157,19 @@ export async function createOrganizationCraftRequest(
   }
 
   const organizationRecord = await readOrganizationRecord(store, normalizedSid);
-  if (!organizationRecord || !Array.isArray(organizationRecord.memberSnapshot) || organizationRecord.memberSnapshot.length === 0) {
-    throw new CraftRequestServiceError(
-      404,
-      'No organization member snapshot is available yet.',
-    );
-  }
-
   const requesterMember = findMemberByHandle(
-    organizationRecord.memberSnapshot,
+    organizationRecord?.memberSnapshot,
     requesterAccount.rsi.handle,
   );
-  if (!requesterMember) {
+  const requesterOrganizationRef = getOrganizationRefBySid(requesterAccount, normalizedSid);
+  if (!requesterMember && !hasVerifiedOrganizationMembership(requesterAccount, normalizedSid)) {
     throw new CraftRequestServiceError(
       403,
       'Your linked RSI handle was not found in this organization member snapshot.',
     );
   }
 
-  const ownerMember = findMemberByHandle(organizationRecord.memberSnapshot, normalizedOwnerHandle);
-  if (!ownerMember) {
-    throw new CraftRequestServiceError(
-      404,
-      'The selected shared blueprint owner was not found in this organization snapshot.',
-    );
-  }
-
-  const ownerAccountId = await readAccountIdByRsiHandle(store, ownerMember.handle);
+  const ownerAccountId = await readAccountIdByRsiHandle(store, normalizedOwnerHandle);
   if (!ownerAccountId) {
     throw new CraftRequestServiceError(
       404,
@@ -196,6 +188,18 @@ export async function createOrganizationCraftRequest(
     throw new CraftRequestServiceError(
       404,
       'The selected shared blueprint owner account could not be loaded.',
+    );
+  }
+
+  const ownerMember = findMemberByHandle(
+    organizationRecord?.memberSnapshot,
+    ownerAccount.rsi?.handle ?? normalizedOwnerHandle,
+  );
+  const ownerOrganizationRef = getOrganizationRefBySid(ownerAccount, normalizedSid);
+  if (!ownerMember && !hasVerifiedOrganizationMembership(ownerAccount, normalizedSid)) {
+    throw new CraftRequestServiceError(
+      404,
+      'The selected shared blueprint owner is no longer verified for this organization.',
     );
   }
 
@@ -229,7 +233,11 @@ export async function createOrganizationCraftRequest(
     appBaseUrl: normalizeBaseUrl(appBaseUrl),
     storageScope: normalizeStorageScope(storageScope),
     organizationSid: normalizedSid,
-    organizationName: organizationRecord.name,
+    organizationName:
+      organizationRecord?.name ??
+      requesterOrganizationRef?.name ??
+      ownerOrganizationRef?.name ??
+      normalizedSid,
     blueprintId: normalizedBlueprintId,
     blueprintName: normalizeText(blueprintName) || normalizedBlueprintId,
     requesterAccountId: requesterAccount.accountId,

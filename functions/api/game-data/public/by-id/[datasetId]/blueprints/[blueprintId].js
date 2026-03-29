@@ -24,6 +24,7 @@ export async function onRequestGet(context) {
       context.env,
       getBlueprintDetailKey(datasetId, blueprintId),
       TTL_IMMUTABLE,
+      context.request,
     );
 
     if (!blueprint) {
