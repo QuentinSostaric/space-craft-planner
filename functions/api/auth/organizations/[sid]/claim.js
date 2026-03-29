@@ -7,6 +7,7 @@ export async function onRequestPost(context) {
       context.request,
       context.env,
       context.params.sid,
+      context,
     );
   } catch (error) {
     return errorResponse(

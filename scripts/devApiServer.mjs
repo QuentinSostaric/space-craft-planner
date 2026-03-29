@@ -684,18 +684,19 @@ async function handleOrganizationClaim(request, response, sid) {
     const account = await ensureAccountForSession(session);
     const nextAccount = await claimAccountOrganization(accountStore, account, sid);
     const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
-    if (claimRequest?.claimRequestStatus === 'pending') {
-      void notifyOrganizationClaimRequest(process.env, {
-        sid: claimRequest.sid,
-        organizationName: claimRequest.name,
-        accountId: nextAccount.accountId,
-        requestedByDiscordDisplayName: nextAccount.profile.displayName,
-        requestedByDiscordUsername: nextAccount.profile.username,
-        requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
-        reviewerEmail: 'thsamon@proton.me',
-        submittedAt: claimRequest.claimRequestSubmittedAt,
-      });
-    }
+    const notificationPromise =
+      claimRequest?.claimRequestStatus === 'pending'
+        ? notifyOrganizationClaimRequest(process.env, {
+            sid: claimRequest.sid,
+            organizationName: claimRequest.name,
+            accountId: nextAccount.accountId,
+            requestedByDiscordDisplayName: nextAccount.profile.displayName,
+            requestedByDiscordUsername: nextAccount.profile.username,
+            requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
+            reviewerEmail: 'thsamon@proton.me',
+            submittedAt: claimRequest.claimRequestSubmittedAt,
+          }).catch(() => {})
+        : null;
     sendJson(
       response,
       200,
@@ -704,6 +705,7 @@ async function handleOrganizationClaim(request, response, sid) {
         'Cache-Control': 'no-store',
       },
     );
+    await notificationPromise;
   } catch (error) {
     sendOrganizationError(response, error, 'Failed to submit the organization claim request.');
   }
@@ -802,7 +804,7 @@ async function handleOrganizationCraftRequestCreate(request, response, sid) {
       appBaseUrl: resolveAppBaseUrlFromRequest(request, process.env),
       storageScope: resolveCraftRequestStorageScope(request, process.env),
     });
-    void notifyCraftRequestOwnerViaWorker(
+    const notificationPromise = notifyCraftRequestOwnerViaWorker(
       process.env,
       result.request,
       result.ownerAccount,
@@ -820,6 +822,7 @@ async function handleOrganizationCraftRequestCreate(request, response, sid) {
         'Cache-Control': 'no-store',
       },
     );
+    await notificationPromise;
   } catch (error) {
     sendCraftRequestError(response, error, 'Failed to create the craft request.');
   }

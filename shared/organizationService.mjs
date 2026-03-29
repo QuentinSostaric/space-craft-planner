@@ -155,11 +155,27 @@ async function resolveOrganizationMembershipEvidence(
   }
 
   try {
-    const profile = await fetchRsiProfileByHandle(apiKey, account.rsi.handle, {
-      fetchImpl,
-      mode: 'cache',
-    });
-    if (profile.organization?.sid !== sid) {
+    const loadProfile = async (mode) =>
+      fetchRsiProfileByHandle(apiKey, account.rsi.handle, {
+        fetchImpl,
+        mode,
+      });
+
+    let profile = await loadProfile('cache');
+    let matchingOrganization =
+      profile.organization?.sid === sid
+        ? profile.organization
+        : profile.affiliations?.find((organization) => organization.sid === sid) ?? null;
+
+    if (!matchingOrganization) {
+      profile = await loadProfile('auto');
+      matchingOrganization =
+        profile.organization?.sid === sid
+          ? profile.organization
+          : profile.affiliations?.find((organization) => organization.sid === sid) ?? null;
+    }
+
+    if (!matchingOrganization) {
       return null;
     }
 
@@ -167,8 +183,10 @@ async function resolveOrganizationMembershipEvidence(
       handle: profile.handle,
       display: profile.displayName ?? profile.handle,
       image: null,
-      rank: profile.organization?.rank ?? null,
-      stars: null,
+      rank: matchingOrganization.rank ?? null,
+      stars: Number.isFinite(Number(matchingOrganization.stars))
+        ? Number(matchingOrganization.stars)
+        : null,
       roles: [],
     };
 
