@@ -1,5 +1,9 @@
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getJsonObject, putJsonObject } from './r2Storage.mjs';
+import { getJsonObject, listObjectKeys, putJsonObject } from './r2Storage.mjs';
+import {
+  readOrganizationRecord,
+  writeOrganizationRecord,
+} from './organizationStorage.mjs';
 import { normalizeRsiHandle, normalizeRsiLink } from './rsiLink.mjs';
 
 const ACCOUNT_RECORD_VERSION = 8;
@@ -73,6 +77,15 @@ function normalizeStringArray(value) {
   }
 
   return normalized;
+}
+
+function sortStringArray(value) {
+  return normalizeStringArray(value).sort((left, right) =>
+    left.localeCompare(right, undefined, {
+      sensitivity: 'base',
+      numeric: true,
+    }),
+  );
 }
 
 function normalizeGoals(value) {
@@ -437,6 +450,99 @@ function deriveSharedBlueprintIdsFromOrganizationShares(
     : normalizeStringArray(legacySharedBlueprintIds);
 }
 
+function getOrganizationShareSids(organizationBlueprintShares) {
+  if (!isObject(organizationBlueprintShares)) {
+    return [];
+  }
+
+  return sortStringArray(
+    Object.entries(organizationBlueprintShares)
+      .filter(([, blueprintIds]) => Array.isArray(blueprintIds) && blueprintIds.length > 0)
+      .map(([sid]) => normalizeOrganizationSid(sid))
+      .filter(Boolean),
+  );
+}
+
+function getOrganizationRefForSid(organizations, sid) {
+  return normalizeAccountOrganizations(organizations).find((organization) => organization.sid === sid) ?? null;
+}
+
+async function syncOrganizationShareIndexesForAccount(store, previousAccount, nextAccount) {
+  const accountId = String(nextAccount?.accountId ?? previousAccount?.accountId ?? '').trim();
+  if (!accountId) {
+    return;
+  }
+
+  const previousSharedSids = new Set(
+    getOrganizationShareSids(previousAccount?.organizationBlueprintShares),
+  );
+  const nextSharedSids = new Set(getOrganizationShareSids(nextAccount?.organizationBlueprintShares));
+  const affectedSids = sortStringArray([
+    ...previousSharedSids,
+    ...nextSharedSids,
+  ]);
+
+  for (const sid of affectedSids) {
+    const hasShareBefore = previousSharedSids.has(sid);
+    const hasShareAfter = nextSharedSids.has(sid);
+    let organizationRecord = await readOrganizationRecord(store, sid);
+
+    if (!organizationRecord && !hasShareAfter) {
+      continue;
+    }
+
+    if (!organizationRecord) {
+      const organizationRef =
+        getOrganizationRefForSid(nextAccount?.organizations, sid) ??
+        getOrganizationRefForSid(previousAccount?.organizations, sid);
+      organizationRecord = {
+        sid,
+        name: organizationRef?.name ?? sid,
+        image: organizationRef?.image ?? null,
+        logo: organizationRef?.logo ?? null,
+        url: organizationRef?.url ?? null,
+        archetype: organizationRef?.archetype ?? null,
+        commitment: organizationRef?.commitment ?? null,
+        primaryFocus: organizationRef?.primaryFocus ?? null,
+        secondaryFocus: organizationRef?.secondaryFocus ?? null,
+        lang: organizationRef?.lang ?? null,
+        members: organizationRef?.memberCount ?? null,
+        claimed: false,
+        claimedByAccountId: null,
+        adminAccountIds: [],
+        sharedAccountIds: [],
+        memberSnapshot: [],
+        lastLiveSyncAt: null,
+        nextEligibleLiveSyncAt: null,
+        staleAt: null,
+        memberCount: 0,
+        syncStatus: 'never',
+        createdAt: toIsoNow(),
+        updatedAt: toIsoNow(),
+      };
+    }
+
+    const nextSharedAccountIds = new Set(organizationRecord.sharedAccountIds ?? []);
+    if (!hasShareAfter) {
+      nextSharedAccountIds.delete(accountId);
+    } else {
+      nextSharedAccountIds.add(accountId);
+    }
+
+    const sortedSharedAccountIds = sortStringArray([...nextSharedAccountIds]);
+    const currentSharedAccountIds = sortStringArray(organizationRecord.sharedAccountIds);
+    if (JSON.stringify(sortedSharedAccountIds) === JSON.stringify(currentSharedAccountIds)) {
+      continue;
+    }
+
+    await writeOrganizationRecord(store, {
+      ...organizationRecord,
+      sharedAccountIds: sortedSharedAccountIds,
+      updatedAt: toIsoNow(),
+    });
+  }
+}
+
 function clearOrganizationVerification(ref) {
   return normalizeAccountOrganizationRef({
     ...ref,
@@ -616,7 +722,7 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
   };
 }
 
-async function writeNormalizedAccountRecord(store, accountRecord) {
+async function writeNormalizedAccountRecord(store, accountRecord, { previousAccount } = {}) {
   const normalizedAccount = normalizeAccountRecord(accountRecord, {
     fallbackProfile: accountRecord?.profile,
     accountId: accountRecord?.accountId,
@@ -625,7 +731,21 @@ async function writeNormalizedAccountRecord(store, accountRecord) {
     throw new Error('A valid account record is required.');
   }
 
+  const previousAccountRecord =
+    previousAccount !== undefined
+      ? previousAccount
+      : await readAccountRecord(
+          store,
+          normalizedAccount.accountId,
+          normalizedAccount.profile,
+        );
+
   await store.writeJson(getAccountObjectKey(normalizedAccount.accountId), normalizedAccount);
+  await syncOrganizationShareIndexesForAccount(
+    store,
+    previousAccountRecord,
+    normalizedAccount,
+  );
   return normalizedAccount;
 }
 
@@ -679,6 +799,27 @@ export function createBucketAccountStore(bucket) {
     async deleteObject(key) {
       await bucket.delete(key);
     },
+    async listJsonKeys(prefix) {
+      const keys = [];
+      let cursor = undefined;
+
+      do {
+        const listing = await bucket.list({
+          prefix,
+          cursor,
+        });
+
+        for (const entry of listing.objects ?? []) {
+          if (entry.key) {
+            keys.push(entry.key);
+          }
+        }
+
+        cursor = listing.truncated ? listing.cursor : undefined;
+      } while (cursor);
+
+      return keys;
+    },
   };
 }
 
@@ -704,7 +845,45 @@ export function createS3AccountStore(client, bucketName) {
         }),
       );
     },
+    async listJsonKeys(prefix) {
+      return listObjectKeys(client, bucketName, prefix);
+    },
   };
+}
+
+export async function findAccountIdsSharingOrganizationBlueprints(store, sid) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid || typeof store?.listJsonKeys !== 'function') {
+    return [];
+  }
+
+  const accountKeys = await store.listJsonKeys('accounts/');
+  const matchingAccountIds = [];
+
+  for (const key of accountKeys) {
+    if (!String(key).endsWith('.json')) {
+      continue;
+    }
+
+    const accountId = key.slice('accounts/'.length, -'.json'.length);
+    if (!accountId) {
+      continue;
+    }
+
+    const account = await readAccountRecord(store, accountId);
+    if (!account) {
+      continue;
+    }
+
+    const sharedBlueprintIds = account.organizationBlueprintShares?.[normalizedSid] ?? [];
+    if (!Array.isArray(sharedBlueprintIds) || sharedBlueprintIds.length === 0) {
+      continue;
+    }
+
+    matchingAccountIds.push(accountId);
+  }
+
+  return sortStringArray(matchingAccountIds);
 }
 
 export async function readAccountRecord(store, accountId, fallbackProfile = null) {
@@ -755,7 +934,7 @@ export async function upsertDiscordAccount(store, profile) {
     lastLoginAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord);
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
 }
 
 export async function saveAccountState(store, accountId, stateSnapshot, fallbackProfile = null) {
@@ -791,7 +970,7 @@ export async function saveAccountState(store, accountId, stateSnapshot, fallback
     updatedAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord);
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
 }
 
 export async function saveAccountOrganizations(
@@ -831,7 +1010,7 @@ export async function saveAccountOrganizations(
     updatedAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord);
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
 }
 
 export async function saveAccountOrganizationBlueprintShares(
@@ -868,7 +1047,7 @@ export async function saveAccountOrganizationBlueprintShares(
     updatedAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord);
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
 }
 
 export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProfile = null) {
@@ -922,7 +1101,9 @@ export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProf
     updatedAt: now,
   };
 
-  const savedAccount = await writeNormalizedAccountRecord(store, nextRecord);
+  const savedAccount = await writeNormalizedAccountRecord(store, nextRecord, {
+    previousAccount: existing,
+  });
   if (previousHandleKey && previousHandleKey !== nextHandleKey) {
     await deleteRsiHandleIndex(store, existing.rsi?.handle);
   }
@@ -962,13 +1143,18 @@ export async function clearRsiAccountLink(store, accountId, fallbackProfile = nu
     updatedAt: now,
   };
 
-  const savedAccount = await writeNormalizedAccountRecord(store, nextRecord);
+  const savedAccount = await writeNormalizedAccountRecord(store, nextRecord, {
+    previousAccount: existing,
+  });
   await deleteRsiHandleIndex(store, existing.rsi?.handle);
   return savedAccount;
 }
 
 export async function deleteAccountRecord(store, accountId, fallbackProfile = null) {
   const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  if (existing) {
+    await syncOrganizationShareIndexesForAccount(store, existing, null);
+  }
   if (existing?.rsi?.handle) {
     await deleteRsiHandleIndex(store, existing.rsi.handle);
   }

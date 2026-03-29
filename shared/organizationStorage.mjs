@@ -1,4 +1,4 @@
-const ORGANIZATION_RECORD_VERSION = 1;
+const ORGANIZATION_RECORD_VERSION = 2;
 export const ORGANIZATION_LIVE_SYNC_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export const ORGANIZATION_SNAPSHOT_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -127,6 +127,7 @@ export function createDefaultOrganizationRecord(metadata, { now } = {}) {
     claimed: false,
     claimedByAccountId: null,
     adminAccountIds: [],
+    sharedAccountIds: [],
     memberSnapshot: [],
     lastLiveSyncAt: null,
     nextEligibleLiveSyncAt: null,
@@ -160,6 +161,7 @@ export function normalizeOrganizationRecord(value, fallbackSid = null) {
     claimed: Boolean(value?.claimed),
     claimedByAccountId: value?.claimedByAccountId ? String(value.claimedByAccountId) : null,
     adminAccountIds: normalizeStringArray(value?.adminAccountIds),
+    sharedAccountIds: normalizeStringArray(value?.sharedAccountIds),
     memberSnapshot,
     lastLiveSyncAt: normalizeIsoTimestamp(value?.lastLiveSyncAt),
     nextEligibleLiveSyncAt: normalizeIsoTimestamp(value?.nextEligibleLiveSyncAt),

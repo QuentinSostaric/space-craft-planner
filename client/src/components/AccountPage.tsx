@@ -175,7 +175,14 @@ export function AccountPage() {
   const organizationClaimDialogTarget = linkedOrganizations.find(
     (organization) => organization.sid === organizationClaimDialogSid,
   ) ?? null;
-  const localImportPlan = useMemo(() => computeLocalBlueprintImportPlan(account), [account]);
+  const localImportPlan = useMemo(
+    () =>
+      computeLocalBlueprintImportPlan(account, {
+        favoriteBlueprintIds: favoriteIds,
+        inventoryBlueprintIds: inventoryIds,
+      }),
+    [account, favoriteIds, inventoryIds],
+  );
   const importDialogOpen = Boolean(account && localImportPlan.hasPendingImport && !importModalDismissed);
 
   const obtainableBlueprintIds = useMemo(
@@ -432,24 +439,29 @@ export function AccountPage() {
     setImportBusy(true);
     setImportError(null);
     try {
+      const importedFavoriteIds = new Set(localImportPlan.missingFavoriteBlueprintIds);
+      const importedInventoryIds = new Set(localImportPlan.missingInventoryBlueprintIds);
+      const nextFavoriteBlueprintIds = [
+        ...new Set([
+          ...account.favoriteBlueprintIds,
+          ...localImportPlan.missingFavoriteBlueprintIds,
+        ]),
+      ];
+      const nextInventoryBlueprintIds = [
+        ...new Set([
+          ...account.inventoryBlueprintIds,
+          ...localImportPlan.missingInventoryBlueprintIds,
+        ]),
+      ];
+
       await syncAccountState({
-        favoriteBlueprintIds: [
-          ...new Set([
-            ...account.favoriteBlueprintIds,
-            ...localImportPlan.favoriteBlueprintIds,
-          ]),
-        ],
-        inventoryBlueprintIds: [
-          ...new Set([
-            ...account.inventoryBlueprintIds,
-            ...localImportPlan.inventoryBlueprintIds,
-          ]),
-        ],
+        favoriteBlueprintIds: nextFavoriteBlueprintIds,
+        inventoryBlueprintIds: nextInventoryBlueprintIds,
         planner: account.planner,
       });
       replaceLocalBlueprintCollections({
-        favoriteBlueprintIds: [],
-        inventoryBlueprintIds: [],
+        favoriteBlueprintIds: favoriteIds.filter((blueprintId) => !importedFavoriteIds.has(blueprintId)),
+        inventoryBlueprintIds: inventoryIds.filter((blueprintId) => !importedInventoryIds.has(blueprintId)),
       });
       setImportModalDismissed(true);
     } catch (error) {
