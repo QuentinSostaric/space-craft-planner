@@ -5,6 +5,7 @@ pages_build_output_dir = "client/dist"
 
 [vars]
 DISCORD_BOT_WORKER_URL = "https://sc-craft-discord-bot.sostaric-quentinjr.workers.dev"
+DISCORD_CLIENT_ID = "1487753855944097834"
 
 [[r2_buckets]]
 binding = "GAME_DATA"
