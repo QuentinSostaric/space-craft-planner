@@ -20,6 +20,14 @@ function normalizeBaseUrl(value) {
   }
 }
 
+function isPreviewHostname(hostname) {
+  return (
+    hostname.startsWith('preview.') ||
+    (hostname.endsWith('.space-craft-planner.pages.dev') &&
+      hostname !== 'space-craft-planner.pages.dev')
+  );
+}
+
 function readHeader(request, name) {
   const headers = request?.headers;
   if (!headers) {
@@ -101,8 +109,7 @@ export function resolveCraftRequestStorageScope(request, env = null) {
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname.endsWith('.local') ||
-    hostname.startsWith('preview.') ||
-    (hostname.endsWith('.pages.dev') && !hostname.includes('itemfab'))
+    isPreviewHostname(hostname)
   ) {
     return 'dev';
   }

@@ -8,6 +8,9 @@ DISCORD_BOT_WORKER_URL = "<discord-bot-worker-url>"
 DISCORD_CLIENT_ID = "<discord-client-id>"
 
 [[r2_buckets]]
-binding = "GAME_DATA"
+binding = "GAME_DATA_PROD"
 bucket_name = "sc-craft-game-data"
-preview_bucket_name = "sc-craft-game-data-dev"
+
+[[r2_buckets]]
+binding = "GAME_DATA_DEV"
+bucket_name = "sc-craft-game-data-dev"

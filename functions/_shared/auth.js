@@ -48,6 +48,7 @@ import {
   resolveCraftRequestStorageScope,
 } from '../../shared/discordBotRelay.mjs';
 import { verifyRsiHandleOwnership } from '../../shared/rsiLink.mjs';
+import { getGameDataBucket } from './runtimeBuckets.js';
 
 function noStoreJson(payload, init = {}) {
   const headers = new Headers(init.headers ?? {});
@@ -65,8 +66,8 @@ function redirectResponse(location, { status = 302, headers = {}, cookies = [] }
   return new Response(null, { status, headers: responseHeaders });
 }
 
-function getAccountStore(env) {
-  return createBucketAccountStore(env?.GAME_DATA);
+function getAccountStore(request, env) {
+  return createBucketAccountStore(getGameDataBucket(env, request));
 }
 
 function getStarCitizenApiKey(env) {
@@ -175,7 +176,7 @@ export async function handleDiscordCallbackRequest(request, env) {
   try {
     const tokenPayload = await exchangeDiscordCode(request, env, code);
     const user = await fetchDiscordUserProfile(tokenPayload.access_token);
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await upsertDiscordAccount(accountStore, user);
     const sessionCookie = await createSessionCookie(request, env, user, account.accountId);
 
@@ -217,7 +218,7 @@ export async function handleAccountRequest(request, env) {
     return errorResponse(401, 'Authentication required.');
   }
 
-  const accountStore = getAccountStore(env);
+  const accountStore = getAccountStore(request, env);
   const account = await ensureAccountForSession(accountStore, session);
   const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
   return noStoreJson({ account: decoratedAccount });
@@ -236,7 +237,7 @@ export async function handleAccountUpdateRequest(request, env) {
     return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
   }
 
-  const accountStore = getAccountStore(env);
+  const accountStore = getAccountStore(request, env);
   await ensureAccountForSession(accountStore, session);
   const account = await saveAccountState(accountStore, session.accountId, payload, session.user);
   const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
@@ -256,7 +257,7 @@ export async function handleAccountSharedBlueprintsUpdateRequest(request, env) {
     return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
   }
 
-  const accountStore = getAccountStore(env);
+  const accountStore = getAccountStore(request, env);
   await ensureAccountForSession(accountStore, session);
   const account = await saveAccountOrganizationBlueprintShares(
     accountStore,
@@ -274,7 +275,7 @@ export async function handleDeleteAccountRequest(request, env) {
     return errorResponse(401, 'Authentication required.');
   }
 
-  const accountStore = getAccountStore(env);
+  const accountStore = getAccountStore(request, env);
   await deleteAccountRecord(accountStore, session.accountId, session.user);
 
   const headers = new Headers({
@@ -319,7 +320,7 @@ export async function handleRsiLinkRequest(request, env) {
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const existingAccount = await ensureAccountForSession(accountStore, session);
     if (isRsiLinkRateLimited(existingAccount)) {
       const nextAllowedAt = getNextAllowedRsiLinkAt(existingAccount);
@@ -350,7 +351,7 @@ export async function handleRsiUnlinkRequest(request, env) {
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     await ensureAccountForSession(accountStore, session);
     const account = await clearRsiAccountLink(accountStore, session.accountId, session.user);
     const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
@@ -382,7 +383,7 @@ export async function handleAccountOrganizationsCreateRequest(request, env) {
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await addAccountOrganizationBySid(
       accountStore,
@@ -403,7 +404,7 @@ export async function handleAccountOrganizationDeleteRequest(request, env, sid) 
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await removeAccountOrganizationBySid(accountStore, account, sid);
     const decoratedAccount = await buildDecoratedAccount(accountStore, nextAccount, env);
@@ -420,7 +421,7 @@ export async function handleOrganizationClaimRequest(request, env, sid) {
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await claimAccountOrganization(accountStore, account, sid);
     const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
@@ -454,7 +455,7 @@ export async function handleOrganizationRefreshRequest(request, env, sid) {
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, apiKey, sid);
     return noStoreJson({ account: nextAccount });
@@ -470,7 +471,7 @@ export async function handleOrganizationSharedBlueprintsRequest(request, env, si
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
     const payload = await buildOrganizationSharedBlueprints(accountStore, decoratedAccount, sid);
@@ -494,7 +495,7 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const result = await createOrganizationCraftRequest(accountStore, account, {
       organizationSid: sid,
@@ -534,7 +535,7 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId)
   }
 
   try {
-    const accountStore = getAccountStore(env);
+    const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const result = await respondToCraftRequest(
       accountStore,

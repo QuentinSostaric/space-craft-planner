@@ -26,7 +26,10 @@ import accountScreenOne from '../assets/account_1.png';
 import accountScreenTwo from '../assets/account_2.png';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
 import { useAuth } from '../auth/AuthContext';
-import { computeLocalBlueprintImportPlan } from '../auth/localAccountImport';
+import {
+  computeLocalBlueprintImportPlan,
+  readLocalBlueprintCollections,
+} from '../auth/localAccountImport';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import { computeStatMaxima } from '../utils/crafting';
@@ -147,6 +150,7 @@ export function AccountPage() {
   const [craftRequestError, setCraftRequestError] = useState<string | null>(null);
   const [craftRequestNotice, setCraftRequestNotice] = useState<string | null>(null);
   const [visibleBlueprintCount, setVisibleBlueprintCount] = useState(ACCOUNT_BLUEPRINT_BATCH_SIZE);
+  const [localCollections, setLocalCollections] = useState(() => readLocalBlueprintCollections());
 
   const favoriteSnapshotIds = account?.favoriteBlueprintIds ?? favoriteIds;
   const inventorySnapshotIds = account?.inventoryBlueprintIds ?? inventoryIds;
@@ -176,12 +180,8 @@ export function AccountPage() {
     (organization) => organization.sid === organizationClaimDialogSid,
   ) ?? null;
   const localImportPlan = useMemo(
-    () =>
-      computeLocalBlueprintImportPlan(account, {
-        favoriteBlueprintIds: favoriteIds,
-        inventoryBlueprintIds: inventoryIds,
-      }),
-    [account, favoriteIds, inventoryIds],
+    () => computeLocalBlueprintImportPlan(account, localCollections),
+    [account, localCollections],
   );
   const importDialogOpen = Boolean(account && localImportPlan.hasPendingImport && !importModalDismissed);
 
@@ -294,6 +294,10 @@ export function AccountPage() {
   }, [ensureMissionRewardsLoaded, missionRewards]);
 
   useEffect(() => {
+    setLocalCollections(readLocalBlueprintCollections());
+  }, [account?.accountId, user?.id]);
+
+  useEffect(() => {
     setImportModalDismissed(false);
     setImportError(null);
     setRsiUnlinkError(null);
@@ -336,11 +340,6 @@ export function AccountPage() {
       favoriteBlueprintIds: nextFavoriteBlueprintIds,
       inventoryBlueprintIds: nextInventoryBlueprintIds,
       planner: account.planner,
-    });
-
-    replaceLocalBlueprintCollections({
-      favoriteBlueprintIds: nextFavoriteBlueprintIds,
-      inventoryBlueprintIds: nextInventoryBlueprintIds,
     });
   };
 
@@ -459,10 +458,19 @@ export function AccountPage() {
         inventoryBlueprintIds: nextInventoryBlueprintIds,
         planner: account.planner,
       });
+      const nextLocalCollections = {
+        favoriteBlueprintIds: localImportPlan.favoriteBlueprintIds.filter(
+          (blueprintId) => !importedFavoriteIds.has(blueprintId),
+        ),
+        inventoryBlueprintIds: localImportPlan.inventoryBlueprintIds.filter(
+          (blueprintId) => !importedInventoryIds.has(blueprintId),
+        ),
+      };
       replaceLocalBlueprintCollections({
-        favoriteBlueprintIds: favoriteIds.filter((blueprintId) => !importedFavoriteIds.has(blueprintId)),
-        inventoryBlueprintIds: inventoryIds.filter((blueprintId) => !importedInventoryIds.has(blueprintId)),
+        favoriteBlueprintIds: nextLocalCollections.favoriteBlueprintIds,
+        inventoryBlueprintIds: nextLocalCollections.inventoryBlueprintIds,
       });
+      setLocalCollections(nextLocalCollections);
       setImportModalDismissed(true);
     } catch (error) {
       setImportError(
