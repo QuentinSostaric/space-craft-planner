@@ -5,6 +5,7 @@ pages_build_output_dir = "client/dist"
 
 [vars]
 DISCORD_BOT_WORKER_URL = "<discord-bot-worker-url>"
+DISCORD_CLIENT_ID = "<discord-client-id>"
 
 [[r2_buckets]]
 binding = "GAME_DATA"
