@@ -9,6 +9,7 @@ import {
   getChannelChunk,
 } from '../../../../_shared/r2Datasets.js';
 import { getAliasChunkKey } from '../../../../_shared/r2Store.js';
+import { getGameDataBucket } from '../../../../_shared/runtimeBuckets.js';
 
 export async function onRequestGet(context) {
   const { channel } = context.params;
@@ -19,7 +20,8 @@ export async function onRequestGet(context) {
 
   try {
     const namespace = getDatasetVisibilityNamespace(context.request, context.env);
-    const object = await context.env.GAME_DATA.get(
+    const bucket = getGameDataBucket(context.env, context.request);
+    const object = await bucket?.get(
       getAliasChunkKey(namespace, channel, 'mission-rewards'),
     );
 
