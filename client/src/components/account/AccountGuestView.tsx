@@ -208,6 +208,52 @@ export function AccountGuestView({
                 />
               </Stack>
 
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+                  gap: 1.25,
+                }}
+              >
+                {unlockHighlights.map((item) => (
+                  <Box
+                    key={item.title}
+                    sx={{
+                      p: 1.5,
+                      display: 'flex',
+                      gap: 1.25,
+                      alignItems: 'flex-start',
+                      borderRadius: 1.5,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+                      backgroundColor: alpha(theme.palette.background.default, 0.28),
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 1.2,
+                        flexShrink: 0,
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: 'primary.main',
+                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                        {item.title}
+                      </Typography>
+                      <Typography variant="caption" sx={{ mt: 0.3, display: 'block', color: 'text.secondary' }}>
+                        {item.body}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
               {!enabled && (
                 <Alert severity="warning" variant="outlined">
                   {t(
@@ -656,54 +702,6 @@ export function AccountGuestView({
           </CardContent>
         </Card>
 
-        <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-          <Stack spacing={1.5}>
-            <Typography
-              variant="overline"
-              sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-            >
-              {t('What the account unlocks', 'Ce que le compte debloque', 'Was das Konto freischaltet')}
-            </Typography>
-            <Stack spacing={1.1}>
-              {unlockHighlights.map((item) => (
-                <Paper
-                  key={item.title}
-                  variant="outlined"
-                  sx={{
-                    p: 1.25,
-                    display: 'flex',
-                    gap: 1.1,
-                    alignItems: 'flex-start',
-                    backgroundColor: alpha(theme.palette.background.default, 0.22),
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 1.2,
-                      flexShrink: 0,
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: 'primary.main',
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    }}
-                  >
-                    {item.icon}
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {item.title}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.35, color: 'text.secondary' }}>
-                      {item.body}
-                    </Typography>
-                  </Box>
-                </Paper>
-              ))}
-            </Stack>
-          </Stack>
-        </Paper>
       </Stack>
     </Box>
   );

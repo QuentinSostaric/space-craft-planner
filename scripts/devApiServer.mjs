@@ -168,6 +168,19 @@ function logBackgroundTaskError(label, error) {
   console.error(`[${label}]`, error);
 }
 
+async function syncCraftRequestStatusBestEffort(requestRecord, ownerAccount, requesterAccount, label) {
+  try {
+    await syncCraftRequestStatusViaWorker(
+      process.env,
+      requestRecord,
+      ownerAccount,
+      requesterAccount,
+    );
+  } catch (error) {
+    logBackgroundTaskError(label, error);
+  }
+}
+
 async function buildDecoratedAccount(account) {
   try {
     return await syncAndDecorateAccountOrganizations(
@@ -973,12 +986,12 @@ async function handleCraftRequestDecision(request, response, requestId) {
       requestId,
       payload?.decision,
     );
-    const notificationPromise = syncCraftRequestStatusViaWorker(
-      process.env,
+    await syncCraftRequestStatusBestEffort(
       result.request,
       result.ownerAccount,
       result.requesterAccount,
-    ).catch((error) => logBackgroundTaskError('craft-request-status-sync', error));
+      'craft-request-status-sync',
+    );
     const decoratedAccount = await buildDecoratedAccount(result.account);
     sendJson(
       response,
@@ -992,7 +1005,6 @@ async function handleCraftRequestDecision(request, response, requestId) {
         'Cache-Control': 'no-store',
       },
     );
-    await notificationPromise;
   } catch (error) {
     sendCraftRequestError(response, error, 'Failed to answer the craft request.');
   }
@@ -1030,16 +1042,20 @@ async function handleCraftRequestBulkDecision(request, response) {
       payload?.actions,
     );
 
-    const notificationPromises = result.results
-      .filter((entry) => entry.ok && entry.request && entry.ownerAccount && entry.requesterAccount)
-      .map((entry) =>
-        syncCraftRequestStatusViaWorker(
-          process.env,
+    await Promise.all(
+      result.results.map(async (entry) => {
+        if (!entry.ok || !entry.request || !entry.ownerAccount || !entry.requesterAccount) {
+          return;
+        }
+
+        await syncCraftRequestStatusBestEffort(
           entry.request,
           entry.ownerAccount,
           entry.requesterAccount,
-        ).catch((error) => logBackgroundTaskError('craft-request-bulk-status-sync', error)),
-      );
+          'craft-request-bulk-status-sync',
+        );
+      }),
+    );
 
     const decoratedAccount = await buildDecoratedAccount(result.account);
     sendJson(
@@ -1059,7 +1075,6 @@ async function handleCraftRequestBulkDecision(request, response) {
         'Cache-Control': 'no-store',
       },
     );
-    await Promise.all(notificationPromises);
   } catch (error) {
     sendCraftRequestError(response, error, 'Failed to answer the craft requests.');
   }
