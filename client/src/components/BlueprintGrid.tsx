@@ -917,7 +917,10 @@ export function BlueprintGrid() {
   const isCompletelyEmpty = !hasVisibleBlueprints && !hasVisibleShipComponents;
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <Box
+      ref={scrollContainerRef}
+      sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}
+    >
       <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
         <Typography
           sx={{
@@ -944,7 +947,7 @@ export function BlueprintGrid() {
       {/* Scroll container — IntersectionObserver root. Requires the flex:1/minHeight:0 chain
           from App.tsx's <Box component="main"> to remain intact so this Box — not the parent —
           is the actual scrolling ancestor. If the layout breaks, the sentinel never fires. */}
-      <Box ref={scrollContainerRef} sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 } }}>
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}

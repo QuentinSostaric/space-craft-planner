@@ -1,4 +1,4 @@
-const ORGANIZATION_RECORD_VERSION = 2;
+const ORGANIZATION_RECORD_VERSION = 3;
 export const ORGANIZATION_LIVE_SYNC_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export const ORGANIZATION_SNAPSHOT_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -55,6 +55,20 @@ function normalizeNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function normalizeHttpsUrl(value) {
+  const input = String(value ?? '').trim();
+  if (!input) {
+    return null;
+  }
+
+  try {
+    const url = new URL(input);
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeOrganizationMember(member) {
   if (!isObject(member)) {
     return null;
@@ -68,7 +82,7 @@ function normalizeOrganizationMember(member) {
   return {
     handle,
     display: String(member.display ?? handle).trim() || handle,
-    image: member.image ? String(member.image) : null,
+    image: normalizeHttpsUrl(member.image),
     rank: member.rank ? String(member.rank) : null,
     stars: normalizeNumber(member.stars),
     roles: normalizeStringArray(member.roles),
@@ -89,10 +103,10 @@ export function normalizeOrganizationMetadata(value, fallbackSid = null) {
   return {
     sid,
     name: String(value.name ?? value.display ?? sid).trim() || sid,
-    image: value.image ? String(value.image) : null,
-    logo: value.logo ? String(value.logo) : null,
-    banner: value.banner ? String(value.banner) : null,
-    url: value.url ? String(value.url) : null,
+    image: normalizeHttpsUrl(value.image),
+    logo: normalizeHttpsUrl(value.logo),
+    banner: normalizeHttpsUrl(value.banner),
+    url: normalizeHttpsUrl(value.url),
     archetype: value.archetype ? String(value.archetype) : null,
     commitment: value.commitment ? String(value.commitment) : null,
     primaryFocus: value.primaryFocus ? String(value.primaryFocus) : null,
@@ -128,6 +142,8 @@ export function createDefaultOrganizationRecord(metadata, { now } = {}) {
     claimedByAccountId: null,
     adminAccountIds: [],
     sharedAccountIds: [],
+    blueprintSharingEnabled: true,
+    deletedAt: null,
     memberSnapshot: [],
     lastLiveSyncAt: null,
     nextEligibleLiveSyncAt: null,
@@ -164,6 +180,8 @@ export function normalizeOrganizationRecord(value, fallbackSid = null) {
     claimedByAccountId: value?.claimedByAccountId ? String(value.claimedByAccountId) : null,
     adminAccountIds: normalizeStringArray(value?.adminAccountIds),
     sharedAccountIds: normalizeStringArray(value?.sharedAccountIds),
+    blueprintSharingEnabled: value?.blueprintSharingEnabled !== false,
+    deletedAt: normalizeIsoTimestamp(value?.deletedAt),
     memberSnapshot,
     lastLiveSyncAt: normalizeIsoTimestamp(value?.lastLiveSyncAt),
     nextEligibleLiveSyncAt: normalizeIsoTimestamp(value?.nextEligibleLiveSyncAt),

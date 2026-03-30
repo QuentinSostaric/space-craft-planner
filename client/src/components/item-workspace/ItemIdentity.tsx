@@ -1,17 +1,16 @@
 import type { ReactNode } from 'react';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
 import TimerIcon from '@mui/icons-material/Timer';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -111,11 +110,12 @@ function FactRow({ fact }: { fact: BlueprintIdentityFact }) {
   }
 
   return (
-    <Box
+    <Paper
+      variant="outlined"
       sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'minmax(88px, 112px) 1fr' },
-        gap: 1,
+        p: 1,
+        minWidth: 0,
+        backgroundColor: 'transparent',
       }}
     >
       <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '.05em' }}>
@@ -124,7 +124,7 @@ function FactRow({ fact }: { fact: BlueprintIdentityFact }) {
       <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.45 }}>
         {fact.value}
       </Typography>
-    </Box>
+    </Paper>
   );
 }
 
@@ -141,7 +141,7 @@ function MetricTile({
     <Paper
       variant="outlined"
       sx={{
-        p: 1.25,
+        p: 1,
         height: '100%',
         display: 'flex',
         gap: 1,
@@ -199,7 +199,7 @@ export function ItemIdentity({
     .filter(Boolean))]
     .slice(0, 6);
   const panelSx = {
-    p: 2.25,
+    p: 1.5,
     border: `1px solid ${theme.palette.ui.border}`,
     background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
   };
@@ -212,7 +212,7 @@ export function ItemIdentity({
   ].filter(Boolean) as string[])];
 
   return (
-    <Stack spacing={2} sx={{ p: 2 }}>
+    <Stack spacing={1.5} sx={{ p: 1 }}>
       <Box sx={{ alignSelf: 'flex-start' }}>
         <Button variant="ghost" size="sm" onClick={onBack}>
           <AppGlyph name="arrow-left" size={16} sx={{ mr: 0.5 }} /> {t('Library', 'Bibliotheque')}
@@ -223,8 +223,7 @@ export function ItemIdentity({
         sx={{
           position: 'relative',
           overflow: 'hidden',
-          p: 2.5,
-          minHeight: 320,
+          p: 1.75,
           border: `1px solid ${theme.palette.ui.borderStrong}`,
           background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.18)} 0%, ${alpha(theme.palette.primary.main, 0.12)} 42%, ${alpha(theme.palette.background.paper, 0.96)} 100%)`,
         }}
@@ -241,12 +240,17 @@ export function ItemIdentity({
           }}
         />
 
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2.5}
-          sx={{ position: 'relative', zIndex: 1, minHeight: 272 }}
+        <Box
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(140px, 38%)' },
+            gap: 1.5,
+            alignItems: 'start',
+          }}
         >
-          <Stack spacing={1.5} sx={{ flex: '1 1 0', minWidth: 0 }}>
+          <Stack spacing={1.2} sx={{ minWidth: 0 }}>
             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
               <CategoryBadge category={blueprint.category} />
               {blueprint.rarity && <RarityBadge rarity={blueprint.rarity} />}
@@ -293,7 +297,7 @@ export function ItemIdentity({
               </Box>
             )}
 
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 0.75 }}>
               <ToggleButton
                 value="favorite"
                 selected={isFavorite}
@@ -305,6 +309,7 @@ export function ItemIdentity({
                   gap: 0.5,
                   textTransform: 'none',
                   fontSize: '0.8rem',
+                  justifyContent: 'center',
                   backgroundColor: alpha(theme.palette.background.default, 0.2),
                   ...(isFavorite && { color: 'warning.main', borderColor: 'warning.main' }),
                 }}
@@ -327,14 +332,15 @@ export function ItemIdentity({
                   gap: 0.5,
                   textTransform: 'none',
                   fontSize: '0.8rem',
+                  justifyContent: 'center',
                   backgroundColor: alpha(theme.palette.background.default, 0.2),
                   ...(isLooted && { color: 'primary.main', borderColor: 'primary.main' }),
                 }}
               >
                 {isLooted ? (
-                  <AppGlyph name="checkmark" size={16} />
+                  <CheckCircleIcon sx={{ fontSize: '1rem' }} />
                 ) : (
-                  <RadioButtonUncheckedIcon sx={{ fontSize: '1rem' }} />
+                  <Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />
                 )}
                 {isLooted
                   ? t('Remove from inventory', 'Retirer de l\'inventaire')
@@ -345,8 +351,7 @@ export function ItemIdentity({
 
           <Box
             sx={{
-              flex: { xs: '0 0 auto', md: '0 0 42%' },
-              minHeight: { xs: 180, md: 'auto' },
+              minHeight: 180,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -354,6 +359,7 @@ export function ItemIdentity({
               border: `1px solid ${alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.06 : 0.12)}`,
               backgroundColor: alpha(theme.palette.background.default, 0.18),
               p: 2,
+              alignSelf: { md: 'start' },
             }}
           >
             {imgSrc ? (
@@ -364,7 +370,7 @@ export function ItemIdentity({
                 loading="lazy"
                 sx={{
                   width: '100%',
-                  maxHeight: 240,
+                  maxHeight: 200,
                   objectFit: 'contain',
                   objectPosition: 'center',
                   filter: 'drop-shadow(0 16px 28px rgba(0,0,0,0.28))',
@@ -374,7 +380,7 @@ export function ItemIdentity({
               <Inventory2OutlinedIcon sx={{ fontSize: 72, color: 'text.disabled' }} />
             )}
           </Box>
-        </Stack>
+        </Box>
       </Paper>
 
       {description && (
@@ -399,84 +405,71 @@ export function ItemIdentity({
               label={t('Field Data', 'Donnees objet')}
             />
 
-            {facts.length > 0 && (
-              <Stack spacing={1.1} divider={<Divider flexItem />}>
-                {facts.slice(0, 8).map((fact, index) => (
-                  <FactRow
-                    key={`${fact.id ?? fact.label ?? 'fact'}-${index}`}
-                    fact={fact}
-                  />
-                ))}
-              </Stack>
-            )}
-
-            {(volume || gridSize || footprint || attachType) && (
-              <>
-                {facts.length > 0 && <Divider flexItem />}
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                    gap: 1,
-                  }}
-                >
-                  {volume && (
-                    <MetricTile
-                      icon={<Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />}
-                      label={t('Inventory Volume', 'Volume inventaire')}
-                      value={`${volume} microSCU`}
-                    />
-                  )}
-                  {gridSize && (
-                    <MetricTile
-                      icon={<GridViewOutlinedIcon sx={{ fontSize: '1rem' }} />}
-                      label={t('Grid Size', 'Taille grille')}
-                      value={gridSize}
-                    />
-                  )}
-                  {footprint && (
-                    <MetricTile
-                      icon={<StraightenOutlinedIcon sx={{ fontSize: '1rem' }} />}
-                      label={t('Footprint', 'Encombrement')}
-                      value={footprint}
-                    />
-                  )}
-                  {attachType && (
-                    <MetricTile
-                      icon={<CategoryOutlinedIcon sx={{ fontSize: '1rem' }} />}
-                      label={t('Attach Profile', 'Profil equipement')}
-                      value={attachType}
-                    />
-                  )}
-                </Box>
-              </>
-            )}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                gap: 1,
+              }}
+            >
+              {facts.slice(0, 6).map((fact, index) => (
+                <FactRow
+                  key={`${fact.id ?? fact.label ?? 'fact'}-${index}`}
+                  fact={fact}
+                />
+              ))}
+              {volume && (
+                <MetricTile
+                  icon={<Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />}
+                  label={t('Inventory Volume', 'Volume inventaire')}
+                  value={`${volume} microSCU`}
+                />
+              )}
+              {gridSize && (
+                <MetricTile
+                  icon={<GridViewOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                  label={t('Grid Size', 'Taille grille')}
+                  value={gridSize}
+                />
+              )}
+              {footprint && (
+                <MetricTile
+                  icon={<StraightenOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                  label={t('Footprint', 'Encombrement')}
+                  value={footprint}
+                />
+              )}
+              {attachType && (
+                <MetricTile
+                  icon={<CategoryOutlinedIcon sx={{ fontSize: '1rem' }} />}
+                  label={t('Attach Profile', 'Profil equipement')}
+                  value={attachType}
+                />
+              )}
+            </Box>
 
             {(attachDef?.size || attachDef?.grade || technicalTags.length > 0) && (
-              <>
-                <Divider flexItem />
-                <Stack spacing={1}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                    {t('Technical Tags', 'Tags techniques')}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                    {attachDef?.size && (
-                      <Chip label={`Size ${attachDef.size}`} size="small" variant="outlined" />
-                    )}
-                    {attachDef?.grade && (
-                      <Chip label={`Grade ${attachDef.grade}`} size="small" variant="outlined" />
-                    )}
-                    {technicalTags.map((tag) => (
-                      <Chip
-                        key={`tag-${tag}`}
-                        label={humanizeToken(tag) ?? tag}
-                        size="small"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Box>
-                </Stack>
-              </>
+              <Stack spacing={1}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                  {t('Technical Tags', 'Tags techniques')}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                  {attachDef?.size && (
+                    <Chip label={`Size ${attachDef.size}`} size="small" variant="outlined" />
+                  )}
+                  {attachDef?.grade && (
+                    <Chip label={`Grade ${attachDef.grade}`} size="small" variant="outlined" />
+                  )}
+                  {technicalTags.map((tag) => (
+                    <Chip
+                      key={`tag-${tag}`}
+                      label={humanizeToken(tag) ?? tag}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              </Stack>
             )}
           </Stack>
         </Paper>

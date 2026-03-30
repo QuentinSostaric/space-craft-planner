@@ -8,8 +8,7 @@ import { normalizeRsiHandle, normalizeRsiLink } from './rsiLink.mjs';
 
 const ACCOUNT_RECORD_VERSION = 8;
 export const RSI_LINK_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
-const ADMIN_DISCORD_USERNAMES = new Set(['thsamon']);
-const ADMIN_RSI_HANDLES = new Set(['thesamon']);
+const ADMIN_DISCORD_USER_IDS = new Set(['183946313669410816']);
 const ACCOUNT_ORGANIZATION_SOURCES = new Set(['profile-main', 'manual']);
 const ACCOUNT_ORGANIZATION_STATUSES = new Set([
   'observed',
@@ -21,6 +20,11 @@ const ACCOUNT_CRAFT_REQUEST_STATUSES = new Set([
   'accepted',
   'denied',
   'closed',
+]);
+const ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS = new Set([
+  'unspecified',
+  'has_resources',
+  'buy_resources',
 ]);
 
 function isObject(value) {
@@ -109,11 +113,62 @@ function normalizeRecordMap(value) {
   return { ...value };
 }
 
+function normalizePlannerTodoSource(value) {
+  return String(value ?? '').trim().toLowerCase() === 'mission-blueprint'
+    ? 'mission-blueprint'
+    : 'manual';
+}
+
+function normalizePlannerTodoItem(value) {
+  if (!isObject(value)) {
+    return null;
+  }
+
+  const id = String(value.id ?? '').trim();
+  const title = String(value.title ?? '').trim();
+  if (!id || !title) {
+    return null;
+  }
+
+  const createdAt = Number(value.createdAt);
+  const completedAt = value.completedAt == null ? null : Number(value.completedAt);
+
+  return {
+    id,
+    title,
+    description: value.description ? String(value.description) : null,
+    source: normalizePlannerTodoSource(value.source),
+    relatedBlueprintId: value.relatedBlueprintId ? String(value.relatedBlueprintId) : null,
+    relatedBlueprintName: value.relatedBlueprintName ? String(value.relatedBlueprintName) : null,
+    completed: Boolean(value.completed),
+    createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+    completedAt: Number.isFinite(completedAt) ? completedAt : null,
+  };
+}
+
+function normalizePlannerTodoItems(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const byId = new Map();
+  for (const entry of value) {
+    const normalizedEntry = normalizePlannerTodoItem(entry);
+    if (!normalizedEntry) {
+      continue;
+    }
+    byId.set(normalizedEntry.id, normalizedEntry);
+  }
+
+  return Array.from(byId.values()).sort((left, right) => right.createdAt - left.createdAt);
+}
+
 function normalizePlannerState(value) {
   const planner = isObject(value) ? value : {};
 
   return {
     goals: normalizeGoals(planner.goals),
+    todoItems: normalizePlannerTodoItems(planner.todoItems),
     resourceRequirements: normalizeRecordMap(planner.resourceRequirements),
     resourceProgress: normalizeRecordMap(planner.resourceProgress),
   };
@@ -138,9 +193,8 @@ function normalizeProfile(user) {
 }
 
 function deriveAdminFlag(profile, rsiLink = null) {
-  const usernameKey = normalizeCaseInsensitiveKey(profile?.username);
-  const rsiHandleKey = normalizeCaseInsensitiveKey(rsiLink?.handle);
-  return ADMIN_DISCORD_USERNAMES.has(usernameKey) || ADMIN_RSI_HANDLES.has(rsiHandleKey);
+  const discordUserId = String(profile?.id ?? '').trim();
+  return ADMIN_DISCORD_USER_IDS.has(discordUserId);
 }
 
 function normalizeAdminFlag(value, profile, rsiLink = null) {
@@ -232,6 +286,25 @@ function normalizeCraftRequestStorageScope(value) {
   return String(value ?? '').trim().toLowerCase() === 'dev' ? 'dev' : 'prod';
 }
 
+function normalizeCraftRequestResourcesOption(value, fallbackHasResources = false, fallbackBuyResources = false) {
+  if (fallbackHasResources) {
+    return 'has_resources';
+  }
+  if (fallbackBuyResources) {
+    return 'buy_resources';
+  }
+
+  const option = String(value ?? '').trim().toLowerCase();
+  if (option === 'has-resources' || option === 'hasresources') {
+    return 'has_resources';
+  }
+  if (option === 'buy-resources' || option === 'buyresources') {
+    return 'buy_resources';
+  }
+
+  return ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS.has(option) ? option : 'unspecified';
+}
+
 function normalizeAccountCraftRequest(value) {
   if (!isObject(value)) {
     return null;
@@ -263,6 +336,15 @@ function normalizeAccountCraftRequest(value) {
     ownerDisplayName: String(value.ownerDisplayName ?? ownerAccountId).trim() || ownerAccountId,
     ownerAvatarUrl: normalizeOptionalString(value.ownerAvatarUrl),
     ownerRsiHandle: normalizeRsiHandle(value.ownerRsiHandle),
+    comment: normalizeOptionalString(value.comment),
+    resourcesOption: normalizeCraftRequestResourcesOption(
+      value.resourcesOption,
+      value.requesterHasResources === true,
+      value.requesterWillBuyResources === true,
+    ),
+    ownerDiscordChannelId: normalizeOptionalString(value.ownerDiscordChannelId),
+    ownerDiscordMessageId: normalizeOptionalString(value.ownerDiscordMessageId),
+    contactInitiatedAt: normalizeIsoTimestamp(value.contactInitiatedAt),
     status: normalizeCraftRequestStatus(value.status),
     createdAt: normalizeIsoTimestamp(value.createdAt),
     updatedAt: normalizeIsoTimestamp(value.updatedAt),
@@ -399,8 +481,9 @@ function normalizeOrganizationBlueprintShares(
   legacySharedBlueprintIds = [],
 ) {
   const inventorySet = new Set(normalizeStringArray(inventoryBlueprintIds));
+  const normalizedOrganizations = normalizeAccountOrganizations(organizations);
   const knownOrganizationSids = new Set(
-    normalizeAccountOrganizations(organizations).map((organization) => organization.sid),
+    normalizedOrganizations.map((organization) => organization.sid),
   );
   const normalizedShares = {};
 
@@ -429,7 +512,16 @@ function normalizeOrganizationBlueprintShares(
       inventoryBlueprintIds,
     );
     if (migratedBlueprintIds.length > 0) {
-      for (const sid of knownOrganizationSids) {
+      const profileMainSid =
+        normalizedOrganizations.find((organization) => organization.source === 'profile-main')?.sid ??
+        null;
+      const targetSids = profileMainSid
+        ? [profileMainSid]
+        : knownOrganizationSids.size === 1
+          ? [...knownOrganizationSids]
+          : [];
+
+      for (const sid of targetSids) {
         normalizedShares[sid] = [...migratedBlueprintIds];
       }
     }

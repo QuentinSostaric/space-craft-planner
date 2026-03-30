@@ -224,4 +224,73 @@ export const GERMAN_FALLBACKS: Record<string, string> = {
   'Unknown contract': 'Unbekannter Vertrag',
 
   'Build index': 'Build-Index',
+
+  // ── Planner page ──────────────────────────────────────────────────────────
+  'Craft operations center': 'Einsatzzentrale für Crafting',
+  'Plan production goals, track manual tasks, prepare blueprint missions and monitor material readiness from a single cockpit.':
+    'Produktionsziele planen, manuelle Aufgaben verfolgen, Blueprint-Missionen vorbereiten und Materialbereitschaft von einem Cockpit aus überwachen.',
+  'Copy summary': 'Zusammenfassung kopieren',
+  'Reset progress': 'Fortschritt zurücksetzen',
+  'Tasks': 'Aufgaben',
+  'Open items to handle': 'Offene Elemente',
+  'Completed tasks': 'Erledigte Aufgaben',
+  'Blueprint builds queued': 'Blueprints in Warteschlange',
+  'Blueprint mission tasks': 'Blueprint-Missionsaufgaben',
+  'completed': 'abgeschlossen',
+  'No resource checklist yet': 'Noch keine Ressourcenliste',
+  'required': 'benötigt',
+  'No SCU requirement yet': 'Noch kein SCU-Bedarf',
+  'No item-count requirement yet': 'Noch kein Mengenbedarf',
+
+  // ── GoalsList ─────────────────────────────────────────────────────────────
+  'Queue': 'Warteschlange',
+  'Build queue': 'Fertigungswarteschlange',
+  'goals': 'Ziele',
+
+  // ── ResourcesList ─────────────────────────────────────────────────────────
+  'Material checklist': 'Materialliste',
+  'No totals': 'Keine Gesamtwerte',
+  'Add goals or materials to see required resources.':
+    'Füge Ziele oder Materialien hinzu, um die benötigten Ressourcen zu sehen.',
+
+  // ── ResourceRow ───────────────────────────────────────────────────────────
+  'manual': 'manuell',
+  'Drag to reorder': 'Ziehen zum Neuordnen',
+  'Collected amount': 'Gesammelte Menge',
+  'Collected amount value': 'Gesammelter Wert',
+
+  // ── PlannerTodoBoard ──────────────────────────────────────────────────────
+  'Operations board': 'Operationsboard',
+  'Keep manual tasks, blueprint missions and follow-up notes in one place.':
+    'Manuelle Aufgaben, Blueprint-Missionen und Notizen an einem Ort verwalten.',
+  'open': 'offen',
+  'done': 'erledigt',
+  'missions': 'Missionen',
+  'Manual task': 'Manuelle Aufgabe',
+  'Blueprint mission': 'Blueprint-Mission',
+  'Blueprint': 'Blueprint',
+  'Select a blueprint': 'Blueprint auswählen',
+  'Task title': 'Aufgabentitel',
+  'Craft mission title': 'Craft-Missionstitel',
+  'What needs to be done?': 'Was ist zu tun?',
+  'Notes': 'Notizen',
+  'Context, requirements, follow-up...': 'Kontext, Anforderungen, Nachverfolgung...',
+  'Add task': 'Aufgabe hinzufügen',
+  'Use current blueprint': 'Aktuellen Blueprint verwenden',
+  'Open': 'Offen',
+  'Done': 'Erledigt',
+  'Manual': 'Manuell',
+  'Search tasks or blueprints': 'Aufgaben oder Blueprints suchen',
+  'Clear completed': 'Erledigte löschen',
+  'No tasks match the current view.': 'Keine Aufgaben entsprechen der aktuellen Ansicht.',
+  'Create manual reminders, blueprint craft missions, or search with different filters.':
+    'Manuelle Erinnerungen oder Blueprint-Missionen erstellen oder Filter anpassen.',
+  'Created': 'Erstellt',
+  'Closed': 'Geschlossen',
+  'Edit task': 'Aufgabe bearbeiten',
+  'Delete task': 'Aufgabe löschen',
+  'Save': 'Speichern',
+
+  // ── GoalEditModal ─────────────────────────────────────────────────────────
+  'Loading blueprint detail...': 'Blueprint-Details werden geladen...',
 };

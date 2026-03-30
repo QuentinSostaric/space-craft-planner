@@ -9,6 +9,7 @@ function hasStoredAccountState(account: StoredAccount): boolean {
     account.favoriteBlueprintIds.length > 0 ||
     account.inventoryBlueprintIds.length > 0 ||
     account.planner.goals.length > 0 ||
+    account.planner.todoItems.length > 0 ||
     Object.keys(account.planner.resourceRequirements).length > 0 ||
     Object.keys(account.planner.resourceProgress).length > 0
   );
@@ -19,6 +20,7 @@ function isSnapshotEmpty(snapshot: AccountStateSnapshot): boolean {
     snapshot.favoriteBlueprintIds.length === 0 &&
     snapshot.inventoryBlueprintIds.length === 0 &&
     snapshot.planner.goals.length === 0 &&
+    snapshot.planner.todoItems.length === 0 &&
     Object.keys(snapshot.planner.resourceRequirements).length === 0 &&
     Object.keys(snapshot.planner.resourceProgress).length === 0
   );
@@ -38,6 +40,7 @@ export function AccountStateSync() {
     favoriteIds,
     inventoryIds,
     goals,
+    plannerTodoItems,
     plannerResourceRequirements,
     resourceProgress,
   } = useCraft();
@@ -51,11 +54,12 @@ export function AccountStateSync() {
       inventoryBlueprintIds: inventoryIds,
       planner: {
         goals,
+        todoItems: plannerTodoItems,
         resourceRequirements: plannerResourceRequirements,
         resourceProgress,
       },
     }),
-    [favoriteIds, goals, inventoryIds, plannerResourceRequirements, resourceProgress],
+    [favoriteIds, goals, inventoryIds, plannerResourceRequirements, plannerTodoItems, resourceProgress],
   );
   const localImportPlan = useMemo(
     () =>

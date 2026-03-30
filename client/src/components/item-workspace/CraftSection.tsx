@@ -146,7 +146,7 @@ export function CraftSection({
 
       <Paper
         sx={{
-          p: 2,
+          p: { xs: 1.5, md: 2 },
           backgroundColor: theme.palette.ui.surface2,
           border: `1px solid ${theme.palette.ui.border}`,
         }}
@@ -398,8 +398,8 @@ export function CraftSection({
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
-              md: `repeat(${Math.min(blueprint.slots.length, 3)}, 1fr)`,
-              lg: `repeat(${Math.min(blueprint.slots.length, 4)}, 1fr)`,
+              md: `repeat(${Math.min(blueprint.slots.length, 4)}, 1fr)`,
+              xl: `repeat(${Math.min(blueprint.slots.length, 5)}, 1fr)`,
             },
             gap: 1,
           }}
@@ -419,7 +419,7 @@ export function CraftSection({
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)' },
           gap: 2,
         }}
       >

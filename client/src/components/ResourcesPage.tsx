@@ -92,6 +92,7 @@ interface ResourceCardProps {
   resource: Resource;
   insight: ResourceInsight | null;
   onOpen: () => void;
+  onAddToPlanner: () => void;
 }
 
 interface ResourceIdentityPanelProps {
@@ -381,7 +382,7 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ResourceCard({ resource, insight, onOpen }: ResourceCardProps) {
+function ResourceCard({ resource, insight, onOpen, onAddToPlanner }: ResourceCardProps) {
   const { t, lang } = useI18n();
   const theme = useTheme();
   const [imgError, setImgError] = useState(false);
@@ -534,6 +535,21 @@ function ResourceCard({ resource, insight, onOpen }: ResourceCardProps) {
           </Stack>
         </Box>
       </CardActionArea>
+      <Divider />
+      <Box sx={{ p: 1.5 }}>
+        <Button
+          variant="outlined"
+          fullWidth
+          onClick={onAddToPlanner}
+          sx={{
+            minHeight: 40,
+            borderColor: alpha(theme.palette.primary.main, 0.28),
+            backgroundColor: alpha(theme.palette.background.default, 0.2),
+          }}
+        >
+          {t('Add to Planner', 'Ajouter au planificateur')}
+        </Button>
+      </Box>
     </Card>
   );
 }
@@ -1413,6 +1429,7 @@ function resourceGetColumns(containerWidth: number): number {
 export function ResourcesPage() {
   const {
     activeDataset,
+    addPlannerResourceRequirement,
     blueprints,
     ensureResourceDataLoaded,
     ensureMissionRewardsLoaded,
@@ -1463,6 +1480,17 @@ export function ResourcesPage() {
   const resourceInsightById = useMemo(
     () => new Map(resourceInsights.map((insight) => [insight.resourceId, insight])),
     [resourceInsights],
+  );
+
+  const resourcePlannerUnitById = useMemo(
+    () =>
+      new Map(
+        resources.map((resource) => {
+          const demand = summarizeResourceCraftDemand(resource.id, blueprints);
+          return [resource.id, demand.quantityUnit === 'count' ? 'count' : 'scu'] as const;
+        }),
+      ),
+    [blueprints, resources],
   );
 
   const systems = useMemo(
@@ -1707,7 +1735,10 @@ export function ResourcesPage() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <Box
+      ref={scrollContainerRef}
+      sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'auto' }}
+    >
       <Box
         sx={{
           p: { xs: 1.25, sm: 1.5, md: 2 },
@@ -1772,15 +1803,11 @@ export function ResourcesPage() {
       />
 
       <Box
-        ref={scrollContainerRef}
         sx={{
           p: { xs: 1.25, sm: 1.5, md: 2, xl: 3 },
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
-          flex: 1,
-          minHeight: 0,
-          overflow: 'auto',
         }}
       >
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1824,6 +1851,12 @@ export function ResourcesPage() {
                       mainView: 'resources',
                     });
                   }}
+                  onAddToPlanner={() =>
+                    addPlannerResourceRequirement(
+                      resource.name,
+                      1,
+                      resourcePlannerUnitById.get(resource.id) ?? 'scu',
+                    )}
                 />
               ))}
             </Box>

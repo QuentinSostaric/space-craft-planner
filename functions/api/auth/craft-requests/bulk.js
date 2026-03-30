@@ -1,18 +1,17 @@
 import { errorResponse } from '../../../_shared/gameData.js';
-import { handleCraftRequestDecisionRequest } from '../../../_shared/auth.js';
+import { handleCraftRequestBulkDecisionRequest } from '../../../_shared/auth.js';
 
 export async function onRequestPost(context) {
   try {
-    return await handleCraftRequestDecisionRequest(
+    return await handleCraftRequestBulkDecisionRequest(
       context.request,
       context.env,
-      context.params.requestId,
       context,
     );
   } catch (error) {
     return errorResponse(
       500,
-      error instanceof Error ? error.message : 'Failed to answer the craft request.',
+      error instanceof Error ? error.message : 'Failed to answer the craft requests.',
     );
   }
 }

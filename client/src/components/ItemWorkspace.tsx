@@ -99,9 +99,12 @@ export function ItemWorkspace() {
       component="section"
       aria-label={activeBlueprint.name}
       sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        alignItems: { md: 'flex-start' },
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: 'minmax(360px, 2.5fr) minmax(0, 5.5fr)',
+        },
+        alignItems: 'start',
         gap: { xs: 2, md: 3 },
         p: { xs: 1.25, sm: 1.5, md: 2 },
       }}
@@ -109,11 +112,18 @@ export function ItemWorkspace() {
       {/* Left column — sticky on desktop */}
       <Box
         sx={{
-          width: { xs: '100%', md: '36%' },
+          minWidth: 0,
           position: { md: 'sticky' },
           top: { md: 16 },
-          maxHeight: { md: '100vh' },
+          maxHeight: { md: 'calc(100dvh - 32px)' },
           overflowY: { md: 'auto' },
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          '&::-webkit-scrollbar': {
+            width: 0,
+            height: 0,
+            display: 'none',
+          },
           flexShrink: 0,
           alignSelf: { md: 'flex-start' },
         }}
@@ -131,10 +141,10 @@ export function ItemWorkspace() {
       {/* Right column — scrollable */}
       <Box
         sx={{
-          width: { xs: '100%', md: '64%' },
+          minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
-          gap: { xs: 2, md: 3 },
+          gap: { xs: 2, md: 2.5 },
         }}
       >
         {detailReady ? (

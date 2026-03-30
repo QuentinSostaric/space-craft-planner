@@ -86,7 +86,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <LinearProgress />
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t('Loading blueprint detail...', 'Chargement du detail blueprint...')}
+              {t('Loading blueprint detail...', 'Chargement du détail blueprint...')}
             </Typography>
           </Box>
         ) : (
@@ -125,7 +125,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
                     slotProps={{ htmlInput: { min: 0, max: 1000, style: { width: 60, textAlign: 'center', padding: '4px 6px' } } }}
                     aria-label={t(
                       `Assigned quality for ${requirementName}`,
-                      `Qualite assignee pour ${requirementName}`,
+                      `Qualité assignée pour ${requirementName}`,
                     )}
                     sx={{ width: 80 }}
                   />

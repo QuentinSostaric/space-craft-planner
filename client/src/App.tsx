@@ -839,6 +839,28 @@ function AppContent() {
           display: 'flex',
           flexDirection: 'column',
         },
+        '*': {
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${theme.palette.ui.borderStrong} ${theme.palette.ui.surface1}`,
+        },
+        '*::-webkit-scrollbar': {
+          width: '10px',
+          height: '10px',
+        },
+        '*::-webkit-scrollbar-track': {
+          backgroundColor: theme.palette.ui.surface1,
+        },
+        '*::-webkit-scrollbar-thumb': {
+          backgroundColor: theme.palette.ui.borderStrong,
+          borderRadius: '999px',
+          border: `2px solid ${theme.palette.ui.surface1}`,
+        },
+        '*::-webkit-scrollbar-thumb:hover': {
+          backgroundColor: theme.palette.primary.main,
+        },
+        '*::-webkit-scrollbar-corner': {
+          backgroundColor: theme.palette.ui.surface1,
+        },
       }} />
       <I18nProvider>
         <AuthProvider>

@@ -113,6 +113,33 @@ export async function sendDiscordChannelMessage(env, channelId, payload, options
   });
 }
 
+export async function editDiscordChannelMessage(env, channelId, messageId, payload, options = {}) {
+  const normalizedChannelId = normalizeText(channelId);
+  const normalizedMessageId = normalizeText(messageId);
+  if (!normalizedChannelId || !normalizedMessageId) {
+    throw new Error('Discord channel id and message id are required to edit a message.');
+  }
+
+  return discordApiFetch(env, `/channels/${normalizedChannelId}/messages/${normalizedMessageId}`, {
+    method: 'PATCH',
+    body: payload,
+    ...options,
+  });
+}
+
+export async function deleteDiscordChannelMessage(env, channelId, messageId, options = {}) {
+  const normalizedChannelId = normalizeText(channelId);
+  const normalizedMessageId = normalizeText(messageId);
+  if (!normalizedChannelId || !normalizedMessageId) {
+    throw new Error('Discord channel id and message id are required to delete a message.');
+  }
+
+  return discordApiFetch(env, `/channels/${normalizedChannelId}/messages/${normalizedMessageId}`, {
+    method: 'DELETE',
+    ...options,
+  });
+}
+
 export async function sendDiscordDirectMessage(env, userId, payload, options = {}) {
   const channelId = await openDiscordDmChannel(env, userId, options);
   return sendDiscordChannelMessage(env, channelId, payload, options);
@@ -160,6 +187,7 @@ export function parseCraftRequestActionCustomId(value) {
 
 function buildCraftRequestButtons(request) {
   const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  const contactInitiated = Boolean(normalizeText(request?.contactInitiatedAt));
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -179,8 +207,9 @@ function buildCraftRequestButtons(request) {
         {
           type: DISCORD_COMPONENT_TYPE_BUTTON,
           style: DISCORD_BUTTON_STYLE_PRIMARY,
-          label: 'Get in touch',
+          label: contactInitiated ? 'Contact initiated' : 'Get in touch',
           custom_id: buildCraftRequestActionCustomId('contact', request.ownerAccountId, request.id, storageScope),
+          disabled: contactInitiated,
         },
       ],
     },
@@ -205,6 +234,17 @@ function buildDisabledCraftRequestButtons(request, disabledLabel) {
   ];
 }
 
+function buildCraftRequestResourcesLabel(request) {
+  const option = normalizeText(request?.resourcesOption).toLowerCase();
+  if (option === 'has_resources') {
+    return 'Requester already has the resources';
+  }
+  if (option === 'buy_resources') {
+    return 'Requester wants to buy the resources';
+  }
+  return 'No resource arrangement specified';
+}
+
 export function buildCraftRequestOwnerDmPayload(env, request, requesterAccount) {
   const requesterDiscordId = requesterAccount?.profile?.id ?? null;
   const requesterMention = buildDiscordUserMention(requesterDiscordId);
@@ -214,12 +254,18 @@ export function buildCraftRequestOwnerDmPayload(env, request, requesterAccount) 
     'Unknown requester';
 
   return {
-    content: `Manage this request from ItemFab: ${getItemFabAccountUrl(env, request)}`,
+    content: `ItemFab craft request panel: ${getItemFabAccountUrl(env, request)}`,
     embeds: [
       {
-        title: 'New ItemFab craft request',
+        title: 'Craft request pending',
         color: 0x4f8cff,
-        description: `${requesterDisplayName} is asking you to craft **${request.blueprintName}**.`,
+        description: [
+          `${requesterDisplayName} wants you to craft **${request.blueprintName}**.`,
+          'Use **Accept** to confirm, **Deny** to refuse, or **Get in touch** to let ItemFab Bot initiate the contact.',
+          normalizeText(request?.contactInitiatedAt)
+            ? 'ItemFab Bot already sent the contact introduction messages.'
+            : null,
+        ].filter(Boolean).join('\n\n'),
         thumbnail: requesterAccount?.profile?.avatarUrl
           ? { url: requesterAccount.profile.avatarUrl }
           : undefined,
@@ -244,6 +290,29 @@ export function buildCraftRequestOwnerDmPayload(env, request, requesterAccount) 
             value: request.blueprintName,
             inline: false,
           },
+          {
+            name: 'Resources',
+            value: buildCraftRequestResourcesLabel(request),
+            inline: false,
+          },
+          ...(normalizeText(request?.contactInitiatedAt)
+            ? [
+                {
+                  name: 'Contact',
+                  value: 'Introduction sent by ItemFab Bot',
+                  inline: false,
+                },
+              ]
+            : []),
+          ...(normalizeText(request?.comment)
+            ? [
+                {
+                  name: 'Comment',
+                  value: normalizeText(request.comment),
+                  inline: false,
+                },
+              ]
+            : []),
         ],
         footer: {
           text: `Request ID: ${request.id}`,
@@ -277,12 +346,16 @@ export function buildCraftRequestResolvedMessagePayload(env, request, status, re
   const [embed] = payload.embeds;
 
   return {
-    content: payload.content,
+    content: `ItemFab craft request panel: ${getItemFabAccountUrl(env, request)}`,
     embeds: [
       {
         ...embed,
         color,
         title: `Craft request ${statusLabel.toLowerCase()}`,
+        description:
+          normalizedStatus === 'accepted'
+            ? 'This request is accepted. Keep coordinating from ItemFab or through the contact already initiated by ItemFab Bot.'
+            : embed.description,
         fields: [
           ...embed.fields,
           {
@@ -303,17 +376,19 @@ export function buildCraftRequestIntroductionPayload({
   counterpartRsiHandle,
   blueprintName,
   organizationName,
+  comment,
+  resourcesOption,
   requestId,
 }) {
   return {
     embeds: [
       {
-        title: 'ItemFab intro',
+        title: 'ItemFab Bot started the contact',
         color: 0xf1c40f,
-        description: `You asked to get in touch about **${blueprintName}** on **${organizationName}**.`,
+        description: `I opened the contact for **${blueprintName}** on **${organizationName}**. Here is the other side of the request.`,
         fields: [
           {
-            name: 'Discord',
+            name: 'Other side',
             value: `${counterpartDisplayName}\n${buildDiscordUserMention(counterpartDiscordId)}`,
             inline: true,
           },
@@ -327,9 +402,23 @@ export function buildCraftRequestIntroductionPayload({
             value: requestId,
             inline: false,
           },
+          {
+            name: 'Resources',
+            value: buildCraftRequestResourcesLabel({ resourcesOption }),
+            inline: false,
+          },
+          ...(normalizeText(comment)
+            ? [
+                {
+                  name: 'Comment',
+                  value: normalizeText(comment),
+                  inline: false,
+                },
+              ]
+            : []),
         ],
         footer: {
-          text: 'Both parties received this introduction message.',
+          text: 'Both sides received this ItemFab Bot introduction.',
         },
       },
     ],
@@ -342,13 +431,12 @@ export async function notifyCraftRequestOwner(env, request, ownerAccount, reques
     return false;
   }
 
-  await sendDiscordDirectMessage(
+  return sendDiscordDirectMessage(
     env,
     ownerDiscordUserId,
     buildCraftRequestOwnerDmPayload(env, request, requesterAccount),
     options,
   );
-  return true;
 }
 
 export async function sendCraftRequestIntroduction(env, request, ownerAccount, requesterAccount, options = {}) {
@@ -377,6 +465,8 @@ export async function sendCraftRequestIntroduction(env, request, ownerAccount, r
         counterpartRsiHandle: request.requesterRsiHandle,
         blueprintName: request.blueprintName,
         organizationName: request.organizationName,
+        comment: request.comment,
+        resourcesOption: request.resourcesOption,
         requestId: request.id,
       }),
       options,
@@ -390,12 +480,42 @@ export async function sendCraftRequestIntroduction(env, request, ownerAccount, r
         counterpartRsiHandle: request.ownerRsiHandle,
         blueprintName: request.blueprintName,
         organizationName: request.organizationName,
+        comment: request.comment,
+        resourcesOption: request.resourcesOption,
         requestId: request.id,
       }),
       options,
     ),
   ]);
 
+  return true;
+}
+
+export async function syncCraftRequestOwnerMessage(env, request, requesterAccount, options = {}) {
+  const channelId = normalizeText(request?.ownerDiscordChannelId);
+  const messageId = normalizeText(request?.ownerDiscordMessageId);
+  if (!channelId || !messageId || !getDiscordBotToken(env)) {
+    return false;
+  }
+
+  await editDiscordChannelMessage(
+    env,
+    channelId,
+    messageId,
+    buildCraftRequestResolvedMessagePayload(env, request, request.status, requesterAccount),
+    options,
+  );
+  return true;
+}
+
+export async function removeCraftRequestOwnerMessage(env, request, options = {}) {
+  const channelId = normalizeText(request?.ownerDiscordChannelId);
+  const messageId = normalizeText(request?.ownerDiscordMessageId);
+  if (!channelId || !messageId || !getDiscordBotToken(env)) {
+    return false;
+  }
+
+  await deleteDiscordChannelMessage(env, channelId, messageId, options);
   return true;
 }
 

@@ -1,4 +1,4 @@
-import Alert from '@mui/material/Alert';
+﻿import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
@@ -19,11 +19,9 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import accountScreenOne from '../assets/account_1.png';
-import accountScreenTwo from '../assets/account_2.png';
+import discordSymbol from '../assets/discord-symbol.svg';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -34,6 +32,8 @@ import { useI18n } from '../i18n/I18nContext';
 import { getDiscordBotInviteUrl } from '../services/authService';
 import { useCraft } from '../store/CraftContext';
 import { computeStatMaxima } from '../utils/crafting';
+import { AccountGuestView } from './account/AccountGuestView';
+import { CraftRequestsPanel } from './account/CraftRequestsPanel';
 import { BlueprintCard } from './BlueprintGrid';
 import { Button } from './ui/Button';
 
@@ -98,6 +98,9 @@ export function AccountPage() {
     loading,
     user,
     account,
+    optimisticState,
+    syncStatus,
+    syncError,
     loginWithDiscord,
     logout,
     deleteAccount,
@@ -108,6 +111,8 @@ export function AccountPage() {
     addOrganization,
     removeOrganization,
     claimOrganization,
+    deleteOrganization,
+    setOrganizationBlueprintSharing,
     refreshOrganizationMembers,
     respondToCraftRequest,
   } = useAuth();
@@ -151,6 +156,11 @@ export function AccountPage() {
   const [organizationError, setOrganizationError] = useState<string | null>(null);
   const [organizationNotice, setOrganizationNotice] = useState<string | null>(null);
   const [organizationClaimDialogSid, setOrganizationClaimDialogSid] = useState<string | null>(null);
+  const [organizationDeleteDialogSid, setOrganizationDeleteDialogSid] = useState<string | null>(null);
+  const [organizationSharingDialogState, setOrganizationSharingDialogState] = useState<{
+    sid: string;
+    enabled: boolean;
+  } | null>(null);
   const [craftRequestActionId, setCraftRequestActionId] = useState<string | null>(null);
   const [craftRequestError, setCraftRequestError] = useState<string | null>(null);
   const [craftRequestNotice, setCraftRequestNotice] = useState<string | null>(null);
@@ -176,13 +186,17 @@ export function AccountPage() {
     return nextMap;
   }, [organizationBlueprintShares]);
   const linkedOrganizations = account?.organizations ?? [];
-  const incomingCraftRequests = account?.incomingCraftRequests ?? [];
-  const outgoingCraftRequests = account?.outgoingCraftRequests ?? [];
   const favoriteCount = favoriteSnapshotIds.length;
   const inventoryCount = inventorySnapshotIds.length;
   const canManageOrganizations = Boolean(account?.rsi?.handle);
   const organizationClaimDialogTarget = linkedOrganizations.find(
     (organization) => organization.sid === organizationClaimDialogSid,
+  ) ?? null;
+  const organizationDeleteDialogTarget = linkedOrganizations.find(
+    (organization) => organization.sid === organizationDeleteDialogSid,
+  ) ?? null;
+  const organizationSharingDialogTarget = linkedOrganizations.find(
+    (organization) => organization.sid === organizationSharingDialogState?.sid,
   ) ?? null;
   const localImportPlan = useMemo(
     () => computeLocalBlueprintImportPlan(account, localCollections),
@@ -207,60 +221,6 @@ export function AccountPage() {
     () => new Map(blueprints.map((blueprint) => [blueprint.id, blueprint])),
     [blueprints],
   );
-  const pendingIncomingCraftRequests = useMemo(
-    () => incomingCraftRequests.filter((request) => request.status === 'pending'),
-    [incomingCraftRequests],
-  );
-  const recentOutgoingCraftRequests = useMemo(
-    () => outgoingCraftRequests.slice(0, 3),
-    [outgoingCraftRequests],
-  );
-  const accountPreviewCards: Array<{
-    title: string;
-    body: string;
-    image: string | null;
-    alt: string | null;
-  }> = [
-    {
-      title: t('Cloud blueprint library', 'Bibliotheque blueprint cloud', 'Cloud-Blueprint-Bibliothek'),
-      body: t(
-        'Show synced inventory and favorites from the account page.',
-        'Montre l inventaire et les favoris synchronises depuis la page compte.',
-        'Zeigt das synchronisierte Inventar und die Favoriten auf der Kontoseite.',
-      ),
-      image: accountScreenOne,
-      alt: t(
-        'Account page blueprint library screenshot',
-        'Screenshot de la bibliotheque blueprint du compte',
-        'Screenshot der Konto-Blueprint-Bibliothek',
-      ),
-    },
-    {
-      title: t('Organization sharing', 'Partage d organisation', 'Organisationsfreigabe'),
-      body: t(
-        'Show the moment a blueprint is shared to one or several linked organizations.',
-        'Montre le moment ou un blueprint est partage a une ou plusieurs organisations liees.',
-        'Zeigt den Moment, in dem ein Blueprint an eine oder mehrere verknupfte Organisationen geteilt wird.',
-      ),
-      image: accountScreenTwo,
-      alt: t(
-        'Organization sharing screenshot',
-        'Screenshot du partage d organisation',
-        'Screenshot der Organisationsfreigabe',
-      ),
-    },
-    {
-      title: t('Craft request inbox', 'Boite de demandes de craft', 'Craft-Anfrageeingang'),
-      body: t(
-        'Show pending craft requests, answer them, and close completed conversations from the account page.',
-        'Montre les demandes de craft en attente, permet d y repondre et de clore les conversations terminees depuis la page compte.',
-        'Zeigt ausstehende Craft-Anfragen, erlaubt Antworten und das Schliessen abgeschlossener Unterhaltungen auf der Kontoseite.',
-      ),
-      image: null,
-      alt: null,
-    },
-  ];
-
   const displayedIds = libraryMode === 'inventory' ? inventorySnapshotIds : favoriteSnapshotIds;
   const displayedBlueprints = useMemo(
     () => displayedIds
@@ -314,6 +274,8 @@ export function AccountPage() {
     setOrganizationNotice(null);
     setOrganizationSidInput('');
     setOrganizationClaimDialogSid(null);
+    setOrganizationDeleteDialogSid(null);
+    setOrganizationSharingDialogState(null);
     setCraftRequestActionId(null);
     setCraftRequestError(null);
     setCraftRequestNotice(null);
@@ -409,7 +371,7 @@ export function AccountPage() {
       t(
         'Delete your cloud account and Discord-linked data permanently? This also signs you out.',
         'Supprimer definitivement ton compte cloud et les donnees liees a Discord ? Cela te deconnectera aussi.',
-        'Soll dein Cloud-Konto mit den Discord-gebundenen Daten dauerhaft geloescht werden? Du wirst dabei auch abgemeldet.',
+        'Soll dein Cloud-Konto mit den Discord-gebundenen Daten dauerhaft gelöscht werden? Du wirst dabei auch abgemeldet.',
       ),
     );
     if (!confirmed) {
@@ -427,7 +389,7 @@ export function AccountPage() {
           : t(
             'Failed to delete the account.',
             'La suppression du compte a echoue.',
-            'Das Konto konnte nicht geloescht werden.',
+            'Das Konto konnte nicht gelöscht werden.',
           ),
       );
     } finally {
@@ -557,7 +519,7 @@ export function AccountPage() {
           : t(
             'Failed to remove the RSI account link.',
             'La suppression du lien RSI a echoue.',
-            'Die RSI-Verknupfung konnte nicht entfernt werden.',
+            'Die RSI-Verknüpfung konnte nicht entfernt werden.',
           ),
       );
     } finally {
@@ -636,7 +598,7 @@ export function AccountPage() {
         t(
           'This organization is already linked to your account.',
           'Cette organisation est deja liee a ton compte.',
-          'Diese Organisation ist bereits mit deinem Konto verknupft.',
+          'Diese Organisation ist bereits mit deinem Konto verknüpft.',
         ),
       );
       return;
@@ -655,7 +617,7 @@ export function AccountPage() {
           : t(
             'Failed to add the organization.',
             'L ajout de l organisation a echoue.',
-            'Die Organisation konnte nicht hinzugefugt werden.',
+            'Die Organisation konnte nicht hinzugefügt werden.',
           ),
       );
     } finally {
@@ -697,6 +659,32 @@ export function AccountPage() {
     }
   };
 
+  const openDeleteOrganizationDialog = (sid: string) => {
+    blurFocusedElement();
+    setOrganizationError(null);
+    setOrganizationNotice(null);
+    setOrganizationDeleteDialogSid(sid);
+  };
+
+  const closeDeleteOrganizationDialog = () => {
+    if (!organizationActionSid) {
+      setOrganizationDeleteDialogSid(null);
+    }
+  };
+
+  const openOrganizationSharingDialog = (sid: string, enabled: boolean) => {
+    blurFocusedElement();
+    setOrganizationError(null);
+    setOrganizationNotice(null);
+    setOrganizationSharingDialogState({ sid, enabled });
+  };
+
+  const closeOrganizationSharingDialog = () => {
+    if (!organizationActionSid) {
+      setOrganizationSharingDialogState(null);
+    }
+  };
+
   const handleClaimOrganization = async () => {
     if (!organizationClaimDialogSid) {
       return;
@@ -712,7 +700,7 @@ export function AccountPage() {
         t(
           'Your organization claim request was sent for manual review.',
           'Ta demande de claim d organisation a ete envoyee pour revue manuelle.',
-          'Deine Organisationsanfrage wurde zur manuellen Prufung gesendet.',
+          'Deine Organisationsanfrage wurde zur manuellen Prüfung gesendet.',
         ),
       );
       setOrganizationClaimDialogSid(null);
@@ -745,6 +733,80 @@ export function AccountPage() {
             'Failed to refresh organization members.',
             'Le rafraichissement des membres de l organisation a echoue.',
             'Die Organisationsmitglieder konnten nicht aktualisiert werden.',
+          ),
+      );
+    } finally {
+      setOrganizationActionSid(null);
+    }
+  };
+
+  const handleDeleteOrganization = async () => {
+    if (!organizationDeleteDialogSid) {
+      return;
+    }
+
+    const targetSid = organizationDeleteDialogSid;
+    setOrganizationActionSid(targetSid);
+    setOrganizationError(null);
+    setOrganizationNotice(null);
+    try {
+      await deleteOrganization(targetSid);
+      setOrganizationNotice(
+        t(
+          'Organization deleted from the app.',
+          'Organisation supprimee de l appli.',
+          'Organisation wurde aus der App entfernt.',
+        ),
+      );
+      setOrganizationDeleteDialogSid(null);
+    } catch (error) {
+      setOrganizationError(
+        error instanceof Error
+          ? error.message
+          : t(
+            'Failed to delete the organization.',
+            'La suppression de l organisation a echoue.',
+            'Die Organisation konnte nicht gelöscht werden.',
+          ),
+      );
+    } finally {
+      setOrganizationActionSid(null);
+    }
+  };
+
+  const handleSetOrganizationSharing = async () => {
+    if (!organizationSharingDialogState) {
+      return;
+    }
+
+    const { sid, enabled } = organizationSharingDialogState;
+    setOrganizationActionSid(sid);
+    setOrganizationError(null);
+    setOrganizationNotice(null);
+    try {
+      await setOrganizationBlueprintSharing(sid, enabled);
+      setOrganizationNotice(
+        enabled
+          ? t(
+            'Blueprint sharing enabled for this organization.',
+            'Le partage de blueprints est active pour cette organisation.',
+            'Die Blueprint-Freigabe ist für diese Organisation aktiviert.',
+          )
+          : t(
+            'Blueprint sharing disabled for this organization.',
+            'Le partage de blueprints est desactive pour cette organisation.',
+            'Die Blueprint-Freigabe ist für diese Organisation deaktiviert.',
+          ),
+      );
+      setOrganizationSharingDialogState(null);
+    } catch (error) {
+      setOrganizationError(
+        error instanceof Error
+          ? error.message
+          : t(
+            'Failed to update organization blueprint sharing.',
+            'La mise a jour du partage des blueprints de l organisation a echoue.',
+            'Die Blueprint-Freigabe der Organisation konnte nicht aktualisiert werden.',
           ),
       );
     } finally {
@@ -838,22 +900,7 @@ export function AccountPage() {
         </Alert>
       )}
 
-      {!enabled ? (
-        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
-          <Stack spacing={1.5}>
-            <Typography variant="h5">
-              {t('Authentication unavailable', 'Authentification indisponible', 'Authentifizierung nicht verfugbar')}
-            </Typography>
-            <Typography sx={{ color: 'text.secondary', maxWidth: 720 }}>
-              {t(
-                'Discord OAuth is not configured in the current environment yet.',
-                'Le OAuth Discord n est pas encore configure dans cet environnement.',
-                'Discord OAuth ist in dieser Umgebung noch nicht konfiguriert.',
-              )}
-            </Typography>
-          </Stack>
-        </Paper>
-      ) : user ? (
+      {user ? (
         <Box
           sx={{
             display: 'grid',
@@ -885,7 +932,7 @@ export function AccountPage() {
                     variant="overline"
                     sx={{ color: 'secondary.main', letterSpacing: '0.16em' }}
                   >
-                    {t('Account identity', 'Identite compte', 'Konto-Identitat')}
+                    {t('Account identity', 'Identite compte', 'Konto-Identität')}
                   </Typography>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Avatar
@@ -927,7 +974,7 @@ export function AccountPage() {
                       variant="caption"
                       sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.14em' }}
                     >
-                      {t('Owned / obtainable blueprints', 'Blueprints possedes / obtenables', 'Besessene / erhaltliche Blueprints')}
+                      {t('Owned / obtainable blueprints', 'Blueprints possedes / obtenables', 'Besessene / erhältliche Blueprints')}
                     </Typography>
                     <Stack direction="row" spacing={0.75} alignItems="baseline">
                       <Typography variant="h2" sx={{ lineHeight: 0.9 }}>
@@ -954,12 +1001,12 @@ export function AccountPage() {
                         ? t(
                           'Blueprints stored in the account inventory against the full obtainable catalog.',
                           'Blueprints stockes dans l inventaire du compte par rapport au catalogue obtenable complet.',
-                          'Blueprints aus dem Konto-Inventar im Verhaltnis zum gesamten erhaltlichen Katalog.',
+                          'Blueprints aus dem Konto-Inventar im Verhältnis zum gesamten erhältlichen Katalog.',
                         )
                         : t(
                           'Mission catalog is syncing for the obtainable total.',
                           'Le catalogue mission se synchronise pour calculer le total obtenable.',
-                          'Der Missionskatalog wird fur die erreichbare Gesamtzahl synchronisiert.',
+                          'Der Missionskatalog wird für die erreichbare Gesamtzahl synchronisiert.',
                         )}
                     </Typography>
                   </Stack>
@@ -1028,13 +1075,13 @@ export function AccountPage() {
                       {t('Organizations', 'Organisations', 'Organisationen')}
                     </Typography>
                     <Typography variant="h5" sx={{ mt: 0.35 }}>
-                      {t('Organizations linked to your account', 'Organisations liees a ton compte', 'Mit deinem Konto verknupfte Organisationen')}
+                      {t('Organizations linked to your account', 'Organisations liees a ton compte', 'Mit deinem Konto verknüpfte Organisationen')}
                     </Typography>
                     <Typography sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 760 }}>
                       {t(
                         'Your main RSI organization is imported automatically. Add any extra organization by SID or full URL when you need it.',
                         'Ton organisation RSI principale est importee automatiquement. Ajoute ensuite les autres organisations par SID ou lien complet seulement si tu en as besoin.',
-                        'Deine Haupt-RSI-Organisation wird automatisch importiert. Weitere Organisationen kannst du bei Bedarf per SID oder vollem Link hinzufugen.',
+                        'Deine Haupt-RSI-Organisation wird automatisch importiert. Weitere Organisationen kannst du bei Bedarf per SID oder vollem Link hinzufügen.',
                       )}
                     </Typography>
                   </Box>
@@ -1044,14 +1091,14 @@ export function AccountPage() {
                       label={t(
                         linkedOrganizations.length === 1 ? '1 organization linked' : `${linkedOrganizations.length} organizations linked`,
                         linkedOrganizations.length === 1 ? '1 organisation liee' : `${linkedOrganizations.length} organisations liees`,
-                        linkedOrganizations.length === 1 ? '1 Organisation verknupft' : `${linkedOrganizations.length} Organisationen verknupft`,
+                        linkedOrganizations.length === 1 ? '1 Organisation verknüpft' : `${linkedOrganizations.length} Organisationen verknüpft`,
                       )}
                       size="small"
                       variant="outlined"
                     />
                     {canManageOrganizations && (
                       <Chip
-                        label={t('RSI linked', 'RSI lie', 'RSI verknupft')}
+                        label={t('RSI linked', 'RSI lie', 'RSI verknüpft')}
                         size="small"
                         color="info"
                         variant="outlined"
@@ -1065,7 +1112,7 @@ export function AccountPage() {
                     {t(
                       'Link an RSI account first to import and manage organizations.',
                       'Lie d abord un compte RSI pour importer et gerer les organisations.',
-                      'Verknupfe zuerst ein RSI-Konto, um Organisationen zu importieren und zu verwalten.',
+                      'Verknüpfe zuerst ein RSI-Konto, um Organisationen zu importieren und zu verwalten.',
                     )}
                   </Alert>
                 )}
@@ -1093,13 +1140,13 @@ export function AccountPage() {
                   <Stack spacing={1.5}>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {t('Add an organization', 'Ajouter une organisation', 'Organisation hinzufugen')}
+                        {t('Add an organization', 'Ajouter une organisation', 'Organisation hinzufügen')}
                       </Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
                         {t(
                           'Paste a SID such as PROTECTORA or the full RSI organization URL.',
                           'Colle un SID comme PROTECTORA ou l URL complete de l organisation RSI.',
-                          'Fuge eine SID wie PROTECTORA oder die vollstandige RSI-Organisations-URL ein.',
+                          'Fuge eine SID wie PROTECTORA oder die vollständige RSI-Organisations-URL ein.',
                         )}
                       </Typography>
                     </Box>
@@ -1125,7 +1172,7 @@ export function AccountPage() {
                                 title={t(
                                   'Accepts either a SID like PROTECTORA or a full RSI org link such as https://robertsspaceindustries.com/en/orgs/PROTECTORA',
                                   'Accepte soit un SID comme PROTECTORA, soit un lien RSI complet comme https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                  'Akzeptiert entweder eine SID wie PROTECTORA oder einen vollstandigen RSI-Link wie https://robertsspaceindustries.com/en/orgs/PROTECTORA',
+                                  'Akzeptiert entweder eine SID wie PROTECTORA oder einen vollständigen RSI-Link wie https://robertsspaceindustries.com/en/orgs/PROTECTORA',
                                 )}
                               >
                                 <Box
@@ -1151,8 +1198,8 @@ export function AccountPage() {
                         style={{ whiteSpace: 'nowrap', minWidth: 176, flexShrink: 0, alignSelf: 'stretch' }}
                       >
                         {organizationAddBusy
-                          ? t('Adding...', 'Ajout...', 'Fuege hinzu...')
-                          : t('Add organization', 'Ajouter l organisation', 'Organisation hinzufugen')}
+                          ? t('Adding...', 'Ajout...', 'Füge hinzu...')
+                          : t('Add organization', 'Ajouter l organisation', 'Organisation hinzufügen')}
                       </Button>
                     </Stack>
                   </Stack>
@@ -1170,13 +1217,13 @@ export function AccountPage() {
                     }}
                   >
                     <Typography variant="h6" sx={{ mb: 0.75 }}>
-                      {t('No organizations linked yet', 'Aucune organisation liee pour le moment', 'Noch keine Organisationen verknupft')}
+                      {t('No organizations linked yet', 'Aucune organisation liee pour le moment', 'Noch keine Organisationen verknüpft')}
                     </Typography>
                     <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
                       {t(
                         'Once the RSI account is linked, the profile main organization can be imported automatically and extra organizations can be added by SID.',
                         'Une fois le compte RSI lie, l organisation principale du profil peut etre importee automatiquement et des organisations supplementaires peuvent etre ajoutees par SID.',
-                        'Sobald das RSI-Konto verknupft ist, kann die Hauptorganisation des Profils automatisch importiert werden und weitere Organisationen konnen per SID hinzugefugt werden.',
+                        'Sobald das RSI-Konto verknüpft ist, kann die Hauptorganisation des Profils automatisch importiert werden und weitere Organisationen konnen per SID hinzugefügt werden.',
                       )}
                     </Typography>
                   </Box>
@@ -1326,7 +1373,7 @@ export function AccountPage() {
                                   )}
                                   {hasPendingClaimRequest && (
                                     <Chip
-                                      label={t('Review pending', 'Revue en attente', 'Prufung ausstehend')}
+                                      label={t('Review pending', 'Revue en attente', 'Prüfung ausstehend')}
                                       size="small"
                                       color="warning"
                                       variant="outlined"
@@ -1485,7 +1532,7 @@ export function AccountPage() {
                                   >
                                     {organizationActionSid === organization.sid
                                       ? t('Sending...', 'Envoi...', 'Sende...')
-                                      : t('Request claim review', 'Demander une revue de claim', 'Claim-Prufung anfordern')}
+                                      : t('Request claim review', 'Demander une revue de claim', 'Claim-Prüfung anfordern')}
                                   </Button>
                                 )}
 
@@ -1509,14 +1556,49 @@ export function AccountPage() {
                                   >
                                     <span>
                                       <Button
-                                        variant="ghost"
+                                        variant="secondary"
                                         size="sm"
+                                        icon={(
+                                          <Box
+                                            component="img"
+                                            src={discordSymbol}
+                                            alt=""
+                                            aria-hidden="true"
+                                            sx={{ width: 16, height: 16, display: 'block' }}
+                                          />
+                                        )}
                                         onClick={openDiscordBotInvite}
                                       >
-                                        {t('Invite Discord bot', 'Inviter le bot Discord', 'Discord-Bot einladen')}
+                                        {t('Add Discord bot', 'Ajouter le bot Discord', 'Discord-Bot hinzufügen')}
                                       </Button>
                                     </span>
                                   </Tooltip>
+                                )}
+
+                                {organization.claimedByCurrentUser && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={organizationActionSid === organization.sid}
+                                    onClick={() => {
+                                      openOrganizationSharingDialog(
+                                        organization.sid,
+                                        !(organization.blueprintSharingEnabled !== false),
+                                      );
+                                    }}
+                                  >
+                                    {organization.blueprintSharingEnabled !== false
+                                      ? t(
+                                        'Disable blueprint sharing',
+                                        'Desactiver le partage de blueprints',
+                                        'Blueprint-Freigabe deaktivieren',
+                                      )
+                                      : t(
+                                        'Enable blueprint sharing',
+                                        'Activer le partage de blueprints',
+                                        'Blueprint-Freigabe aktivieren',
+                                      )}
+                                  </Button>
                                 )}
 
                                 {organization.claimed && organization.status === 'verified_admin' && (
@@ -1531,6 +1613,21 @@ export function AccountPage() {
                                       : t('Refresh members', 'Rafraichir les membres', 'Mitglieder aktualisieren')}
                                   </Button>
                                 )}
+
+                                {organization.claimedByCurrentUser && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={organizationActionSid === organization.sid}
+                                    onClick={() => { openDeleteOrganizationDialog(organization.sid); }}
+                                  >
+                                    {t(
+                                      'Delete organization',
+                                      'Supprimer l organisation',
+                                      'Organisation löschen',
+                                    )}
+                                  </Button>
+                                )}
                               </Stack>
 
                               {hasPendingClaimRequest && (
@@ -1539,12 +1636,12 @@ export function AccountPage() {
                                     ? t(
                                       `A manual claim review was requested on ${claimRequestSubmittedLabel}.`,
                                       `Une revue manuelle du claim a ete demandee le ${claimRequestSubmittedLabel}.`,
-                                      `Eine manuelle Claim-Prufung wurde am ${claimRequestSubmittedLabel} angefordert.`,
+                                      `Eine manuelle Claim-Prüfung wurde am ${claimRequestSubmittedLabel} angefordert.`,
                                     )
                                     : t(
                                       'A manual claim review is pending for this organization.',
                                       'Une revue manuelle du claim est en attente pour cette organisation.',
-                                      'Fur diese Organisation wartet eine manuelle Claim-Prufung.',
+                                      'Für diese Organisation wartet eine manuelle Claim-Prüfung.',
                                     )}
                                 </Typography>
                               )}
@@ -1554,7 +1651,7 @@ export function AccountPage() {
                                   {t(
                                     `Next live refresh available after ${nextEligibleLabel}.`,
                                     `Prochain refresh live disponible apres ${nextEligibleLabel}.`,
-                                    `Der nachste Live-Refresh ist nach ${nextEligibleLabel} verfugbar.`,
+                                    `Der nächste Live-Refresh ist nach ${nextEligibleLabel} verfügbar.`,
                                   )}
                                 </Typography>
                               )}
@@ -1578,7 +1675,7 @@ export function AccountPage() {
                     {t('Account actions', 'Actions du compte', 'Konto-Aktionen')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
-                    {t('Session and deletion', 'Session et suppression', 'Sitzung und Loschung')}
+                    {t('Session and deletion', 'Session et suppression', 'Sitzung und Löschung')}
                   </Typography>
                 </Box>
 
@@ -1611,7 +1708,7 @@ export function AccountPage() {
                       {t(
                         `Linked RSI handle: ${account.rsi.handle}`,
                         `Handle RSI lie : ${account.rsi.handle}`,
-                        `Verknupfter RSI-Handle: ${account.rsi.handle}`,
+                        `Verknüpfter RSI-Handle: ${account.rsi.handle}`,
                       )}
                     </Typography>
                     <Button
@@ -1622,7 +1719,7 @@ export function AccountPage() {
                     >
                       {rsiUnlinkBusy
                         ? t('Removing...', 'Suppression...', 'Entferne...')
-                        : t('Remove link', 'Supprimer le lien', 'Verknupfung entfernen')}
+                        : t('Remove link', 'Supprimer le lien', 'Verknüpfung entfernen')}
                     </Button>
                   </Stack>
                 )}
@@ -1648,8 +1745,8 @@ export function AccountPage() {
                   disabled={deleteBusy}
                 >
                   {deleteBusy
-                    ? t('Deleting account...', 'Suppression du compte...', 'Konto wird geloescht...')
-                    : t('Delete account', 'Supprimer le compte', 'Konto loeschen')}
+                    ? t('Deleting account...', 'Suppression du compte...', 'Konto wird gelöscht...')
+                    : t('Delete account', 'Supprimer le compte', 'Konto löschen')}
                 </Button>
 
                 <Typography sx={{ color: 'text.secondary' }}>
@@ -1744,7 +1841,7 @@ export function AccountPage() {
                     label={t(
                       `${hiddenBlueprintCount} unavailable in current dataset`,
                       `${hiddenBlueprintCount} indisponibles dans le dataset actuel`,
-                      `${hiddenBlueprintCount} im aktuellen Datensatz nicht verfugbar`,
+                      `${hiddenBlueprintCount} im aktuellen Datensatz nicht verfügbar`,
                     )}
                     size="small"
                     variant="outlined"
@@ -1823,30 +1920,30 @@ export function AccountPage() {
                               ? t(
                                 'Choose which linked organizations can access this blueprint',
                                 'Choisir quelles organisations liees peuvent acceder a ce blueprint',
-                                'Auswahlen, welche verknupften Organisationen auf diesen Blueprint zugreifen konnen',
+                                'Auswählen, welche verknüpften Organisationen auf diesen Blueprint zugreifen konnen',
                               )
                               : t(
                                 'Choose which linked organizations can access this blueprint',
                                 'Choisir quelles organisations liees peuvent acceder a ce blueprint',
-                                'Auswahlen, welche verknupften Organisationen auf diesen Blueprint zugreifen konnen',
+                                'Auswählen, welche verknüpften Organisationen auf diesen Blueprint zugreifen konnen',
                               ),
                             disabled: linkedOrganizations.length === 0,
                             tooltip: linkedOrganizations.length === 0
                               ? t(
                                 'Link an organization on this account first.',
                                 'Lie d abord une organisation a ce compte.',
-                                'Verknupfe zuerst eine Organisation mit diesem Konto.',
+                                'Verknüpfe zuerst eine Organisation mit diesem Konto.',
                               )
                               : isShared
                               ? t(
                                 `Shared with ${sharedOrganizationIds.length} linked organization${sharedOrganizationIds.length > 1 ? 's' : ''}. Click to choose the organizations.`,
                                 `Partage avec ${sharedOrganizationIds.length} organisation${sharedOrganizationIds.length > 1 ? 's' : ''} liee${sharedOrganizationIds.length > 1 ? 's' : ''}. Clique pour choisir les organisations.`,
-                                `Mit ${sharedOrganizationIds.length} verknupften Organisation${sharedOrganizationIds.length > 1 ? 'en' : ''} geteilt. Klicke, um die Organisationen zu wahlen.`,
+                                `Mit ${sharedOrganizationIds.length} verknüpften Organisation${sharedOrganizationIds.length > 1 ? 'en' : ''} geteilt. Klicke, um die Organisationen zu wahlen.`,
                               )
                               : t(
                                 'Private to this account until you select one or more linked organizations.',
                                 'Prive pour ce compte tant que tu ne selectionnes pas une ou plusieurs organisations liees.',
-                                'Privat fur dieses Konto, bis du eine oder mehrere verknupfte Organisationen auswahlen.',
+                                'Privat für dieses Konto, bis du eine oder mehrere verknüpfte Organisationen auswählen.',
                               ),
                             onToggle: (blueprintId) => { openShareBlueprintDialog(blueprintId); },
                           }
@@ -1879,626 +1976,24 @@ export function AccountPage() {
             </Stack>
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: { xs: 1.25, md: 1.5 } }}>
-              <Stack spacing={1.25}>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={0.75}
-                  justifyContent="space-between"
-                  alignItems={{ xs: 'flex-start', sm: 'center' }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography
-                      variant="overline"
-                      sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-                    >
-                      {t('Craft requests', 'Demandes de craft', 'Craft-Anfragen')}
-                    </Typography>
-                    <Typography variant="h6" sx={{ mt: 0.25 }}>
-                      {t('Incoming and recent activity', 'Entrantes et activite recente', 'Eingehend und aktuelle Aktivitat')}
-                    </Typography>
-                  </Box>
-
-                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                    <Chip
-                      label={t(
-                        `${pendingIncomingCraftRequests.length} pending`,
-                        `${pendingIncomingCraftRequests.length} en attente`,
-                        `${pendingIncomingCraftRequests.length} ausstehend`,
-                      )}
-                      size="small"
-                    />
-                    <Chip
-                      label={t(
-                        `${recentOutgoingCraftRequests.length} recent`,
-                        `${recentOutgoingCraftRequests.length} recentes`,
-                        `${recentOutgoingCraftRequests.length} aktuell`,
-                      )}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Stack>
-
-                {craftRequestError && (
-                  <Alert severity="error" variant="outlined">
-                    {craftRequestError}
-                  </Alert>
-                )}
-
-                {craftRequestNotice && (
-                  <Alert severity="success" variant="outlined">
-                    {craftRequestNotice}
-                  </Alert>
-                )}
-
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
-                    gap: 1.25,
-                  }}
-                >
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      backgroundColor: alpha(theme.palette.background.default, 0.16),
-                    }}
-                  >
-                    <Stack spacing={0.9}>
-                      <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {t('Incoming', 'Entrantes', 'Eingehend')}
-                        </Typography>
-                        <Chip
-                          label={t(
-                            `${pendingIncomingCraftRequests.length} open`,
-                            `${pendingIncomingCraftRequests.length} ouvertes`,
-                            `${pendingIncomingCraftRequests.length} offen`,
-                          )}
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                        />
-                      </Stack>
-
-                      {pendingIncomingCraftRequests.length === 0 ? (
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          {t(
-                            'No pending craft requests.',
-                            'Aucune demande de craft en attente.',
-                            'Keine ausstehenden Craft-Anfragen.',
-                          )}
-                        </Typography>
-                      ) : (
-                        <Box
-                          sx={{
-                            maxHeight: { md: 220 },
-                            overflowY: 'auto',
-                            pr: 0.25,
-                            borderRadius: 1.25,
-                            border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-                            backgroundColor: alpha(theme.palette.background.paper, 0.32),
-                          }}
-                        >
-                          <Stack spacing={0}>
-                            {pendingIncomingCraftRequests.map((request, index) => (
-                              <Stack
-                                key={request.id}
-                                direction={{ xs: 'column', lg: 'row' }}
-                                spacing={1}
-                                justifyContent="space-between"
-                                alignItems={{ xs: 'stretch', lg: 'center' }}
-                                sx={{
-                                  px: 1,
-                                  py: 0.9,
-                                  borderTop: index === 0 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.75)}`,
-                                }}
-                              >
-                                <Stack direction="row" spacing={0.9} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
-                                  <Avatar
-                                    src={request.requesterAvatarUrl ?? undefined}
-                                    alt={request.requesterDisplayName}
-                                    sx={{ width: 28, height: 28 }}
-                                  >
-                                    {request.requesterDisplayName.charAt(0).toUpperCase()}
-                                  </Avatar>
-                                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                                      {request.blueprintName}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
-                                      {t(
-                                        `${request.requesterDisplayName} via ${request.organizationName}`,
-                                        `${request.requesterDisplayName} via ${request.organizationName}`,
-                                        `${request.requesterDisplayName} uber ${request.organizationName}`,
-                                      )}
-                                    </Typography>
-                                  </Box>
-                                </Stack>
-
-                                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    disabled={craftRequestActionId === request.id}
-                                    onClick={() => { void handleRespondToCraftRequest(request.id, 'accepted'); }}
-                                  >
-                                    {craftRequestActionId === request.id
-                                      ? t('Saving...', 'Enregistrement...', 'Speichere...')
-                                      : t('Accept', 'Accepter', 'Annehmen')}
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    disabled={craftRequestActionId === request.id}
-                                    onClick={() => { void handleRespondToCraftRequest(request.id, 'denied'); }}
-                                  >
-                                    {t('Deny', 'Refuser', 'Ablehnen')}
-                                  </Button>
-                                </Stack>
-                              </Stack>
-                            ))}
-                          </Stack>
-                        </Box>
-                      )}
-                    </Stack>
-                  </Paper>
-
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      backgroundColor: alpha(theme.palette.background.default, 0.16),
-                    }}
-                  >
-                    <Stack spacing={0.9}>
-                      <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {t('Recent outgoing', 'Sortantes recentes', 'Aktuelle ausgehende')}
-                        </Typography>
-                        <Chip
-                          label={t(
-                            `${recentOutgoingCraftRequests.length} shown`,
-                            `${recentOutgoingCraftRequests.length} affichees`,
-                            `${recentOutgoingCraftRequests.length} angezeigt`,
-                          )}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Stack>
-
-                      {recentOutgoingCraftRequests.length === 0 ? (
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          {t(
-                            'No outgoing craft requests yet.',
-                            'Aucune demande de craft sortante pour le moment.',
-                            'Noch keine ausgehenden Craft-Anfragen.',
-                          )}
-                        </Typography>
-                      ) : (
-                        <Box
-                          sx={{
-                            maxHeight: { md: 220 },
-                            overflowY: 'auto',
-                            pr: 0.25,
-                            borderRadius: 1.25,
-                            border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-                            backgroundColor: alpha(theme.palette.background.paper, 0.32),
-                          }}
-                        >
-                          <Stack spacing={0}>
-                            {recentOutgoingCraftRequests.map((request, index) => {
-                              const statusColor =
-                                request.status === 'accepted'
-                                  ? 'success'
-                                  : request.status === 'denied'
-                                    ? 'error'
-                                    : request.status === 'closed'
-                                      ? 'default'
-                                      : 'warning';
-
-                              return (
-                                <Stack
-                                  key={request.id}
-                                  direction={{ xs: 'column', lg: 'row' }}
-                                  spacing={0.9}
-                                  justifyContent="space-between"
-                                  alignItems={{ xs: 'flex-start', lg: 'center' }}
-                                  sx={{
-                                    px: 1,
-                                    py: 0.9,
-                                    borderTop: index === 0 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.75)}`,
-                                  }}
-                                >
-                                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                                      {request.blueprintName}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
-                                      {t(
-                                        `${request.ownerDisplayName} via ${request.organizationName}`,
-                                        `${request.ownerDisplayName} via ${request.organizationName}`,
-                                        `${request.ownerDisplayName} uber ${request.organizationName}`,
-                                      )}
-                                    </Typography>
-                                  </Box>
-                                  <Chip
-                                    label={
-                                      request.status === 'accepted'
-                                        ? t('Accepted', 'Acceptee', 'Angenommen')
-                                        : request.status === 'denied'
-                                          ? t('Denied', 'Refusee', 'Abgelehnt')
-                                          : request.status === 'closed'
-                                            ? t('Closed', 'Cloturee', 'Geschlossen')
-                                            : t('Pending', 'En attente', 'Ausstehend')
-                                    }
-                                    size="small"
-                                    color={statusColor}
-                                    variant="outlined"
-                                  />
-                                  {request.status !== 'closed' && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      disabled={craftRequestActionId === request.id}
-                                      onClick={() => { void handleRespondToCraftRequest(request.id, 'closed'); }}
-                                    >
-                                      {t('Close', 'Clore', 'Schliessen')}
-                                    </Button>
-                                  )}
-                                </Stack>
-                              );
-                            })}
-                          </Stack>
-                        </Box>
-                      )}
-                    </Stack>
-                  </Paper>
-                </Box>
-              </Stack>
-            </Paper>
+            <CraftRequestsPanel
+              account={account}
+              optimisticState={optimisticState}
+              syncStatus={syncStatus}
+              syncError={syncError}
+              craftRequestActionId={craftRequestActionId}
+              craftRequestError={craftRequestError}
+              craftRequestNotice={craftRequestNotice}
+              onRespondToCraftRequest={(requestId, decision) => { void handleRespondToCraftRequest(requestId, decision); }}
+            />
           </Stack>
         </Box>
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.45fr) minmax(320px, 0.85fr)' },
-            gap: { xs: 2, md: 3 },
-            alignItems: 'start',
-          }}
-        >
-          <Stack spacing={2}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: { xs: 2, md: 3 },
-                overflow: 'hidden',
-                borderColor: alpha(theme.palette.primary.main, 0.24),
-                background: `linear-gradient(145deg, ${alpha(theme.palette.secondary.main, 0.14)} 0%, ${alpha(theme.palette.primary.main, 0.08)} 42%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
-              }}
-            >
-              <Stack spacing={2}>
-                <Box>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-                  >
-                    {t('Why create an account', 'Pourquoi creer un compte', 'Warum ein Konto erstellen')}
-                  </Typography>
-                  <Typography variant="h4" sx={{ mt: 0.5, lineHeight: 0.95 }}>
-                    {t(
-                      'Keep your blueprint progress, organization sharing and craft coordination in one place.',
-                      'Centralise ta progression blueprint, le partage avec tes organisations et la coordination des crafts.',
-                      'Behalte deinen Blueprint-Fortschritt, Organisationsfreigaben und Craft-Absprachen an einem Ort.',
-                    )}
-                  </Typography>
-                  <Typography sx={{ mt: 1.25, maxWidth: 880, color: 'text.secondary' }}>
-                    {t(
-                      'A connected account turns the site into a persistent workspace: your favorites and inventory stay synced, your RSI profile can unlock org features, and shared crafting becomes actionable instead of staying just informational.',
-                      'Un compte connecte transforme le site en espace de travail persistant : tes favoris et ton inventaire restent synchronises, ton profil RSI peut debloquer les features d organisation, et le craft partage devient une vraie action plutot qu une simple information.',
-                      'Ein verbundenes Konto macht die Seite zu einem dauerhaften Workspace: Favoriten und Inventar bleiben synchron, dein RSI-Profil kann Org-Funktionen freischalten und geteiltes Crafting wird wirklich nutzbar statt nur informativ zu sein.',
-                    )}
-                  </Typography>
-                </Box>
-
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  {[
-                    t('Cloud inventory', 'Inventaire cloud', 'Cloud-Inventar'),
-                    t('Favorites sync', 'Sync favoris', 'Favoriten-Sync'),
-                    t('RSI link', 'Lien RSI', 'RSI-Link'),
-                    t('Organization sharing', 'Partage organisation', 'Organisationsfreigabe'),
-                    t('Craft requests', 'Demandes de craft', 'Craft-Anfragen'),
-                  ].map((label) => (
-                    <Chip key={label} label={label} size="small" variant="outlined" />
-                  ))}
-                </Stack>
-              </Stack>
-            </Paper>
-
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-                gap: 2,
-              }}
-            >
-              {[
-                {
-                  step: '01',
-                  title: t('Sync your collections', 'Synchronise tes collections', 'Synchronisiere deine Sammlungen'),
-                  body: t(
-                    'Keep blueprint favorites and inventory attached to your account instead of one browser only.',
-                    'Garde tes favoris et ton inventaire blueprint rattaches a ton compte plutot qu a un seul navigateur.',
-                    'Speichere Favoriten und Blueprint-Inventar am Konto statt nur in einem Browser.',
-                  ),
-                },
-                {
-                  step: '02',
-                  title: t('Unlock organization tools', 'Debloque les outils d organisation', 'Schalte Organisations-Tools frei'),
-                  body: t(
-                    'Link RSI once, join your org spaces, and browse the blueprints shared by people you actually play with.',
-                    'Lie ton RSI une fois, rejoins tes espaces d organisation et consulte les blueprints partages par les personnes avec qui tu joues vraiment.',
-                    'Verbinde RSI einmal, betrete deine Org-Bereiche und sieh die Blueprints der Leute, mit denen du wirklich spielst.',
-                  ),
-                },
-                {
-                  step: '03',
-                  title: t('Coordinate crafting', 'Coordonne les crafts', 'Koordiniere Crafts'),
-                  body: t(
-                    'Send craft requests to owners, review incoming asks from your account page, and keep the workflow visible.',
-                    'Envoie des demandes de craft aux proprietaires, traite les demandes entrantes depuis ton compte et garde le workflow visible.',
-                    'Sende Craft-Anfragen an Besitzer, bearbeite eingehende Anfragen auf deiner Kontoseite und behalte den Ablauf im Blick.',
-                  ),
-                },
-              ].map((feature) => (
-                <Paper
-                  key={feature.step}
-                  variant="outlined"
-                  sx={{
-                    p: 2,
-                    borderColor: alpha(theme.palette.primary.main, 0.14),
-                    backgroundColor: alpha(theme.palette.background.default, 0.24),
-                  }}
-                >
-                  <Stack spacing={1.25}>
-                    <Box
-                      sx={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 1.25,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        color: 'primary.main',
-                        backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                      }}
-                    >
-                      {feature.step}
-                    </Box>
-                    <Typography variant="h6" sx={{ lineHeight: 1 }}>
-                      {feature.title}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {feature.body}
-                    </Typography>
-                  </Stack>
-                </Paper>
-              ))}
-            </Box>
-
-            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-              <Stack spacing={1.5}>
-                <Box>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
-                  >
-                    {t('Account flow preview', 'Apercu du flow compte', 'Konto-Flow-Vorschau')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t(
-                      'The first two screenshots are now wired from the real account flow. One final capture can still be added later.',
-                      'Les deux premiers screenshots viennent maintenant du vrai flow compte. Il reste juste une capture finale a ajouter plus tard.',
-                      'Die ersten beiden Screenshots kommen jetzt aus dem echten Konto-Flow. Ein letzter Capture kann spater noch erganzt werden.',
-                    )}
-                  </Typography>
-                </Box>
-
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-                    gap: 2,
-                  }}
-                >
-                  {accountPreviewCards.map((placeholder) => (
-                    <Paper
-                      key={placeholder.title}
-                      variant="outlined"
-                      sx={{
-                        p: 0,
-                        overflow: 'hidden',
-                        borderStyle: placeholder.image ? 'solid' : 'dashed',
-                        borderColor: alpha(theme.palette.primary.main, placeholder.image ? 0.18 : 0.22),
-                        backgroundColor: alpha(theme.palette.background.default, placeholder.image ? 0.12 : 0.28),
-                      }}
-                    >
-                      {placeholder.image ? (
-                        <Box
-                          component="img"
-                          src={placeholder.image}
-                          alt={placeholder.alt ?? placeholder.title}
-                          sx={{
-                            display: 'block',
-                            width: '100%',
-                            aspectRatio: '16 / 10',
-                            objectFit: 'cover',
-                            objectPosition: 'top center',
-                          }}
-                        />
-                      ) : (
-                        <Box
-                          sx={{
-                            aspectRatio: '16 / 10',
-                            p: 2,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            gap: 1.5,
-                            background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 100%)`,
-                          }}
-                        >
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: 'text.disabled',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.12em',
-                            }}
-                          >
-                            {t('Screenshot placeholder', 'Screenshot placeholder', 'Screenshot-Platzhalter')}
-                          </Typography>
-                          <Box>
-                            <Typography variant="h6" sx={{ lineHeight: 1 }}>
-                              {placeholder.title}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 0.75, color: 'text.secondary' }}>
-                              {placeholder.body}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      )}
-                      <Box sx={{ p: 1.5 }}>
-                        <Typography variant="h6" sx={{ lineHeight: 1.1 }}>
-                          {placeholder.title}
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 0.75, color: 'text.secondary' }}>
-                          {placeholder.body}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  ))}
-                </Box>
-              </Stack>
-            </Paper>
-          </Stack>
-
-          <Stack spacing={2}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: { xs: 2, md: 2.5 },
-                borderColor: alpha(theme.palette.primary.main, 0.24),
-                background: `linear-gradient(160deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
-              }}
-            >
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1.25} alignItems="center">
-                  <Box
-                    sx={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 1.25,
-                      border: `1px solid ${theme.palette.divider}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'primary.main',
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    }}
-                  >
-                    <PersonOutlineOutlinedIcon />
-                  </Box>
-                  <Box>
-                    <Typography variant="h5">
-                      {t('Sign in to unlock the account layer', 'Connecte-toi pour debloquer la couche compte', 'Melde dich an, um die Kontoebene freizuschalten')}
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary' }}>
-                      {t(
-                        'Discord is the current entry point for the account system. You can import local data right after login if needed.',
-                        'Discord est actuellement la porte d entree du systeme de compte. Tu pourras importer tes donnees locales juste apres connexion si besoin.',
-                        'Discord ist aktuell der Einstiegspunkt fur das Kontosystem. Lokale Daten lassen sich bei Bedarf direkt nach der Anmeldung importieren.',
-                      )}
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Box>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
-                    <Button variant="secondary" onClick={() => loginWithDiscord('/account')}>
-                      {t('Log in with Discord', 'Se connecter avec Discord', 'Mit Discord anmelden')}
-                    </Button>
-                    <Button variant="ghost" onClick={openDiscordBotInvite}>
-                      {t('Invite Discord bot', 'Inviter le bot Discord', 'Discord-Bot einladen')}
-                    </Button>
-                  </Stack>
-                </Box>
-
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {t(
-                    'If blueprints already exist in local storage, the app can offer an import after authentication.',
-                    'Si des blueprints existent deja dans le local storage, l appli peut proposer un import apres authentification.',
-                    'Wenn bereits Blueprints im Local Storage liegen, kann die App nach der Authentifizierung einen Import anbieten.',
-                  )}
-                </Typography>
-              </Stack>
-            </Paper>
-
-            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-              <Stack spacing={1.25}>
-                <Typography
-                  variant="overline"
-                  sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
-                >
-                  {t('What unlocks', 'Ce que le compte debloque', 'Was das Konto freischaltet')}
-                </Typography>
-                {[
-                  t('Persistent favorites and inventory across sessions and devices.', 'Favoris et inventaire persistants entre les sessions et les appareils.', 'Dauerhafte Favoriten und Inventare uber Sitzungen und Gerate hinweg.'),
-                  t('RSI identity linking for organizations, shared blueprint access and admin review flows.', 'Liaison RSI pour les organisations, l acces aux blueprints partages et les workflows de revue admin.', 'RSI-Verknupfung fur Organisationen, Zugriff auf geteilte Blueprints und Admin-Review-Ablaufe.'),
-                  t('Craft request inbox and history directly from your account page.', 'Boite de reception et historique des demandes de craft directement depuis ta page compte.', 'Craft-Anfrageeingang und Verlauf direkt auf deiner Kontoseite.'),
-                ].map((item, index) => (
-                  <Paper
-                    key={item}
-                    variant="outlined"
-                    sx={{
-                      p: 1.25,
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'flex-start',
-                      backgroundColor: alpha(theme.palette.background.default, 0.22),
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        flexShrink: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        color: 'primary.main',
-                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                      }}
-                    >
-                      {index + 1}
-                    </Box>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {item}
-                    </Typography>
-                  </Paper>
-                ))}
-              </Stack>
-            </Paper>
-          </Stack>
-        </Box>
+        <AccountGuestView
+          enabled={enabled}
+          onLogin={() => { loginWithDiscord('/account'); }}
+          onInviteBot={openDiscordBotInvite}
+        />
       )}
 
       {account && (
@@ -2606,12 +2101,12 @@ export function AccountPage() {
                 ? t(
                   `Choose which linked organizations can access ${shareDialogBlueprint.name}.`,
                   `Choisis quelles organisations liees peuvent acceder a ${shareDialogBlueprint.name}.`,
-                  `Wahle, welche verknupften Organisationen auf ${shareDialogBlueprint.name} zugreifen konnen.`,
+                  `Wähle, welche verknüpften Organisationen auf ${shareDialogBlueprint.name} zugreifen können.`,
                 )
                 : t(
                   'Choose which linked organizations can access this blueprint.',
                   'Choisis quelles organisations liees peuvent acceder a ce blueprint.',
-                  'Wahle, welche verknupften Organisationen auf diesen Blueprint zugreifen konnen.',
+                  'Wähle, welche verknüpften Organisationen auf diesen Blueprint zugreifen können.',
                 )}
             </Typography>
 
@@ -2620,7 +2115,7 @@ export function AccountPage() {
                 {t(
                   'Link at least one organization on this account before sharing blueprints.',
                   'Lie au moins une organisation a ce compte avant de partager des blueprints.',
-                  'Verknupfe mindestens eine Organisation mit diesem Konto, bevor du Blueprints teilst.',
+                  'Verknüpfe mindestens eine Organisation mit diesem Konto, bevor du Blueprints teilst.',
                 )}
               </Alert>
             ) : (
@@ -2666,7 +2161,7 @@ export function AccountPage() {
                               ? t('Verified admin', 'Admin verifie', 'Verifizierter Admin')
                               : organization.status === 'verified_member'
                                 ? t('Verified member', 'Membre verifie', 'Verifiziertes Mitglied')
-                                : t('Linked only', 'Simplement liee', 'Nur verknupft')
+                                : t('Linked only', 'Simplement liee', 'Nur verknüpft')
                           }
                           color={
                             organization.status === 'verified_admin'
@@ -2720,7 +2215,7 @@ export function AccountPage() {
           {t(
             'Request organization claim review?',
             'Demander une revue de claim pour cette organisation ?',
-            'Claim-Prufung fur diese Organisation anfordern?',
+            'Claim-Prüfung für diese Organisation anfordern?',
           )}
         </DialogTitle>
         <DialogContent dividers>
@@ -2730,19 +2225,19 @@ export function AccountPage() {
                 ? t(
                   `A manual review request will be created for ${organizationClaimDialogTarget.name}.`,
                   `Une demande de revue manuelle sera creee pour ${organizationClaimDialogTarget.name}.`,
-                  `Fur ${organizationClaimDialogTarget.name} wird eine manuelle Prufungsanfrage erstellt.`,
+                  `Für ${organizationClaimDialogTarget.name} wird eine manuelle Prüfungsanfrage erstellt.`,
                 )
                 : t(
                   'A manual review request will be created for this organization.',
                   'Une demande de revue manuelle sera creee pour cette organisation.',
-                  'Fur diese Organisation wird eine manuelle Prufungsanfrage erstellt.',
+                  'Für diese Organisation wird eine manuelle Prüfungsanfrage erstellt.',
                 )}
             </Typography>
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
                 'No automatic claim will happen immediately. You will be able to continue using the app while the request is reviewed.',
                 'Aucun claim automatique ne sera effectue immediatement. Tu pourras continuer a utiliser l appli pendant la revue de la demande.',
-                'Es erfolgt kein sofortiger automatischer Claim. Du kannst die App wahrend der Prufung normal weiterverwenden.',
+                'Es erfolgt kein sofortiger automatischer Claim. Du kannst die App während der Prüfung normal weiterverwenden.',
               )}
             </Typography>
           </Stack>
@@ -2768,6 +2263,146 @@ export function AccountPage() {
       </Dialog>
 
       <Dialog
+        open={Boolean(organizationSharingDialogTarget && organizationSharingDialogState)}
+        onClose={closeOrganizationSharingDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {organizationSharingDialogState?.enabled
+            ? t(
+              'Enable blueprint sharing?',
+              'Activer le partage de blueprints ?',
+              'Blueprint-Freigabe aktivieren?',
+            )
+            : t(
+              'Disable blueprint sharing?',
+              'Desactiver le partage de blueprints ?',
+              'Blueprint-Freigabe deaktivieren?',
+            )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography sx={{ color: 'text.secondary' }}>
+              {organizationSharingDialogTarget
+                ? organizationSharingDialogState?.enabled
+                  ? t(
+                    `Shared blueprints will become visible again in ${organizationSharingDialogTarget.name}.`,
+                    `Les blueprints partages redeviendront visibles dans ${organizationSharingDialogTarget.name}.`,
+                    `Geteilte Blueprints werden in ${organizationSharingDialogTarget.name} wieder sichtbar.`,
+                  )
+                  : t(
+                    `Shared blueprints will stop being visible in ${organizationSharingDialogTarget.name} until you reactivate sharing.`,
+                    `Les blueprints partages ne seront plus visibles dans ${organizationSharingDialogTarget.name} tant que tu ne reactives pas le partage.`,
+                    `Geteilte Blueprints sind in ${organizationSharingDialogTarget.name} nicht mehr sichtbar, bis du die Freigabe wieder aktivierst.`,
+                  )
+                : organizationSharingDialogState?.enabled
+                  ? t(
+                    'Shared blueprints will become visible again in this organization.',
+                    'Les blueprints partages redeviendront visibles dans cette organisation.',
+                    'Geteilte Blueprints werden in dieser Organisation wieder sichtbar.',
+                  )
+                  : t(
+                    'Shared blueprints will stop being visible in this organization until you reactivate sharing.',
+                    'Les blueprints partages ne seront plus visibles dans cette organisation tant que tu ne reactives pas le partage.',
+                    'Geteilte Blueprints sind in dieser Organisation nicht mehr sichtbar, bis du die Freigabe wieder aktivierst.',
+                  )}
+            </Typography>
+            <Typography sx={{ color: 'text.secondary' }}>
+              {organizationSharingDialogState?.enabled
+                ? t(
+                  'Existing share settings are preserved. They will be reused immediately if you enable sharing again later.',
+                  'Les reglages de partage existants sont conserves. Ils seront reutilises immediatement si tu reactives le partage plus tard.',
+                  'Bestehende Freigabeeinstellungen bleiben erhalten. Sie werden sofort wiederverwendet, wenn du die Freigabe später erneut aktivierst.',
+                )
+                : t(
+                  'Reactivating sharing makes the already configured shared blueprints available again without having to reselect them.',
+                  'La reactivation du partage rend a nouveau disponibles les blueprints deja configures sans avoir a les reselectionner.',
+                  'Beim erneuten Aktivieren werden die bereits konfigurierten geteilten Blueprints wieder verfügbar, ohne dass du sie erneut auswählen musst.',
+                )}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="ghost"
+            onClick={closeOrganizationSharingDialog}
+            disabled={Boolean(organizationActionSid)}
+          >
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { void handleSetOrganizationSharing(); }}
+            disabled={Boolean(organizationActionSid)}
+          >
+            {organizationActionSid
+              ? t('Saving...', 'Enregistrement...', 'Speichere...')
+              : organizationSharingDialogState?.enabled
+                ? t('Enable sharing', 'Activer le partage', 'Freigabe aktivieren')
+                : t('Disable sharing', 'Desactiver le partage', 'Freigabe deaktivieren')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(organizationDeleteDialogTarget)}
+        onClose={closeDeleteOrganizationDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {t(
+            'Delete organization from the app?',
+            'Supprimer l organisation de l appli ?',
+            'Organisation aus der App löschen?',
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography sx={{ color: 'text.secondary' }}>
+              {organizationDeleteDialogTarget
+                ? t(
+                  `This will remove ${organizationDeleteDialogTarget.name} from the app for every linked member account.`,
+                  `Cela supprimera ${organizationDeleteDialogTarget.name} de l appli pour tous les comptes membres lies.`,
+                  `Dadurch wird ${organizationDeleteDialogTarget.name} für alle verknüpften Mitgliedskonten aus der App entfernt.`,
+                )
+                : t(
+                  'This will remove the organization from the app for every linked member account.',
+                  'Cela supprimera l organisation de l appli pour tous les comptes membres lies.',
+                  'Dadurch wird die Organisation für alle verknüpften Mitgliedskonten aus der App entfernt.',
+                )}
+            </Typography>
+            <Typography sx={{ color: 'text.secondary' }}>
+              {t(
+                'Members will have to relink or add the organization again later if you decide to reopen it.',
+                'Les membres devront relier ou ajouter a nouveau l organisation plus tard si tu decides de la rouvrir.',
+                'Mitglieder müssen die Organisation später erneut verknupfen oder hinzufügen, wenn du sie wieder öffnen willst.',
+              )}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="ghost"
+            onClick={closeDeleteOrganizationDialog}
+            disabled={Boolean(organizationActionSid)}
+          >
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { void handleDeleteOrganization(); }}
+            disabled={Boolean(organizationActionSid)}
+          >
+            {organizationActionSid
+              ? t('Deleting...', 'Suppression...', 'Lösche...')
+              : t('Delete organization', 'Supprimer l organisation', 'Organisation löschen')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
         open={rsiDialogOpen}
         onClose={rsiBusy ? undefined : () => setRsiDialogOpen(false)}
         fullWidth
@@ -2782,7 +2417,7 @@ export function AccountPage() {
               {t(
                 'Copy the verification code, paste it into the short bio on your RSI profile, then enter your RSI handle below.',
                 'Copie le code de verification, colle-le dans la short bio de ton profil RSI, puis saisis ton handle RSI ci-dessous.',
-                'Kopiere den Verifizierungscode, fug ihn in die Kurzbiografie deines RSI-Profils ein und gib danach unten deinen RSI-Handle ein.',
+                'Kopiere den Verifizierungscode, füg ihn in die Kurzbiografie deines RSI-Profils ein und gib danach unten deinen RSI-Handle ein.',
               )}
             </Typography>
 
