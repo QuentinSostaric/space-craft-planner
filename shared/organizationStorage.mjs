@@ -132,7 +132,7 @@ export function createDefaultOrganizationRecord(metadata, { now } = {}) {
     lastLiveSyncAt: null,
     nextEligibleLiveSyncAt: null,
     staleAt: null,
-    memberCount: 0,
+    memberCount: normalizedMetadata.members ?? 0,
     syncStatus: 'never',
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -151,7 +151,9 @@ export function normalizeOrganizationRecord(value, fallbackSid = null) {
         .filter((member) => member !== null)
     : [];
 
-  const memberCount = normalizeNumber(value?.memberCount ?? memberSnapshot.length);
+  const memberCount = normalizeNumber(
+    value?.memberCount ?? value?.members ?? memberSnapshot.length,
+  );
   const syncStatus = String(value?.syncStatus ?? '').trim().toLowerCase();
 
   return {
@@ -212,6 +214,10 @@ export async function upsertOrganizationMetadata(store, metadata, { now } = {}) 
   const nextRecord = {
     ...(existingRecord ?? createDefaultOrganizationRecord(normalizedMetadata, { now: timestamp })),
     ...normalizedMetadata,
+    memberCount:
+      existingRecord?.lastLiveSyncAt || (existingRecord?.memberSnapshot?.length ?? 0) > 0
+        ? existingRecord.memberCount
+        : normalizedMetadata.members ?? existingRecord?.memberCount ?? 0,
     updatedAt: timestamp,
   };
 
