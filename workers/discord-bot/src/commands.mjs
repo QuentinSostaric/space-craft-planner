@@ -10,11 +10,6 @@ export const DISCORD_MESSAGE_FLAG_EPHEMERAL = 1 << 6;
 
 export const COMMAND_DEFINITIONS = [
   {
-    name: 'ping',
-    description: 'Check whether the ItemFab Discord bot is online.',
-    type: DISCORD_APPLICATION_COMMAND_TYPE_CHAT_INPUT,
-  },
-  {
     name: 'open',
     description: 'Get a direct link to an ItemFab page.',
     type: DISCORD_APPLICATION_COMMAND_TYPE_CHAT_INPUT,
@@ -51,11 +46,6 @@ export const COMMAND_DEFINITIONS = [
         ],
       },
     ],
-  },
-  {
-    name: 'help',
-    description: 'See what the ItemFab Discord bot currently supports.',
-    type: DISCORD_APPLICATION_COMMAND_TYPE_CHAT_INPUT,
   },
 ];
 

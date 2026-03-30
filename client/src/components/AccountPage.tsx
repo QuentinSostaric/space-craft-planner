@@ -904,7 +904,7 @@ export function AccountPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: 'minmax(280px, 1fr) minmax(0, 4fr)' },
+            gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 1fr) minmax(0, 3.5fr)' },
             gap: { xs: 2, md: 3 },
             alignItems: 'start',
           }}
@@ -1062,10 +1062,10 @@ export function AccountPage() {
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
               <Stack spacing={2.25}>
                 <Stack
-                  direction={{ xs: 'column', lg: 'row' }}
+                  direction={{ xs: 'column', md: 'row' }}
                   spacing={1.5}
                   justifyContent="space-between"
-                  alignItems={{ xs: 'flex-start', lg: 'flex-start' }}
+                  alignItems={{ xs: 'flex-start', md: 'flex-start' }}
                 >
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
@@ -1152,9 +1152,9 @@ export function AccountPage() {
                     </Box>
 
                     <Stack
-                      direction={{ xs: 'column', xl: 'row' }}
+                      direction={{ xs: 'column', lg: 'row' }}
                       spacing={1.25}
-                      alignItems={{ xs: 'stretch', xl: 'stretch' }}
+                      alignItems={{ xs: 'stretch', lg: 'stretch' }}
                       sx={{ width: '100%' }}
                     >
                       <TextField
@@ -1764,10 +1764,10 @@ export function AccountPage() {
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
             <Stack spacing={2}>
               <Stack
-                direction={{ xs: 'column', lg: 'row' }}
+                direction={{ xs: 'column', md: 'row' }}
                 spacing={1.5}
                 justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', lg: 'center' }}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
               >
                 <Box sx={{ minWidth: 0 }}>
                   <Typography
@@ -1799,7 +1799,7 @@ export function AccountPage() {
                   size="small"
                   aria-label={t('Blueprint collection filter', 'Filtre de collection blueprint', 'Blueprint-Sammlungsfilter')}
                   sx={{
-                    alignSelf: { xs: 'stretch', lg: 'center' },
+                    alignSelf: { xs: 'stretch', md: 'center' },
                     '& .MuiToggleButton-root': {
                       px: 1.5,
                       py: 1,
@@ -1889,10 +1889,11 @@ export function AccountPage() {
                     gridTemplateColumns: {
                       xs: '1fr',
                       sm: 'repeat(2, 1fr)',
+                      md: 'repeat(2, 1fr)',
                       lg: 'repeat(3, 1fr)',
                       xl: 'repeat(4, 1fr)',
                     },
-                    gap: { xs: 1.5, sm: 2, lg: 3 },
+                    gap: { xs: 1.25, sm: 1.5, md: 2, lg: 2.5 },
                   }}
                   role="list"
                   aria-label={activeCollectionLabel}

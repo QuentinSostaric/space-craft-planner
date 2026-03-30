@@ -208,7 +208,7 @@ export function PlannerPage() {
           <Box
             sx={{
               display: 'flex',
-              flexDirection: { xs: 'column', lg: 'row' },
+              flexDirection: { xs: 'column', md: 'row' },
               justifyContent: 'space-between',
               gap: 2,
             }}
@@ -274,7 +274,7 @@ export function PlannerPage() {
             sx={{
               mt: 2,
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr 1fr', lg: 'repeat(5, minmax(0, 1fr))' },
+              gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' },
               gap: 1,
             }}
           >
@@ -336,9 +336,9 @@ export function PlannerPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.35fr) minmax(340px, 0.92fr)' },
+            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.35fr) minmax(320px, 0.92fr)' },
             gap: 2,
-            minHeight: { xl: 0 },
+            minHeight: { lg: 0 },
             alignItems: 'start',
           }}
         >
@@ -347,9 +347,9 @@ export function PlannerPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateRows: { xs: 'auto auto', xl: 'minmax(240px, auto) minmax(280px, 1fr)' },
+              gridTemplateRows: { xs: 'auto auto', lg: 'minmax(240px, auto) minmax(280px, 1fr)' },
               gap: 2,
-              minHeight: { xl: 0 },
+              minHeight: { lg: 0 },
             }}
           >
             <GoalsList />

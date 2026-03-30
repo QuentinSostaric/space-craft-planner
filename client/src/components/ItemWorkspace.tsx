@@ -105,8 +105,8 @@ export function ItemWorkspace() {
           md: 'minmax(360px, 2.5fr) minmax(0, 5.5fr)',
         },
         alignItems: 'start',
-        gap: { xs: 2, md: 3 },
-        p: { xs: 1.25, sm: 1.5, md: 2 },
+        gap: { xs: 1.5, sm: 2, md: 3 },
+        p: { xs: 1, sm: 1.5, md: 2 },
       }}
     >
       {/* Left column — sticky on desktop */}

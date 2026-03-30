@@ -187,7 +187,6 @@ export function parseCraftRequestActionCustomId(value) {
 
 function buildCraftRequestButtons(request) {
   const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
-  const contactInitiated = Boolean(normalizeText(request?.contactInitiatedAt));
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -203,13 +202,6 @@ function buildCraftRequestButtons(request) {
           style: DISCORD_BUTTON_STYLE_DANGER,
           label: 'Deny',
           custom_id: buildCraftRequestActionCustomId('deny', request.ownerAccountId, request.id, storageScope),
-        },
-        {
-          type: DISCORD_COMPONENT_TYPE_BUTTON,
-          style: DISCORD_BUTTON_STYLE_PRIMARY,
-          label: contactInitiated ? 'Contact initiated' : 'Get in touch',
-          custom_id: buildCraftRequestActionCustomId('contact', request.ownerAccountId, request.id, storageScope),
-          disabled: contactInitiated,
         },
       ],
     },
@@ -253,6 +245,8 @@ export function buildCraftRequestOwnerDmPayload(env, request, requesterAccount) 
     normalizeText(request.requesterDisplayName) ||
     'Unknown requester';
 
+  const commentText = normalizeText(request?.comment);
+
   return {
     content: `ItemFab craft request panel: ${getItemFabAccountUrl(env, request)}`,
     embeds: [
@@ -261,10 +255,8 @@ export function buildCraftRequestOwnerDmPayload(env, request, requesterAccount) 
         color: 0x4f8cff,
         description: [
           `${requesterDisplayName} wants you to craft **${request.blueprintName}**.`,
-          'Use **Accept** to confirm, **Deny** to refuse, or **Get in touch** to let ItemFab Bot initiate the contact.',
-          normalizeText(request?.contactInitiatedAt)
-            ? 'ItemFab Bot already sent the contact introduction messages.'
-            : null,
+          commentText ? `> ${commentText}` : null,
+          'Use **Accept** to confirm or **Deny** to refuse.',
         ].filter(Boolean).join('\n\n'),
         thumbnail: requesterAccount?.profile?.avatarUrl
           ? { url: requesterAccount.profile.avatarUrl }
@@ -295,15 +287,6 @@ export function buildCraftRequestOwnerDmPayload(env, request, requesterAccount) 
             value: buildCraftRequestResourcesLabel(request),
             inline: false,
           },
-          ...(normalizeText(request?.contactInitiatedAt)
-            ? [
-                {
-                  name: 'Contact',
-                  value: 'Introduction sent by ItemFab Bot',
-                  inline: false,
-                },
-              ]
-            : []),
           ...(normalizeText(request?.comment)
             ? [
                 {
@@ -354,7 +337,7 @@ export function buildCraftRequestResolvedMessagePayload(env, request, status, re
         title: `Craft request ${statusLabel.toLowerCase()}`,
         description:
           normalizedStatus === 'accepted'
-            ? 'This request is accepted. Keep coordinating from ItemFab or through the contact already initiated by ItemFab Bot.'
+            ? 'This request is accepted. Keep coordinating from ItemFab.'
             : embed.description,
         fields: [
           ...embed.fields,
