@@ -461,10 +461,10 @@ function OrganizationBlueprintAccordion({
       <AccordionDetails sx={{ px: { xs: 1.25, md: 1.5 }, pb: 1.5, pt: 0 }}>
         <Stack spacing={1.25}>
           <Stack
-            direction={{ xs: 'column', lg: 'row' }}
+            direction={{ xs: 'column', md: 'row' }}
             spacing={1}
             justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', lg: 'center' }}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
           >
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
@@ -514,9 +514,9 @@ function OrganizationBlueprintAccordion({
                 }}
               >
                 <Stack
-                  direction={{ xs: 'column', xl: 'row' }}
+                  direction={{ xs: 'column', lg: 'row' }}
                   spacing={1}
-                  alignItems={{ xs: 'stretch', xl: 'center' }}
+                  alignItems={{ xs: 'stretch', lg: 'center' }}
                 >
                   <TextField
                     size="small"
@@ -644,7 +644,7 @@ function OrganizationBlueprintAccordion({
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 1,
-                    maxHeight: { xs: '62vh', lg: '72vh' },
+                    maxHeight: { xs: '62vh', md: '68vh', lg: '72vh' },
                     overflow: 'auto',
                     pr: 0.5,
                   }}

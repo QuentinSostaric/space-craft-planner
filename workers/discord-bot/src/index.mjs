@@ -17,7 +17,6 @@ import {
   notifyCraftRequestOwner,
   parseCraftRequestActionCustomId,
   removeCraftRequestOwnerMessage,
-  sendCraftRequestIntroduction,
   syncCraftRequestOwnerMessage,
 } from '../../../shared/discordBot.mjs';
 
@@ -299,54 +298,6 @@ async function handleCraftRequestComponent(env, interaction) {
     }
   }
 
-  if (context.action === 'contact') {
-    if (context.request.status !== 'pending') {
-      return jsonResponse(
-        interactionMessagePayload('This craft request is no longer pending.'),
-        { status: 200 },
-      );
-    }
-
-    if (context.request.contactInitiatedAt) {
-      return jsonResponse(
-        interactionUpdateMessage(
-          buildCraftRequestOwnerDmPayload(env, context.request, context.requesterAccount),
-        ),
-      );
-    }
-
-    try {
-      await sendCraftRequestIntroduction(
-        env,
-        context.request,
-        context.ownerAccount,
-        context.requesterAccount,
-      );
-      const updated = await saveCraftRequestNotificationState(
-        context.accountStore,
-        context.ownerAccount.accountId,
-        context.request.id,
-        {
-          contactInitiatedAt: new Date().toISOString(),
-        },
-      );
-      return jsonResponse(
-        interactionUpdateMessage(
-          buildCraftRequestOwnerDmPayload(env, updated.request, updated.requesterAccount),
-        ),
-      );
-    } catch (error) {
-      return jsonResponse(
-        interactionMessagePayload(
-          error instanceof Error
-            ? error.message
-            : 'Discord could not send the introduction messages.',
-        ),
-        { status: 200 },
-      );
-    }
-  }
-
   return jsonResponse(interactionMessagePayload('Unknown craft request action.'), { status: 200 });
 }
 
@@ -461,7 +412,7 @@ async function handleDatasetCommand(env, interaction) {
   });
 
   if (!response.ok) {
-    return interactionMessage(
+    return interactionMessagePayload(
       `ItemFab could not load the ${channel.toUpperCase()} dataset summary right now (${response.status}).`,
     );
   }
@@ -470,14 +421,14 @@ async function handleDatasetCommand(env, interaction) {
   const dataset = payload?.dataset;
 
   if (!dataset) {
-    return interactionMessage(`No ${channel.toUpperCase()} dataset is currently published.`);
+    return interactionMessagePayload(`No ${channel.toUpperCase()} dataset is currently published.`);
   }
 
   const publishedAt = dataset.updatedAt ?? dataset.importedAt ?? 'unknown date';
   const version = dataset.version ?? 'unknown version';
   const buildNumber = dataset.buildNumber ?? 'n/a';
 
-  return interactionMessage(
+  return interactionMessagePayload(
     [
       `**${channel.toUpperCase()} dataset**`,
       `Version: \`${version}\``,
@@ -492,26 +443,7 @@ function handleOpenCommand(env, interaction) {
   const page = String(getCommandOption(interaction, 'page')?.value ?? 'site').toLowerCase();
   const baseUrl = getBaseUrl(env);
   const path = PAGE_PATHS[page] ?? '/';
-  return interactionMessage(`${baseUrl}${path}`);
-}
-
-function handleHelpCommand(env) {
-  const baseUrl = getBaseUrl(env);
-  return interactionMessage(
-    [
-      '**ItemFab Discord bot**',
-      'Available commands:',
-      '`/ping` - verify that the bot is online.',
-      '`/open page:<...>` - get a direct link to an ItemFab page.',
-      '`/dataset channel:<LIVE|PTU>` - show the latest dataset summary imported by the site.',
-      '',
-      `Site: ${baseUrl}`,
-    ].join('\n'),
-  );
-}
-
-function handlePingCommand() {
-  return interactionMessage('ItemFab Discord bot is online.');
+  return interactionMessagePayload(`${baseUrl}${path}`);
 }
 
 async function handleInteraction(env, interaction) {
@@ -524,22 +456,18 @@ async function handleInteraction(env, interaction) {
   }
 
   if (interaction.type !== DISCORD_INTERACTION_TYPE_APPLICATION_COMMAND) {
-    return jsonResponse(interactionMessage('Unsupported interaction type.'), { status: 400 });
+    return jsonResponse(interactionMessagePayload('Unsupported interaction type.'), { status: 400 });
   }
 
   const commandName = interaction?.data?.name;
 
   switch (commandName) {
-    case 'ping':
-      return jsonResponse(handlePingCommand());
     case 'open':
       return jsonResponse(handleOpenCommand(env, interaction));
     case 'dataset':
       return jsonResponse(await handleDatasetCommand(env, interaction));
-    case 'help':
-      return jsonResponse(handleHelpCommand(env));
     default:
-      return jsonResponse(interactionMessage(`Unknown command: ${commandName ?? 'undefined'}.`), {
+      return jsonResponse(interactionMessagePayload(`Unknown command: ${commandName ?? 'undefined'}.`), {
         status: 400,
       });
   }
