@@ -98,6 +98,25 @@ function runBackgroundTask(executionContext, task, label = 'background-task') {
   return promise;
 }
 
+async function syncCraftRequestStatusBestEffort(
+  env,
+  requestRecord,
+  ownerAccount,
+  requesterAccount,
+  label = 'craft-request-status-sync',
+) {
+  try {
+    await syncCraftRequestStatusViaWorker(
+      env,
+      requestRecord,
+      ownerAccount,
+      requesterAccount,
+    );
+  } catch (error) {
+    console.error(`[${label}]`, error);
+  }
+}
+
 async function requireAuthenticatedSession(request, env) {
   const session = await readSessionFromCookies(request.headers.get('cookie'), env);
   if (!session?.user?.id || !session.accountId) {
@@ -626,15 +645,11 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId,
       requestId,
       payload?.decision,
     );
-    runBackgroundTask(
-      executionContext,
-      () =>
-        syncCraftRequestStatusViaWorker(
-          env,
-          result.request,
-          result.ownerAccount,
-          result.requesterAccount,
-        ),
+    await syncCraftRequestStatusBestEffort(
+      env,
+      result.request,
+      result.ownerAccount,
+      result.requesterAccount,
       'craft-request-status-sync',
     );
     const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
@@ -670,23 +685,21 @@ export async function handleCraftRequestBulkDecisionRequest(request, env, execut
       payload?.actions,
     );
 
-    for (const entry of result.results) {
-      if (!entry.ok || !entry.request || !entry.ownerAccount || !entry.requesterAccount) {
-        continue;
-      }
+    await Promise.all(
+      result.results.map(async (entry) => {
+        if (!entry.ok || !entry.request || !entry.ownerAccount || !entry.requesterAccount) {
+          return;
+        }
 
-      runBackgroundTask(
-        executionContext,
-        () =>
-          syncCraftRequestStatusViaWorker(
-            env,
-            entry.request,
-            entry.ownerAccount,
-            entry.requesterAccount,
-          ),
-        'craft-request-bulk-status-sync',
-      );
-    }
+        await syncCraftRequestStatusBestEffort(
+          env,
+          entry.request,
+          entry.ownerAccount,
+          entry.requesterAccount,
+          'craft-request-bulk-status-sync',
+        );
+      }),
+    );
 
     const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
     return noStoreJson({
