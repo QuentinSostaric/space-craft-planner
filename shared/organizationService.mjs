@@ -291,8 +291,12 @@ function decorateOrganizationRef(ref, organizationRecord, accountId, nowMs = Dat
     lastLiveSyncAt: normalizeIsoTimestamp(organizationRecord?.lastLiveSyncAt),
     nextEligibleLiveSyncAt: normalizeIsoTimestamp(organizationRecord?.nextEligibleLiveSyncAt),
     staleAt,
-    memberCount: Number.isFinite(Number(organizationRecord?.memberCount))
+    memberCount: Number.isFinite(Number(organizationRecord?.memberCount)) &&
+      Number(organizationRecord.memberCount) > 0
       ? Number(organizationRecord.memberCount)
+      : Number.isFinite(Number(organizationRecord?.members)) &&
+          Number(organizationRecord.members) > 0
+        ? Number(organizationRecord.members)
       : 0,
     syncStatus,
     claimRequestStatus: null,
@@ -539,6 +543,40 @@ async function safeSyncAndDecorateAccountOrganizations(
   }
 }
 
+async function refreshOrganizationMetadataCounts(
+  store,
+  account,
+  apiKey,
+  { fetchImpl = fetch } = {},
+) {
+  if (!apiKey || !Array.isArray(account?.organizations) || account.organizations.length === 0) {
+    return account;
+  }
+
+  for (const organizationRef of account.organizations) {
+    const organizationRecord = await readOrganizationRecord(store, organizationRef.sid);
+    const hasKnownMemberCount =
+      (Number.isFinite(Number(organizationRecord?.memberCount)) && Number(organizationRecord.memberCount) > 0) ||
+      (Number.isFinite(Number(organizationRecord?.members)) && Number(organizationRecord.members) > 0);
+
+    if (hasKnownMemberCount) {
+      continue;
+    }
+
+    try {
+      const metadata = await fetchRsiOrganizationBySid(apiKey, organizationRef.sid, {
+        fetchImpl,
+        mode: 'cache',
+      });
+      await upsertOrganizationMetadata(store, metadata);
+    } catch {
+      // Ignore metadata refresh failures here and keep the last known record.
+    }
+  }
+
+  return account;
+}
+
 async function refreshLiveOrganizationSnapshot(store, apiKey, sid, { fetchImpl = fetch } = {}) {
   const quotaStatus = await fetchRsiApiKeyStatus(apiKey, { fetchImpl });
   if (quotaStatus.remainingLiveRequests <= 0) {
@@ -646,6 +684,7 @@ export async function syncAndDecorateAccountOrganizations(
     nextAccount = await syncProfileMainOrganization(store, nextAccount, apiKey, { fetchImpl });
   }
 
+  nextAccount = await refreshOrganizationMetadataCounts(store, nextAccount, apiKey, { fetchImpl });
   nextAccount = await refreshStaleOrganizationSnapshots(store, nextAccount, apiKey, { fetchImpl });
   nextAccount = await applyFreshMembershipSnapshots(store, nextAccount);
   const organizationRecordsBySid = await readOrganizationRecordsBySid(store, nextAccount.organizations);

@@ -1184,9 +1184,7 @@ export function AccountPage() {
                   <Box
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: linkedOrganizations.length > 1
-                        ? { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }
-                        : '1fr',
+                      gridTemplateColumns: '1fr',
                       gap: 1.5,
                     }}
                   >
@@ -1209,7 +1207,7 @@ export function AccountPage() {
                             : t('Observed', 'Observee', 'Beobachtet');
                       const organizationSourceLabel =
                         organization.source === 'profile-main'
-                          ? t('Profile main', 'Profil principal', 'Profil-Hauptorg')
+                          ? t('Main org', 'Organisation principale', 'Hauptorg')
                           : t('Manual SID', 'SID manuel', 'Manuelle SID');
                       const roleLabel = organization.rank
                         ?? t('Not verified yet', 'Pas encore verifie', 'Noch nicht verifiziert');
@@ -1318,13 +1316,9 @@ export function AccountPage() {
                                     }
                                     variant={organization.status === 'observed' ? 'outlined' : 'filled'}
                                   />
-                                  {organization.claimed && (
+                                  {organization.claimedByCurrentUser && (
                                     <Chip
-                                      label={
-                                        organization.claimedByCurrentUser
-                                          ? t('Claimed by you', 'Claim par toi', 'Von dir beansprucht')
-                                          : t('Claimed on app', 'Claim sur l appli', 'In der App beansprucht')
-                                      }
+                                      label={t('Claimed by you', 'Claim par toi', 'Von dir beansprucht')}
                                       size="small"
                                       color="secondary"
                                       variant="outlined"
@@ -1460,9 +1454,6 @@ export function AccountPage() {
                               </Box>
 
                               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                {organization.archetype && (
-                                  <Chip label={organization.archetype} size="small" variant="outlined" />
-                                )}
                                 {organization.syncStatus === 'stale' && (
                                   <Chip
                                     label={t('Snapshot stale', 'Snapshot obsolete', 'Snapshot veraltet')}
@@ -1555,16 +1546,6 @@ export function AccountPage() {
                                       'Une revue manuelle du claim est en attente pour cette organisation.',
                                       'Fur diese Organisation wartet eine manuelle Claim-Prufung.',
                                     )}
-                                </Typography>
-                              )}
-
-                              {organization.claimed && organization.status !== 'verified_admin' && (
-                                <Typography sx={{ color: 'text.secondary' }}>
-                                  {t(
-                                    'Member snapshots are available, but only owners can administer this organization in the app.',
-                                    'Des snapshots de membres sont disponibles, mais seuls les proprietaires peuvent administrer cette organisation dans l appli.',
-                                    'Mitgliedersnapshots sind verfugbar, aber nur Besitzer konnen diese Organisation in der App verwalten.',
-                                  )}
                                 </Typography>
                               )}
 
