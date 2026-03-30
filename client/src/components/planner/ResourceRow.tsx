@@ -130,6 +130,7 @@ export const ResourceRow = memo(function ResourceRow({
   return (
     <Paper
       variant="outlined"
+      data-resource-row="true"
       onDragOver={onDragOver}
       onDrop={onDrop}
       sx={{
@@ -193,7 +194,7 @@ export const ResourceRow = memo(function ResourceRow({
               {...dragHandleProps}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
-              title={t('Drag to reorder', 'Glisser pour reordonner')}
+              title={t('Drag to reorder', 'Glisser pour réordonner')}
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -213,7 +214,7 @@ export const ResourceRow = memo(function ResourceRow({
           exclusive
           onChange={handleMethodChange}
           size="small"
-          aria-label={t('Collection method', 'Methode de collecte')}
+          aria-label={t('Collection method', 'Méthode de collecte')}
           sx={{
             '& .MuiToggleButton-root': {
               fontSize: '0.65rem',
@@ -226,7 +227,7 @@ export const ResourceRow = memo(function ResourceRow({
         >
           <ToggleButton value="mission">{t('Mission', 'Mission')}</ToggleButton>
           <ToggleButton value="mining">{t('Mining', 'Minage')}</ToggleButton>
-          <ToggleButton value="dismantle">{t('Dismantle', 'Demantele')}</ToggleButton>
+          <ToggleButton value="dismantle">{t('Dismantle', 'Démantelé')}</ToggleButton>
           <ToggleButton value="buy">{t('Buy', 'Achat')}</ToggleButton>
         </ToggleButtonGroup>
 
@@ -239,7 +240,7 @@ export const ResourceRow = memo(function ResourceRow({
             onChange={handleSliderChange}
             valueLabelDisplay="auto"
             valueLabelFormat={valueLabelFormat}
-            aria-label={t('Collected amount', 'Quantite collectee')}
+            aria-label={t('Collected amount', 'Quantité collectée')}
             sx={{ flex: 1, color: isDone ? 'success.main' : undefined }}
           />
           <TextField
@@ -263,7 +264,7 @@ export const ResourceRow = memo(function ResourceRow({
               },
             }}
             sx={{ width: 70, flexShrink: 0 }}
-            aria-label={t('Collected amount value', 'Valeur collectee')}
+            aria-label={t('Collected amount value', 'Valeur collectée')}
           />
           <Typography variant="caption" sx={{ color: 'text.disabled', whiteSpace: 'nowrap', flexShrink: 0 }}>
             / {formatQuantityValue(resource.totalScu, resource.quantityUnit)}
@@ -272,8 +273,8 @@ export const ResourceRow = memo(function ResourceRow({
             checked={isDone}
             onChange={handleCheckbox}
             size="small"
-            title={t('Mark as fully collected', 'Marquer comme entierement collecte')}
-            aria-label={t('Mark as fully collected', 'Marquer comme entierement collecte')}
+            title={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
+            aria-label={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
             sx={{ p: 0.25, flexShrink: 0 }}
           />
         </Box>
@@ -308,7 +309,7 @@ export const ResourceRow = memo(function ResourceRow({
                 : method === 'mining'
                   ? t('Mining', 'Minage')
                   : method === 'dismantle'
-                    ? t('Dismantling', 'Demantelement')
+                    ? t('Dismantling', 'Démantèlement')
                     : t('Purchase', 'Achat')}
             </Typography>
           </AccordionSummary>

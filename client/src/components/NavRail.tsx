@@ -199,14 +199,15 @@ function MobileNavItem({
 export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
   const { t } = useI18n();
   const { user, account } = useAuth();
-  const { goals, plannerResourceRequirements } = useCraft();
+  const { goals, plannerResourceRequirements, plannerTodoItems } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
   const plannerBadgeCount = useMemo(
     () =>
       goals.length
+      + plannerTodoItems.filter((todo) => !todo.completed).length
       + Object.values(plannerResourceRequirements).filter((requirement) => Number(requirement?.quantity ?? 0) > 0).length,
-    [goals.length, plannerResourceRequirements],
+    [goals.length, plannerResourceRequirements, plannerTodoItems],
   );
   const pendingIncomingCraftRequestCount = useMemo(
     () =>

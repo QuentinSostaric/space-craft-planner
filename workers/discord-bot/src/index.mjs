@@ -10,12 +10,15 @@ import {
   getCommandOption,
 } from './commands.mjs';
 import { createBucketAccountStore, readAccountRecord } from '../../../shared/accountStorage.mjs';
-import { respondToCraftRequest } from '../../../shared/craftRequestService.mjs';
+import { respondToCraftRequest, saveCraftRequestNotificationState } from '../../../shared/craftRequestService.mjs';
 import {
+  buildCraftRequestOwnerDmPayload,
   buildCraftRequestResolvedMessagePayload,
   notifyCraftRequestOwner,
   parseCraftRequestActionCustomId,
+  removeCraftRequestOwnerMessage,
   sendCraftRequestIntroduction,
+  syncCraftRequestOwnerMessage,
 } from '../../../shared/discordBot.mjs';
 
 const PAGE_PATHS = {
@@ -33,6 +36,20 @@ function getBaseUrl(env) {
 
 function getInternalToken(env) {
   return String(env.DISCORD_BOT_INTERNAL_TOKEN ?? '').trim();
+}
+
+function timingSafeEqual(left, right) {
+  const encoder = new TextEncoder();
+  const leftBytes = encoder.encode(String(left ?? ''));
+  const rightBytes = encoder.encode(String(right ?? ''));
+  const length = Math.max(leftBytes.length, rightBytes.length);
+  let diff = leftBytes.length ^ rightBytes.length;
+
+  for (let index = 0; index < length; index += 1) {
+    diff |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
+  }
+
+  return diff === 0;
 }
 
 function jsonResponse(payload, init = {}) {
@@ -66,7 +83,7 @@ function isAuthorizedInternalRequest(request, env) {
   }
 
   const authorization = String(request.headers.get('authorization') ?? '').trim();
-  return authorization === `Bearer ${expectedToken}`;
+  return timingSafeEqual(authorization, `Bearer ${expectedToken}`);
 }
 
 function hexToUint8Array(value) {
@@ -128,16 +145,6 @@ async function verifyDiscordRequest(request, env) {
   return { ok: true, body };
 }
 
-function interactionMessage(content) {
-  return {
-    type: DISCORD_INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE_WITH_SOURCE,
-    data: {
-      content,
-      flags: DISCORD_MESSAGE_FLAG_EPHEMERAL,
-    },
-  };
-}
-
 function interactionMessagePayload(content, { ephemeral = true } = {}) {
   return {
     type: DISCORD_INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE_WITH_SOURCE,
@@ -156,9 +163,19 @@ function interactionUpdateMessage(data) {
 }
 
 function getAccountStore(env, storageScope = 'prod') {
-  return createBucketAccountStore(
-    storageScope === 'dev' ? env.GAME_DATA_DEV ?? env.GAME_DATA : env.GAME_DATA,
-  );
+  if (storageScope === 'dev') {
+    if (!env.GAME_DATA_DEV) {
+      throw new Error('Missing GAME_DATA_DEV binding for Discord bot dev storage scope.');
+    }
+
+    return createBucketAccountStore(env.GAME_DATA_DEV);
+  }
+
+  if (!env.GAME_DATA) {
+    throw new Error('Missing GAME_DATA binding for Discord bot production storage scope.');
+  }
+
+  return createBucketAccountStore(env.GAME_DATA);
 }
 
 async function loadOwnerCraftRequestContext(env, interaction) {
@@ -229,6 +246,39 @@ async function handleCraftRequestComponent(env, interaction) {
         targetStatus,
       );
 
+      if (targetStatus === 'denied') {
+        try {
+          await removeCraftRequestOwnerMessage(env, {
+            ...result.request,
+            ownerDiscordChannelId:
+              result.request.ownerDiscordChannelId ??
+              interaction?.channel_id ??
+              null,
+            ownerDiscordMessageId:
+              result.request.ownerDiscordMessageId ??
+              interaction?.message?.id ??
+              null,
+          });
+        } catch {
+          // Ignore DM deletion failures, the request state is already persisted.
+        }
+
+        await saveCraftRequestNotificationState(
+          context.accountStore,
+          result.ownerAccount.accountId,
+          result.request.id,
+          {
+            ownerDiscordChannelId: null,
+            ownerDiscordMessageId: null,
+          },
+        );
+
+        return jsonResponse(
+          interactionMessagePayload('Craft request denied. The request panel was removed.'),
+          { status: 200 },
+        );
+      }
+
       return jsonResponse(
         interactionUpdateMessage(
           buildCraftRequestResolvedMessagePayload(
@@ -257,6 +307,14 @@ async function handleCraftRequestComponent(env, interaction) {
       );
     }
 
+    if (context.request.contactInitiatedAt) {
+      return jsonResponse(
+        interactionUpdateMessage(
+          buildCraftRequestOwnerDmPayload(env, context.request, context.requesterAccount),
+        ),
+      );
+    }
+
     try {
       await sendCraftRequestIntroduction(
         env,
@@ -264,9 +322,18 @@ async function handleCraftRequestComponent(env, interaction) {
         context.ownerAccount,
         context.requesterAccount,
       );
+      const updated = await saveCraftRequestNotificationState(
+        context.accountStore,
+        context.ownerAccount.accountId,
+        context.request.id,
+        {
+          contactInitiatedAt: new Date().toISOString(),
+        },
+      );
       return jsonResponse(
-        interactionMessagePayload('I sent both of you an intro message on Discord.'),
-        { status: 200 },
+        interactionUpdateMessage(
+          buildCraftRequestOwnerDmPayload(env, updated.request, updated.requesterAccount),
+        ),
       );
     } catch (error) {
       return jsonResponse(
@@ -298,7 +365,21 @@ async function handleInternalCraftRequestCreated(request, env) {
   }
 
   try {
-    await notifyCraftRequestOwner(env, craftRequest, ownerAccount, requesterAccount);
+    const delivery = await notifyCraftRequestOwner(env, craftRequest, ownerAccount, requesterAccount);
+    const deliveredChannelId = String(delivery?.channel_id ?? '').trim();
+    const deliveredMessageId = String(delivery?.id ?? '').trim();
+    if (deliveredChannelId && deliveredMessageId) {
+      const accountStore = getAccountStore(env, craftRequest.storageScope ?? 'prod');
+      await saveCraftRequestNotificationState(
+        accountStore,
+        ownerAccount.accountId,
+        craftRequest.id,
+        {
+          ownerDiscordChannelId: deliveredChannelId,
+          ownerDiscordMessageId: deliveredMessageId,
+        },
+      );
+    }
     return jsonResponse({ ok: true });
   } catch (error) {
     return jsonResponse(
@@ -308,6 +389,61 @@ async function handleInternalCraftRequestCreated(request, env) {
           error instanceof Error
             ? error.message
             : 'The craft request owner notification failed.',
+      },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleInternalCraftRequestStatusChanged(request, env) {
+  if (!isAuthorizedInternalRequest(request, env)) {
+    return textResponse('Unauthorized.', { status: 401 });
+  }
+
+  const payload = await readJsonRequestBody(request);
+  const craftRequest = payload?.request ?? null;
+  const requesterAccount = payload?.requesterAccount ?? null;
+  const ownerAccount = payload?.ownerAccount ?? null;
+
+  if (!craftRequest?.id || !ownerAccount?.accountId || !requesterAccount?.accountId) {
+    return jsonResponse({ ok: false, message: 'Invalid craft request status payload.' }, { status: 400 });
+  }
+
+  const accountStore = getAccountStore(env, craftRequest.storageScope ?? 'prod');
+
+  try {
+    if (craftRequest.status === 'accepted') {
+      await syncCraftRequestOwnerMessage(env, craftRequest, requesterAccount);
+      return jsonResponse({ ok: true, action: 'updated' });
+    }
+
+    if (craftRequest.status === 'denied' || craftRequest.status === 'closed') {
+      try {
+        await removeCraftRequestOwnerMessage(env, craftRequest);
+      } catch {
+        // Ignore deletion failures for already-removed DMs.
+      }
+      await saveCraftRequestNotificationState(
+        accountStore,
+        ownerAccount.accountId,
+        craftRequest.id,
+        {
+          ownerDiscordChannelId: null,
+          ownerDiscordMessageId: null,
+        },
+      );
+      return jsonResponse({ ok: true, action: 'deleted' });
+    }
+
+    return jsonResponse({ ok: true, action: 'noop' });
+  } catch (error) {
+    return jsonResponse(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The craft request Discord message could not be synchronized.',
       },
       { status: 500 },
     );
@@ -436,6 +572,10 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/internal/craft-request-created') {
       return handleInternalCraftRequestCreated(request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/craft-request-status-changed') {
+      return handleInternalCraftRequestStatusChanged(request, env);
     }
 
     if (request.method !== 'POST') {

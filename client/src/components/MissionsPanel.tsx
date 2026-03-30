@@ -1697,7 +1697,10 @@ export function MissionsPanel() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <Box
+      ref={scrollContainerRef}
+      sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, overflow: 'auto' }}
+    >
       {factionsLoading && <LinearProgress sx={{ flexShrink: 0 }} />}
       {!selectedMission && (
         <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
@@ -1789,7 +1792,7 @@ export function MissionsPanel() {
           />
         </Box>
       )}
-      <Box ref={scrollContainerRef} sx={{ p: { xs: 1.25, sm: 2, md: 3 }, flex: 1, overflow: 'auto' }}>
+      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 } }}>
         {selectedMission ? (
           <MissionDetail
             selection={selectedMission}

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
@@ -12,6 +15,7 @@ import { GoalEditModal } from './GoalEditModal';
 export function GoalsList() {
   const { goals, blueprints, activeBlueprint, removeGoal, updateGoalQuantity, selectGoalBlueprint } = useCraft();
   const { t } = useI18n();
+  const theme = useTheme();
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalOrder, setGoalOrder] = useLocalPersist<string[]>(LS_KEYS.PLANNER_GOAL_ORDER, []);
   const [draggedGoalId, setDraggedGoalId] = useState<string | null>(null);
@@ -50,6 +54,16 @@ export function GoalsList() {
       setDropGoalId(goalId);
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', goalId);
+
+      const previewElement = event.currentTarget.closest('[data-goal-card="true"]');
+      if (previewElement instanceof HTMLElement) {
+        const rect = previewElement.getBoundingClientRect();
+        event.dataTransfer.setDragImage(
+          previewElement,
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+        );
+      }
     },
     [],
   );
@@ -57,13 +71,19 @@ export function GoalsList() {
   const handleDragOver = useCallback(
     (goalId: string) => (event: DragEvent<HTMLElement>) => {
       event.preventDefault();
-      if (!draggedGoalId || draggedGoalId === goalId) {
+      const currentDraggedGoalId = draggedGoalId ?? event.dataTransfer.getData('text/plain');
+      if (!currentDraggedGoalId || currentDraggedGoalId === goalId) {
         return;
       }
       event.dataTransfer.dropEffect = 'move';
       setDropGoalId(goalId);
+      setGoalOrder((previous) => {
+        const synced = synchronizeOrderedIds(previous, goalIds);
+        const next = moveIdBefore(synced, currentDraggedGoalId, goalId);
+        return areStringArraysEqual(synced, next) ? synced : next;
+      });
     },
-    [draggedGoalId],
+    [draggedGoalId, goalIds, setGoalOrder],
   );
 
   const handleDrop = useCallback(
@@ -93,14 +113,47 @@ export function GoalsList() {
   }, []);
 
   return (
-    <Box sx={{ width: { xs: '100%', md: 260 }, flexShrink: 0, borderRight: { xs: 0, md: 1 }, borderBottom: { xs: 1, md: 0 }, borderColor: 'divider', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Column header */}
-      <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <Typography variant="overline" sx={{ display: 'block' }}>{t('Goals', 'Objectifs')}</Typography>
+    <Paper
+      variant="outlined"
+      sx={{
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        borderColor: alpha(theme.palette.primary.main, 0.16),
+        backgroundColor: 'background.paper',
+      }}
+    >
+      <Box
+        sx={{
+          px: 1.5,
+          py: 1.25,
+          borderBottom: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+          flexWrap: 'wrap',
+          flexShrink: 0,
+        }}
+      >
+        <Box>
+          <Typography variant="overline" sx={{ display: 'block', color: 'primary.main' }}>
+            {t('Queue', 'File')}
+          </Typography>
+          <Typography sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.25rem', lineHeight: 0.95 }}>
+            {t('Build queue', 'File de craft')}
+          </Typography>
+        </Box>
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`${orderedGoals.length} ${t('goals', 'objectifs')}`}
+        />
       </Box>
 
-      {/* Goals list */}
-      <Box sx={{ flex: { xs: '0 0 auto', md: 1 }, maxHeight: { xs: 196, md: 'none' }, overflowY: 'auto', p: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 1.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
         {orderedGoals.length === 0 && (
           <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.78rem', py: 1.5, textAlign: 'center' }}>
             {t('No goals yet.', 'Aucun objectif.')}
@@ -128,9 +181,23 @@ export function GoalsList() {
         ))}
       </Box>
 
-      {/* Craft time */}
       {orderedGoals.length > 0 && (
-        <Box sx={{ mx: 1.25, mb: 1.25, px: 1.25, py: 1, border: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <Box
+          sx={{
+            mx: 1.25,
+            mb: 1.25,
+            px: 1.25,
+            py: 1,
+            border: 1,
+            borderColor: alpha(theme.palette.primary.main, 0.18),
+            borderRadius: 1.5,
+            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {t('Total craft time', 'Temps de craft total')}
           </Typography>
@@ -140,10 +207,9 @@ export function GoalsList() {
         </Box>
       )}
 
-      {/* Edit modal */}
       {editingGoal && (
         <GoalEditModal goal={editingGoal} onClose={() => setEditingGoalId(null)} />
       )}
-    </Box>
+    </Paper>
   );
 }

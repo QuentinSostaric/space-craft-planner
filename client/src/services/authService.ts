@@ -1,6 +1,7 @@
 import type {
   CraftGoal,
   PlannerResourceRequirements,
+  PlannerTodoItem,
   ResourceProgress,
 } from '../types';
 
@@ -21,6 +22,7 @@ export interface AuthSessionResponse {
 
 export interface AccountPlannerState {
   goals: CraftGoal[];
+  todoItems: PlannerTodoItem[];
   resourceRequirements: PlannerResourceRequirements;
   resourceProgress: Record<string, ResourceProgress>;
 }
@@ -41,6 +43,30 @@ export type AccountOrganizationClaimRequestStatus =
   | 'rejected'
   | 'cancelled';
 export type AccountCraftRequestStatus = 'pending' | 'accepted' | 'denied' | 'closed';
+export type AccountCraftRequestResourcesOption =
+  | 'unspecified'
+  | 'has_resources'
+  | 'buy_resources';
+
+export type CraftRequestDecision = 'accepted' | 'denied' | 'closed';
+
+export interface CraftRequestBulkDecisionAction {
+  requestId: string;
+  decision: CraftRequestDecision;
+}
+
+export interface CraftRequestBulkDecisionResult {
+  requestId: string;
+  ok: boolean;
+  status?: AccountCraftRequestStatus;
+  error?: string;
+  errorStatus?: number;
+}
+
+export interface AccountBulkCraftRequestDecisionResponse {
+  account: StoredAccount;
+  results: CraftRequestBulkDecisionResult[];
+}
 
 export interface AccountOrganization {
   sid: string;
@@ -60,9 +86,9 @@ export interface AccountOrganization {
   lastSeenAt: string | null;
   lastVerifiedAt: string | null;
   claimed?: boolean;
-  claimedByAccountId?: string | null;
-  adminAccountIds?: string[];
   claimedByCurrentUser?: boolean;
+  blueprintSharingEnabled?: boolean;
+  deletedAt?: string | null;
   lastLiveSyncAt?: string | null;
   nextEligibleLiveSyncAt?: string | null;
   staleAt?: string | null;
@@ -88,6 +114,11 @@ export interface AccountCraftRequest {
   ownerDisplayName: string;
   ownerAvatarUrl: string | null;
   ownerRsiHandle: string | null;
+  comment: string | null;
+  resourcesOption: AccountCraftRequestResourcesOption;
+  ownerDiscordChannelId?: string | null;
+  ownerDiscordMessageId?: string | null;
+  contactInitiatedAt?: string | null;
   status: AccountCraftRequestStatus;
   createdAt: string | null;
   updatedAt: string | null;
@@ -111,6 +142,7 @@ export interface OrganizationSharedBlueprintPayload {
     logo: string | null;
     url: string | null;
     claimed: boolean;
+    blueprintSharingEnabled: boolean;
     lastLiveSyncAt: string | null;
     staleAt: string | null;
     memberCount: number;
@@ -148,6 +180,16 @@ export interface AccountStateSnapshot {
   planner: AccountPlannerState;
 }
 
+export class AuthApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'AuthApiError';
+    this.status = status;
+  }
+}
+
 async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -163,7 +205,7 @@ async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const message = (payload as { message?: string } | null)?.message ?? `HTTP ${response.status}`;
-    throw new Error(message);
+    throw new AuthApiError(response.status, message);
   }
 
   return payload as T;
@@ -281,6 +323,35 @@ export async function claimAccountOrganization(sid: string): Promise<StoredAccou
   return payload.account;
 }
 
+export async function deleteOwnedOrganization(sid: string): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(
+    `/api/auth/organizations/${encodeURIComponent(sid)}`,
+    {
+      method: 'DELETE',
+    },
+  );
+
+  return payload.account;
+}
+
+export async function setAccountOrganizationBlueprintSharing(
+  sid: string,
+  enabled: boolean,
+): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(
+    `/api/auth/organizations/${encodeURIComponent(sid)}/sharing`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ enabled }),
+    },
+  );
+
+  return payload.account;
+}
+
 export async function refreshAccountOrganizationMembers(sid: string): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
     `/api/auth/organizations/${encodeURIComponent(sid)}/refresh`,
@@ -306,6 +377,8 @@ export async function createOrganizationCraftRequest(
     blueprintId: string;
     blueprintName?: string;
     ownerHandle: string;
+    comment?: string | null;
+    resourcesOption?: AccountCraftRequestResourcesOption;
   },
 ): Promise<{ account: StoredAccount; request: AccountCraftRequest }> {
   return authApiFetch<{ account: StoredAccount; request: AccountCraftRequest }>(
@@ -322,7 +395,7 @@ export async function createOrganizationCraftRequest(
 
 export async function respondToOrganizationCraftRequest(
   requestId: string,
-  decision: 'accepted' | 'denied' | 'closed',
+  decision: CraftRequestDecision,
 ): Promise<{ account: StoredAccount; requestId: string; status: AccountCraftRequestStatus }> {
   return authApiFetch<{
     account: StoredAccount;
@@ -334,6 +407,18 @@ export async function respondToOrganizationCraftRequest(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ decision }),
+  });
+}
+
+export async function respondToOrganizationCraftRequestsBulk(
+  actions: CraftRequestBulkDecisionAction[],
+): Promise<AccountBulkCraftRequestDecisionResponse> {
+  return authApiFetch<AccountBulkCraftRequestDecisionResponse>('/api/auth/craft-requests/bulk', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ actions }),
   });
 }
 

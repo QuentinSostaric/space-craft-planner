@@ -6,8 +6,14 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
@@ -22,6 +28,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../auth/AuthContext';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 import { useI18n } from '../i18n/I18nContext';
+import { type AccountCraftRequestResourcesOption } from '../services/authService';
 import { useCraft } from '../store/CraftContext';
 import { CATEGORY_LABELS, LS_KEYS, type Blueprint, type ItemCategory } from '../types';
 import { computeStatMaxima } from '../utils/crafting';
@@ -38,6 +45,13 @@ type SharedBlueprintRow = {
   ownerStars: number | null;
 };
 
+type CraftRequestDialogState = {
+  row: SharedBlueprintRow;
+  comment: string;
+  resourcesOption: AccountCraftRequestResourcesOption;
+  error: string | null;
+};
+
 type OrganizationAccordionLoadState =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -46,7 +60,7 @@ type OrganizationAccordionLoadState =
       status: 'success';
       rows: SharedBlueprintRow[];
       hiddenBlueprintCount: number;
-      memberCount: number;
+      sharedMemberCount: number;
     };
 
 function organizationGridColumns(containerWidth: number): number {
@@ -117,6 +131,7 @@ function OrganizationBlueprintAccordion({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requestBusyKey, setRequestBusyKey] = useState<string | null>(null);
+  const [craftRequestDialog, setCraftRequestDialog] = useState<CraftRequestDialogState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +145,7 @@ function OrganizationBlueprintAccordion({
       setNotice(null);
       setError(null);
       setRequestBusyKey(null);
+      setCraftRequestDialog(null);
       return () => {
         cancelled = true;
       };
@@ -147,8 +163,12 @@ function OrganizationBlueprintAccordion({
 
         const rows: SharedBlueprintRow[] = [];
         let hiddenBlueprintCount = 0;
+        let sharedMemberCount = 0;
 
         for (const member of payload.members) {
+          if ((member.sharedBlueprintIds?.length ?? 0) > 0) {
+            sharedMemberCount += 1;
+          }
           for (const blueprintId of member.sharedBlueprintIds) {
             const blueprint = blueprintById.get(blueprintId);
             if (!blueprint) {
@@ -172,7 +192,7 @@ function OrganizationBlueprintAccordion({
           status: 'success',
           rows,
           hiddenBlueprintCount,
-          memberCount: payload.organization.memberCount,
+          sharedMemberCount,
         });
       })
       .catch((nextError) => {
@@ -198,7 +218,77 @@ function OrganizationBlueprintAccordion({
     };
   }, [blueprintById, expanded, loadOrganizationSharedBlueprints, organization.sid, t]);
 
+  const closeCraftRequestDialog = () => {
+    if (requestBusyKey) {
+      return;
+    }
+    setCraftRequestDialog(null);
+  };
+
+  const openCraftRequestDialog = (row: SharedBlueprintRow) => {
+    setNotice(null);
+    setError(null);
+    setCraftRequestDialog({
+      row,
+      comment: '',
+      resourcesOption: 'unspecified',
+      error: null,
+    });
+  };
+
+  const updateCraftRequestDialog = (
+    updater: (current: CraftRequestDialogState) => CraftRequestDialogState,
+  ) => {
+    setCraftRequestDialog((current) => (current ? updater(current) : current));
+  };
+
+  const submitCraftRequest = () => {
+    if (!craftRequestDialog) {
+      return;
+    }
+
+    const { row, comment, resourcesOption } = craftRequestDialog;
+    setRequestBusyKey(row.key);
+    setNotice(null);
+    setError(null);
+    updateCraftRequestDialog((current) => ({ ...current, error: null }));
+
+    void requestOrganizationCraft(organization.sid, {
+      blueprintId: row.blueprint.id,
+      blueprintName: row.blueprint.name,
+      ownerHandle: row.ownerHandle,
+      comment,
+      resourcesOption,
+    })
+      .then(() => {
+        setNotice(
+          t(
+            `Craft request sent to ${row.ownerHandle}.`,
+            `Demande de craft envoyee a ${row.ownerHandle}.`,
+            `Craft-Anfrage an ${row.ownerHandle} gesendet.`,
+          ),
+        );
+        setCraftRequestDialog(null);
+      })
+      .catch((nextError) => {
+        const message =
+          nextError instanceof Error
+            ? nextError.message
+            : t(
+                'Failed to send the craft request.',
+                'L envoi de la demande de craft a echoue.',
+                'Die Craft-Anfrage konnte nicht gesendet werden.',
+              );
+        setError(message);
+        updateCraftRequestDialog((current) => ({ ...current, error: message }));
+      })
+      .finally(() => {
+        setRequestBusyKey(null);
+      });
+  };
+
   const rows = loadState.status === 'success' ? loadState.rows : [];
+  const sharedMemberCount = loadState.status === 'success' ? loadState.sharedMemberCount : null;
   const filteredRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -356,6 +446,14 @@ function OrganizationBlueprintAccordion({
                 variant="outlined"
               />
             )}
+            {organization.blueprintSharingEnabled === false && (
+              <Chip
+                label={t('Sharing disabled', 'Partage desactive', 'Freigabe deaktiviert')}
+                size="small"
+                color="warning"
+                variant="outlined"
+              />
+            )}
           </Stack>
         </Stack>
       </AccordionSummary>
@@ -376,12 +474,12 @@ function OrganizationBlueprintAccordion({
               )}
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              {typeof organization.memberCount === 'number' && organization.memberCount > 0 && (
+              {typeof sharedMemberCount === 'number' && sharedMemberCount > 0 && (
                 <Chip
                   label={t(
-                    `${organization.memberCount} members in snapshot`,
-                    `${organization.memberCount} membres dans le snapshot`,
-                    `${organization.memberCount} Mitglieder im Snapshot`,
+                    `${sharedMemberCount} members`,
+                    `${sharedMemberCount} membres`,
+                    `${sharedMemberCount} Mitglieder`,
                   )}
                   size="small"
                   variant="outlined"
@@ -628,7 +726,7 @@ function OrganizationBlueprintAccordion({
                             ? t(
                                 'A craft request is already pending for this owner and blueprint.',
                                 'Une demande de craft est deja en attente pour ce proprietaire et ce blueprint.',
-                                'Fur diesen Besitzer und Blueprint ist bereits eine Craft-Anfrage ouverte.',
+                                'Für diesen Besitzer und Blueprint ist bereits eine Craft-Anfrage ausstehend.',
                               )
                             : ownSharedBlueprint
                               ? t(
@@ -645,37 +743,7 @@ function OrganizationBlueprintAccordion({
                           busy: requestBusy,
                           disabled: requestBusy || requestAlreadyPending || ownSharedBlueprint,
                           onClick: () => {
-                            setRequestBusyKey(row.key);
-                            setNotice(null);
-                            setError(null);
-                            void requestOrganizationCraft(organization.sid, {
-                              blueprintId: row.blueprint.id,
-                              blueprintName: row.blueprint.name,
-                              ownerHandle: row.ownerHandle,
-                            })
-                              .then(() => {
-                                setNotice(
-                                  t(
-                                    `Craft request sent to ${row.ownerHandle}.`,
-                                    `Demande de craft envoyee a ${row.ownerHandle}.`,
-                                    `Craft-Anfrage an ${row.ownerHandle} gesendet.`,
-                                  ),
-                                );
-                              })
-                              .catch((nextError) => {
-                                setError(
-                                  nextError instanceof Error
-                                    ? nextError.message
-                                    : t(
-                                        'Failed to send the craft request.',
-                                        'L envoi de la demande de craft a echoue.',
-                                        'Die Craft-Anfrage konnte nicht gesendet werden.',
-                                      ),
-                                );
-                              })
-                              .finally(() => {
-                                setRequestBusyKey(null);
-                              });
+                            openCraftRequestDialog(row);
                           },
                         },
                       ];
@@ -707,6 +775,126 @@ function OrganizationBlueprintAccordion({
           ) : null}
         </Stack>
       </AccordionDetails>
+      <Dialog
+        open={Boolean(craftRequestDialog)}
+        onClose={closeCraftRequestDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {craftRequestDialog
+            ? t(
+                `Request craft from ${craftRequestDialog.row.ownerHandle}`,
+                `Demander un craft a ${craftRequestDialog.row.ownerHandle}`,
+                `Craft bei ${craftRequestDialog.row.ownerHandle} anfragen`,
+              )
+            : t('Request craft', 'Demander craft', 'Craft anfragen')}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            {craftRequestDialog ? (
+              <Alert severity="info" variant="outlined">
+                {t(
+                  `You are requesting ${craftRequestDialog.row.blueprint.name} from ${craftRequestDialog.row.ownerDisplay || craftRequestDialog.row.ownerHandle}.`,
+                  `Tu demandes ${craftRequestDialog.row.blueprint.name} a ${craftRequestDialog.row.ownerDisplay || craftRequestDialog.row.ownerHandle}.`,
+                  `Du fragst ${craftRequestDialog.row.blueprint.name} bei ${craftRequestDialog.row.ownerDisplay || craftRequestDialog.row.ownerHandle} an.`,
+                )}
+              </Alert>
+            ) : null}
+
+            {craftRequestDialog?.error ? (
+              <Alert severity="error" variant="outlined">
+                {craftRequestDialog.error}
+              </Alert>
+            ) : null}
+
+            <TextField
+              label={t('Comment (optional)', 'Commentaire (optionnel)', 'Kommentar (optional)')}
+              value={craftRequestDialog?.comment ?? ''}
+              onChange={(event) => {
+                const nextComment = event.target.value;
+                updateCraftRequestDialog((current) => ({
+                  ...current,
+                  comment: nextComment,
+                  error: null,
+                }));
+              }}
+              multiline
+              minRows={4}
+              placeholder={t(
+                'Add useful details for the crafter.',
+                'Ajoute des details utiles pour le crafteur.',
+                'Fuge hilfreiche Details fur den Crafter hinzu.',
+              )}
+            />
+
+            <Stack spacing={0.5}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                {t('Resources', 'Ressources', 'Ressourcen')}
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={craftRequestDialog?.resourcesOption === 'has_resources'}
+                    onChange={(event) => {
+                      updateCraftRequestDialog((current) => ({
+                        ...current,
+                        resourcesOption: event.target.checked ? 'has_resources' : 'unspecified',
+                        error: null,
+                      }));
+                    }}
+                  />
+                }
+                label={t('I have the resources', 'J ai les ressources', 'Ich habe die Ressourcen')}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={craftRequestDialog?.resourcesOption === 'buy_resources'}
+                    onChange={(event) => {
+                      updateCraftRequestDialog((current) => ({
+                        ...current,
+                        resourcesOption: event.target.checked ? 'buy_resources' : 'unspecified',
+                        error: null,
+                      }));
+                    }}
+                  />
+                }
+                label={t(
+                  'I will buy the resources',
+                  'Je t achete les ressources',
+                  'Ich kaufe dir die Ressourcen ab',
+                )}
+              />
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {t(
+                  'These options are mutually exclusive and will be shown in the app and in Discord.',
+                  'Ces options sont exclusives et seront visibles dans l appli et sur Discord.',
+                  'Diese Optionen schliessen sich gegenseitig aus und werden in der App und auf Discord angezeigt.',
+                )}
+              </Typography>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={closeCraftRequestDialog}
+            disabled={Boolean(requestBusyKey)}
+          >
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitCraftRequest}
+            disabled={!craftRequestDialog || Boolean(requestBusyKey)}
+          >
+            {requestBusyKey
+              ? t('Sending...', 'Envoi...', 'Sende...')
+              : t('Send request', 'Envoyer la demande', 'Anfrage senden')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Accordion>
   );
 }
@@ -714,7 +902,7 @@ function OrganizationBlueprintAccordion({
 export function OrganizationsPage() {
   const { t } = useI18n();
   const theme = useTheme();
-  const { account } = useAuth();
+  const { account, syncStatus, syncError } = useAuth();
   const {
     blueprints,
     activeDataset,
@@ -809,10 +997,26 @@ export function OrganizationsPage() {
           minHeight: 0,
           overflow: 'auto',
         }}
-      >
-        {!account?.rsi?.handle && (
-          <Alert severity="info" variant="outlined">
-            {t(
+        >
+          {syncError && (
+            <Alert severity="error" variant="outlined">
+              {syncError}
+            </Alert>
+          )}
+
+          {(syncStatus === 'pending' || syncStatus === 'syncing') && (
+            <Alert severity="info" variant="outlined">
+              {t(
+                'Cloud changes are still syncing. Newly shared blueprints and craft request updates may take a moment to settle.',
+                'Les changements cloud se synchronisent encore. Les blueprints fraichement partages et les mises a jour de demandes de craft peuvent prendre un court instant.',
+                'Cloud-Anderungen werden noch synchronisiert. Neu geteilte Blueprints und Craft-Anfragen konnen einen kurzen Moment brauchen.',
+              )}
+            </Alert>
+          )}
+
+          {!account?.rsi?.handle && (
+            <Alert severity="info" variant="outlined">
+              {t(
               'Link an RSI account first from the account page to access organization-shared blueprints.',
               'Lie d abord un compte RSI depuis la page compte pour acceder aux blueprints partages d organisation.',
               'Verknupfe zuerst auf der Kontoseite ein RSI-Konto, um auf organisationsgeteilte Blueprints zuzugreifen.',

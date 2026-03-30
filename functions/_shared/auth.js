@@ -31,9 +31,11 @@ import {
   addAccountOrganizationBySid,
   buildOrganizationSharedBlueprints,
   claimAccountOrganization,
+  deleteOwnedOrganizationFromApp,
   OrganizationServiceError,
   refreshAccountOrganizationMembers,
   removeAccountOrganizationBySid,
+  setOwnedOrganizationBlueprintSharingEnabled,
   syncAndDecorateAccountOrganizations,
 } from '../../shared/organizationService.mjs';
 import { notifyOrganizationClaimRequest } from '../../shared/organizationClaimNotification.mjs';
@@ -41,11 +43,13 @@ import {
   createOrganizationCraftRequest,
   CraftRequestServiceError,
   respondToCraftRequest,
+  respondToCraftRequestsBulk,
 } from '../../shared/craftRequestService.mjs';
 import {
   notifyCraftRequestOwnerViaWorker,
   resolveAppBaseUrlFromRequest,
   resolveCraftRequestStorageScope,
+  syncCraftRequestStatusViaWorker,
 } from '../../shared/discordBotRelay.mjs';
 import { verifyRsiHandleOwnership } from '../../shared/rsiLink.mjs';
 import { getGameDataBucket } from './runtimeBuckets.js';
@@ -74,10 +78,17 @@ function getStarCitizenApiKey(env) {
   return String(env?.STARCITIZEN_API_KEY ?? '').trim();
 }
 
-function runBackgroundTask(executionContext, task) {
+function getOrganizationClaimReviewerEmail(env) {
+  const reviewerEmail = String(env?.ORGANIZATION_CLAIM_REVIEWER_EMAIL ?? '').trim();
+  return reviewerEmail || null;
+}
+
+function runBackgroundTask(executionContext, task, label = 'background-task') {
   const promise = Promise.resolve()
     .then(task)
-    .catch(() => {});
+    .catch((error) => {
+      console.error(`[${label}]`, error);
+    });
 
   if (typeof executionContext?.waitUntil === 'function') {
     executionContext.waitUntil(promise);
@@ -427,6 +438,50 @@ export async function handleAccountOrganizationDeleteRequest(request, env, sid) 
   }
 }
 
+export async function handleOrganizationDeleteRequest(request, env, sid) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  try {
+    const accountStore = getAccountStore(request, env);
+    const account = await ensureAccountForSession(accountStore, session);
+    const nextAccount = await deleteOwnedOrganizationFromApp(accountStore, account, sid);
+    return noStoreJson({ account: nextAccount });
+  } catch (error) {
+    return organizationErrorResponse(error, 'Failed to delete the organization.');
+  }
+}
+
+export async function handleOrganizationSharingUpdateRequest(request, env, sid) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  let payload;
+  try {
+    payload = await readAccountJsonFromRequest(request);
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
+  }
+
+  try {
+    const accountStore = getAccountStore(request, env);
+    const account = await ensureAccountForSession(accountStore, session);
+    const nextAccount = await setOwnedOrganizationBlueprintSharingEnabled(
+      accountStore,
+      account,
+      sid,
+      payload?.enabled,
+    );
+    return noStoreJson({ account: nextAccount });
+  } catch (error) {
+    return organizationErrorResponse(error, 'Failed to update organization blueprint sharing.');
+  }
+}
+
 export async function handleOrganizationClaimRequest(request, env, sid, executionContext = null) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
@@ -436,20 +491,26 @@ export async function handleOrganizationClaimRequest(request, env, sid, executio
   try {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
-    const nextAccount = await claimAccountOrganization(accountStore, account, sid);
+    const reviewerEmail = getOrganizationClaimReviewerEmail(env);
+    const nextAccount = await claimAccountOrganization(accountStore, account, sid, {
+      reviewerEmail,
+    });
     const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
-    if (claimRequest?.claimRequestStatus === 'pending') {
-      runBackgroundTask(executionContext, () =>
-        notifyOrganizationClaimRequest(env, {
-          sid: claimRequest.sid,
-          organizationName: claimRequest.name,
-          accountId: nextAccount.accountId,
-          requestedByDiscordDisplayName: nextAccount.profile.displayName,
-          requestedByDiscordUsername: nextAccount.profile.username,
-          requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
-          reviewerEmail: 'thsamon@proton.me',
-          submittedAt: claimRequest.claimRequestSubmittedAt,
-        }),
+    if (claimRequest?.claimRequestStatus === 'pending' && reviewerEmail) {
+      runBackgroundTask(
+        executionContext,
+        () =>
+          notifyOrganizationClaimRequest(env, {
+            sid: claimRequest.sid,
+            organizationName: claimRequest.name,
+            accountId: nextAccount.accountId,
+            requestedByDiscordDisplayName: nextAccount.profile.displayName,
+            requestedByDiscordUsername: nextAccount.profile.username,
+            requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
+            reviewerEmail,
+            submittedAt: claimRequest.claimRequestSubmittedAt,
+          }),
+        'organization-claim-review-notify',
       );
     }
     return noStoreJson({ account: nextAccount });
@@ -517,16 +578,21 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
       blueprintId: payload?.blueprintId,
       blueprintName: payload?.blueprintName,
       ownerHandle: payload?.ownerHandle,
+      comment: payload?.comment,
+      resourcesOption: payload?.resourcesOption,
       appBaseUrl: resolveAppBaseUrlFromRequest(request, env),
       storageScope: resolveCraftRequestStorageScope(request, env),
     });
-    runBackgroundTask(executionContext, () =>
-      notifyCraftRequestOwnerViaWorker(
-        env,
-        result.request,
-        result.ownerAccount,
-        result.requesterAccount,
-      ),
+    runBackgroundTask(
+      executionContext,
+      () =>
+        notifyCraftRequestOwnerViaWorker(
+          env,
+          result.request,
+          result.ownerAccount,
+          result.requesterAccount,
+        ),
+      'craft-request-owner-notify',
     );
     const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
     return noStoreJson({
@@ -538,7 +604,7 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
   }
 }
 
-export async function handleCraftRequestDecisionRequest(request, env, requestId) {
+export async function handleCraftRequestDecisionRequest(request, env, requestId, executionContext = null) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
     return errorResponse(401, 'Authentication required.');
@@ -560,6 +626,17 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId)
       requestId,
       payload?.decision,
     );
+    runBackgroundTask(
+      executionContext,
+      () =>
+        syncCraftRequestStatusViaWorker(
+          env,
+          result.request,
+          result.ownerAccount,
+          result.requesterAccount,
+        ),
+      'craft-request-status-sync',
+    );
     const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
     return noStoreJson({
       account: decoratedAccount,
@@ -568,5 +645,61 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId)
     });
   } catch (error) {
     return craftRequestErrorResponse(error, 'Failed to answer the craft request.');
+  }
+}
+
+export async function handleCraftRequestBulkDecisionRequest(request, env, executionContext = null) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  let payload;
+  try {
+    payload = await readAccountJsonFromRequest(request);
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
+  }
+
+  try {
+    const accountStore = getAccountStore(request, env);
+    const account = await ensureAccountForSession(accountStore, session);
+    const result = await respondToCraftRequestsBulk(
+      accountStore,
+      account,
+      payload?.actions,
+    );
+
+    for (const entry of result.results) {
+      if (!entry.ok || !entry.request || !entry.ownerAccount || !entry.requesterAccount) {
+        continue;
+      }
+
+      runBackgroundTask(
+        executionContext,
+        () =>
+          syncCraftRequestStatusViaWorker(
+            env,
+            entry.request,
+            entry.ownerAccount,
+            entry.requesterAccount,
+          ),
+        'craft-request-bulk-status-sync',
+      );
+    }
+
+    const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
+    return noStoreJson({
+      account: decoratedAccount,
+      results: result.results.map((entry) => ({
+        requestId: entry.requestId,
+        ok: entry.ok,
+        status: entry.status ?? null,
+        error: entry.error ?? null,
+        errorStatus: entry.errorStatus ?? null,
+      })),
+    });
+  } catch (error) {
+    return craftRequestErrorResponse(error, 'Failed to answer the craft requests.');
   }
 }

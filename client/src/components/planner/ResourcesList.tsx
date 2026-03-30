@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import Box from '@mui/material/Box';
 import LinearProgress from '@mui/material/LinearProgress';
+import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
@@ -11,10 +12,12 @@ import { formatResourceQuantity } from '../../utils/crafting';
 import { StarCitizenLicensedIcon } from '../ui/StarCitizenLicensedIcon';
 import type { AggregatedResource } from '../../types';
 import { ResourceRow } from './ResourceRow';
+import { alpha, useTheme } from '@mui/material/styles';
 
 export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[] }) {
   const { plannerResourceRequirements, resourceProgress } = useCraft();
   const { t, lang } = useI18n();
+  const theme = useTheme();
   const [resourceOrder, setResourceOrder] = useLocalPersist<string[]>(LS_KEYS.PLANNER_RESOURCE_ORDER, []);
   const [draggedResourceName, setDraggedResourceName] = useState<string | null>(null);
   const [dropResourceName, setDropResourceName] = useState<string | null>(null);
@@ -74,6 +77,16 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
       setDropResourceName(resourceName);
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', resourceName);
+
+      const previewElement = event.currentTarget.closest('[data-resource-row="true"]');
+      if (previewElement instanceof HTMLElement) {
+        const rect = previewElement.getBoundingClientRect();
+        event.dataTransfer.setDragImage(
+          previewElement,
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+        );
+      }
     },
     [],
   );
@@ -81,13 +94,20 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
   const handleDragOver = useCallback(
     (resourceName: string) => (event: DragEvent<HTMLElement>) => {
       event.preventDefault();
-      if (!draggedResourceName || draggedResourceName === resourceName) {
+      const currentDraggedResourceName =
+        draggedResourceName ?? event.dataTransfer.getData('text/plain');
+      if (!currentDraggedResourceName || currentDraggedResourceName === resourceName) {
         return;
       }
       event.dataTransfer.dropEffect = 'move';
       setDropResourceName(resourceName);
+      setResourceOrder((previous) => {
+        const synced = synchronizeOrderedIds(previous, resourceNames);
+        const next = moveIdBefore(synced, currentDraggedResourceName, resourceName);
+        return areStringArraysEqual(synced, next) ? synced : next;
+      });
     },
-    [draggedResourceName],
+    [draggedResourceName, resourceNames, setResourceOrder],
   );
 
   const handleDrop = useCallback(
@@ -117,21 +137,29 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
   }, []);
 
   return (
-    <Box
+    <Paper
+      variant="outlined"
       sx={{
-        flex: { xs: '0 0 auto', md: 1 },
+        flex: 1,
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
-        overflow: { xs: 'visible', md: 'hidden' },
+        minHeight: 0,
+        overflow: 'hidden',
+        borderColor: alpha(theme.palette.primary.main, 0.16),
       }}
     >
-      <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+      <Box sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-            <StarCitizenLicensedIcon name="asteroid" size={14} dimmed />
-            <Typography variant="overline" sx={{ display: 'block' }}>
-              {t('Resources', 'Ressources')}
+          <Box>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+              <StarCitizenLicensedIcon name="asteroid" size={14} dimmed />
+              <Typography variant="overline" sx={{ display: 'block', color: 'primary.main' }}>
+                {t('Resources', 'Ressources')}
+              </Typography>
+            </Box>
+            <Typography sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.25rem', lineHeight: 0.95 }}>
+              {t('Material checklist', 'Checklist matériaux')}
             </Typography>
           </Box>
           <Typography
@@ -153,14 +181,15 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
         <LinearProgress
           variant="determinate"
           value={globalPct}
-          sx={{ height: 4, borderRadius: 2 }}
+          sx={{ height: 6, borderRadius: 999 }}
         />
       </Box>
 
       <Box
         sx={{
-          flex: { xs: '0 0 auto', md: 1 },
-          overflowY: { xs: 'visible', md: 'auto' },
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
           p: 1.25,
           display: 'flex',
           flexDirection: 'column',
@@ -174,7 +203,7 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
           >
             {t(
               'Add goals or materials to see required resources.',
-              'Ajoutez des objectifs ou des materiaux pour voir les ressources requises.',
+              'Ajoutez des objectifs ou des matériaux pour voir les ressources requises.',
             )}
           </Typography>
         )}
@@ -196,6 +225,6 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
           />
         ))}
       </Box>
-    </Box>
+    </Paper>
   );
 }

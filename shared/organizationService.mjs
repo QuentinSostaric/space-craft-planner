@@ -3,6 +3,7 @@ import {
   readAccountIdByRsiHandle,
   readAccountRecord,
   saveAccountOrganizations,
+  writeAccountRecord,
 } from './accountStorage.mjs';
 import {
   ORGANIZATION_LIVE_SYNC_COOLDOWN_MS,
@@ -123,6 +124,55 @@ function isSnapshotStale(record, nowMs = Date.now()) {
 
 function isVerifiedOrganizationStatus(status) {
   return status === 'verified_member' || status === 'verified_admin';
+}
+
+function isOrganizationDeleted(record) {
+  return Boolean(normalizeIsoTimestamp(record?.deletedAt));
+}
+
+function isOrganizationBlueprintSharingEnabled(record) {
+  return record?.blueprintSharingEnabled !== false;
+}
+
+function uniqueStringArray(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function removeOrganizationSidFromShareMap(organizationBlueprintShares, sid) {
+  return Object.fromEntries(
+    Object.entries(organizationBlueprintShares ?? {}).filter(
+      ([shareSid]) => normalizeOrganizationSid(shareSid) !== sid,
+    ),
+  );
+}
+
+function deriveSharedBlueprintIdsFromOrganizationShareMap(organizationBlueprintShares) {
+  return uniqueStringArray(Object.values(organizationBlueprintShares ?? {}).flat());
+}
+
+async function reviveDeletedOrganizationRecord(
+  store,
+  organizationRecord,
+  metadata,
+  { now = toIsoNow() } = {},
+) {
+  if (!organizationRecord) {
+    throw new Error('An existing organization record is required to revive a deleted organization.');
+  }
+
+  return writeOrganizationRecord(store, {
+    ...organizationRecord,
+    ...metadata,
+    image:
+      metadata?.image ??
+      metadata?.logo ??
+      organizationRecord.image ??
+      organizationRecord.logo ??
+      null,
+    blueprintSharingEnabled: true,
+    deletedAt: null,
+    updatedAt: now,
+  });
 }
 
 function findOrganizationMemberByHandle(memberSnapshot, handle) {
@@ -266,6 +316,7 @@ function upsertOrganizationRef(refs, nextRef) {
 
 function decorateOrganizationRef(ref, organizationRecord, accountId, nowMs = Date.now()) {
   const staleAt = normalizeIsoTimestamp(organizationRecord?.staleAt);
+  const deletedAt = normalizeIsoTimestamp(organizationRecord?.deletedAt);
   const isStale = Boolean(staleAt && Date.parse(staleAt) < nowMs);
   const syncStatus = organizationRecord
     ? organizationRecord.syncStatus === 'never'
@@ -286,8 +337,8 @@ function decorateOrganizationRef(ref, organizationRecord, accountId, nowMs = Dat
     secondaryFocus: organizationRecord?.secondaryFocus ?? null,
     lang: organizationRecord?.lang ?? null,
     claimed: Boolean(organizationRecord?.claimed),
-    claimedByAccountId: organizationRecord?.claimedByAccountId ?? null,
-    adminAccountIds: organizationRecord?.adminAccountIds ?? [],
+    blueprintSharingEnabled: organizationRecord?.blueprintSharingEnabled !== false,
+    deletedAt,
     lastLiveSyncAt: normalizeIsoTimestamp(organizationRecord?.lastLiveSyncAt),
     nextEligibleLiveSyncAt: normalizeIsoTimestamp(organizationRecord?.nextEligibleLiveSyncAt),
     staleAt,
@@ -351,12 +402,49 @@ async function syncProfileMainOrganization(store, account, apiKey, { fetchImpl =
     return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile);
   }
 
-  if (isOrganizationIgnored(account, profileOrganization.sid)) {
+  const existingOrganizationRecord = await readOrganizationRecord(store, profileOrganization.sid);
+  const ownerBypassCandidate = isOrganizationAdminCandidate({
+    rank: profileOrganization.rank,
+    stars: null,
+  });
+  const canReviveDeletedOrganization =
+    isOrganizationDeleted(existingOrganizationRecord) && ownerBypassCandidate;
+
+  if (isOrganizationIgnored(account, profileOrganization.sid) && !canReviveDeletedOrganization) {
     if (refsWithoutProfileMain.length === currentRefs.length) {
       return account;
     }
 
     return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile);
+  }
+
+  if (isOrganizationDeleted(existingOrganizationRecord) && !canReviveDeletedOrganization) {
+    const nextIgnoredOrganizationSids = Array.from(
+      new Set([...(account.ignoredOrganizationSids ?? []), profileOrganization.sid]),
+    );
+
+    if (
+      refsWithoutProfileMain.length === currentRefs.length &&
+      nextIgnoredOrganizationSids.length === (account.ignoredOrganizationSids ?? []).length
+    ) {
+      return account;
+    }
+
+    return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile, {
+      ignoredOrganizationSids: nextIgnoredOrganizationSids,
+    });
+  }
+
+  if (canReviveDeletedOrganization) {
+    await reviveDeletedOrganizationRecord(
+      store,
+      existingOrganizationRecord,
+      {
+        ...profileOrganization,
+        image: profileOrganization.image ?? profileOrganization.logo ?? null,
+      },
+      { now },
+    );
   }
 
   await upsertOrganizationMetadata(store, {
@@ -389,13 +477,21 @@ async function syncProfileMainOrganization(store, account, apiKey, { fetchImpl =
   };
 
   const nextRefs = upsertOrganizationRef(refsWithoutProfileMain, profileMainRef);
+  const nextIgnoredOrganizationSids = (account.ignoredOrganizationSids ?? []).filter(
+    (ignoredSid) => ignoredSid !== profileOrganization.sid,
+  );
   const currentSerialized = JSON.stringify(sortOrganizationRefs(currentRefs));
   const nextSerialized = JSON.stringify(sortOrganizationRefs(nextRefs));
-  if (currentSerialized === nextSerialized) {
+  if (
+    currentSerialized === nextSerialized &&
+    nextIgnoredOrganizationSids.length === (account.ignoredOrganizationSids ?? []).length
+  ) {
     return account;
   }
 
-  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
+  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile, {
+    ignoredOrganizationSids: nextIgnoredOrganizationSids,
+  });
 }
 
 async function applyFreshMembershipSnapshots(store, account) {
@@ -555,6 +651,9 @@ async function refreshOrganizationMetadataCounts(
 
   for (const organizationRef of account.organizations) {
     const organizationRecord = await readOrganizationRecord(store, organizationRef.sid);
+    if (isOrganizationDeleted(organizationRecord)) {
+      continue;
+    }
     const hasKnownMemberCount =
       (Number.isFinite(Number(organizationRecord?.memberCount)) && Number(organizationRecord.memberCount) > 0) ||
       (Number.isFinite(Number(organizationRecord?.members)) && Number(organizationRecord.members) > 0);
@@ -610,8 +709,10 @@ async function refreshLiveOrganizationSnapshot(store, apiKey, sid, { fetchImpl =
       sid: metadata.sid,
       claimed: false,
       claimedByAccountId: null,
-      adminAccountIds: [],
-      createdAt: now,
+    adminAccountIds: [],
+    createdAt: now,
+    blueprintSharingEnabled: true,
+    deletedAt: null,
     }),
     ...metadata,
     image: metadata.image ?? metadata.logo ?? existingRecord?.image ?? null,
@@ -665,6 +766,37 @@ function assertLinkedRsiHandle(account) {
   }
 }
 
+function assertActiveOrganizationRecord(organizationRecord) {
+  if (!organizationRecord) {
+    throw new OrganizationServiceError(404, 'Organization data is not available yet.');
+  }
+  if (isOrganizationDeleted(organizationRecord)) {
+    throw new OrganizationServiceError(410, 'This organization was removed from the app.');
+  }
+}
+
+function assertClaimedByCurrentUser(organizationRecord, account) {
+  assertActiveOrganizationRecord(organizationRecord);
+  if (organizationRecord.claimedByAccountId !== account.accountId) {
+    throw new OrganizationServiceError(
+      403,
+      'Only the organization owner can manage this setting in the app.',
+    );
+  }
+}
+
+async function listStoredAccountIds(store) {
+  if (typeof store?.listJsonKeys !== 'function') {
+    throw new OrganizationServiceError(500, 'Account storage listing is not available.');
+  }
+
+  const accountKeys = await store.listJsonKeys('accounts/');
+  return accountKeys
+    .filter((key) => String(key).startsWith('accounts/') && String(key).endsWith('.json'))
+    .map((key) => String(key).slice('accounts/'.length, -'.json'.length))
+    .filter(Boolean);
+}
+
 export class OrganizationServiceError extends Error {
   constructor(status, message) {
     super(message);
@@ -713,6 +845,9 @@ export async function addAccountOrganizationBySid(
   if (existingRef) {
     throw new OrganizationServiceError(409, 'This organization is already linked to your account.');
   }
+
+  const existingOrganizationRecord = await readOrganizationRecord(store, normalizedSid);
+  const isDeletedOrganization = isOrganizationDeleted(existingOrganizationRecord);
 
   let metadata;
   try {
@@ -775,6 +910,22 @@ export async function addAccountOrganizationBySid(
     throw new OrganizationServiceError(
       403,
       'Your linked RSI handle was not found in this organization.',
+    );
+  }
+
+  if (isDeletedOrganization && !isOrganizationAdminCandidate(matchingMember)) {
+    throw new OrganizationServiceError(410, 'This organization was removed from the app.');
+  }
+
+  if (isDeletedOrganization) {
+    await reviveDeletedOrganizationRecord(
+      store,
+      existingOrganizationRecord,
+      {
+        ...metadata,
+        image: metadata.image ?? metadata.logo ?? null,
+      },
+      { now: toIsoNow() },
     );
   }
 
@@ -846,10 +997,104 @@ export async function removeAccountOrganizationBySid(store, account, sid) {
   });
 }
 
+export async function deleteOwnedOrganizationFromApp(store, account, sid) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  assertClaimedByCurrentUser(organizationRecord, account);
+
+  const now = toIsoNow();
+  const accountIds = await listStoredAccountIds(store);
+  for (const accountId of accountIds) {
+    const storedAccount = await readAccountRecord(store, accountId);
+    if (!storedAccount) {
+      continue;
+    }
+
+    const hasOrganizationRef = storedAccount.organizations.some((ref) => ref.sid === normalizedSid);
+    const hasOrganizationShares = Object.prototype.hasOwnProperty.call(
+      storedAccount.organizationBlueprintShares ?? {},
+      normalizedSid,
+    );
+    if (!hasOrganizationRef && !hasOrganizationShares) {
+      continue;
+    }
+
+    const nextOrganizations = storedAccount.organizations.filter((ref) => ref.sid !== normalizedSid);
+    const nextOrganizationBlueprintShares = removeOrganizationSidFromShareMap(
+      storedAccount.organizationBlueprintShares,
+      normalizedSid,
+    );
+    const nextIgnoredOrganizationSids = uniqueStringArray([
+      ...(storedAccount.ignoredOrganizationSids ?? []),
+      normalizedSid,
+    ]);
+
+    await writeAccountRecord(store, {
+      ...storedAccount,
+      organizations: nextOrganizations,
+      organizationBlueprintShares: nextOrganizationBlueprintShares,
+      sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShareMap(
+        nextOrganizationBlueprintShares,
+      ),
+      ignoredOrganizationSids: nextIgnoredOrganizationSids,
+      updatedAt: now,
+    });
+  }
+
+  await writeOrganizationRecord(store, {
+    ...organizationRecord,
+    claimed: false,
+    claimedByAccountId: null,
+    adminAccountIds: [],
+    sharedAccountIds: [],
+    blueprintSharingEnabled: false,
+    deletedAt: now,
+    updatedAt: now,
+  });
+
+  const nextAccount = await readAccountRecord(store, account.accountId, account.profile);
+  if (!nextAccount) {
+    throw new OrganizationServiceError(404, 'Account not found after deleting the organization.');
+  }
+
+  return decorateAccountOrganizationsFromStore(store, nextAccount);
+}
+
+export async function setOwnedOrganizationBlueprintSharingEnabled(
+  store,
+  account,
+  sid,
+  enabled,
+) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+  if (typeof enabled !== 'boolean') {
+    throw new OrganizationServiceError(400, 'A boolean sharing state is required.');
+  }
+
+  const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  assertClaimedByCurrentUser(organizationRecord, account);
+
+  await writeOrganizationRecord(store, {
+    ...organizationRecord,
+    blueprintSharingEnabled: enabled,
+    updatedAt: toIsoNow(),
+  });
+
+  return decorateAccountOrganizationsFromStore(store, account);
+}
+
 export async function claimAccountOrganization(
   store,
   account,
   sid,
+  { reviewerEmail = null } = {},
 ) {
   assertLinkedRsiHandle(account);
   const normalizedSid = normalizeOrganizationSid(sid);
@@ -863,6 +1108,7 @@ export async function claimAccountOrganization(
   }
 
   const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  assertActiveOrganizationRecord(organizationRecord);
   if (organizationRecord?.claimed) {
     throw new OrganizationServiceError(
       409,
@@ -888,7 +1134,7 @@ export async function claimAccountOrganization(
     requestedByDiscordDisplayName: account.profile.displayName,
     requestedByRsiHandle: account.rsi?.handle ?? null,
     requestedByRsiDisplayName: account.rsi?.displayName ?? account.rsi?.handle ?? null,
-    reviewerEmail: 'thsamon@proton.me',
+    reviewerEmail: String(reviewerEmail ?? '').trim() || null,
     status: 'pending',
     submittedAt: toIsoNow(),
     updatedAt: toIsoNow(),
@@ -916,9 +1162,7 @@ export async function refreshAccountOrganizationMembers(
   }
 
   const existingRecord = await readOrganizationRecord(store, normalizedSid);
-  if (!existingRecord) {
-    throw new OrganizationServiceError(404, 'Organization data is not available yet.');
-  }
+  assertActiveOrganizationRecord(existingRecord);
   if (!existingRecord.claimed) {
     throw new OrganizationServiceError(
       400,
@@ -1007,6 +1251,13 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
   }
 
   let organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  assertActiveOrganizationRecord(organizationRecord);
+  if (!isOrganizationBlueprintSharingEnabled(organizationRecord)) {
+    throw new OrganizationServiceError(
+      403,
+      'Blueprint sharing is currently disabled for this organization.',
+    );
+  }
   let sharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
     ? organizationRecord.sharedAccountIds
     : [];
@@ -1126,6 +1377,7 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
       logo: organizationRecord?.logo ?? organizationRef.logo ?? null,
       url: organizationRecord?.url ?? organizationRef.url ?? null,
       claimed: Boolean(organizationRecord?.claimed ?? organizationRef.claimed),
+      blueprintSharingEnabled: organizationRecord?.blueprintSharingEnabled !== false,
       lastLiveSyncAt: organizationRecord?.lastLiveSyncAt ?? organizationRef.lastLiveSyncAt ?? null,
       staleAt: organizationRecord?.staleAt ?? organizationRef.staleAt ?? null,
       memberCount:

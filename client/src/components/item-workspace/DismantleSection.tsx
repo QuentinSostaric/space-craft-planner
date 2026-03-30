@@ -1,4 +1,8 @@
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
@@ -24,6 +28,42 @@ function resolveResource(resourceName: string, resources: Resource[]) {
   );
 }
 
+function DismantleFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        px: 1.25,
+        py: 1,
+        minWidth: 0,
+        backgroundColor: 'background.paper',
+      }}
+    >
+      <Typography
+        variant="caption"
+        sx={{
+          display: 'block',
+          color: 'text.disabled',
+          textTransform: 'uppercase',
+          letterSpacing: '0.12em',
+          mb: 0.4,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+        {value}
+      </Typography>
+    </Paper>
+  );
+}
+
 interface DismantleSectionProps {
   blueprint: Blueprint;
   allResources: Resource[];
@@ -46,7 +86,7 @@ export function DismantleSection({
     <Box
       component="section"
       aria-label={t('Dismantling', 'Demontage')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}
     >
       <Typography variant="overline" sx={{ display: 'block' }}>
         {t('Dismantling', 'Demontage')}
@@ -59,104 +99,180 @@ export function DismantleSection({
           {t('No materials', 'Aucun materiau')}
         </Typography>
       ) : (
-        <Box aria-label={blueprint.name} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Box
+          aria-label={blueprint.name}
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' },
+            gap: 1.25,
+          }}
+        >
           {resources.map((resource) => {
             const recovered = Math.round(resource.totalScu * efficiency * 1000) / 1000;
             const resourceVisual = resolveResource(resource.resourceName, allResources);
 
             return (
-              <Box
+              <Card
                 key={resource.resourceName}
+                variant="outlined"
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 1.25,
-                  py: 1,
-                  borderRadius: 1,
-                  border: `1px solid ${theme.palette.ui.border}`,
-                  background: `linear-gradient(180deg, ${alpha(theme.palette.common.white, 0.02)} 0%, ${theme.palette.ui.surface1} 100%)`,
-                  flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                  overflow: 'hidden',
+                  backgroundColor: 'background.paper',
+                  borderColor: alpha(resourceVisual?.color ?? theme.palette.primary.main, 0.22),
                 }}
               >
                 <Box
                   sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 1.25,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `1px solid ${theme.palette.ui.border}`,
-                    backgroundColor: alpha(theme.palette.common.white, 0.03),
-                    flexShrink: 0,
+                    px: 1.5,
+                    py: 1.25,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    background: `linear-gradient(180deg, ${alpha(
+                      resourceVisual?.color ?? theme.palette.primary.main,
+                      0.18,
+                    )} 0%, ${alpha(theme.palette.background.paper, 0.92)} 100%)`,
                   }}
                 >
-                  {resourceVisual?.visual?.imageUrl ? (
-                    <Box
-                      component="img"
-                      src={resourceVisual.visual.imageUrl}
-                      alt={resource.resourceName}
-                      loading="lazy"
-                      sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <ResourceIcon name={resource.resourceName} size={18} />
-                  )}
-                </Box>
-
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                    {resource.resourceName}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}
-                  >
-                    {summarizeAssignedQualities(
-                      resource.assignedQualityValues,
-                      resource.unassignedSlotCount,
-                      lang,
-                    )}
-                  </Typography>
-                </Box>
-
-                <Box
-                  sx={{
-                    minWidth: { xs: 0, sm: 104 },
-                    ml: { xs: 0, sm: 'auto' },
-                    textAlign: { xs: 'left', sm: 'right' },
-                  }}
-                >
-                  <Typography
-                    variant="caption"
+                  <Box
                     sx={{
-                      display: 'block',
-                      color: 'text.secondary',
-                      fontSize: '0.65rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '.04em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.25,
+                      flexWrap: { xs: 'wrap', md: 'nowrap' },
                     }}
                   >
-                    {t('Recovered', 'Recupere')}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700 }}
-                  >
-                    {formatResourceQuantity(recovered, resource.quantityUnit, lang)}
-                  </Typography>
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 1.5,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: `1px solid ${theme.palette.ui.border}`,
+                        backgroundColor: alpha(theme.palette.common.white, 0.04),
+                        flexShrink: 0,
+                      }}
+                    >
+                      {resourceVisual?.visual?.imageUrl ? (
+                        <Box
+                          component="img"
+                          src={resourceVisual.visual.imageUrl}
+                          alt={resource.resourceName}
+                          loading="lazy"
+                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <ResourceIcon name={resource.resourceName} size={24} />
+                      )}
+                    </Box>
+
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Khand', sans-serif",
+                          fontWeight: 700,
+                          fontSize: '1.25rem',
+                          lineHeight: 1,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {resource.resourceName}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'text.secondary', mt: 0.5 }}
+                      >
+                        {summarizeAssignedQualities(
+                          resource.assignedQualityValues,
+                          resource.unassignedSlotCount,
+                          lang,
+                        )}
+                      </Typography>
+                    </Box>
+
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        px: 1.25,
+                        py: 1,
+                        minWidth: { xs: '100%', sm: 146 },
+                        backgroundColor: alpha(theme.palette.background.default, 0.34),
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          color: 'text.disabled',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.12em',
+                          mb: 0.4,
+                        }}
+                      >
+                        {t('Recovered', 'Recupere')}
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700 }}
+                      >
+                        {formatResourceQuantity(recovered, resource.quantityUnit, lang)}
+                      </Typography>
+                    </Paper>
+                  </Box>
                 </Box>
-              </Box>
+
+                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+                      gap: 1,
+                    }}
+                  >
+                    <DismantleFact
+                      label={t('Craft cost', 'Cout craft')}
+                      value={formatResourceQuantity(resource.totalScu, resource.quantityUnit, lang)}
+                    />
+                    <DismantleFact
+                      label={t('Recovery', 'Recuperation')}
+                      value={`${Math.round(efficiency * 100)}%`}
+                    />
+                    <DismantleFact
+                      label={t('Quality', 'Qualite')}
+                      value={t('Same as selected', 'Identique a la selection')}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
             );
           })}
         </Box>
       )}
 
-      <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-        {Math.round(efficiency * 100)}% {t('recovery', 'recuperation')} | {t('same selected quality', 'meme qualite selectionnee')} | {dismantleTimeSecs}s {t('per job', 'par job')}
-      </Typography>
+      <Paper
+        variant="outlined"
+        sx={{
+          px: 1.5,
+          py: 1.1,
+          backgroundColor: alpha(theme.palette.background.default, 0.18),
+        }}
+      >
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+        >
+          <Typography variant="subtitle2">
+            {t('Recovery overview', 'Vue recuperation')}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {Math.round(efficiency * 100)}% {t('recovery', 'recuperation')} | {t('same selected quality', 'meme qualite selectionnee')} | {dismantleTimeSecs}s {t('per job', 'par job')}
+          </Typography>
+        </Stack>
+      </Paper>
     </Box>
   );
 }

@@ -57,6 +57,7 @@ export const GoalCard = memo(function GoalCard({
 
   return (
     <Card
+      data-goal-card="true"
       sx={{
         cursor: isDragging ? 'grabbing' : 'pointer',
         borderColor: isActive ? theme.palette.primary.main : theme.palette.ui.border,
@@ -88,7 +89,7 @@ export const GoalCard = memo(function GoalCard({
               {...dragHandleProps}
               onClick={handleStopPropagation}
               onMouseDown={handleStopPropagation}
-              title={t('Drag to reorder', 'Glisser pour reordonner')}
+              title={t('Drag to reorder', 'Glisser pour réordonner')}
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -131,12 +132,12 @@ export const GoalCard = memo(function GoalCard({
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '.65rem' }}>
-            {t('Qty', 'Qte')}
+            {t('Qty', 'Qté')}
           </Typography>
           <IconButton
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
-            aria-label={t('Decrease', 'Reduire')}
+            aria-label={t('Decrease', 'Réduire')}
             sx={{ width: 22, height: 22, fontSize: '.7rem' }}
           >
             −

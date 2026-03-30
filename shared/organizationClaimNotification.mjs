@@ -8,7 +8,8 @@ function normalizeWebhookUrl(env) {
 
 export async function notifyOrganizationClaimRequest(env, claimRequest, { fetchImpl = fetch } = {}) {
   const webhookUrl = normalizeWebhookUrl(env);
-  if (!webhookUrl) {
+  const reviewerEmail = String(claimRequest?.reviewerEmail ?? '').trim();
+  if (!webhookUrl || !reviewerEmail) {
     return false;
   }
 
@@ -29,7 +30,7 @@ export async function notifyOrganizationClaimRequest(env, claimRequest, { fetchI
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      to: claimRequest.reviewerEmail,
+      to: reviewerEmail,
       subject,
       text: lines.join('\n'),
       claimRequest,

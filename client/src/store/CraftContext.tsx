@@ -32,6 +32,8 @@ import type {
   MissionContract,
   MissionRewardsData,
   PlannerResourceRequirements,
+  PlannerTodoItem,
+  PlannerTodoSource,
   RarityFilter,
   ResourceMethod,
   ResourceInsight,
@@ -94,6 +96,7 @@ const DEFAULT_INVENTORY_IDS = [
 ] as const;
 
 const INVENTORY_SEED_VERSION = 1;
+const DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS = 1_200;
 
 type DatasetSelectionsStorage =
   | Partial<Record<DatasetChannel, string>>
@@ -179,6 +182,7 @@ interface CraftState {
   inventoryIds: string[];
   slotAssignments: Record<string, number | undefined>;
   goals: CraftGoal[];
+  plannerTodoItems: PlannerTodoItem[];
   plannerResourceRequirements: PlannerResourceRequirements;
   resourceProgress: Record<string, ResourceProgress>;
   comparisonItems: ComparisonItem[];
@@ -215,6 +219,25 @@ interface CraftState {
     qualityScore: number,
     projectedStats: ItemStats,
   ) => void;
+  addPlannerTodoItem: (item: {
+    title: string;
+    description?: string | null;
+    source?: PlannerTodoSource;
+    relatedBlueprintId?: string | null;
+    relatedBlueprintName?: string | null;
+  }) => void;
+  updatePlannerTodoItem: (
+    todoId: string,
+    updates: {
+      title?: string;
+      description?: string | null;
+      relatedBlueprintId?: string | null;
+      relatedBlueprintName?: string | null;
+    },
+  ) => void;
+  togglePlannerTodoItem: (todoId: string) => void;
+  removePlannerTodoItem: (todoId: string) => void;
+  clearCompletedPlannerTodoItems: () => void;
   selectGoalBlueprint: (goalId: string) => void;
   addPlannerResourceRequirement: (
     resourceName: string,
@@ -397,6 +420,53 @@ function normalizePlannerResourceRequirements(
   );
 }
 
+function normalizePlannerTodoSource(value: unknown): PlannerTodoSource {
+  return String(value ?? '').trim().toLowerCase() === 'mission-blueprint'
+    ? 'mission-blueprint'
+    : 'manual';
+}
+
+function normalizePlannerTodoItems(items: PlannerTodoItem[] | null | undefined): PlannerTodoItem[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const byId = new Map<string, PlannerTodoItem>();
+  for (const item of items) {
+    const id = String(item?.id ?? '').trim();
+    const title = String(item?.title ?? '').trim();
+    if (!id || !title) {
+      continue;
+    }
+
+    const createdAt = Number(item.createdAt);
+    const completedAt = item.completedAt == null ? null : Number(item.completedAt);
+    byId.set(id, {
+      id,
+      title,
+      description: item.description ? String(item.description) : null,
+      source: normalizePlannerTodoSource(item.source),
+      relatedBlueprintId: item.relatedBlueprintId ? String(item.relatedBlueprintId) : null,
+      relatedBlueprintName: item.relatedBlueprintName ? String(item.relatedBlueprintName) : null,
+      completed: Boolean(item.completed),
+      createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+      completedAt: Number.isFinite(completedAt) ? completedAt : null,
+    });
+  }
+
+  return Array.from(byId.values()).sort((left, right) => {
+    if (left.completed !== right.completed) {
+      return left.completed ? 1 : -1;
+    }
+
+    return right.createdAt - left.createdAt;
+  });
+}
+
+function createPlannerTodoId() {
+  return `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function replaceBlueprintInList(
   blueprints: Blueprint[],
   nextBlueprint: Blueprint,
@@ -517,6 +587,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const materialSources = activeDataset.materialSources ?? null;
 
   const [rawGoals, setLocalGoals] = useLocalPersist<CraftGoal[]>(LS_KEYS.GOALS, []);
+  const [rawPlannerTodoItems, setLocalPlannerTodoItems] = useLocalPersist<PlannerTodoItem[]>(
+    LS_KEYS.PLANNER_TODO_ITEMS,
+    [],
+  );
   const [rawPlannerResourceRequirements, setLocalPlannerResourceRequirements] = useLocalPersist<PlannerResourceRequirementsStorage>(
     LS_KEYS.PLANNER_RESOURCE_REQUIREMENTS,
     {},
@@ -545,6 +619,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     () => normalizePlannerResourceRequirements(rawPlannerResourceRequirements),
     [rawPlannerResourceRequirements],
   );
+  const localPlannerTodoItems = useMemo(
+    () => normalizePlannerTodoItems(rawPlannerTodoItems),
+    [rawPlannerTodoItems],
+  );
   const [localFavoriteIds, setLocalFavoriteIds] = useLocalPersist<string[]>(LS_KEYS.FAVORITES, []);
   const [localInventoryIds, setLocalInventoryIds] = useLocalPersist<string[]>(
     LS_KEYS.INVENTORY,
@@ -569,6 +647,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   }, [account, inventorySeedVersion, setInventorySeedVersion, setLocalInventoryIds]);
 
   const goals = account?.planner.goals ?? localGoals;
+  const plannerTodoItems = account?.planner.todoItems ?? localPlannerTodoItems;
   const plannerResourceRequirements =
     account?.planner.resourceRequirements ?? localPlannerResourceRequirements;
   const resourceProgress = account?.planner.resourceProgress ?? rawResourceProgress;
@@ -585,6 +664,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         inventoryBlueprintIds: string[];
         planner: {
           goals: CraftGoal[];
+          todoItems: PlannerTodoItem[];
           resourceRequirements: PlannerResourceRequirements;
           resourceProgress: Record<string, ResourceProgress>;
         };
@@ -593,9 +673,13 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         inventoryBlueprintIds: string[];
         planner: {
           goals: CraftGoal[];
+          todoItems: PlannerTodoItem[];
           resourceRequirements: PlannerResourceRequirements;
           resourceProgress: Record<string, ResourceProgress>;
         };
+      },
+      options?: {
+        flushAfterMs?: number;
       },
     ) => {
       if (!account) {
@@ -607,6 +691,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         inventoryBlueprintIds: [...account.inventoryBlueprintIds],
         planner: {
           goals: [...account.planner.goals],
+          todoItems: [...(account.planner.todoItems ?? [])],
           resourceRequirements: { ...account.planner.resourceRequirements },
           resourceProgress: { ...account.planner.resourceProgress },
         },
@@ -617,10 +702,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         inventoryBlueprintIds: [...new Set(nextSnapshot.inventoryBlueprintIds)],
         planner: {
           goals: nextSnapshot.planner.goals,
+          todoItems: normalizePlannerTodoItems(nextSnapshot.planner.todoItems),
           resourceRequirements: nextSnapshot.planner.resourceRequirements,
           resourceProgress: nextSnapshot.planner.resourceProgress,
         },
-      });
+      }, options);
     },
     [account, syncAccountState],
   );
@@ -1268,7 +1354,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
               },
             },
           },
-        }));
+        }), { flushAfterMs: DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS });
         return;
       }
 
@@ -1295,7 +1381,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
               },
             },
           },
-        }));
+        }), { flushAfterMs: DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS });
         return;
       }
 
@@ -1351,7 +1437,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
               },
             },
           },
-        }));
+        }), { flushAfterMs: DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS });
         return;
       }
 
@@ -1518,7 +1604,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
             goal.id === goalId ? { ...goal, quantity } : goal,
           ),
         },
-      }));
+      }), { flushAfterMs: DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS });
       return;
     }
 
@@ -1543,7 +1629,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
                 : goal,
             ),
           },
-        }));
+        }), { flushAfterMs: DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS });
         return;
       }
 
@@ -1557,6 +1643,183 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     },
     [account, setLocalGoals, syncAuthenticatedAccountSnapshot],
   );
+
+  const addPlannerTodoItem = useCallback(
+    ({
+      title,
+      description = null,
+      source = 'manual',
+      relatedBlueprintId = null,
+      relatedBlueprintName = null,
+    }: {
+      title: string;
+      description?: string | null;
+      source?: PlannerTodoSource;
+      relatedBlueprintId?: string | null;
+      relatedBlueprintName?: string | null;
+    }) => {
+      const normalizedTitle = String(title ?? '').trim();
+      if (!normalizedTitle) {
+        return;
+      }
+
+      const todoItem: PlannerTodoItem = {
+        id: createPlannerTodoId(),
+        title: normalizedTitle,
+        description: description ? String(description).trim() || null : null,
+        source: normalizePlannerTodoSource(source),
+        relatedBlueprintId: relatedBlueprintId ? String(relatedBlueprintId) : null,
+        relatedBlueprintName: relatedBlueprintName ? String(relatedBlueprintName) : null,
+        completed: false,
+        createdAt: Date.now(),
+        completedAt: null,
+      };
+
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            todoItems: normalizePlannerTodoItems([todoItem, ...snapshot.planner.todoItems]),
+          },
+        }));
+        return;
+      }
+
+      setLocalPlannerTodoItems((prev) => normalizePlannerTodoItems([todoItem, ...prev]));
+    },
+    [account, setLocalPlannerTodoItems, syncAuthenticatedAccountSnapshot],
+  );
+
+  const updatePlannerTodoItem = useCallback(
+    (
+      todoId: string,
+      updates: {
+        title?: string;
+        description?: string | null;
+        relatedBlueprintId?: string | null;
+        relatedBlueprintName?: string | null;
+      },
+    ) => {
+      const applyUpdates = (items: PlannerTodoItem[]) =>
+        normalizePlannerTodoItems(
+          items.map((item) => {
+            if (item.id !== todoId) {
+              return item;
+            }
+
+            const nextTitle =
+              updates.title == null ? item.title : String(updates.title).trim() || item.title;
+            return {
+              ...item,
+              title: nextTitle,
+              description:
+                updates.description === undefined
+                  ? item.description
+                  : updates.description
+                    ? String(updates.description).trim() || null
+                    : null,
+              relatedBlueprintId:
+                updates.relatedBlueprintId === undefined
+                  ? item.relatedBlueprintId
+                  : updates.relatedBlueprintId
+                    ? String(updates.relatedBlueprintId)
+                    : null,
+              relatedBlueprintName:
+                updates.relatedBlueprintName === undefined
+                  ? item.relatedBlueprintName
+                  : updates.relatedBlueprintName
+                    ? String(updates.relatedBlueprintName)
+                    : null,
+            };
+          }),
+        );
+
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            todoItems: applyUpdates(snapshot.planner.todoItems),
+          },
+        }), { flushAfterMs: DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS });
+        return;
+      }
+
+      setLocalPlannerTodoItems((prev) => applyUpdates(prev));
+    },
+    [account, setLocalPlannerTodoItems, syncAuthenticatedAccountSnapshot],
+  );
+
+  const togglePlannerTodoItem = useCallback(
+    (todoId: string) => {
+      const applyToggle = (items: PlannerTodoItem[]) =>
+        normalizePlannerTodoItems(
+          items.map((item) =>
+            item.id === todoId
+              ? {
+                  ...item,
+                  completed: !item.completed,
+                  completedAt: item.completed ? null : Date.now(),
+                }
+              : item,
+          ),
+        );
+
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            todoItems: applyToggle(snapshot.planner.todoItems),
+          },
+        }));
+        return;
+      }
+
+      setLocalPlannerTodoItems((prev) => applyToggle(prev));
+    },
+    [account, setLocalPlannerTodoItems, syncAuthenticatedAccountSnapshot],
+  );
+
+  const removePlannerTodoItem = useCallback(
+    (todoId: string) => {
+      const applyRemoval = (items: PlannerTodoItem[]) =>
+        normalizePlannerTodoItems(items.filter((item) => item.id !== todoId));
+
+      if (account) {
+        void syncAuthenticatedAccountSnapshot((snapshot) => ({
+          ...snapshot,
+          planner: {
+            ...snapshot.planner,
+            todoItems: applyRemoval(snapshot.planner.todoItems),
+          },
+        }));
+        return;
+      }
+
+      setLocalPlannerTodoItems((prev) => applyRemoval(prev));
+    },
+    [account, setLocalPlannerTodoItems, syncAuthenticatedAccountSnapshot],
+  );
+
+  const clearCompletedPlannerTodoItems = useCallback(() => {
+    const applyClear = (items: PlannerTodoItem[]) =>
+      normalizePlannerTodoItems(items.filter((item) => !item.completed));
+
+    if (account) {
+      void syncAuthenticatedAccountSnapshot((snapshot) => ({
+        ...snapshot,
+        planner: {
+          ...snapshot.planner,
+          todoItems: applyClear(snapshot.planner.todoItems),
+        },
+      }));
+      return;
+    }
+
+    setLocalPlannerTodoItems((prev) => applyClear(prev));
+  }, [account, setLocalPlannerTodoItems, syncAuthenticatedAccountSnapshot]);
 
   const selectGoalBlueprint = useCallback(
     (goalId: string) => {
@@ -1701,6 +1964,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         inventoryIds,
         slotAssignments,
         goals,
+        plannerTodoItems,
         plannerResourceRequirements,
         resourceProgress,
         comparisonItems,
@@ -1729,6 +1993,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         removeGoal,
         updateGoalQuantity,
         updateGoal,
+        addPlannerTodoItem,
+        updatePlannerTodoItem,
+        togglePlannerTodoItem,
+        removePlannerTodoItem,
+        clearCompletedPlannerTodoItems,
         selectGoalBlueprint,
         addPlannerResourceRequirement,
         clearPlannerResourceRequirement,

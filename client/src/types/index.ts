@@ -10,6 +10,7 @@ export const LS_KEYS = {
   PLANNER_GOAL_ORDER: 'sc-craft-planner-goal-order',
   PLANNER_RESOURCE_REQUIREMENTS: 'sc-craft-planner-resource-requirements',
   PLANNER_RESOURCE_ORDER: 'sc-craft-planner-resource-order',
+  PLANNER_TODO_ITEMS: 'sc-craft-planner-todo-items',
   FAVORITES: 'sc-craft-favorites',
   LANG: 'sc-craft-lang',
   THEME: 'sc-craft-theme',
@@ -983,6 +984,20 @@ export interface CraftGoal {
   qualityScore: number;
   projectedStats: ItemStats;
   createdAt: number;
+}
+
+export type PlannerTodoSource = 'manual' | 'mission-blueprint';
+
+export interface PlannerTodoItem {
+  id: string;
+  title: string;
+  description: string | null;
+  source: PlannerTodoSource;
+  relatedBlueprintId: string | null;
+  relatedBlueprintName: string | null;
+  completed: boolean;
+  createdAt: number;
+  completedAt: number | null;
 }
 
 export const COMPARISON_COLORS = ['#3b82f6', '#c084fc', '#34d399', '#fbbf24'] as const;

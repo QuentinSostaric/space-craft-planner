@@ -40,6 +40,28 @@ function normalizeStorageScope(value) {
   return input === 'dev' ? 'dev' : 'prod';
 }
 
+function normalizeCraftRequestComment(value) {
+  const comment = normalizeText(value);
+  if (!comment) {
+    return null;
+  }
+  return comment.slice(0, 1000);
+}
+
+function normalizeCraftRequestResourcesOption(value) {
+  const option = normalizeText(value).toLowerCase();
+  if (option === 'has-resources' || option === 'hasresources') {
+    return 'has_resources';
+  }
+  if (option === 'buy-resources' || option === 'buyresources') {
+    return 'buy_resources';
+  }
+  if (option === 'has_resources' || option === 'buy_resources') {
+    return option;
+  }
+  return 'unspecified';
+}
+
 function normalizeOrganizationSid(value) {
   const input = normalizeText(value);
   if (!input) {
@@ -52,8 +74,18 @@ function normalizeOrganizationSid(value) {
 }
 
 function createCraftRequestId() {
-  const randomPart = Math.random().toString(36).slice(2, 10);
-  return `craftreq_${Date.now().toString(36)}_${randomPart}`;
+  if (typeof crypto?.randomUUID === 'function') {
+    return `craftreq_${crypto.randomUUID()}`;
+  }
+
+  if (typeof crypto?.getRandomValues === 'function') {
+    const randomBytes = new Uint8Array(16);
+    crypto.getRandomValues(randomBytes);
+    const randomPart = Array.from(randomBytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    return `craftreq_${randomPart}`;
+  }
+
+  throw new CraftRequestServiceError(500, 'Secure random identifiers are unavailable in this runtime.');
 }
 
 function getProfileDisplayName(account) {
@@ -111,6 +143,90 @@ function updateRequestCollection(requests, requestId, updater) {
   );
 }
 
+async function writeMirroredCraftRequestAccounts(
+  store,
+  {
+    ownerPreviousAccount,
+    ownerNextAccount,
+    requesterNextAccount,
+  },
+) {
+  let savedOwnerAccount = null;
+
+  try {
+    savedOwnerAccount = await writeAccountRecord(store, ownerNextAccount);
+    const savedRequesterAccount = await writeAccountRecord(store, requesterNextAccount);
+
+    return {
+      ownerAccount: savedOwnerAccount,
+      requesterAccount: savedRequesterAccount,
+    };
+  } catch (error) {
+    if (savedOwnerAccount) {
+      try {
+        await writeAccountRecord(store, ownerPreviousAccount);
+      } catch (rollbackError) {
+        console.error(
+          '[craft-requests] failed to rollback owner account after mirrored write failure',
+          rollbackError,
+        );
+      }
+    }
+
+    throw new CraftRequestServiceError(
+      503,
+      'Craft request persistence failed. Please retry.',
+    );
+  }
+}
+
+async function updateCraftRequestRecords(store, ownerAccount, requesterAccount, requestId, updater) {
+  const normalizedRequestId = normalizeText(requestId);
+  const ownerRequest =
+    (ownerAccount?.incomingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
+    null;
+  if (!ownerRequest) {
+    throw new CraftRequestServiceError(404, 'Craft request not found.');
+  }
+
+  const nextRequest = updater(ownerRequest);
+  const nextOwnerAccount = {
+    ...ownerAccount,
+    incomingCraftRequests: updateRequestCollection(
+      ownerAccount.incomingCraftRequests,
+      normalizedRequestId,
+      () => nextRequest,
+    ),
+  };
+  const nextRequesterAccount = {
+    ...requesterAccount,
+    outgoingCraftRequests: updateRequestCollection(
+      requesterAccount.outgoingCraftRequests,
+      normalizedRequestId,
+      () => nextRequest,
+    ),
+  };
+
+  const {
+    ownerAccount: savedOwnerAccount,
+    requesterAccount: savedRequesterAccount,
+  } = await writeMirroredCraftRequestAccounts(store, {
+    ownerPreviousAccount: ownerAccount,
+    ownerNextAccount: nextOwnerAccount,
+    requesterNextAccount: nextRequesterAccount,
+  });
+  const savedRequest =
+    (savedOwnerAccount.incomingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
+    (savedRequesterAccount.outgoingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
+    nextRequest;
+
+  return {
+    request: savedRequest,
+    ownerAccount: savedOwnerAccount,
+    requesterAccount: savedRequesterAccount,
+  };
+}
+
 export class CraftRequestServiceError extends Error {
   constructor(status, message) {
     super(message);
@@ -127,6 +243,8 @@ export async function createOrganizationCraftRequest(
     blueprintId,
     ownerHandle,
     blueprintName = null,
+    comment = null,
+    resourcesOption = 'unspecified',
     appBaseUrl = null,
     storageScope = 'prod',
   } = {},
@@ -134,6 +252,8 @@ export async function createOrganizationCraftRequest(
   const normalizedSid = normalizeOrganizationSid(organizationSid);
   const normalizedBlueprintId = normalizeText(blueprintId);
   const normalizedOwnerHandle = normalizeText(ownerHandle);
+  const normalizedComment = normalizeCraftRequestComment(comment);
+  const normalizedResourcesOption = normalizeCraftRequestResourcesOption(resourcesOption);
   if (!normalizedSid) {
     throw new CraftRequestServiceError(400, 'Organization SID is required.');
   }
@@ -157,6 +277,18 @@ export async function createOrganizationCraftRequest(
   }
 
   const organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  if (organizationRecord?.deletedAt) {
+    throw new CraftRequestServiceError(
+      410,
+      'This organization was removed from the app.',
+    );
+  }
+  if (organizationRecord && organizationRecord.blueprintSharingEnabled === false) {
+    throw new CraftRequestServiceError(
+      403,
+      'Blueprint sharing is currently disabled for this organization.',
+    );
+  }
   const requesterMember = findMemberByHandle(
     organizationRecord?.memberSnapshot,
     requesterAccount.rsi.handle,
@@ -247,7 +379,12 @@ export async function createOrganizationCraftRequest(
     ownerAccountId,
     ownerDisplayName: getProfileDisplayName(ownerAccount),
     ownerAvatarUrl: ownerAccount.profile?.avatarUrl ?? null,
-    ownerRsiHandle: ownerAccount.rsi?.handle ?? ownerMember.handle,
+    ownerRsiHandle:
+      ownerAccount.rsi?.handle ??
+      ownerMember?.handle ??
+      normalizedOwnerHandle,
+    comment: normalizedComment,
+    resourcesOption: normalizedResourcesOption,
     status: 'pending',
     createdAt: now,
     updatedAt: now,
@@ -265,8 +402,14 @@ export async function createOrganizationCraftRequest(
     updatedAt: now,
   };
 
-  const savedRequesterAccount = await writeAccountRecord(store, nextRequesterAccount);
-  const savedOwnerAccount = await writeAccountRecord(store, nextOwnerAccount);
+  const {
+    ownerAccount: savedOwnerAccount,
+    requesterAccount: savedRequesterAccount,
+  } = await writeMirroredCraftRequestAccounts(store, {
+    ownerPreviousAccount: ownerAccount,
+    ownerNextAccount: nextOwnerAccount,
+    requesterNextAccount: nextRequesterAccount,
+  });
 
   return {
     request,
@@ -353,39 +496,145 @@ export async function respondToCraftRequest(
         ? now
         : request.respondedAt,
   });
-
-  const nextOwnerAccount = {
-    ...ownerAccount,
-    incomingCraftRequests: updateRequestCollection(
-      ownerAccount.incomingCraftRequests,
-      normalizedRequestId,
-      applyDecision,
-    ),
-    updatedAt: now,
-  };
-  const nextRequesterAccount = {
-    ...requesterAccount,
-    outgoingCraftRequests: updateRequestCollection(
-      requesterAccount.outgoingCraftRequests,
-      normalizedRequestId,
-      applyDecision,
-    ),
-    updatedAt: now,
-  };
-
-  const savedOwnerAccount = await writeAccountRecord(store, nextOwnerAccount);
-  const savedRequesterAccount = await writeAccountRecord(store, nextRequesterAccount);
-  const updatedRequest =
-    (savedOwnerAccount.incomingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
-    (savedRequesterAccount.outgoingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
-    applyDecision(existingRequest);
+  const updated = await updateCraftRequestRecords(
+    store,
+    {
+      ...ownerAccount,
+      updatedAt: now,
+    },
+    {
+      ...requesterAccount,
+      updatedAt: now,
+    },
+    normalizedRequestId,
+    applyDecision,
+  );
 
   return {
-    account: isOwner ? savedOwnerAccount : savedRequesterAccount,
+    account: isOwner ? updated.ownerAccount : updated.requesterAccount,
     requestId: normalizedRequestId,
     status: normalizedDecision,
-    request: updatedRequest,
-    ownerAccount: savedOwnerAccount,
-    requesterAccount: savedRequesterAccount,
+    request: updated.request,
+    ownerAccount: updated.ownerAccount,
+    requesterAccount: updated.requesterAccount,
   };
+}
+
+export async function respondToCraftRequestsBulk(
+  store,
+  actingAccount,
+  actions,
+) {
+  if (!Array.isArray(actions) || actions.length === 0) {
+    throw new CraftRequestServiceError(400, 'At least one craft request action is required.');
+  }
+
+  let currentActingAccount = actingAccount;
+  const results = [];
+
+  for (const rawAction of actions) {
+    const requestId = normalizeText(rawAction?.requestId);
+    const decision = normalizeComparableText(rawAction?.decision);
+
+    if (!requestId || !decision) {
+      results.push({
+        requestId,
+        ok: false,
+        error: 'Craft request action is incomplete.',
+        errorStatus: 400,
+      });
+      continue;
+    }
+
+    try {
+      const result = await respondToCraftRequest(
+        store,
+        currentActingAccount,
+        requestId,
+        decision,
+      );
+      currentActingAccount = result.account;
+      results.push({
+        requestId,
+        ok: true,
+        status: result.status,
+        request: result.request,
+        ownerAccount: result.ownerAccount,
+        requesterAccount: result.requesterAccount,
+      });
+    } catch (error) {
+      results.push({
+        requestId,
+        ok: false,
+        error:
+          error instanceof Error && error.message
+            ? error.message
+            : 'Craft request update failed.',
+        errorStatus:
+          error instanceof CraftRequestServiceError && Number.isFinite(error.status)
+            ? error.status
+            : 500,
+      });
+    }
+  }
+
+  return {
+    account: currentActingAccount,
+    results,
+  };
+}
+
+export async function saveCraftRequestNotificationState(
+  store,
+  ownerAccountId,
+  requestId,
+  {
+    ownerDiscordChannelId,
+    ownerDiscordMessageId,
+    contactInitiatedAt,
+  } = {},
+) {
+  const normalizedOwnerAccountId = normalizeText(ownerAccountId);
+  const normalizedRequestId = normalizeText(requestId);
+  if (!normalizedOwnerAccountId || !normalizedRequestId) {
+    throw new CraftRequestServiceError(400, 'Craft request identifiers are required.');
+  }
+
+  const ownerAccount = await readAccountRecord(store, normalizedOwnerAccountId);
+  if (!ownerAccount) {
+    throw new CraftRequestServiceError(404, 'The owner account could not be loaded.');
+  }
+
+  const existingRequest =
+    (ownerAccount.incomingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
+    null;
+  if (!existingRequest) {
+    throw new CraftRequestServiceError(404, 'Craft request not found.');
+  }
+
+  const requesterAccount = await readAccountRecord(store, existingRequest.requesterAccountId);
+  if (!requesterAccount) {
+    throw new CraftRequestServiceError(404, 'The requester account could not be loaded.');
+  }
+
+  const updatedAt = normalizeText(contactInitiatedAt)
+    ? normalizeText(contactInitiatedAt)
+    : existingRequest.updatedAt;
+
+  return updateCraftRequestRecords(
+    store,
+    ownerAccount,
+    requesterAccount,
+    normalizedRequestId,
+    (request) => ({
+      ...request,
+      ownerDiscordChannelId:
+        ownerDiscordChannelId === undefined ? request.ownerDiscordChannelId ?? null : normalizeText(ownerDiscordChannelId) || null,
+      ownerDiscordMessageId:
+        ownerDiscordMessageId === undefined ? request.ownerDiscordMessageId ?? null : normalizeText(ownerDiscordMessageId) || null,
+      contactInitiatedAt:
+        contactInitiatedAt === undefined ? request.contactInitiatedAt ?? null : normalizeText(contactInitiatedAt) || null,
+      updatedAt,
+    }),
+  );
 }

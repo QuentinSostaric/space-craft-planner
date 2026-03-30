@@ -38,9 +38,11 @@ import {
   addAccountOrganizationBySid,
   buildOrganizationSharedBlueprints,
   claimAccountOrganization,
+  deleteOwnedOrganizationFromApp,
   OrganizationServiceError,
   refreshAccountOrganizationMembers,
   removeAccountOrganizationBySid,
+  setOwnedOrganizationBlueprintSharingEnabled,
   syncAndDecorateAccountOrganizations,
 } from '../shared/organizationService.mjs';
 import { notifyOrganizationClaimRequest } from '../shared/organizationClaimNotification.mjs';
@@ -48,15 +50,22 @@ import {
   createOrganizationCraftRequest,
   CraftRequestServiceError,
   respondToCraftRequest,
+  respondToCraftRequestsBulk,
 } from '../shared/craftRequestService.mjs';
 import {
   notifyCraftRequestOwnerViaWorker,
   resolveAppBaseUrlFromRequest,
   resolveCraftRequestStorageScope,
+  syncCraftRequestStatusViaWorker,
 } from '../shared/discordBotRelay.mjs';
 import { verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
 
 const PORT = 8788;
+const DEV_ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
+const MAX_JSON_BODY_BYTES = 1024 * 1024;
 
 function loadDevVars() {
   const envPath = resolve('.dev.vars');
@@ -80,10 +89,25 @@ function loadDevVars() {
   }
 }
 
+function getAllowedOrigin(request) {
+  const origin = String(request?.headers?.origin ?? '').trim();
+  return DEV_ALLOWED_ORIGINS.has(origin) ? origin : null;
+}
+
+function applyCorsHeaders(response, request) {
+  const allowedOrigin = getAllowedOrigin(request);
+  if (!allowedOrigin) {
+    return;
+  }
+
+  response.setHeader('access-control-allow-origin', allowedOrigin);
+  response.setHeader('access-control-allow-credentials', 'true');
+  response.setHeader('vary', 'origin');
+}
+
 function sendJson(response, status, payload, headers = {}) {
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
-    'access-control-allow-origin': '*',
     ...headers,
   });
   response.end(JSON.stringify(payload));
@@ -104,7 +128,12 @@ function sendRedirect(response, location, headers = {}) {
 
 async function readJsonBody(request) {
   const chunks = [];
+  let totalBytes = 0;
   for await (const chunk of request) {
+    totalBytes += Buffer.byteLength(chunk);
+    if (totalBytes > MAX_JSON_BODY_BYTES) {
+      throw new Error('Request body too large.');
+    }
     chunks.push(chunk);
   }
 
@@ -128,6 +157,15 @@ const accountStore = createS3AccountStore(client, r2Config.bucketName);
 
 function getStarCitizenApiKey() {
   return String(process.env.STARCITIZEN_API_KEY ?? '').trim();
+}
+
+function getOrganizationClaimReviewerEmail() {
+  const reviewerEmail = String(process.env.ORGANIZATION_CLAIM_REVIEWER_EMAIL ?? '').trim();
+  return reviewerEmail || null;
+}
+
+function logBackgroundTaskError(label, error) {
+  console.error(`[${label}]`, error);
 }
 
 async function buildDecoratedAccount(account) {
@@ -671,6 +709,76 @@ async function handleAccountOrganizationDelete(request, response, sid) {
   }
 }
 
+async function handleOrganizationDelete(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const nextAccount = await deleteOwnedOrganizationFromApp(accountStore, account, sid);
+    sendJson(
+      response,
+      200,
+      { account: nextAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to delete the organization.');
+  }
+}
+
+async function handleOrganizationSharingUpdate(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const nextAccount = await setOwnedOrganizationBlueprintSharingEnabled(
+      accountStore,
+      account,
+      sid,
+      payload?.enabled,
+    );
+    sendJson(
+      response,
+      200,
+      { account: nextAccount },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to update organization blueprint sharing.');
+  }
+}
+
 async function handleOrganizationClaim(request, response, sid) {
   const session = await requireAuthenticatedSession(request);
   if (!session) {
@@ -682,10 +790,13 @@ async function handleOrganizationClaim(request, response, sid) {
 
   try {
     const account = await ensureAccountForSession(session);
-    const nextAccount = await claimAccountOrganization(accountStore, account, sid);
+    const reviewerEmail = getOrganizationClaimReviewerEmail();
+    const nextAccount = await claimAccountOrganization(accountStore, account, sid, {
+      reviewerEmail,
+    });
     const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
     const notificationPromise =
-      claimRequest?.claimRequestStatus === 'pending'
+      claimRequest?.claimRequestStatus === 'pending' && reviewerEmail
         ? notifyOrganizationClaimRequest(process.env, {
             sid: claimRequest.sid,
             organizationName: claimRequest.name,
@@ -693,9 +804,9 @@ async function handleOrganizationClaim(request, response, sid) {
             requestedByDiscordDisplayName: nextAccount.profile.displayName,
             requestedByDiscordUsername: nextAccount.profile.username,
             requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
-            reviewerEmail: 'thsamon@proton.me',
+            reviewerEmail,
             submittedAt: claimRequest.claimRequestSubmittedAt,
-          }).catch(() => {})
+          }).catch((error) => logBackgroundTaskError('organization-claim-review-notify', error))
         : null;
     sendJson(
       response,
@@ -801,6 +912,8 @@ async function handleOrganizationCraftRequestCreate(request, response, sid) {
       blueprintId: payload?.blueprintId,
       blueprintName: payload?.blueprintName,
       ownerHandle: payload?.ownerHandle,
+      comment: payload?.comment,
+      resourcesOption: payload?.resourcesOption,
       appBaseUrl: resolveAppBaseUrlFromRequest(request, process.env),
       storageScope: resolveCraftRequestStorageScope(request, process.env),
     });
@@ -809,7 +922,7 @@ async function handleOrganizationCraftRequestCreate(request, response, sid) {
       result.request,
       result.ownerAccount,
       result.requesterAccount,
-    ).catch(() => {});
+    ).catch((error) => logBackgroundTaskError('craft-request-owner-notify', error));
     const decoratedAccount = await buildDecoratedAccount(result.account);
     sendJson(
       response,
@@ -860,6 +973,12 @@ async function handleCraftRequestDecision(request, response, requestId) {
       requestId,
       payload?.decision,
     );
+    const notificationPromise = syncCraftRequestStatusViaWorker(
+      process.env,
+      result.request,
+      result.ownerAccount,
+      result.requesterAccount,
+    ).catch((error) => logBackgroundTaskError('craft-request-status-sync', error));
     const decoratedAccount = await buildDecoratedAccount(result.account);
     sendJson(
       response,
@@ -873,8 +992,76 @@ async function handleCraftRequestDecision(request, response, requestId) {
         'Cache-Control': 'no-store',
       },
     );
+    await notificationPromise;
   } catch (error) {
     sendCraftRequestError(response, error, 'Failed to answer the craft request.');
+  }
+}
+
+async function handleCraftRequestBulkDecision(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const result = await respondToCraftRequestsBulk(
+      accountStore,
+      account,
+      payload?.actions,
+    );
+
+    const notificationPromises = result.results
+      .filter((entry) => entry.ok && entry.request && entry.ownerAccount && entry.requesterAccount)
+      .map((entry) =>
+        syncCraftRequestStatusViaWorker(
+          process.env,
+          entry.request,
+          entry.ownerAccount,
+          entry.requesterAccount,
+        ).catch((error) => logBackgroundTaskError('craft-request-bulk-status-sync', error)),
+      );
+
+    const decoratedAccount = await buildDecoratedAccount(result.account);
+    sendJson(
+      response,
+      200,
+      {
+        account: decoratedAccount,
+        results: result.results.map((entry) => ({
+          requestId: entry.requestId,
+          ok: entry.ok,
+          status: entry.status ?? null,
+          error: entry.error ?? null,
+          errorStatus: entry.errorStatus ?? null,
+        })),
+      },
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    await Promise.all(notificationPromises);
+  } catch (error) {
+    sendCraftRequestError(response, error, 'Failed to answer the craft requests.');
   }
 }
 
@@ -912,9 +1099,18 @@ const server = http.createServer(async (request, response) => {
   const path = url.pathname.replace(/\/+$/, '') || '/';
 
   try {
+    applyCorsHeaders(response, request);
+
     if (request.method === 'OPTIONS') {
+      const allowedOrigin = getAllowedOrigin(request);
       response.writeHead(204, {
-        'access-control-allow-origin': '*',
+        ...(allowedOrigin
+          ? {
+              'access-control-allow-origin': allowedOrigin,
+              'access-control-allow-credentials': 'true',
+              vary: 'origin',
+            }
+          : {}),
         'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'access-control-allow-headers': 'content-type',
       });
@@ -997,12 +1193,32 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    const organizationSharingMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/sharing$/);
+    if (request.method === 'PUT' && organizationSharingMatch) {
+      await handleOrganizationSharingUpdate(
+        request,
+        response,
+        decodeURIComponent(organizationSharingMatch[1]),
+      );
+      return;
+    }
+
     const organizationRefreshMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/refresh$/);
     if (request.method === 'POST' && organizationRefreshMatch) {
       await handleOrganizationRefresh(
         request,
         response,
         decodeURIComponent(organizationRefreshMatch[1]),
+      );
+      return;
+    }
+
+    const organizationDeleteMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)$/);
+    if (request.method === 'DELETE' && organizationDeleteMatch) {
+      await handleOrganizationDelete(
+        request,
+        response,
+        decodeURIComponent(organizationDeleteMatch[1]),
       );
       return;
     }
@@ -1028,6 +1244,11 @@ const server = http.createServer(async (request, response) => {
         response,
         decodeURIComponent(organizationCraftRequestsMatch[1]),
       );
+      return;
+    }
+
+    if (request.method === 'POST' && path === '/api/auth/craft-requests/bulk') {
+      await handleCraftRequestBulkDecision(request, response);
       return;
     }
 
