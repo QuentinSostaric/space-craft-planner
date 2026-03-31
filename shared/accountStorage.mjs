@@ -506,7 +506,10 @@ function normalizeOrganizationBlueprintShares(
     }
   }
 
-  if (Object.keys(normalizedShares).length === 0 && knownOrganizationSids.size > 0) {
+  // Only migrate legacy sharedBlueprintIds when organizationBlueprintShares has
+  // never been set (null/undefined). An empty object means the user explicitly
+  // cleared all shares — do not re-populate from legacy data.
+  if (!isObject(value) && Object.keys(normalizedShares).length === 0 && knownOrganizationSids.size > 0) {
     const migratedBlueprintIds = clipSharedBlueprintIdsToInventory(
       legacySharedBlueprintIds,
       inventoryBlueprintIds,
@@ -534,12 +537,15 @@ function deriveSharedBlueprintIdsFromOrganizationShares(
   organizationBlueprintShares,
   legacySharedBlueprintIds = [],
 ) {
-  const derivedSharedBlueprintIds = normalizeStringArray(
-    Object.values(organizationBlueprintShares ?? {}).flat(),
-  );
-  return derivedSharedBlueprintIds.length > 0
-    ? derivedSharedBlueprintIds
-    : normalizeStringArray(legacySharedBlueprintIds);
+  // Once per-organization shares exist (even if empty), they are the source of
+  // truth. Only fall back to legacy ids when the shares map is null/undefined
+  // (pre-migration account).
+  if (isObject(organizationBlueprintShares)) {
+    return normalizeStringArray(
+      Object.values(organizationBlueprintShares).flat(),
+    );
+  }
+  return normalizeStringArray(legacySharedBlueprintIds);
 }
 
 function getOrganizationShareSids(organizationBlueprintShares) {
