@@ -43,6 +43,8 @@ import type {
 } from '../types';
 import type { GameIconName } from './ui/GameIcon';
 
+const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
+
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon':    'weapons',
   'fps-magazine':  'ammos',
@@ -612,6 +614,19 @@ export function BlueprintGrid() {
   const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const inventoryIdSet = useMemo(() => new Set(inventoryIds), [inventoryIds]);
+
+  // Stabilized sets for the filteredBlueprints memo: only change when the
+  // corresponding library segment is active, preventing a full grid reset
+  // (and scroll position loss) when toggling a favorite/inventory item while
+  // viewing a different segment.
+  const filterFavoriteIdSet = useMemo(
+    () => (librarySegment === 'favorites' ? favoriteIdSet : EMPTY_ID_SET),
+    [librarySegment, favoriteIdSet],
+  );
+  const filterInventoryIdSet = useMemo(
+    () => (librarySegment === 'inventory' ? inventoryIdSet : EMPTY_ID_SET),
+    [librarySegment, inventoryIdSet],
+  );
   const acquisitionByBlueprintId = useMemo(() => {
     const map = new Map<string, AcquisitionGraphEntry>();
     for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
@@ -665,9 +680,9 @@ export function BlueprintGrid() {
 
     // Library Segment
     if (librarySegment === 'inventory') {
-      list = list.filter((bp) => inventoryIdSet.has(bp.id));
+      list = list.filter((bp) => filterInventoryIdSet.has(bp.id));
     } else if (librarySegment === 'favorites') {
-      list = list.filter((bp) => favoriteIdSet.has(bp.id));
+      list = list.filter((bp) => filterFavoriteIdSet.has(bp.id));
     } else if (librarySegment === 'obtainable') {
       list = list.filter((bp) => obtainableIds.has(bp.id));
     }
@@ -807,8 +822,8 @@ export function BlueprintGrid() {
     blueprintSort,
     categoryFilter,
     craftTimeFilter,
-    favoriteIdSet,
-    inventoryIdSet,
+    filterFavoriteIdSet,
+    filterInventoryIdSet,
     legalityBlueprintIds,
     librarySegment,
     locationBlueprintIds,

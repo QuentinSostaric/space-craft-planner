@@ -873,7 +873,7 @@ export function AccountPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minHeight: 0, overflow: 'auto' }}>
       <Paper
         variant="outlined"
         sx={{

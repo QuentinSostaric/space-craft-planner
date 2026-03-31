@@ -28,6 +28,7 @@ import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import FlagIcon from '@mui/icons-material/Flag';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
+import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
@@ -1140,6 +1141,53 @@ function MissionDetail({
                 </Stack>
               }
             />
+            {group.reputationScopes.length > 0 && group.reputationScopes.some((scope) => scope.standings && scope.standings.length > 0) && (
+              <MissionFact
+                icon={<LeaderboardOutlinedIcon fontSize="small" />}
+                label={t('Reputation tracks', 'Voies de reputation', 'Reputationswege')}
+                value={
+                  <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
+                    {group.reputationScopes
+                      .filter((scope, index, arr) =>
+                        scope.standings && scope.standings.length > 0 &&
+                        arr.findIndex((s) => (s.displayName ?? s.scopeName) === (scope.displayName ?? scope.scopeName)) === index,
+                      )
+                      .map((scope) => (
+                        <Stack key={scope.guid ?? scope.scopeName} spacing={0.25} sx={{ minWidth: 140 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              color: 'primary.light',
+                              fontSize: '0.7rem',
+                            }}
+                          >
+                            {scope.displayName ?? scope.scopeName}
+                          </Typography>
+                          {scope.standings!
+                            .filter((tier) => (tier.minReputation ?? 0) >= 0)
+                            .sort((a, b) => (a.minReputation ?? 0) - (b.minReputation ?? 0))
+                            .map((tier, ti) => (
+                              <Typography
+                                key={tier.guid ?? ti}
+                                variant="body2"
+                                sx={{
+                                  fontSize: '0.75rem',
+                                  color: 'text.secondary',
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {tier.displayName}
+                              </Typography>
+                            ))}
+                        </Stack>
+                      ))}
+                  </Stack>
+                }
+              />
+            )}
             <MissionFact
               icon={<PlaceOutlinedIcon fontSize="small" />}
               label={t('Locations', 'Lieux')}
