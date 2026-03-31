@@ -28,6 +28,7 @@ import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import accountScreenOne from '../../assets/account_1.png';
 import accountScreenTwo from '../../assets/account_2.png';
+import accountScreenThree from '../../assets/account_3.png';
 import discordSymbol from '../../assets/discord-symbol.svg';
 import discordWordmark from '../../assets/discord-wordmark.svg';
 import { useI18n } from '../../i18n/I18nContext';
@@ -488,86 +489,57 @@ export function AccountGuestView({
           )}
 
           {activeStep === 2 && (
-            <CardContent>
-              <Stack spacing={1.25}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Box
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: '50%',
-                      backgroundColor: '#5865F2',
-                      display: 'grid',
-                      placeItems: 'center',
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={discordSymbol}
-                      alt=""
-                      aria-hidden="true"
-                      sx={{ width: 18, height: 18, filter: 'brightness(0) invert(1)' }}
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      ItemFab Bot
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {t('Private DM preview', 'Apercu DM prive', 'Private DM-Vorschau')}
-                    </Typography>
-                  </Box>
-                </Stack>
-
+            <>
+              <Box
+                sx={{
+                  p: { xs: 1, md: 1.25 },
+                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.background.default, 0.24)} 100%)`,
+                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                }}
+              >
                 <Box
                   sx={{
-                    p: { xs: 1, md: 1.25 },
-                    borderRadius: 2,
-                    border: `1px dashed ${alpha(theme.palette.primary.main, 0.26)}`,
-                    backgroundColor: alpha(theme.palette.background.default, 0.32),
+                    width: '100%',
+                    aspectRatio: '16 / 9',
+                    borderRadius: 1.75,
+                    overflow: 'hidden',
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
+                    backgroundColor: alpha(theme.palette.common.black, 0.16),
+                    boxShadow: `0 18px 32px ${alpha(theme.palette.common.black, 0.16)}`,
                   }}
                 >
                   <Box
+                    component="img"
+                    src={accountScreenThree}
+                    alt={t(
+                      'Discord bot DM screenshot',
+                      'Capture du DM du bot Discord',
+                      'Screenshot der Discord-Bot-DM',
+                    )}
                     sx={{
+                      display: 'block',
                       width: '100%',
-                      aspectRatio: '16 / 9',
-                      borderRadius: 1.75,
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
-                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.94)} 100%)`,
-                      display: 'grid',
-                      placeItems: 'center',
-                      textAlign: 'center',
-                      p: 2,
+                      height: '100%',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                      backgroundColor: alpha(theme.palette.background.paper, 0.9),
                     }}
-                  >
-                    <Stack spacing={1} alignItems="center" sx={{ maxWidth: 520 }}>
-                      <Typography variant="h6" sx={{ lineHeight: 1.08 }}>
-                        {t(
-                          'The real bot DM screenshot will go here',
-                          'Le vrai screenshot du DM du bot viendra ici',
-                          'Der echte Bot-DM-Screenshot kommt hierhin',
-                        )}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {t(
-                          'Once you drop the capture into the assets folder, this block is the right size to showcase the message flow without cropping it.',
-                          'Une fois la capture ajoutee dans les assets, ce bloc a la bonne taille pour montrer le message sans le rogner.',
-                          'Sobald du den Screenshot in den Assets ablegst, hat dieser Block die richtige Grösse, um den Nachrichtenfluss ohne Beschnitt zu zeigen.',
-                        )}
-                      </Typography>
-                    </Stack>
-                  </Box>
+                  />
                 </Box>
-
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              </Box>
+              <CardContent>
+                <Typography variant="h6" sx={{ lineHeight: 1.08 }}>
+                  {t('The bot carries the workflow into Discord', 'Le bot transporte le workflow dans Discord', 'Der Bot bringt den Workflow in Discord')}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75, color: 'text.secondary' }}>
                   {t(
-                    'This section is reserved for the Discord-side view of the same workflow described above.',
-                    'Cette section est reservee a la vue Discord du meme workflow decrit plus haut.',
-                    'Dieser Bereich ist fur die Discord-Ansicht desselben oben beschriebenen Workflows reserviert.',
+                    'Craft requests land as private DMs with accept, deny and get-in-touch actions so the conversation stays tracked without leaving Discord.',
+                    'Les demandes de craft arrivent en DM prives avec les actions accepter, refuser et mise en relation, pour que la conversation reste suivie sans quitter Discord.',
+                    'Craft-Anfragen kommen als private DMs mit Annehmen-, Ablehnen- und Kontakt-Aktionen, damit das Gesprach ohne Discord zu verlassen verfolgt wird.',
                   )}
                 </Typography>
-              </Stack>
-            </CardContent>
+              </CardContent>
+            </>
           )}
 
           <MobileStepper
