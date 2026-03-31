@@ -226,6 +226,23 @@ function buildDisabledCraftRequestButtons(request, disabledLabel) {
   ];
 }
 
+function buildAcceptedCraftRequestButtons(request) {
+  const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  return [
+    {
+      type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
+      components: [
+        {
+          type: DISCORD_COMPONENT_TYPE_BUTTON,
+          style: DISCORD_BUTTON_STYLE_SECONDARY,
+          label: 'Close request',
+          custom_id: buildCraftRequestActionCustomId('close', request.ownerAccountId, request.id, storageScope),
+        },
+      ],
+    },
+  ];
+}
+
 function buildCraftRequestResourcesLabel(request) {
   const option = normalizeText(request?.resourcesOption).toLowerCase();
   if (option === 'has_resources') {
@@ -349,7 +366,9 @@ export function buildCraftRequestResolvedMessagePayload(env, request, status, re
         ],
       },
     ],
-    components: buildDisabledCraftRequestButtons(request, statusLabel),
+    components: normalizedStatus === 'accepted'
+      ? buildAcceptedCraftRequestButtons(request)
+      : buildDisabledCraftRequestButtons(request, statusLabel),
   };
 }
 

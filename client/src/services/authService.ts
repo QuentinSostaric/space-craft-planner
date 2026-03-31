@@ -48,7 +48,7 @@ export type AccountCraftRequestResourcesOption =
   | 'has_resources'
   | 'buy_resources';
 
-export type CraftRequestDecision = 'accepted' | 'denied' | 'closed';
+export type CraftRequestDecision = 'accepted' | 'denied' | 'closed' | 'deleted';
 
 export interface CraftRequestBulkDecisionAction {
   requestId: string;

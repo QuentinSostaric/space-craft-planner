@@ -65,7 +65,7 @@ export interface CraftRequestDecisionMutation extends PersistedAccountMutationBa
   scope: 'command';
   payload: {
     requestId: string;
-    decision: 'accepted' | 'denied' | 'closed';
+    decision: 'accepted' | 'denied' | 'closed' | 'deleted';
   };
 }
 
@@ -387,6 +387,18 @@ function applyCraftRequestDecisionMutation(
   account: StoredAccount,
   mutation: CraftRequestDecisionMutation,
 ): StoredAccount {
+  if (mutation.payload.decision === 'deleted') {
+    return {
+      ...account,
+      incomingCraftRequests: account.incomingCraftRequests.filter(
+        (request) => request.id !== mutation.payload.requestId,
+      ),
+      outgoingCraftRequests: account.outgoingCraftRequests.filter(
+        (request) => request.id !== mutation.payload.requestId,
+      ),
+    };
+  }
+
   const nowIso = new Date(mutation.createdAt).toISOString();
   const applyDecision = (request: AccountCraftRequest): AccountCraftRequest => ({
     ...request,

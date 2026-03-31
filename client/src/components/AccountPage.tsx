@@ -816,7 +816,7 @@ export function AccountPage() {
 
   const handleRespondToCraftRequest = async (
     requestId: string,
-    decision: 'accepted' | 'denied' | 'closed',
+    decision: 'accepted' | 'denied' | 'closed' | 'deleted',
   ) => {
     setCraftRequestActionId(requestId);
     setCraftRequestError(null);

@@ -29,7 +29,6 @@ import {
   verifyAndLinkRsiAccount,
   type AccountCraftRequest,
   type AccountCraftRequestResourcesOption,
-  type AccountCraftRequestStatus,
   type AccountStateSnapshot,
   type AuthSessionResponse,
   type AuthenticatedUser,
@@ -113,7 +112,7 @@ interface AuthState {
   respondToCraftRequest: (
     requestId: string,
     decision: CraftRequestDecision,
-  ) => Promise<AccountCraftRequestStatus>;
+  ) => Promise<CraftRequestDecision>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);

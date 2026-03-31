@@ -42,6 +42,7 @@ import { notifyOrganizationClaimRequest } from '../../shared/organizationClaimNo
 import {
   createOrganizationCraftRequest,
   CraftRequestServiceError,
+  deleteCraftRequest,
   respondToCraftRequest,
   respondToCraftRequestsBulk,
 } from '../../shared/craftRequestService.mjs';
@@ -639,6 +640,28 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId,
   try {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
+
+    if (payload?.decision === 'deleted') {
+      const result = await deleteCraftRequest(accountStore, account, requestId);
+      runBackgroundTask(
+        executionContext,
+        () => syncCraftRequestStatusBestEffort(
+          env,
+          { ...result.request, status: 'deleted' },
+          result.ownerAccount,
+          result.requesterAccount,
+          'craft-request-delete-sync',
+        ),
+        'craft-request-delete-sync',
+      );
+      const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
+      return noStoreJson({
+        account: decoratedAccount,
+        requestId,
+        status: 'deleted',
+      });
+    }
+
     const result = await respondToCraftRequest(
       accountStore,
       account,
