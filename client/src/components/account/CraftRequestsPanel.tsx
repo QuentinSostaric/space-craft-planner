@@ -8,8 +8,9 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { type AccountSyncStatus, type OptimisticAccountState } from '../../auth/accountMutations';
+import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useI18n } from '../../i18n/I18nContext';
 import type {
   AccountCraftRequest,
@@ -132,13 +133,8 @@ export function CraftRequestsPanel({
 }: CraftRequestsPanelProps) {
   const { t } = useI18n();
   const theme = useTheme();
-  const [viewMode, setViewMode] = useState<CraftRequestViewMode>('incoming');
-  const [statusFilter, setStatusFilter] = useState<CraftRequestStatusFilter>('active');
-
-  useEffect(() => {
-    setViewMode('incoming');
-    setStatusFilter('active');
-  }, [account?.accountId]);
+  const [viewMode, setViewMode] = useLocalPersist<CraftRequestViewMode>('craft-requests-view-mode', 'all');
+  const [statusFilter, setStatusFilter] = useLocalPersist<CraftRequestStatusFilter>('craft-requests-status-filter', 'all');
 
   const incomingCraftRequests = account?.incomingCraftRequests ?? [];
   const outgoingCraftRequests = account?.outgoingCraftRequests ?? [];
@@ -309,7 +305,7 @@ export function CraftRequestsPanel({
           </Alert>
         )}
 
-        {(syncStatus === 'pending' || syncStatus === 'syncing') && (
+        {(syncStatus === 'pending' || syncStatus === 'syncing') && syncingCraftRequestIds.size > 0 && (
           <Alert severity="info" variant="outlined">
             {t(
               'Craft request changes are still syncing to the cloud. The interface is already updated locally.',
@@ -331,7 +327,7 @@ export function CraftRequestsPanel({
           </Alert>
         )}
 
-        <Stack spacing={1}>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           <ToggleButtonGroup
             exclusive
             value={viewMode}
@@ -342,7 +338,6 @@ export function CraftRequestsPanel({
             }}
             size="small"
             sx={{
-              alignSelf: 'flex-start',
               '& .MuiToggleButton-root': {
                 px: 1.5,
                 py: 0.9,
@@ -371,7 +366,6 @@ export function CraftRequestsPanel({
             }}
             size="small"
             sx={{
-              alignSelf: 'flex-start',
               '& .MuiToggleButton-root': {
                 px: 1.25,
                 py: 0.8,
