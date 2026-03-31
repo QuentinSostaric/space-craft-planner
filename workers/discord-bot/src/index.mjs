@@ -222,9 +222,26 @@ async function handleCraftRequestComponent(env, interaction) {
     return jsonResponse(interactionMessagePayload(context.error), { status: 200 });
   }
 
-  if (context.action === 'accept' || context.action === 'deny') {
-    const targetStatus = context.action === 'accept' ? 'accepted' : 'denied';
-    if (context.request.status !== 'pending') {
+  if (context.action === 'accept' || context.action === 'deny' || context.action === 'close') {
+    const targetStatus =
+      context.action === 'accept' ? 'accepted'
+        : context.action === 'deny' ? 'denied'
+          : 'closed';
+
+    // Guard: already in a terminal state for that action
+    if (context.action === 'close' && context.request.status === 'closed') {
+      return jsonResponse(
+        interactionUpdateMessage(
+          buildCraftRequestResolvedMessagePayload(
+            env,
+            context.request,
+            context.request.status,
+            context.requesterAccount,
+          ),
+        ),
+      );
+    }
+    if ((context.action === 'accept' || context.action === 'deny') && context.request.status !== 'pending') {
       return jsonResponse(
         interactionUpdateMessage(
           buildCraftRequestResolvedMessagePayload(
@@ -244,39 +261,6 @@ async function handleCraftRequestComponent(env, interaction) {
         context.request.id,
         targetStatus,
       );
-
-      if (targetStatus === 'denied') {
-        try {
-          await removeCraftRequestOwnerMessage(env, {
-            ...result.request,
-            ownerDiscordChannelId:
-              result.request.ownerDiscordChannelId ??
-              interaction?.channel_id ??
-              null,
-            ownerDiscordMessageId:
-              result.request.ownerDiscordMessageId ??
-              interaction?.message?.id ??
-              null,
-          });
-        } catch {
-          // Ignore DM deletion failures, the request state is already persisted.
-        }
-
-        await saveCraftRequestNotificationState(
-          context.accountStore,
-          result.ownerAccount.accountId,
-          result.request.id,
-          {
-            ownerDiscordChannelId: null,
-            ownerDiscordMessageId: null,
-          },
-        );
-
-        return jsonResponse(
-          interactionMessagePayload('Craft request denied. The request panel was removed.'),
-          { status: 200 },
-        );
-      }
 
       return jsonResponse(
         interactionUpdateMessage(
@@ -363,12 +347,12 @@ async function handleInternalCraftRequestStatusChanged(request, env) {
   const accountStore = getAccountStore(env, craftRequest.storageScope ?? 'prod');
 
   try {
-    if (craftRequest.status === 'accepted') {
+    if (craftRequest.status === 'accepted' || craftRequest.status === 'denied') {
       await syncCraftRequestOwnerMessage(env, craftRequest, requesterAccount);
       return jsonResponse({ ok: true, action: 'updated' });
     }
 
-    if (craftRequest.status === 'denied' || craftRequest.status === 'closed') {
+    if (craftRequest.status === 'closed' || craftRequest.status === 'deleted') {
       try {
         await removeCraftRequestOwnerMessage(env, craftRequest);
       } catch {

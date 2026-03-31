@@ -584,6 +584,82 @@ export async function respondToCraftRequestsBulk(
   };
 }
 
+export async function deleteCraftRequest(
+  store,
+  actingAccount,
+  requestId,
+) {
+  const normalizedRequestId = normalizeText(requestId);
+  if (!normalizedRequestId) {
+    throw new CraftRequestServiceError(400, 'Craft request id is required.');
+  }
+  if (!actingAccount?.accountId) {
+    throw new CraftRequestServiceError(401, 'Authentication required.');
+  }
+
+  const existingRequest =
+    [
+      ...(actingAccount.incomingCraftRequests ?? []),
+      ...(actingAccount.outgoingCraftRequests ?? []),
+    ].find(
+      (request) => request.id === normalizedRequestId,
+    ) ?? null;
+  if (!existingRequest) {
+    throw new CraftRequestServiceError(404, 'Craft request not found.');
+  }
+
+  if (existingRequest.status !== 'denied' && existingRequest.status !== 'closed') {
+    throw new CraftRequestServiceError(
+      409,
+      'Only denied or closed craft requests can be deleted.',
+    );
+  }
+
+  const requesterAccount = await readAccountRecord(store, existingRequest.requesterAccountId);
+  if (!requesterAccount) {
+    throw new CraftRequestServiceError(404, 'The requester account could not be loaded.');
+  }
+  const isOwner = existingRequest.ownerAccountId === actingAccount.accountId;
+  const ownerAccount = isOwner
+    ? actingAccount
+    : await readAccountRecord(store, existingRequest.ownerAccountId);
+  if (!ownerAccount) {
+    throw new CraftRequestServiceError(404, 'The owner account could not be loaded.');
+  }
+
+  const now = toIsoNow();
+  const nextOwnerAccount = {
+    ...ownerAccount,
+    incomingCraftRequests: (ownerAccount.incomingCraftRequests ?? []).filter(
+      (request) => request.id !== normalizedRequestId,
+    ),
+    updatedAt: now,
+  };
+  const nextRequesterAccount = {
+    ...requesterAccount,
+    outgoingCraftRequests: (requesterAccount.outgoingCraftRequests ?? []).filter(
+      (request) => request.id !== normalizedRequestId,
+    ),
+    updatedAt: now,
+  };
+
+  const {
+    ownerAccount: savedOwnerAccount,
+    requesterAccount: savedRequesterAccount,
+  } = await writeMirroredCraftRequestAccounts(store, {
+    ownerPreviousAccount: ownerAccount,
+    ownerNextAccount: nextOwnerAccount,
+    requesterNextAccount: nextRequesterAccount,
+  });
+
+  return {
+    account: isOwner ? savedOwnerAccount : savedRequesterAccount,
+    request: existingRequest,
+    ownerAccount: savedOwnerAccount,
+    requesterAccount: savedRequesterAccount,
+  };
+}
+
 export async function saveCraftRequestNotificationState(
   store,
   ownerAccountId,

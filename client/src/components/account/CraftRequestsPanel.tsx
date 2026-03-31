@@ -21,7 +21,7 @@ import { Button } from '../ui/Button';
 
 type CraftRequestViewMode = 'incoming' | 'outgoing' | 'all';
 type CraftRequestStatusFilter = 'all' | 'active' | AccountCraftRequestStatus;
-type CraftRequestDecision = 'accepted' | 'denied' | 'closed';
+type CraftRequestDecision = 'accepted' | 'denied' | 'closed' | 'deleted';
 type CraftRequestFeedDirection = 'incoming' | 'outgoing';
 type TranslateFn = (en: string, fr: string, de: string) => string;
 
@@ -438,6 +438,7 @@ export function CraftRequestsPanel({
                 const isSyncing = syncingCraftRequestIds.has(request.id);
                 const canAnswer = direction === 'incoming' && request.status === 'pending';
                 const canClose = request.status !== 'closed' && !canAnswer;
+                const canDelete = request.status === 'denied' || request.status === 'closed';
                 const closeLabel =
                   direction === 'outgoing' && request.status === 'pending'
                     ? t('Cancel request', 'Annuler la demande', 'Anfrage abbrechen')
@@ -629,7 +630,7 @@ export function CraftRequestsPanel({
                         </Paper>
                       </Box>
 
-                      {(canAnswer || canClose) && (
+                      {(canAnswer || canClose || canDelete) && (
                         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                           {canAnswer && (
                             <>
@@ -664,6 +665,19 @@ export function CraftRequestsPanel({
                               {craftRequestActionId === request.id
                                 ? t('Saving...', 'Enregistrement...', 'Speichere...')
                                 : closeLabel}
+                            </Button>
+                          )}
+
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={craftRequestActionId === request.id}
+                              onClick={() => { onRespondToCraftRequest(request.id, 'deleted'); }}
+                            >
+                              {craftRequestActionId === request.id
+                                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                                : t('Delete', 'Supprimer', 'Loschen')}
                             </Button>
                           )}
                         </Stack>
