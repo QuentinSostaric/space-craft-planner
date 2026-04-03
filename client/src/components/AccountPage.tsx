@@ -2318,14 +2318,20 @@ export function AccountPage() {
                               : []),
                           ]}
                           footer={
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                                gap: 0.8,
+                              }}
+                            >
                               <Button
                                 variant={entry.isShared ? 'secondary' : 'ghost'}
                                 size="sm"
                                 icon={entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
                                 onClick={() => { openShareResourceDialog(entry.resourceEntry.id); }}
                                 disabled={linkedOrganizations.length === 0 || sharedResourceBusyId === entry.resourceEntry.id}
-                                style={{ flex: 1 }}
+                                style={{ width: '100%' }}
                               >
                                 {entry.isShared
                                   ? t('Org sharing', 'Partage org', 'Org-Freigabe')
@@ -2337,11 +2343,11 @@ export function AccountPage() {
                                 icon={<DeleteOutlineOutlinedIcon fontSize="small" />}
                                 onClick={() => { void handleRemoveResourceEntry(entry.resourceEntry.id); }}
                                 disabled={sharedResourceBusyId === entry.resourceEntry.id}
-                                style={{ flex: 1 }}
+                                style={{ width: '100%' }}
                               >
                                 {t('Remove', 'Retirer', 'Entfernen')}
                               </Button>
-                            </Stack>
+                            </Box>
                           }
                         />
                       );

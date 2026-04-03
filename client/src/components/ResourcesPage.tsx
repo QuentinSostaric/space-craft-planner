@@ -30,6 +30,8 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
@@ -562,16 +564,30 @@ function ResourceCard({
         </Box>
       </CardActionArea>
       <Divider />
-      <Box sx={{ p: 1.5 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <Box sx={{ p: { xs: 1.15, sm: 1.35 } }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+            gap: 0.8,
+          }}
+        >
           <Button
             variant="outlined"
             fullWidth
             onClick={onAddToPlanner}
+            startIcon={<PlaylistAddOutlinedIcon />}
             sx={{
-              minHeight: 40,
+              minHeight: { xs: 38, sm: 40 },
+              px: { xs: 1.1, sm: 1.4 },
               borderColor: alpha(theme.palette.primary.main, 0.28),
               backgroundColor: alpha(theme.palette.background.default, 0.2),
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: { xs: '0.76rem', sm: '0.82rem' },
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             {t('Add to Planner', 'Ajouter au planificateur')}
@@ -580,15 +596,23 @@ function ResourceCard({
             variant="outlined"
             fullWidth
             onClick={onAddToInventory}
+            startIcon={<Inventory2OutlinedIcon />}
             sx={{
-              minHeight: 40,
+              minHeight: { xs: 38, sm: 40 },
+              px: { xs: 1.1, sm: 1.4 },
               borderColor: alpha(theme.palette.secondary.main, 0.3),
               backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: { xs: '0.76rem', sm: '0.82rem' },
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             {addToInventoryLabel}
           </Button>
-        </Stack>
+        </Box>
       </Box>
     </Card>
   );
