@@ -2,6 +2,7 @@ import type {
   AccountCraftRequest,
   AccountCraftRequestResourcesOption,
   AccountCraftRequestStatus,
+  AccountInventoryResourceEntry,
   AccountOrganization,
   AccountStateSnapshot,
   StoredAccount,
@@ -14,7 +15,9 @@ export interface PersistedAccountMutationBase {
   id: string;
   kind:
     | 'account-snapshot'
+    | 'account-inventory-resources'
     | 'organization-blueprint-shares'
+    | 'organization-resource-shares'
     | 'craft-request-create'
     | 'craft-request-decision'
     | 'organization-membership'
@@ -40,6 +43,23 @@ export interface OrganizationBlueprintSharesMutation
   scope: 'map';
   payload: {
     organizationBlueprintShares: Record<string, string[]>;
+  };
+}
+
+export interface AccountInventoryResourcesMutation extends PersistedAccountMutationBase {
+  kind: 'account-inventory-resources';
+  scope: 'snapshot';
+  payload: {
+    inventoryResources: AccountInventoryResourceEntry[];
+  };
+}
+
+export interface OrganizationResourceSharesMutation
+  extends PersistedAccountMutationBase {
+  kind: 'organization-resource-shares';
+  scope: 'map';
+  payload: {
+    organizationResourceShares: Record<string, string[]>;
   };
 }
 
@@ -106,7 +126,9 @@ export interface OrganizationRefreshMutation extends PersistedAccountMutationBas
 
 export type PersistedAccountMutation =
   | AccountSnapshotMutation
+  | AccountInventoryResourcesMutation
   | OrganizationBlueprintSharesMutation
+  | OrganizationResourceSharesMutation
   | CraftRequestCreateMutation
   | CraftRequestDecisionMutation
   | OrganizationMembershipMutation
@@ -202,10 +224,126 @@ function normalizeOrganizationBlueprintSharesPayload(
   return next;
 }
 
+function normalizeResourceQuantityUnit(value: unknown): 'scu' | 'count' {
+  return normalizeText(value).toLowerCase() === 'count' ? 'count' : 'scu';
+}
+
+function normalizeResourceQuantity(
+  value: unknown,
+  quantityUnit: 'scu' | 'count',
+): number {
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return 0;
+  }
+
+  if (quantityUnit === 'count') {
+    return Math.max(1, Math.round(quantity));
+  }
+
+  return Math.round(quantity * 1000) / 1000;
+}
+
+function normalizeResourceQuality(value: unknown): number | null {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  const quality = Number(value);
+  if (!Number.isFinite(quality)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(1000, Math.round(quality)));
+}
+
+function normalizeAccountInventoryResourceEntry(
+  value: unknown,
+): AccountInventoryResourceEntry | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const id = normalizeText(raw.id);
+  const resourceId = normalizeText(raw.resourceId);
+  const resourceName = normalizeText(raw.resourceName) || resourceId;
+  const quantityUnit = normalizeResourceQuantityUnit(raw.quantityUnit);
+  const quantity = normalizeResourceQuantity(raw.quantity, quantityUnit);
+  const createdAt = normalizeText(raw.createdAt) || null;
+  const updatedAt = normalizeText(raw.updatedAt) || null;
+
+  if (!id || !resourceId || !resourceName || quantity <= 0) {
+    return null;
+  }
+
+  return {
+    id,
+    resourceId,
+    resourceName,
+    quantity,
+    quantityUnit,
+    quality: normalizeResourceQuality(raw.quality),
+    createdAt,
+    updatedAt,
+  };
+}
+
+function normalizeAccountInventoryResourcesPayload(
+  value: unknown,
+): AccountInventoryResourceEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const byId = new Map<string, AccountInventoryResourceEntry>();
+  for (const entry of value) {
+    const normalizedEntry = normalizeAccountInventoryResourceEntry(entry);
+    if (!normalizedEntry) {
+      continue;
+    }
+
+    byId.set(normalizedEntry.id, normalizedEntry);
+  }
+
+  return [...byId.values()].sort((left, right) =>
+    String(right.updatedAt ?? right.createdAt ?? '').localeCompare(
+      String(left.updatedAt ?? left.createdAt ?? ''),
+    ),
+  );
+}
+
+function normalizeOrganizationResourceSharesPayload(
+  value: unknown,
+): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const next: Record<string, string[]> = {};
+  for (const [rawSid, rawResourceEntryIds] of Object.entries(value)) {
+    const sid = normalizeOrganizationSid(rawSid);
+    if (!sid) {
+      continue;
+    }
+    const resourceEntryIds = normalizeStringArray(rawResourceEntryIds);
+    if (resourceEntryIds.length > 0) {
+      next[sid] = resourceEntryIds;
+    }
+  }
+  return next;
+}
+
 function deriveSharedBlueprintIds(
   organizationBlueprintShares: Record<string, string[]>,
 ): string[] {
   return normalizeStringArray(Object.values(organizationBlueprintShares).flat());
+}
+
+function deriveSharedResourceEntryIds(
+  organizationResourceShares: Record<string, string[]>,
+): string[] {
+  return normalizeStringArray(Object.values(organizationResourceShares).flat());
 }
 
 function sortOrganizations(organizations: AccountOrganization[]): AccountOrganization[] {
@@ -225,6 +363,7 @@ function cloneAccount(account: StoredAccount): StoredAccount {
     ...account,
     favoriteBlueprintIds: [...account.favoriteBlueprintIds],
     inventoryBlueprintIds: [...account.inventoryBlueprintIds],
+    inventoryResources: account.inventoryResources.map((entry) => ({ ...entry })),
     planner: {
       goals: [...account.planner.goals],
       todoItems: [...account.planner.todoItems],
@@ -237,7 +376,14 @@ function cloneAccount(account: StoredAccount): StoredAccount {
         [...blueprintIds],
       ]),
     ),
+    organizationResourceShares: Object.fromEntries(
+      Object.entries(account.organizationResourceShares ?? {}).map(([sid, resourceEntryIds]) => [
+        sid,
+        [...resourceEntryIds],
+      ]),
+    ),
     sharedBlueprintIds: [...(account.sharedBlueprintIds ?? [])],
+    sharedResourceEntryIds: [...(account.sharedResourceEntryIds ?? [])],
     organizations: [...(account.organizations ?? [])],
     incomingCraftRequests: [...(account.incomingCraftRequests ?? [])],
     outgoingCraftRequests: [...(account.outgoingCraftRequests ?? [])],
@@ -330,6 +476,60 @@ function applyOrganizationBlueprintSharesMutation(
     ...account,
     organizationBlueprintShares,
     sharedBlueprintIds: deriveSharedBlueprintIds(organizationBlueprintShares),
+  };
+}
+
+function applyAccountInventoryResourcesMutation(
+  account: StoredAccount,
+  mutation: AccountInventoryResourcesMutation,
+): StoredAccount {
+  const inventoryResources = normalizeAccountInventoryResourcesPayload(
+    mutation.payload.inventoryResources,
+  );
+  const inventoryResourceIdSet = new Set(inventoryResources.map((entry) => entry.id));
+  const organizationResourceShares = Object.fromEntries(
+    Object.entries(account.organizationResourceShares ?? {})
+      .map(([sid, resourceEntryIds]) => [
+        sid,
+        normalizeStringArray(resourceEntryIds).filter((resourceEntryId) =>
+          inventoryResourceIdSet.has(resourceEntryId),
+        ),
+      ])
+      .filter(([, resourceEntryIds]) => resourceEntryIds.length > 0),
+  );
+
+  return {
+    ...account,
+    inventoryResources,
+    organizationResourceShares,
+    sharedResourceEntryIds: deriveSharedResourceEntryIds(organizationResourceShares),
+  };
+}
+
+function applyOrganizationResourceSharesMutation(
+  account: StoredAccount,
+  mutation: OrganizationResourceSharesMutation,
+): StoredAccount {
+  const inventoryResourceIdSet = new Set(
+    account.inventoryResources.map((resourceEntry) => resourceEntry.id),
+  );
+  const organizationResourceShares = Object.fromEntries(
+    Object.entries(
+      normalizeOrganizationResourceSharesPayload(
+        mutation.payload.organizationResourceShares,
+      ),
+    )
+      .map(([sid, resourceEntryIds]) => [
+        sid,
+        resourceEntryIds.filter((resourceEntryId) => inventoryResourceIdSet.has(resourceEntryId)),
+      ])
+      .filter(([, resourceEntryIds]) => resourceEntryIds.length > 0),
+  );
+
+  return {
+    ...account,
+    organizationResourceShares,
+    sharedResourceEntryIds: deriveSharedResourceEntryIds(organizationResourceShares),
   };
 }
 
@@ -435,13 +635,17 @@ function applyOrganizationMembershipMutation(
   }
 
   if (mutation.payload.action === 'remove') {
-    const nextShares = { ...account.organizationBlueprintShares };
-    delete nextShares[sid];
+    const nextBlueprintShares = { ...account.organizationBlueprintShares };
+    delete nextBlueprintShares[sid];
+    const nextResourceShares = { ...account.organizationResourceShares };
+    delete nextResourceShares[sid];
     return {
       ...account,
       organizations: account.organizations.filter((organization) => organization.sid !== sid),
-      organizationBlueprintShares: nextShares,
-      sharedBlueprintIds: deriveSharedBlueprintIds(nextShares),
+      organizationBlueprintShares: nextBlueprintShares,
+      organizationResourceShares: nextResourceShares,
+      sharedBlueprintIds: deriveSharedBlueprintIds(nextBlueprintShares),
+      sharedResourceEntryIds: deriveSharedResourceEntryIds(nextResourceShares),
     };
   }
 
@@ -527,8 +731,12 @@ export function applyOptimisticAccountMutations(
     switch (mutation.kind) {
       case 'account-snapshot':
         return applyAccountSnapshotMutation(currentAccount, mutation);
+      case 'account-inventory-resources':
+        return applyAccountInventoryResourcesMutation(currentAccount, mutation);
       case 'organization-blueprint-shares':
         return applyOrganizationBlueprintSharesMutation(currentAccount, mutation);
+      case 'organization-resource-shares':
+        return applyOrganizationResourceSharesMutation(currentAccount, mutation);
       case 'craft-request-create':
         return applyCraftRequestCreateMutation(currentAccount, mutation);
       case 'craft-request-decision':
@@ -565,7 +773,9 @@ function normalizeMutationBase(
   const flushAfterMs = Number(value.flushAfterMs);
   const allowedKinds = new Set<PersistedAccountMutationBase['kind']>([
     'account-snapshot',
+    'account-inventory-resources',
     'organization-blueprint-shares',
+    'organization-resource-shares',
     'craft-request-create',
     'craft-request-decision',
     'organization-membership',
@@ -622,6 +832,28 @@ function normalizePersistedMutation(value: unknown): PersistedAccountMutation | 
         payload: {
           organizationBlueprintShares: normalizeOrganizationBlueprintSharesPayload(
             readObject(raw.payload)?.organizationBlueprintShares ?? {},
+          ),
+        },
+      };
+    case 'account-inventory-resources':
+      return {
+        ...base,
+        kind: 'account-inventory-resources',
+        scope: 'snapshot',
+        payload: {
+          inventoryResources: normalizeAccountInventoryResourcesPayload(
+            readObject(raw.payload)?.inventoryResources ?? [],
+          ),
+        },
+      };
+    case 'organization-resource-shares':
+      return {
+        ...base,
+        kind: 'organization-resource-shares',
+        scope: 'map',
+        payload: {
+          organizationResourceShares: normalizeOrganizationResourceSharesPayload(
+            readObject(raw.payload)?.organizationResourceShares ?? {},
           ),
         },
       };
@@ -828,8 +1060,20 @@ export function coalescePersistedMutations(
       return false;
     }
     if (
+      mutation.kind === 'account-inventory-resources' &&
+      nextMutation.kind === 'account-inventory-resources'
+    ) {
+      return false;
+    }
+    if (
       mutation.kind === 'organization-blueprint-shares' &&
       nextMutation.kind === 'organization-blueprint-shares'
+    ) {
+      return false;
+    }
+    if (
+      mutation.kind === 'organization-resource-shares' &&
+      nextMutation.kind === 'organization-resource-shares'
     ) {
       return false;
     }

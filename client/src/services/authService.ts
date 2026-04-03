@@ -27,6 +27,19 @@ export interface AccountPlannerState {
   resourceProgress: Record<string, ResourceProgress>;
 }
 
+export type AccountInventoryResourceQuantityUnit = 'scu' | 'count';
+
+export interface AccountInventoryResourceEntry {
+  id: string;
+  resourceId: string;
+  resourceName: string;
+  quantity: number;
+  quantityUnit: AccountInventoryResourceQuantityUnit;
+  quality: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface LinkedRsiAccount {
   handle: string;
   displayName: string | null;
@@ -151,6 +164,31 @@ export interface OrganizationSharedBlueprintPayload {
   members: OrganizationSharedBlueprintMember[];
 }
 
+export interface OrganizationSharedResourceMember {
+  handle: string;
+  display: string;
+  image: string | null;
+  rank: string | null;
+  stars: number | null;
+  sharedResources: AccountInventoryResourceEntry[];
+}
+
+export interface OrganizationSharedResourcePayload {
+  organization: {
+    sid: string;
+    name: string;
+    image: string | null;
+    logo: string | null;
+    url: string | null;
+    claimed: boolean;
+    lastLiveSyncAt: string | null;
+    staleAt: string | null;
+    memberCount: number;
+    syncStatus: AccountOrganizationSyncStatus;
+  };
+  members: OrganizationSharedResourceMember[];
+}
+
 export interface StoredAccount {
   accountId: string;
   provider: 'discord';
@@ -158,9 +196,12 @@ export interface StoredAccount {
   profile: AuthenticatedUser;
   favoriteBlueprintIds: string[];
   inventoryBlueprintIds: string[];
+  inventoryResources: AccountInventoryResourceEntry[];
   planner: AccountPlannerState;
   organizationBlueprintShares: Record<string, string[]>;
+  organizationResourceShares: Record<string, string[]>;
   sharedBlueprintIds: string[];
+  sharedResourceEntryIds: string[];
   organizations: AccountOrganization[];
   incomingCraftRequests: AccountCraftRequest[];
   outgoingCraftRequests: AccountCraftRequest[];
@@ -286,6 +327,37 @@ export async function saveOrganizationBlueprintShares(
   return payload.account;
 }
 
+export async function saveAccountInventoryResources(
+  inventoryResources: AccountInventoryResourceEntry[],
+): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/resources', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inventoryResources }),
+  });
+
+  return payload.account;
+}
+
+export async function saveOrganizationResourceShares(
+  organizationResourceShares: Record<string, string[]>,
+): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(
+    '/api/auth/account/shared-resources',
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ organizationResourceShares }),
+    },
+  );
+
+  return payload.account;
+}
+
 export async function addAccountOrganization(sid: string): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
     '/api/auth/account/organizations',
@@ -368,6 +440,14 @@ export async function fetchOrganizationSharedBlueprints(
 ): Promise<OrganizationSharedBlueprintPayload> {
   return authApiFetch<OrganizationSharedBlueprintPayload>(
     `/api/auth/organizations/${encodeURIComponent(sid)}/shared-blueprints`,
+  );
+}
+
+export async function fetchOrganizationSharedResources(
+  sid: string,
+): Promise<OrganizationSharedResourcePayload> {
+  return authApiFetch<OrganizationSharedResourcePayload>(
+    `/api/auth/organizations/${encodeURIComponent(sid)}/shared-resources`,
   );
 }
 

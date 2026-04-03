@@ -22,7 +22,9 @@ import {
   getNextAllowedRsiLinkAt,
   isRsiLinkRateLimited,
   readAccountRecord,
+  saveAccountInventoryResources,
   saveAccountOrganizationBlueprintShares,
+  saveAccountOrganizationResourceShares,
   saveAccountState,
   saveRsiAccountLink,
   upsertDiscordAccount,
@@ -30,6 +32,7 @@ import {
 import {
   addAccountOrganizationBySid,
   buildOrganizationSharedBlueprints,
+  buildOrganizationSharedResources,
   claimAccountOrganization,
   deleteOwnedOrganizationFromApp,
   OrganizationServiceError,
@@ -313,6 +316,56 @@ export async function handleAccountSharedBlueprintsUpdateRequest(request, env) {
   return noStoreJson({ account: decoratedAccount });
 }
 
+export async function handleAccountResourcesUpdateRequest(request, env) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  let payload;
+  try {
+    payload = await readAccountJsonFromRequest(request);
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
+  }
+
+  const accountStore = getAccountStore(request, env);
+  await ensureAccountForSession(accountStore, session);
+  const account = await saveAccountInventoryResources(
+    accountStore,
+    session.accountId,
+    payload?.inventoryResources,
+    session.user,
+  );
+  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+  return noStoreJson({ account: decoratedAccount });
+}
+
+export async function handleAccountSharedResourcesUpdateRequest(request, env) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  let payload;
+  try {
+    payload = await readAccountJsonFromRequest(request);
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
+  }
+
+  const accountStore = getAccountStore(request, env);
+  await ensureAccountForSession(accountStore, session);
+  const account = await saveAccountOrganizationResourceShares(
+    accountStore,
+    session.accountId,
+    payload?.organizationResourceShares,
+    session.user,
+  );
+  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+  return noStoreJson({ account: decoratedAccount });
+}
+
 export async function handleDeleteAccountRequest(request, env) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
@@ -574,6 +627,23 @@ export async function handleOrganizationSharedBlueprintsRequest(request, env, si
     return noStoreJson(payload);
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to load shared organization blueprints.');
+  }
+}
+
+export async function handleOrganizationSharedResourcesRequest(request, env, sid) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  try {
+    const accountStore = getAccountStore(request, env);
+    const account = await ensureAccountForSession(accountStore, session);
+    const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+    const payload = await buildOrganizationSharedResources(accountStore, decoratedAccount, sid);
+    return noStoreJson(payload);
+  } catch (error) {
+    return organizationErrorResponse(error, 'Failed to load shared organization resources.');
   }
 }
 

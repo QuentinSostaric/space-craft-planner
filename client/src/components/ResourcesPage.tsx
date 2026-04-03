@@ -4,6 +4,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
+import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,6 +13,10 @@ import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
@@ -41,6 +46,7 @@ import {
   getMaterialProviderIconName,
 } from './ui/StarCitizenLicensedIcon';
 import { useCraft } from '../store/CraftContext';
+import { useAuth } from '../auth/AuthContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import {
   CATEGORY_LABELS,
@@ -61,6 +67,7 @@ import {
   formatMaterialProviderType,
   formatMaterialSourceMethod,
   formatMineableGroupName,
+  formatQualityLabel,
   formatResourceQuantity,
   formatScaleLabel,
   formatStandingSummary,
@@ -68,7 +75,9 @@ import {
   getMissionContractName,
   getMaterialProviderProbabilityPct,
   getMaterialProviders,
+  getResourceQuantityInputStep,
   getSlotQuantityValue,
+  clampQualityValue,
 } from '../utils/crafting';
 import {
   missionPathFromSlug,
@@ -93,6 +102,16 @@ interface ResourceCardProps {
   insight: ResourceInsight | null;
   onOpen: () => void;
   onAddToPlanner: () => void;
+  onAddToInventory: () => void;
+  addToInventoryLabel: string;
+}
+
+interface ResourceInventoryDialogState {
+  resourceId: string;
+  resourceName: string;
+  quantityUnit: 'scu' | 'count';
+  quantity: number;
+  quality: string;
 }
 
 interface ResourceIdentityPanelProps {
@@ -382,7 +401,14 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ResourceCard({ resource, insight, onOpen, onAddToPlanner }: ResourceCardProps) {
+function ResourceCard({
+  resource,
+  insight,
+  onOpen,
+  onAddToPlanner,
+  onAddToInventory,
+  addToInventoryLabel,
+}: ResourceCardProps) {
   const { t, lang } = useI18n();
   const theme = useTheme();
   const [imgError, setImgError] = useState(false);
@@ -537,18 +563,32 @@ function ResourceCard({ resource, insight, onOpen, onAddToPlanner }: ResourceCar
       </CardActionArea>
       <Divider />
       <Box sx={{ p: 1.5 }}>
-        <Button
-          variant="outlined"
-          fullWidth
-          onClick={onAddToPlanner}
-          sx={{
-            minHeight: 40,
-            borderColor: alpha(theme.palette.primary.main, 0.28),
-            backgroundColor: alpha(theme.palette.background.default, 0.2),
-          }}
-        >
-          {t('Add to Planner', 'Ajouter au planificateur')}
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={onAddToPlanner}
+            sx={{
+              minHeight: 40,
+              borderColor: alpha(theme.palette.primary.main, 0.28),
+              backgroundColor: alpha(theme.palette.background.default, 0.2),
+            }}
+          >
+            {t('Add to Planner', 'Ajouter au planificateur')}
+          </Button>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={onAddToInventory}
+            sx={{
+              minHeight: 40,
+              borderColor: alpha(theme.palette.secondary.main, 0.3),
+              backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+            }}
+          >
+            {addToInventoryLabel}
+          </Button>
+        </Stack>
       </Box>
     </Card>
   );
@@ -1440,7 +1480,8 @@ export function ResourcesPage() {
     resourceProgress,
     setActiveBlueprint,
   } = useCraft();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { account, updateInventoryResources } = useAuth();
   const theme = useTheme();
   const resources = activeDataset.resources;
 
@@ -1454,6 +1495,10 @@ export function ResourcesPage() {
   const [missionFilter, setMissionFilter] = useState<ResourceMissionFilter>('all');
   const [blueprintCategoryFilter, setBlueprintCategoryFilter] = useState<ItemCategory | null>(null);
   const [sortBy, setSortBy] = useState<ResourceSort>('name-asc');
+  const [inventoryDialog, setInventoryDialog] = useState<ResourceInventoryDialogState | null>(null);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [inventoryNotice, setInventoryNotice] = useState<string | null>(null);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
 
   const allContracts = useMemo<FlatMissionContract[]>(() => {
     if (!missionRewards) return [];
@@ -1492,6 +1537,97 @@ export function ResourcesPage() {
       ),
     [blueprints, resources],
   );
+
+  const openInventoryDialog = (resource: Resource) => {
+    const quantityUnit = resourcePlannerUnitById.get(resource.id) ?? 'scu';
+    const defaultQuantity = quantityUnit === 'count' ? 1 : 0.01;
+
+    if (!account) {
+      navigateToPath('/account', { mainView: 'account' });
+      return;
+    }
+
+    setInventoryNotice(null);
+    setInventoryError(null);
+    setInventoryDialog({
+      resourceId: resource.id,
+      resourceName: resource.name,
+      quantityUnit,
+      quantity: defaultQuantity,
+      quality: '',
+    });
+  };
+
+  const closeInventoryDialog = () => {
+    if (!inventoryBusy) {
+      setInventoryDialog(null);
+    }
+  };
+
+  const submitInventoryDialog = async () => {
+    if (!account || !inventoryDialog) {
+      return;
+    }
+
+    const normalizedQuantity =
+      inventoryDialog.quantityUnit === 'count'
+        ? Math.max(1, Math.round(Number(inventoryDialog.quantity) || 0))
+        : Math.max(0.001, Math.round((Number(inventoryDialog.quantity) || 0) * 1000) / 1000);
+    const normalizedQuality = clampQualityValue(
+      inventoryDialog.quality.trim() ? Number(inventoryDialog.quality) : undefined,
+    );
+
+    if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
+      setInventoryError(
+        t(
+          'Enter a valid quantity before adding this resource to the inventory.',
+          'Saisis une quantite valide avant d ajouter cette ressource a l inventaire.',
+          'Gib eine gultige Menge ein, bevor du diese Ressource zum Inventar hinzufugst.',
+        ),
+      );
+      return;
+    }
+
+    setInventoryBusy(true);
+    setInventoryError(null);
+
+    try {
+      const nowIso = new Date().toISOString();
+      await updateInventoryResources([
+        ...(account.inventoryResources ?? []),
+        {
+          id: globalThis.crypto.randomUUID(),
+          resourceId: inventoryDialog.resourceId,
+          resourceName: inventoryDialog.resourceName,
+          quantity: normalizedQuantity,
+          quantityUnit: inventoryDialog.quantityUnit,
+          quality: normalizedQuality ?? null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+      ]);
+      setInventoryDialog(null);
+      setInventoryNotice(
+        t(
+          `${inventoryDialog.resourceName} was added to the account inventory.`,
+          `${inventoryDialog.resourceName} a ete ajoutee a l inventaire du compte.`,
+          `${inventoryDialog.resourceName} wurde dem Konto-Inventar hinzugefugt.`,
+        ),
+      );
+    } catch (error) {
+      setInventoryError(
+        error instanceof Error
+          ? error.message
+          : t(
+              'Failed to update the resource inventory.',
+              'La mise a jour de l inventaire de ressources a echoue.',
+              'Das Ressourceninventar konnte nicht aktualisiert werden.',
+            ),
+      );
+    } finally {
+      setInventoryBusy(false);
+    }
+  };
 
   const systems = useMemo(
     () =>
@@ -1780,6 +1916,12 @@ export function ResourcesPage() {
             <PageStatCard label={t('Mission-linked', 'Liees aux missions')} value={String(resourceStats.missionLinkedCount)} />
             <PageStatCard label={t('Providers', 'Sources')} value={String(resourceStats.providerCount)} />
           </Box>
+
+          {(inventoryNotice || inventoryError) && (
+            <Alert severity={inventoryError ? 'error' : 'success'} variant="outlined">
+              {inventoryError ?? inventoryNotice}
+            </Alert>
+          )}
         </Stack>
       </Box>
 
@@ -1857,6 +1999,14 @@ export function ResourcesPage() {
                       1,
                       resourcePlannerUnitById.get(resource.id) ?? 'scu',
                     )}
+                  onAddToInventory={() => {
+                    openInventoryDialog(resource);
+                  }}
+                  addToInventoryLabel={
+                    account
+                      ? t('Add to inventory', 'Ajouter a l inventaire')
+                      : t('Sign in for inventory', 'Connexion pour l inventaire')
+                  }
                 />
               ))}
             </Box>
@@ -1866,6 +2016,102 @@ export function ResourcesPage() {
           </>
         )}
       </Box>
+
+      <Dialog
+        open={Boolean(inventoryDialog)}
+        onClose={closeInventoryDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          {inventoryDialog
+            ? t(
+                `Add ${inventoryDialog.resourceName} to inventory`,
+                `Ajouter ${inventoryDialog.resourceName} a l inventaire`,
+                `${inventoryDialog.resourceName} zum Inventar hinzufugen`,
+              )
+            : t('Add resource to inventory', 'Ajouter la ressource a l inventaire')}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            {inventoryError && (
+              <Alert severity="error" variant="outlined">
+                {inventoryError}
+              </Alert>
+            )}
+
+            <TextField
+              label={t('Quantity', 'Quantite', 'Menge')}
+              type="number"
+              value={inventoryDialog?.quantity ?? ''}
+              onChange={(event) => {
+                const nextQuantity = Number(event.target.value);
+                setInventoryDialog((current) =>
+                  current
+                    ? {
+                        ...current,
+                        quantity: Number.isFinite(nextQuantity) ? nextQuantity : current.quantity,
+                      }
+                    : current,
+                );
+              }}
+              inputProps={{
+                min: inventoryDialog?.quantityUnit === 'count' ? 1 : 0.001,
+                step: getResourceQuantityInputStep(inventoryDialog?.quantityUnit ?? 'scu'),
+              }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {inventoryDialog?.quantityUnit === 'count'
+                      ? t('items', 'objets', 'Teile')
+                      : 'SCU'}
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <TextField
+              label={t('Quality (optional)', 'Qualite (optionnelle)', 'Qualitat (optional)')}
+              type="number"
+              value={inventoryDialog?.quality ?? ''}
+              onChange={(event) => {
+                const nextQuality = event.target.value;
+                setInventoryDialog((current) =>
+                  current
+                    ? {
+                        ...current,
+                        quality: nextQuality,
+                      }
+                    : current,
+                );
+              }}
+              inputProps={{ min: 0, max: 1000, step: 1 }}
+              helperText={
+                inventoryDialog?.quality.trim()
+                  ? formatQualityLabel(
+                      clampQualityValue(Number(inventoryDialog.quality)) ?? 0,
+                      lang,
+                    )
+                  : t(
+                      'Leave empty if the resource quality is unknown.',
+                      'Laisse vide si la qualite de la ressource est inconnue.',
+                      'Leer lassen, wenn die Ressourcenqualitat unbekannt ist.',
+                    )
+              }
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={closeInventoryDialog} disabled={inventoryBusy}>
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button variant="contained" onClick={() => { void submitInventoryDialog(); }} disabled={inventoryBusy}>
+            {inventoryBusy
+              ? t('Saving...', 'Enregistrement...', 'Speichere...')
+              : t('Add entry', 'Ajouter l entree', 'Eintrag hinzufugen')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -1,5 +1,6 @@
 import {
   findAccountIdsSharingOrganizationBlueprints,
+  findAccountIdsSharingOrganizationResources,
   readAccountIdByRsiHandle,
   readAccountRecord,
   saveAccountOrganizations,
@@ -148,6 +149,10 @@ function removeOrganizationSidFromShareMap(organizationBlueprintShares, sid) {
 
 function deriveSharedBlueprintIdsFromOrganizationShareMap(organizationBlueprintShares) {
   return uniqueStringArray(Object.values(organizationBlueprintShares ?? {}).flat());
+}
+
+function deriveSharedResourceEntryIdsFromOrganizationShareMap(organizationResourceShares) {
+  return uniqueStringArray(Object.values(organizationResourceShares ?? {}).flat());
 }
 
 async function reviveDeletedOrganizationRecord(
@@ -1019,13 +1024,21 @@ export async function deleteOwnedOrganizationFromApp(store, account, sid) {
       storedAccount.organizationBlueprintShares ?? {},
       normalizedSid,
     );
-    if (!hasOrganizationRef && !hasOrganizationShares) {
+    const hasOrganizationResourceShares = Object.prototype.hasOwnProperty.call(
+      storedAccount.organizationResourceShares ?? {},
+      normalizedSid,
+    );
+    if (!hasOrganizationRef && !hasOrganizationShares && !hasOrganizationResourceShares) {
       continue;
     }
 
     const nextOrganizations = storedAccount.organizations.filter((ref) => ref.sid !== normalizedSid);
     const nextOrganizationBlueprintShares = removeOrganizationSidFromShareMap(
       storedAccount.organizationBlueprintShares,
+      normalizedSid,
+    );
+    const nextOrganizationResourceShares = removeOrganizationSidFromShareMap(
+      storedAccount.organizationResourceShares,
       normalizedSid,
     );
     const nextIgnoredOrganizationSids = uniqueStringArray([
@@ -1037,8 +1050,12 @@ export async function deleteOwnedOrganizationFromApp(store, account, sid) {
       ...storedAccount,
       organizations: nextOrganizations,
       organizationBlueprintShares: nextOrganizationBlueprintShares,
+      organizationResourceShares: nextOrganizationResourceShares,
       sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShareMap(
         nextOrganizationBlueprintShares,
+      ),
+      sharedResourceEntryIds: deriveSharedResourceEntryIdsFromOrganizationShareMap(
+        nextOrganizationResourceShares,
       ),
       ignoredOrganizationSids: nextIgnoredOrganizationSids,
       updatedAt: now,
@@ -1378,6 +1395,162 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
       url: organizationRecord?.url ?? organizationRef.url ?? null,
       claimed: Boolean(organizationRecord?.claimed ?? organizationRef.claimed),
       blueprintSharingEnabled: organizationRecord?.blueprintSharingEnabled !== false,
+      lastLiveSyncAt: organizationRecord?.lastLiveSyncAt ?? organizationRef.lastLiveSyncAt ?? null,
+      staleAt: organizationRecord?.staleAt ?? organizationRef.staleAt ?? null,
+      memberCount:
+        typeof organizationRecord?.memberCount === 'number'
+          ? organizationRecord.memberCount
+          : typeof organizationRef.memberCount === 'number'
+            ? organizationRef.memberCount
+            : members.length,
+      syncStatus: organizationRecord?.syncStatus ?? organizationRef.syncStatus ?? 'never',
+    },
+    members,
+  };
+}
+
+export async function buildOrganizationSharedResources(store, account, sid) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new OrganizationServiceError(400, 'Organization SID is required.');
+  }
+
+  const organizationRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+  if (!organizationRef) {
+    throw new OrganizationServiceError(404, 'Organization not found in this account.');
+  }
+  if (!isVerifiedOrganizationStatus(organizationRef.status)) {
+    throw new OrganizationServiceError(
+      403,
+      'Only verified organization members can access shared organization resources.',
+    );
+  }
+
+  let organizationRecord = await readOrganizationRecord(store, normalizedSid);
+  assertActiveOrganizationRecord(organizationRecord);
+  let sharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
+    ? organizationRecord.sharedAccountIds
+    : [];
+
+  if (sharedAccountIds.length === 0) {
+    const backfilledSharedAccountIds = await findAccountIdsSharingOrganizationResources(
+      store,
+      normalizedSid,
+    );
+    if (backfilledSharedAccountIds.length > 0) {
+      sharedAccountIds = backfilledSharedAccountIds;
+      if (organizationRecord) {
+        organizationRecord = await writeOrganizationRecord(store, {
+          ...organizationRecord,
+          sharedAccountIds: backfilledSharedAccountIds,
+          updatedAt: toIsoNow(),
+        });
+      }
+    }
+  }
+
+  const candidateAccountIds = new Set(sharedAccountIds);
+
+  if (organizationRecord?.memberSnapshot?.length) {
+    const snapshotMemberAccountIds = await Promise.all(
+      organizationRecord.memberSnapshot.map((member) =>
+        readAccountIdByRsiHandle(store, member.handle),
+      ),
+    );
+    for (const memberAccountId of snapshotMemberAccountIds) {
+      if (memberAccountId) {
+        candidateAccountIds.add(memberAccountId);
+      }
+    }
+  }
+
+  if ((account.organizationResourceShares?.[normalizedSid] ?? []).length > 0) {
+    candidateAccountIds.add(account.accountId);
+  }
+
+  const members = (
+    await Promise.all(
+      [...candidateAccountIds].map(async (memberAccountId) => {
+        const memberAccount = await readAccountRecord(store, memberAccountId);
+        if (!memberAccount?.rsi?.handle) {
+          return null;
+        }
+
+        const inventoryResourceEntryIds = new Set(
+          (memberAccount.inventoryResources ?? []).map((resourceEntry) => String(resourceEntry.id)),
+        );
+        const sharedResourceEntries = (memberAccount.organizationResourceShares?.[normalizedSid] ?? [])
+          .map((resourceEntryId) => String(resourceEntryId))
+          .filter((resourceEntryId) => inventoryResourceEntryIds.has(resourceEntryId))
+          .map((resourceEntryId) =>
+            memberAccount.inventoryResources.find((resourceEntry) => resourceEntry.id === resourceEntryId) ?? null,
+          )
+          .filter((resourceEntry) => resourceEntry !== null);
+
+        if (sharedResourceEntries.length === 0) {
+          return null;
+        }
+
+        const memberOrganizationRef =
+          memberAccount.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
+        const matchingSnapshotMember = findOrganizationMemberByHandle(
+          organizationRecord?.memberSnapshot,
+          memberAccount.rsi.handle,
+        );
+
+        if (!matchingSnapshotMember && !isVerifiedOrganizationStatus(memberOrganizationRef?.status)) {
+          return null;
+        }
+
+        return {
+          handle: memberAccount.rsi.handle,
+          display:
+            matchingSnapshotMember?.display ??
+            memberAccount.rsi.displayName ??
+            memberAccount.profile.displayName ??
+            memberAccount.profile.username ??
+            memberAccount.rsi.handle,
+          image: matchingSnapshotMember?.image ?? memberAccount.profile.avatarUrl ?? null,
+          rank: matchingSnapshotMember?.rank ?? memberOrganizationRef?.rank ?? null,
+          stars:
+            Number.isFinite(Number(matchingSnapshotMember?.stars))
+              ? Number(matchingSnapshotMember.stars)
+              : Number.isFinite(Number(memberOrganizationRef?.stars))
+                ? Number(memberOrganizationRef.stars)
+                : null,
+          sharedResources: sharedResourceEntries,
+        };
+      }),
+    )
+  )
+    .filter((member) => member !== null)
+    .sort((left, right) =>
+      String(left.display ?? left.handle).localeCompare(String(right.display ?? right.handle), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      }),
+    );
+
+  if (members.length === 0) {
+    throw new OrganizationServiceError(
+      404,
+      'No shared resources are available for this organization yet.',
+    );
+  }
+
+  return {
+    organization: {
+      sid: organizationRecord?.sid ?? organizationRef.sid,
+      name: organizationRecord?.name ?? organizationRef.name,
+      image:
+        organizationRecord?.image ??
+        organizationRecord?.logo ??
+        organizationRef.image ??
+        organizationRef.logo ??
+        null,
+      logo: organizationRecord?.logo ?? organizationRef.logo ?? null,
+      url: organizationRecord?.url ?? organizationRef.url ?? null,
+      claimed: Boolean(organizationRecord?.claimed ?? organizationRef.claimed),
       lastLiveSyncAt: organizationRecord?.lastLiveSyncAt ?? organizationRef.lastLiveSyncAt ?? null,
       staleAt: organizationRecord?.staleAt ?? organizationRef.staleAt ?? null,
       memberCount:

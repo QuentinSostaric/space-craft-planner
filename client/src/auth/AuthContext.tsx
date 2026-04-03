@@ -17,23 +17,28 @@ import {
   fetchAuthSession,
   fetchCurrentAccount,
   fetchOrganizationSharedBlueprints,
+  fetchOrganizationSharedResources,
   getDiscordLoginUrl,
   logoutAuthSession,
   refreshAccountOrganizationMembers,
   removeAccountOrganization,
   respondToOrganizationCraftRequestsBulk,
+  saveAccountInventoryResources,
   saveCurrentAccountState,
   saveOrganizationBlueprintShares,
+  saveOrganizationResourceShares,
   setAccountOrganizationBlueprintSharing,
   unlinkRsiAccount,
   verifyAndLinkRsiAccount,
   type AccountCraftRequest,
   type AccountCraftRequestResourcesOption,
+  type AccountInventoryResourceEntry,
   type AccountStateSnapshot,
   type AuthSessionResponse,
   type AuthenticatedUser,
   type CraftRequestDecision,
   type OrganizationSharedBlueprintPayload,
+  type OrganizationSharedResourcePayload,
   type StoredAccount,
   AuthApiError,
 } from '../services/authService';
@@ -47,6 +52,7 @@ import {
   resolveClientStorageScope,
   writePersistedAccountMutations,
   type AccountSyncStatus,
+  type AccountInventoryResourcesMutation,
   type CraftRequestCreateMutation,
   type CraftRequestDecisionMutation,
   type OptimisticAccountState,
@@ -54,6 +60,7 @@ import {
   type OrganizationClaimMutation,
   type OrganizationMembershipMutation,
   type OrganizationRefreshMutation,
+  type OrganizationResourceSharesMutation,
   type OrganizationSharingMutation,
   type PersistedAccountMutation,
 } from './accountMutations';
@@ -81,11 +88,33 @@ interface AuthState {
   deleteAccount: () => Promise<void>;
   linkRsiAccount: (handle: string, code: string) => Promise<void>;
   unlinkRsiAccount: () => Promise<void>;
+  updateInventoryResources: (
+    inventoryResources: AccountInventoryResourceEntry[],
+    options?: { flushAfterMs?: number },
+  ) => Promise<void>;
+  queueInventoryResourcesUpdate: (
+    updater: (
+      inventoryResources: AccountInventoryResourceEntry[],
+      account: StoredAccount,
+    ) => AccountInventoryResourceEntry[],
+    options?: { flushAfterMs?: number },
+  ) => void;
   updateOrganizationBlueprintShares: (
     organizationBlueprintShares: Record<string, string[]>,
     options?: { flushAfterMs?: number },
   ) => Promise<void>;
   queueOrganizationBlueprintSharesUpdate: (
+    updater: (
+      shares: Record<string, string[]>,
+      account: StoredAccount,
+    ) => Record<string, string[]>,
+    options?: { flushAfterMs?: number },
+  ) => void;
+  updateOrganizationResourceShares: (
+    organizationResourceShares: Record<string, string[]>,
+    options?: { flushAfterMs?: number },
+  ) => Promise<void>;
+  queueOrganizationResourceSharesUpdate: (
     updater: (
       shares: Record<string, string[]>,
       account: StoredAccount,
@@ -99,6 +128,7 @@ interface AuthState {
   setOrganizationBlueprintSharing: (sid: string, enabled: boolean) => Promise<void>;
   refreshOrganizationMembers: (sid: string) => Promise<void>;
   loadOrganizationSharedBlueprints: (sid: string) => Promise<OrganizationSharedBlueprintPayload>;
+  loadOrganizationSharedResources: (sid: string) => Promise<OrganizationSharedResourcePayload>;
   requestOrganizationCraft: (
     sid: string,
     payload: {
@@ -144,11 +174,25 @@ function cloneAccountSnapshot(account: StoredAccount): AccountStateSnapshot {
   };
 }
 
+function cloneInventoryResources(
+  inventoryResources: AccountInventoryResourceEntry[],
+): AccountInventoryResourceEntry[] {
+  return inventoryResources.map((resourceEntry) => ({ ...resourceEntry }));
+}
+
 function cloneOrganizationBlueprintShares(
   shares: Record<string, string[]>,
 ): Record<string, string[]> {
   return Object.fromEntries(
     Object.entries(shares).map(([sid, blueprintIds]) => [sid, [...blueprintIds]]),
+  );
+}
+
+function cloneOrganizationResourceShares(
+  shares: Record<string, string[]>,
+): Record<string, string[]> {
+  return Object.fromEntries(
+    Object.entries(shares).map(([sid, resourceEntryIds]) => [sid, [...resourceEntryIds]]),
   );
 }
 
@@ -583,6 +627,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      const inventoryResourcesMutation =
+        [...workingMutations]
+          .reverse()
+          .find(
+            (
+              mutation,
+            ): mutation is AccountInventoryResourcesMutation =>
+              mutation.kind === 'account-inventory-resources',
+          ) ?? null;
+
+      if (inventoryResourcesMutation) {
+        try {
+          const nextAccount = await saveAccountInventoryResources(
+            inventoryResourcesMutation.payload.inventoryResources,
+          );
+          const nextMutations = workingMutations.filter(
+            (mutation) => mutation.id !== inventoryResourcesMutation.id,
+          );
+          workingMutations = nextMutations;
+          markProgress(nextAccount, nextMutations);
+        } catch (error) {
+          if (
+            handleMutationFailure(
+              [inventoryResourcesMutation],
+              error,
+              'Resource inventory synchronization failed.',
+            )
+          ) {
+            return;
+          }
+        }
+      }
+
       const commandMutations = workingMutations.filter((mutation) => mutation.scope === 'command');
       const craftRequestDecisionMutations = commandMutations.filter(
         (mutation): mutation is CraftRequestDecisionMutation =>
@@ -773,6 +850,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+
+      const resourceSharesMutation =
+        [...workingMutations]
+          .reverse()
+          .find(
+            (
+              mutation,
+            ): mutation is OrganizationResourceSharesMutation =>
+              mutation.kind === 'organization-resource-shares',
+          ) ?? null;
+
+      if (resourceSharesMutation) {
+        try {
+          const nextAccount = await saveOrganizationResourceShares(
+            resourceSharesMutation.payload.organizationResourceShares,
+          );
+          const nextMutations = workingMutations.filter(
+            (mutation) => mutation.id !== resourceSharesMutation.id,
+          );
+          workingMutations = nextMutations;
+          markProgress(nextAccount, nextMutations);
+        } catch (error) {
+          if (
+            handleMutationFailure(
+              [resourceSharesMutation],
+              error,
+              'Resource share synchronization failed.',
+            )
+          ) {
+            return;
+          }
+        }
+      }
     } finally {
       flushInFlightRef.current = false;
       releaseFlushLock(mutationLockKey, mutationOwnerIdRef.current);
@@ -915,6 +1025,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enqueueMutation(mutation);
   }, [enqueueMutation]);
 
+  const queueInventoryResourcesUpdate = useCallback<
+    AuthState['queueInventoryResourcesUpdate']
+  >((updater, options) => {
+    const currentAccount = applyOptimisticAccountMutations(
+      serverAccountRef.current,
+      pendingMutationsRef.current,
+    );
+    if (!currentAccount) {
+      return;
+    }
+
+    const nextInventoryResources = updater(
+      cloneInventoryResources(currentAccount.inventoryResources ?? []),
+      currentAccount,
+    );
+    const mutation = {
+      id: createMutationId('acctres'),
+      kind: 'account-inventory-resources',
+      scope: 'snapshot',
+      createdAt: Date.now(),
+      accountId: currentAccount.accountId,
+      flushAfterMs: options?.flushAfterMs ?? DEFAULT_CLICK_FLUSH_MS,
+      payload: {
+        inventoryResources: nextInventoryResources,
+      },
+    } satisfies AccountInventoryResourcesMutation;
+    enqueueMutation(mutation);
+  }, [enqueueMutation]);
+
   const queueOrganizationBlueprintSharesUpdate = useCallback<
     AuthState['queueOrganizationBlueprintSharesUpdate']
   >((updater, options) => {
@@ -944,6 +1083,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enqueueMutation(mutation);
   }, [enqueueMutation]);
 
+  const queueOrganizationResourceSharesUpdate = useCallback<
+    AuthState['queueOrganizationResourceSharesUpdate']
+  >((updater, options) => {
+    const currentAccount = applyOptimisticAccountMutations(
+      serverAccountRef.current,
+      pendingMutationsRef.current,
+    );
+    if (!currentAccount) {
+      return;
+    }
+
+    const nextShares = updater(
+      cloneOrganizationResourceShares(currentAccount.organizationResourceShares ?? {}),
+      currentAccount,
+    );
+    const mutation = {
+      id: createMutationId('acctresshares'),
+      kind: 'organization-resource-shares',
+      scope: 'map',
+      createdAt: Date.now(),
+      accountId: currentAccount.accountId,
+      flushAfterMs: options?.flushAfterMs ?? DEFAULT_CLICK_FLUSH_MS,
+      payload: {
+        organizationResourceShares: nextShares,
+      },
+    } satisfies OrganizationResourceSharesMutation;
+    enqueueMutation(mutation);
+  }, [enqueueMutation]);
+
   const loginWithDiscord = useCallback((returnTo?: string) => {
     window.location.assign(getDiscordLoginUrl(returnTo ?? getCurrentReturnTo()));
   }, []);
@@ -958,6 +1126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queueAccountStateUpdate(() => snapshot, options);
     },
     [queueAccountStateUpdate],
+  );
+
+  const updateInventoryResources = useCallback<AuthState['updateInventoryResources']>(
+    async (inventoryResources, options) => {
+      queueInventoryResourcesUpdate(() => inventoryResources, options);
+    },
+    [queueInventoryResourcesUpdate],
   );
 
   const deleteAccount = useCallback(async () => {
@@ -982,6 +1157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   >(async (organizationBlueprintShares, options) => {
     queueOrganizationBlueprintSharesUpdate(() => organizationBlueprintShares, options);
   }, [queueOrganizationBlueprintSharesUpdate]);
+
+  const updateOrganizationResourceShares = useCallback<
+    AuthState['updateOrganizationResourceShares']
+  >(async (organizationResourceShares, options) => {
+    queueOrganizationResourceSharesUpdate(() => organizationResourceShares, options);
+  }, [queueOrganizationResourceSharesUpdate]);
 
   const addOrganization = useCallback(async (sid: string) => {
     const currentAccount = applyOptimisticAccountMutations(
@@ -1144,6 +1325,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return fetchOrganizationSharedBlueprints(sid);
   }, []);
 
+  const loadOrganizationSharedResourcesBinding = useCallback(async (sid: string) => {
+    return fetchOrganizationSharedResources(sid);
+  }, []);
+
   const requestOrganizationCraftBinding = useCallback<
     AuthState['requestOrganizationCraft']
   >(async (sid, payload) => {
@@ -1288,11 +1473,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       syncAccountState,
       queueAccountStateUpdate,
+      updateInventoryResources,
+      queueInventoryResourcesUpdate,
       deleteAccount,
       linkRsiAccount,
       unlinkRsiAccount: unlinkRsiAccountBinding,
       updateOrganizationBlueprintShares,
       queueOrganizationBlueprintSharesUpdate,
+      updateOrganizationResourceShares,
+      queueOrganizationResourceSharesUpdate,
       addOrganization,
       removeOrganization,
       claimOrganization: claimOrganizationBinding,
@@ -1300,6 +1489,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganizationBlueprintSharing: setOrganizationBlueprintSharingBinding,
       refreshOrganizationMembers: refreshOrganizationMembersBinding,
       loadOrganizationSharedBlueprints: loadOrganizationSharedBlueprintsBinding,
+      loadOrganizationSharedResources: loadOrganizationSharedResourcesBinding,
       requestOrganizationCraft: requestOrganizationCraftBinding,
       respondToCraftRequest: respondToCraftRequestBinding,
     }),
@@ -1319,7 +1509,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       optimisticState,
       pendingMutations.length,
       queueAccountStateUpdate,
+      queueInventoryResourcesUpdate,
       queueOrganizationBlueprintSharesUpdate,
+      queueOrganizationResourceSharesUpdate,
       refreshOrganizationMembersBinding,
       refreshSession,
       removeOrganization,
@@ -1333,7 +1525,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       syncError,
       syncStatus,
       unlinkRsiAccountBinding,
+      updateInventoryResources,
       updateOrganizationBlueprintShares,
+      updateOrganizationResourceShares,
+      loadOrganizationSharedResourcesBinding,
     ],
   );
 
