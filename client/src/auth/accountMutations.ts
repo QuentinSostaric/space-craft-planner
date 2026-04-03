@@ -891,7 +891,12 @@ function normalizePersistedMutation(value: unknown): PersistedAccountMutation | 
       const decision = normalizeText(payload?.decision);
       if (
         !payload ||
-        (decision !== 'accepted' && decision !== 'denied' && decision !== 'closed')
+        (
+          decision !== 'accepted' &&
+          decision !== 'denied' &&
+          decision !== 'closed' &&
+          decision !== 'deleted'
+        )
       ) {
         return null;
       }

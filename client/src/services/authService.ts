@@ -71,7 +71,7 @@ export interface CraftRequestBulkDecisionAction {
 export interface CraftRequestBulkDecisionResult {
   requestId: string;
   ok: boolean;
-  status?: AccountCraftRequestStatus;
+  status?: AccountCraftRequestStatus | 'deleted';
   error?: string;
   errorStatus?: number;
 }
@@ -476,11 +476,11 @@ export async function createOrganizationCraftRequest(
 export async function respondToOrganizationCraftRequest(
   requestId: string,
   decision: CraftRequestDecision,
-): Promise<{ account: StoredAccount; requestId: string; status: AccountCraftRequestStatus }> {
+): Promise<{ account: StoredAccount; requestId: string; status: AccountCraftRequestStatus | 'deleted' }> {
   return authApiFetch<{
     account: StoredAccount;
     requestId: string;
-    status: AccountCraftRequestStatus;
+    status: AccountCraftRequestStatus | 'deleted';
   }>(`/api/auth/craft-requests/${encodeURIComponent(requestId)}`, {
     method: 'POST',
     headers: {

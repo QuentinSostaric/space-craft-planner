@@ -547,21 +547,41 @@ export async function respondToCraftRequestsBulk(
     }
 
     try {
-      const result = await respondToCraftRequest(
-        store,
-        currentActingAccount,
-        requestId,
-        decision,
-      );
-      currentActingAccount = result.account;
-      results.push({
-        requestId,
-        ok: true,
-        status: result.status,
-        request: result.request,
-        ownerAccount: result.ownerAccount,
-        requesterAccount: result.requesterAccount,
-      });
+      if (decision === 'deleted') {
+        const result = await deleteCraftRequest(
+          store,
+          currentActingAccount,
+          requestId,
+        );
+        currentActingAccount = result.account;
+        results.push({
+          requestId,
+          ok: true,
+          status: 'deleted',
+          request: {
+            ...result.request,
+            status: 'deleted',
+          },
+          ownerAccount: result.ownerAccount,
+          requesterAccount: result.requesterAccount,
+        });
+      } else {
+        const result = await respondToCraftRequest(
+          store,
+          currentActingAccount,
+          requestId,
+          decision,
+        );
+        currentActingAccount = result.account;
+        results.push({
+          requestId,
+          ok: true,
+          status: result.status,
+          request: result.request,
+          ownerAccount: result.ownerAccount,
+          requesterAccount: result.requesterAccount,
+        });
+      }
     } catch (error) {
       results.push({
         requestId,

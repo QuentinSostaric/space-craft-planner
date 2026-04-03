@@ -217,21 +217,34 @@ export const BlueprintCard = memo(function BlueprintCard({
   const cardStats = CARD_STATS[blueprint.category] ?? [];
   const categoryMax = statMaxima.get(blueprint.category);
   const quickActionBaseSx = {
-    flex: 1,
+    width: '100%',
     minWidth: 0,
-    gap: 0.625,
-    px: 1.1,
-    py: 0.8,
+    minHeight: { xs: 38, sm: 40 },
+    gap: { xs: 0.5, sm: 0.625 },
+    px: { xs: 0.9, sm: 1.05 },
+    py: { xs: 0.65, sm: 0.8 },
     justifyContent: 'flex-start',
     textTransform: 'none',
-    fontSize: '0.78rem',
+    fontSize: { xs: '0.72rem', sm: '0.78rem' },
     fontWeight: 600,
     lineHeight: 1.15,
     borderColor: 'divider',
     backgroundColor: alpha(theme.palette.background.default, 0.22),
     color: 'text.secondary',
     '& .MuiSvgIcon-root': {
-      fontSize: '1rem',
+      fontSize: { xs: '0.95rem', sm: '1rem' },
+      flexShrink: 0,
+    },
+    '& .MuiAvatar-root': {
+      width: { xs: 16, sm: 18 },
+      height: { xs: 16, sm: 18 },
+      flexShrink: 0,
+    },
+    '& .quick-action-label': {
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
     },
     '&:hover': {
       borderColor: 'primary.main',
@@ -407,12 +420,12 @@ export const BlueprintCard = memo(function BlueprintCard({
 
       <Box
         sx={{
-          px: 1.5,
-          pb: 1.5,
-          pt: 0.5,
-          display: 'flex',
-          gap: 0.9,
-          flexWrap: 'wrap',
+          px: { xs: 1.15, sm: 1.4 },
+          pb: { xs: 1.15, sm: 1.4 },
+          pt: 0.75,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+          gap: 0.75,
           borderTop: `1px solid ${theme.palette.divider}`,
           backgroundColor: alpha(theme.palette.background.default, 0.08),
         }}
@@ -445,7 +458,9 @@ export const BlueprintCard = memo(function BlueprintCard({
             }}
           >
             {isFavorite ? <StarIcon /> : <StarBorderIcon />}
-            {t('Favorite', 'Favori', 'Favorit')}
+            <Box component="span" className="quick-action-label">
+              {t('Favorite', 'Favori', 'Favorit')}
+            </Box>
           </ToggleButton>
         </Tooltip>
         <Tooltip
@@ -476,12 +491,14 @@ export const BlueprintCard = memo(function BlueprintCard({
             }}
           >
             {isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
-            {t('Inventory', 'Inventaire', 'Inventar')}
+            <Box component="span" className="quick-action-label">
+              {t('Inventory', 'Inventaire', 'Inventar')}
+            </Box>
           </ToggleButton>
         </Tooltip>
         {organizationShareAction && (
           <Tooltip title={organizationShareAction.tooltip}>
-            <span style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'flex', width: '100%', minWidth: 0 }}>
               <ToggleButton
                 value="organization-share"
                 size="small"
@@ -506,14 +523,16 @@ export const BlueprintCard = memo(function BlueprintCard({
                 ) : (
                   <GroupsOutlinedIcon />
                 )}
-                {organizationShareAction.label}
+                <Box component="span" className="quick-action-label">
+                  {organizationShareAction.label}
+                </Box>
               </ToggleButton>
             </span>
           </Tooltip>
         )}
         {(extraQuickActions ?? []).map((action) => (
           <Tooltip key={action.key} title={action.tooltip}>
-            <span style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'flex', width: '100%', minWidth: 0 }}>
               <ToggleButton
                 value={action.key}
                 size="small"
@@ -537,14 +556,16 @@ export const BlueprintCard = memo(function BlueprintCard({
                   <Avatar
                     src={action.avatarSrc}
                     alt={action.avatarAlt ?? action.label}
-                    sx={{ width: 18, height: 18 }}
+                    sx={{ width: { xs: 16, sm: 18 }, height: { xs: 16, sm: 18 } }}
                   >
                     {(action.avatarAlt ?? action.label).charAt(0).toUpperCase()}
                   </Avatar>
                 ) : (
                   action.icon
                 )}
-                {action.label}
+                <Box component="span" className="quick-action-label">
+                  {action.label}
+                </Box>
               </ToggleButton>
             </span>
           </Tooltip>
