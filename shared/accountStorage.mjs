@@ -6,7 +6,7 @@ import {
 } from './organizationStorage.mjs';
 import { normalizeRsiHandle, normalizeRsiLink } from './rsiLink.mjs';
 
-const ACCOUNT_RECORD_VERSION = 8;
+const ACCOUNT_RECORD_VERSION = 9;
 export const RSI_LINK_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
 const ADMIN_DISCORD_USER_IDS = new Set(['183946313669410816']);
 const ACCOUNT_ORGANIZATION_SOURCES = new Set(['profile-main', 'manual']);
@@ -26,6 +26,7 @@ const ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS = new Set([
   'has_resources',
   'buy_resources',
 ]);
+const RESOURCE_QUANTITY_UNITS = new Set(['scu', 'count']);
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -305,6 +306,100 @@ function normalizeCraftRequestResourcesOption(value, fallbackHasResources = fals
   return ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS.has(option) ? option : 'unspecified';
 }
 
+function normalizeResourceQuantityUnit(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return RESOURCE_QUANTITY_UNITS.has(normalized) ? normalized : 'scu';
+}
+
+function normalizeResourceQuality(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(1000, Math.round(number)));
+}
+
+function normalizeResourceQuantity(value, quantityUnit = 'scu') {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    return 0;
+  }
+
+  if (quantityUnit === 'count') {
+    return Math.max(1, Math.round(number));
+  }
+
+  return Math.round(number * 1000) / 1000;
+}
+
+function normalizeAccountInventoryResourceEntry(value) {
+  if (!isObject(value)) {
+    return null;
+  }
+
+  const id = String(value.id ?? '').trim();
+  const resourceId = String(value.resourceId ?? '').trim();
+  const resourceName = String(value.resourceName ?? resourceId).trim();
+  const quantityUnit = normalizeResourceQuantityUnit(value.quantityUnit);
+  const quantity = normalizeResourceQuantity(value.quantity, quantityUnit);
+  if (!id || !resourceId || !resourceName || quantity <= 0) {
+    return null;
+  }
+
+  return {
+    id,
+    resourceId,
+    resourceName,
+    quantity,
+    quantityUnit,
+    quality: normalizeResourceQuality(value.quality),
+    createdAt: normalizeIsoTimestamp(value.createdAt),
+    updatedAt: normalizeIsoTimestamp(value.updatedAt),
+  };
+}
+
+function normalizeAccountInventoryResources(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const byId = new Map();
+  for (const entry of value) {
+    const normalizedEntry = normalizeAccountInventoryResourceEntry(entry);
+    if (!normalizedEntry) {
+      continue;
+    }
+
+    const existing = byId.get(normalizedEntry.id);
+    if (!existing) {
+      byId.set(normalizedEntry.id, normalizedEntry);
+      continue;
+    }
+
+    const existingUpdatedAt = Date.parse(existing.updatedAt ?? existing.createdAt ?? 0);
+    const nextUpdatedAt = Date.parse(
+      normalizedEntry.updatedAt ?? normalizedEntry.createdAt ?? 0,
+    );
+    byId.set(
+      normalizedEntry.id,
+      Number.isFinite(nextUpdatedAt) && nextUpdatedAt >= existingUpdatedAt
+        ? normalizedEntry
+        : existing,
+    );
+  }
+
+  return Array.from(byId.values()).sort((left, right) => {
+    const leftTimestamp = Date.parse(left.updatedAt ?? left.createdAt ?? 0);
+    const rightTimestamp = Date.parse(right.updatedAt ?? right.createdAt ?? 0);
+    return rightTimestamp - leftTimestamp;
+  });
+}
+
 function normalizeAccountCraftRequest(value) {
   if (!isObject(value)) {
     return null;
@@ -474,6 +569,15 @@ function clipSharedBlueprintIdsToInventory(sharedBlueprintIds, inventoryBlueprin
   return normalizeStringArray(sharedBlueprintIds).filter((blueprintId) => inventorySet.has(blueprintId));
 }
 
+function clipSharedResourceIdsToInventory(sharedResourceIds, inventoryResources) {
+  const inventoryResourceIdSet = new Set(
+    normalizeAccountInventoryResources(inventoryResources).map((resourceEntry) => resourceEntry.id),
+  );
+  return normalizeStringArray(sharedResourceIds).filter((resourceEntryId) =>
+    inventoryResourceIdSet.has(resourceEntryId),
+  );
+}
+
 function normalizeOrganizationBlueprintShares(
   value,
   inventoryBlueprintIds,
@@ -533,6 +637,64 @@ function normalizeOrganizationBlueprintShares(
   return normalizedShares;
 }
 
+function normalizeOrganizationResourceShares(
+  value,
+  inventoryResources,
+  organizations,
+  legacySharedResourceEntryIds = [],
+) {
+  const inventoryResourceIdSet = new Set(
+    normalizeAccountInventoryResources(inventoryResources).map((resourceEntry) => resourceEntry.id),
+  );
+  const normalizedOrganizations = normalizeAccountOrganizations(organizations);
+  const knownOrganizationSids = new Set(
+    normalizedOrganizations.map((organization) => organization.sid),
+  );
+  const normalizedShares = {};
+
+  if (isObject(value)) {
+    for (const [rawSid, rawResourceEntryIds] of Object.entries(value)) {
+      const sid = normalizeOrganizationSid(rawSid);
+      if (!sid) {
+        continue;
+      }
+      if (knownOrganizationSids.size > 0 && !knownOrganizationSids.has(sid)) {
+        continue;
+      }
+
+      const normalizedResourceEntryIds = normalizeStringArray(rawResourceEntryIds).filter(
+        (resourceEntryId) => inventoryResourceIdSet.has(resourceEntryId),
+      );
+      if (normalizedResourceEntryIds.length > 0) {
+        normalizedShares[sid] = normalizedResourceEntryIds;
+      }
+    }
+  }
+
+  if (!isObject(value) && Object.keys(normalizedShares).length === 0 && knownOrganizationSids.size > 0) {
+    const migratedResourceEntryIds = clipSharedResourceIdsToInventory(
+      legacySharedResourceEntryIds,
+      inventoryResources,
+    );
+    if (migratedResourceEntryIds.length > 0) {
+      const profileMainSid =
+        normalizedOrganizations.find((organization) => organization.source === 'profile-main')?.sid ??
+        null;
+      const targetSids = profileMainSid
+        ? [profileMainSid]
+        : knownOrganizationSids.size === 1
+          ? [...knownOrganizationSids]
+          : [];
+
+      for (const sid of targetSids) {
+        normalizedShares[sid] = [...migratedResourceEntryIds];
+      }
+    }
+  }
+
+  return normalizedShares;
+}
+
 function deriveSharedBlueprintIdsFromOrganizationShares(
   organizationBlueprintShares,
   legacySharedBlueprintIds = [],
@@ -548,6 +710,18 @@ function deriveSharedBlueprintIdsFromOrganizationShares(
   return normalizeStringArray(legacySharedBlueprintIds);
 }
 
+function deriveSharedResourceIdsFromOrganizationShares(
+  organizationResourceShares,
+  legacySharedResourceEntryIds = [],
+) {
+  if (isObject(organizationResourceShares)) {
+    return normalizeStringArray(
+      Object.values(organizationResourceShares).flat(),
+    );
+  }
+  return normalizeStringArray(legacySharedResourceEntryIds);
+}
+
 function getOrganizationShareSids(organizationBlueprintShares) {
   if (!isObject(organizationBlueprintShares)) {
     return [];
@@ -556,6 +730,19 @@ function getOrganizationShareSids(organizationBlueprintShares) {
   return sortStringArray(
     Object.entries(organizationBlueprintShares)
       .filter(([, blueprintIds]) => Array.isArray(blueprintIds) && blueprintIds.length > 0)
+      .map(([sid]) => normalizeOrganizationSid(sid))
+      .filter(Boolean),
+  );
+}
+
+function getOrganizationResourceShareSids(organizationResourceShares) {
+  if (!isObject(organizationResourceShares)) {
+    return [];
+  }
+
+  return sortStringArray(
+    Object.entries(organizationResourceShares)
+      .filter(([, resourceEntryIds]) => Array.isArray(resourceEntryIds) && resourceEntryIds.length > 0)
       .map(([sid]) => normalizeOrganizationSid(sid))
       .filter(Boolean),
   );
@@ -571,10 +758,14 @@ async function syncOrganizationShareIndexesForAccount(store, previousAccount, ne
     return;
   }
 
-  const previousSharedSids = new Set(
-    getOrganizationShareSids(previousAccount?.organizationBlueprintShares),
-  );
-  const nextSharedSids = new Set(getOrganizationShareSids(nextAccount?.organizationBlueprintShares));
+  const previousSharedSids = new Set([
+    ...getOrganizationShareSids(previousAccount?.organizationBlueprintShares),
+    ...getOrganizationResourceShareSids(previousAccount?.organizationResourceShares),
+  ]);
+  const nextSharedSids = new Set([
+    ...getOrganizationShareSids(nextAccount?.organizationBlueprintShares),
+    ...getOrganizationResourceShareSids(nextAccount?.organizationResourceShares),
+  ]);
   const affectedSids = sortStringArray([
     ...previousSharedSids,
     ...nextSharedSids,
@@ -745,9 +936,12 @@ export function createDefaultAccountRecord(profile, { accountId, now } = {}) {
     profile: normalizedProfile,
     favoriteBlueprintIds: [],
     inventoryBlueprintIds: [],
+    inventoryResources: [],
     planner: createEmptyAccountState().planner,
     organizationBlueprintShares: {},
+    organizationResourceShares: {},
     sharedBlueprintIds: [],
+    sharedResourceEntryIds: [],
     organizations: [],
     ignoredOrganizationSids: [],
     incomingCraftRequests: [],
@@ -774,6 +968,7 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
   const updatedAt = value?.updatedAt ? String(value.updatedAt) : createdAt;
   const lastLoginAt = value?.lastLoginAt ? String(value.lastLoginAt) : null;
   const state = normalizeStateSnapshot(value);
+  const inventoryResources = normalizeAccountInventoryResources(value?.inventoryResources);
   const rsi = normalizeRsiLink(value?.rsi);
   const organizations = normalizeAccountOrganizations(value?.organizations);
   const ignoredOrganizationSids = normalizeIgnoredOrganizationSids(value?.ignoredOrganizationSids);
@@ -781,17 +976,31 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
     value?.sharedBlueprintIds,
     state.inventoryBlueprintIds,
   );
+  const legacySharedResourceEntryIds = clipSharedResourceIdsToInventory(
+    value?.sharedResourceEntryIds,
+    inventoryResources,
+  );
   const organizationBlueprintShares = normalizeOrganizationBlueprintShares(
     value?.organizationBlueprintShares,
     state.inventoryBlueprintIds,
     organizations,
     legacySharedBlueprintIds,
   );
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    value?.organizationResourceShares,
+    inventoryResources,
+    organizations,
+    legacySharedResourceEntryIds,
+  );
   const incomingCraftRequests = normalizeAccountCraftRequests(value?.incomingCraftRequests);
   const outgoingCraftRequests = normalizeAccountCraftRequests(value?.outgoingCraftRequests);
   const sharedBlueprintIds = deriveSharedBlueprintIdsFromOrganizationShares(
     organizationBlueprintShares,
     legacySharedBlueprintIds,
+  );
+  const sharedResourceEntryIds = deriveSharedResourceIdsFromOrganizationShares(
+    organizationResourceShares,
+    legacySharedResourceEntryIds,
   );
   const lastRsiLinkAt = normalizeIsoTimestamp(value?.lastRsiLinkAt ?? rsi?.verifiedAt);
   const isAdmin = normalizeAdminFlag(value?.isAdmin, normalizedProfile, rsi);
@@ -804,9 +1013,12 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
     profile: normalizedProfile,
     favoriteBlueprintIds: state.favoriteBlueprintIds,
     inventoryBlueprintIds: state.inventoryBlueprintIds,
+    inventoryResources,
     planner: state.planner,
     organizationBlueprintShares,
+    organizationResourceShares,
     sharedBlueprintIds,
+    sharedResourceEntryIds,
     organizations,
     ignoredOrganizationSids,
     incomingCraftRequests,
@@ -984,6 +1196,41 @@ export async function findAccountIdsSharingOrganizationBlueprints(store, sid) {
   return sortStringArray(matchingAccountIds);
 }
 
+export async function findAccountIdsSharingOrganizationResources(store, sid) {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid || typeof store?.listJsonKeys !== 'function') {
+    return [];
+  }
+
+  const accountKeys = await store.listJsonKeys('accounts/');
+  const matchingAccountIds = [];
+
+  for (const key of accountKeys) {
+    if (!String(key).endsWith('.json')) {
+      continue;
+    }
+
+    const accountId = key.slice('accounts/'.length, -'.json'.length);
+    if (!accountId) {
+      continue;
+    }
+
+    const account = await readAccountRecord(store, accountId);
+    if (!account) {
+      continue;
+    }
+
+    const sharedResourceEntryIds = account.organizationResourceShares?.[normalizedSid] ?? [];
+    if (!Array.isArray(sharedResourceEntryIds) || sharedResourceEntryIds.length === 0) {
+      continue;
+    }
+
+    matchingAccountIds.push(accountId);
+  }
+
+  return sortStringArray(matchingAccountIds);
+}
+
 export async function readAccountRecord(store, accountId, fallbackProfile = null) {
   const rawAccount = await store.readJson(getAccountObjectKey(accountId));
   if (!rawAccount) {
@@ -1010,6 +1257,13 @@ export async function upsertDiscordAccount(store, profile) {
     organizations,
     existing?.sharedBlueprintIds,
   );
+  const inventoryResources = normalizeAccountInventoryResources(existing?.inventoryResources);
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    existing?.organizationResourceShares,
+    inventoryResources,
+    organizations,
+    existing?.sharedResourceEntryIds,
+  );
   const nextRecord = {
     ...base,
     version: ACCOUNT_RECORD_VERSION,
@@ -1018,10 +1272,16 @@ export async function upsertDiscordAccount(store, profile) {
     profile: normalizedProfile,
     isAdmin: normalizeAdminFlag(existing?.isAdmin, normalizedProfile, existing?.rsi ?? null),
     lastRsiLinkAt: normalizeIsoTimestamp(existing?.lastRsiLinkAt),
+    inventoryResources,
     organizationBlueprintShares,
+    organizationResourceShares,
     sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShares(
       organizationBlueprintShares,
       clipSharedBlueprintIdsToInventory(existing?.sharedBlueprintIds, base.inventoryBlueprintIds),
+    ),
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      organizationResourceShares,
+      clipSharedResourceIdsToInventory(existing?.sharedResourceEntryIds, inventoryResources),
     ),
     organizations,
     ignoredOrganizationSids,
@@ -1051,13 +1311,26 @@ export async function saveAccountState(store, accountId, stateSnapshot, fallback
     organizations,
     existing.sharedBlueprintIds,
   );
+  const inventoryResources = normalizeAccountInventoryResources(existing.inventoryResources);
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    existing.organizationResourceShares,
+    inventoryResources,
+    organizations,
+    existing.sharedResourceEntryIds,
+  );
   const nextRecord = {
     ...existing,
     ...normalizedState,
+    inventoryResources,
     organizationBlueprintShares,
+    organizationResourceShares,
     sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShares(
       organizationBlueprintShares,
       clipSharedBlueprintIdsToInventory(existing.sharedBlueprintIds, normalizedState.inventoryBlueprintIds),
+    ),
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      organizationResourceShares,
+      clipSharedResourceIdsToInventory(existing.sharedResourceEntryIds, inventoryResources),
     ),
     organizations,
     ignoredOrganizationSids,
@@ -1094,13 +1367,24 @@ export async function saveAccountOrganizations(
     normalizedOrganizations,
     existing.sharedBlueprintIds,
   );
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    existing.organizationResourceShares,
+    existing.inventoryResources,
+    normalizedOrganizations,
+    existing.sharedResourceEntryIds,
+  );
   const nextRecord = {
     ...existing,
     organizations: normalizedOrganizations,
     organizationBlueprintShares,
+    organizationResourceShares,
     sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShares(
       organizationBlueprintShares,
       clipSharedBlueprintIdsToInventory(existing.sharedBlueprintIds, existing.inventoryBlueprintIds),
+    ),
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      organizationResourceShares,
+      clipSharedResourceIdsToInventory(existing.sharedResourceEntryIds, existing.inventoryResources),
     ),
     incomingCraftRequests: normalizeAccountCraftRequests(existing.incomingCraftRequests),
     outgoingCraftRequests: normalizeAccountCraftRequests(existing.outgoingCraftRequests),
@@ -1135,14 +1419,89 @@ export async function saveAccountOrganizationBlueprintShares(
     ...existing,
     organizations: normalizedOrganizations,
     organizationBlueprintShares: normalizedOrganizationBlueprintShares,
+    organizationResourceShares: normalizeOrganizationResourceShares(
+      existing.organizationResourceShares,
+      existing.inventoryResources,
+      normalizedOrganizations,
+      existing.sharedResourceEntryIds,
+    ),
     sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShares(
       normalizedOrganizationBlueprintShares,
       existing.sharedBlueprintIds,
+    ),
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      existing.organizationResourceShares,
+      existing.sharedResourceEntryIds,
     ),
     incomingCraftRequests: normalizeAccountCraftRequests(existing.incomingCraftRequests),
     outgoingCraftRequests: normalizeAccountCraftRequests(existing.outgoingCraftRequests),
     ignoredOrganizationSids,
     updatedAt: now,
+  };
+
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+}
+
+export async function saveAccountInventoryResources(
+  store,
+  accountId,
+  inventoryResources,
+  fallbackProfile = null,
+) {
+  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  if (!existing) {
+    throw new Error(`Account "${accountId}" does not exist.`);
+  }
+
+  const normalizedInventoryResources = normalizeAccountInventoryResources(inventoryResources);
+  const normalizedOrganizations = normalizeAccountOrganizations(existing.organizations);
+  const normalizedOrganizationResourceShares = normalizeOrganizationResourceShares(
+    existing.organizationResourceShares,
+    normalizedInventoryResources,
+    normalizedOrganizations,
+    existing.sharedResourceEntryIds,
+  );
+  const nextRecord = {
+    ...existing,
+    inventoryResources: normalizedInventoryResources,
+    organizationResourceShares: normalizedOrganizationResourceShares,
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      normalizedOrganizationResourceShares,
+      clipSharedResourceIdsToInventory(existing.sharedResourceEntryIds, normalizedInventoryResources),
+    ),
+    updatedAt: toIsoNow(),
+  };
+
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+}
+
+export async function saveAccountOrganizationResourceShares(
+  store,
+  accountId,
+  organizationResourceShares,
+  fallbackProfile = null,
+) {
+  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  if (!existing) {
+    throw new Error(`Account "${accountId}" does not exist.`);
+  }
+
+  const normalizedOrganizations = normalizeAccountOrganizations(existing.organizations);
+  const normalizedOrganizationResourceShares = normalizeOrganizationResourceShares(
+    organizationResourceShares,
+    existing.inventoryResources,
+    normalizedOrganizations,
+    existing.sharedResourceEntryIds,
+  );
+  const nextRecord = {
+    ...existing,
+    organizations: normalizedOrganizations,
+    organizationResourceShares: normalizedOrganizationResourceShares,
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      normalizedOrganizationResourceShares,
+      existing.sharedResourceEntryIds,
+    ),
+    updatedAt: toIsoNow(),
   };
 
   return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
@@ -1181,15 +1540,26 @@ export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProf
     organizations,
     existing.sharedBlueprintIds,
   );
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    existing.organizationResourceShares,
+    existing.inventoryResources,
+    organizations,
+    existing.sharedResourceEntryIds,
+  );
 
   const nextRecord = {
     ...existing,
     rsi: normalizedRsiLink,
     organizations,
     organizationBlueprintShares,
+    organizationResourceShares,
     sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShares(
       organizationBlueprintShares,
       existing.sharedBlueprintIds,
+    ),
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      organizationResourceShares,
+      existing.sharedResourceEntryIds,
     ),
     incomingCraftRequests: normalizeAccountCraftRequests(existing.incomingCraftRequests),
     outgoingCraftRequests: normalizeAccountCraftRequests(existing.outgoingCraftRequests),
@@ -1224,14 +1594,25 @@ export async function clearRsiAccountLink(store, accountId, fallbackProfile = nu
     organizations,
     existing.sharedBlueprintIds,
   );
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    existing.organizationResourceShares,
+    existing.inventoryResources,
+    organizations,
+    existing.sharedResourceEntryIds,
+  );
   const nextRecord = {
     ...existing,
     rsi: null,
     organizations,
     organizationBlueprintShares,
+    organizationResourceShares,
     sharedBlueprintIds: deriveSharedBlueprintIdsFromOrganizationShares(
       organizationBlueprintShares,
       existing.sharedBlueprintIds,
+    ),
+    sharedResourceEntryIds: deriveSharedResourceIdsFromOrganizationShares(
+      organizationResourceShares,
+      existing.sharedResourceEntryIds,
     ),
     incomingCraftRequests: normalizeAccountCraftRequests(existing.incomingCraftRequests),
     outgoingCraftRequests: normalizeAccountCraftRequests(existing.outgoingCraftRequests),

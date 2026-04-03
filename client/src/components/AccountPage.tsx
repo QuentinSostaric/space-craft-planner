@@ -10,15 +10,18 @@ import DialogTitle from '@mui/material/DialogTitle';
 import InputAdornment from '@mui/material/InputAdornment';
 import LinearProgress from '@mui/material/LinearProgress';
 import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Rating from '@mui/material/Rating';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
+import GroupsIcon from '@mui/icons-material/Groups';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import discordSymbol from '../assets/discord-symbol.svg';
@@ -29,12 +32,17 @@ import {
   readLocalBlueprintCollections,
 } from '../auth/localAccountImport';
 import { useI18n } from '../i18n/I18nContext';
-import { getDiscordBotInviteUrl } from '../services/authService';
+import {
+  getDiscordBotInviteUrl,
+  type AccountInventoryResourceEntry,
+} from '../services/authService';
 import { useCraft } from '../store/CraftContext';
-import { computeStatMaxima } from '../utils/crafting';
+import { computeStatMaxima, formatQualityLabel, formatResourceQuantity } from '../utils/crafting';
+import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
 import { AccountGuestView } from './account/AccountGuestView';
 import { CraftRequestsPanel } from './account/CraftRequestsPanel';
 import { BlueprintCard } from './BlueprintGrid';
+import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { Button } from './ui/Button';
 
 function readAuthError(): string | null {
@@ -44,6 +52,33 @@ function readAuthError(): string | null {
 
 const RSI_VERIFICATION_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACCOUNT_BLUEPRINT_BATCH_SIZE = 24;
+
+type AccountAssetFilter =
+  | 'all'
+  | 'inventory-blueprints'
+  | 'favorite-blueprints'
+  | 'resources';
+
+type AccountLibraryEntry =
+  | {
+      key: string;
+      kind: 'blueprint';
+      blueprint: ReturnType<typeof useCraft>['blueprints'][number];
+      searchHaystack: string;
+      isFavorite: boolean;
+      isInInventory: boolean;
+      isShared: boolean;
+      sharedOrganizationIds: string[];
+    }
+  | {
+      key: string;
+      kind: 'resource';
+      resourceEntry: AccountInventoryResourceEntry;
+      resource: ReturnType<typeof useCraft>['activeDataset']['resources'][number] | null;
+      searchHaystack: string;
+      isShared: boolean;
+      sharedOrganizationIds: string[];
+    };
 
 function createRsiVerificationCode(length = 6): string {
   const bytes = new Uint32Array(length);
@@ -92,7 +127,7 @@ function openDiscordBotInvite() {
 }
 
 export function AccountPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const {
     enabled,
     loading,
@@ -107,7 +142,9 @@ export function AccountPage() {
     syncAccountState,
     linkRsiAccount,
     unlinkRsiAccount,
+    updateInventoryResources,
     updateOrganizationBlueprintShares,
+    updateOrganizationResourceShares,
     addOrganization,
     removeOrganization,
     claimOrganization,
@@ -133,7 +170,8 @@ export function AccountPage() {
   const authError = useMemo(() => readAuthError(), []);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [libraryMode, setLibraryMode] = useState<'inventory' | 'favorites'>('inventory');
+  const [assetFilter, setAssetFilter] = useState<AccountAssetFilter>('all');
+  const [assetSearch, setAssetSearch] = useState('');
   const [importModalDismissed, setImportModalDismissed] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -150,6 +188,10 @@ export function AccountPage() {
   const [shareDialogBlueprintId, setShareDialogBlueprintId] = useState<string | null>(null);
   const [shareDialogSelection, setShareDialogSelection] = useState<string[]>([]);
   const [sharedBlueprintBusyId, setSharedBlueprintBusyId] = useState<string | null>(null);
+  const [resourceCollectionError, setResourceCollectionError] = useState<string | null>(null);
+  const [shareDialogResourceEntryId, setShareDialogResourceEntryId] = useState<string | null>(null);
+  const [shareDialogResourceSelection, setShareDialogResourceSelection] = useState<string[]>([]);
+  const [sharedResourceBusyId, setSharedResourceBusyId] = useState<string | null>(null);
   const [organizationSidInput, setOrganizationSidInput] = useState('');
   const [organizationAddBusy, setOrganizationAddBusy] = useState(false);
   const [organizationActionSid, setOrganizationActionSid] = useState<string | null>(null);
@@ -170,9 +212,15 @@ export function AccountPage() {
   const favoriteSnapshotIds = account?.favoriteBlueprintIds ?? favoriteIds;
   const inventorySnapshotIds = account?.inventoryBlueprintIds ?? inventoryIds;
   const organizationBlueprintShares = account?.organizationBlueprintShares ?? {};
+  const organizationResourceShares = account?.organizationResourceShares ?? {};
+  const inventoryResources = account?.inventoryResources ?? [];
   const sharedBlueprintIdSet = useMemo(
     () => new Set(account?.sharedBlueprintIds ?? []),
     [account?.sharedBlueprintIds],
+  );
+  const sharedResourceEntryIdSet = useMemo(
+    () => new Set(account?.sharedResourceEntryIds ?? []),
+    [account?.sharedResourceEntryIds],
   );
   const sharedOrganizationIdsByBlueprintId = useMemo(() => {
     const nextMap = new Map<string, string[]>();
@@ -185,6 +233,17 @@ export function AccountPage() {
     }
     return nextMap;
   }, [organizationBlueprintShares]);
+  const sharedOrganizationIdsByResourceEntryId = useMemo(() => {
+    const nextMap = new Map<string, string[]>();
+    for (const [sid, resourceEntryIds] of Object.entries(organizationResourceShares)) {
+      for (const resourceEntryId of resourceEntryIds) {
+        const currentOrganizationIds = nextMap.get(resourceEntryId) ?? [];
+        currentOrganizationIds.push(sid);
+        nextMap.set(resourceEntryId, currentOrganizationIds);
+      }
+    }
+    return nextMap;
+  }, [organizationResourceShares]);
   const linkedOrganizations = account?.organizations ?? [];
   const favoriteCount = favoriteSnapshotIds.length;
   const inventoryCount = inventorySnapshotIds.length;
@@ -221,36 +280,157 @@ export function AccountPage() {
     () => new Map(blueprints.map((blueprint) => [blueprint.id, blueprint])),
     [blueprints],
   );
-  const displayedIds = libraryMode === 'inventory' ? inventorySnapshotIds : favoriteSnapshotIds;
-  const displayedBlueprints = useMemo(
-    () => displayedIds
-      .map((blueprintId) => blueprintById.get(blueprintId) ?? null)
-      .filter((blueprint): blueprint is (typeof blueprints)[number] => blueprint !== null),
-    [blueprintById, displayedIds],
+  const resourceById = useMemo(
+    () => new Map(activeDataset.resources.map((resource) => [resource.id, resource])),
+    [activeDataset.resources],
   );
-  const visibleDisplayedBlueprints = useMemo(
-    () => displayedBlueprints.slice(0, visibleBlueprintCount),
-    [displayedBlueprints, visibleBlueprintCount],
+  const resourceInsightById = useMemo(
+    () =>
+      new Map(
+        (activeDataset.resourceInsights ?? []).map((insight) => [insight.resourceId, insight]),
+      ),
+    [activeDataset.resourceInsights],
   );
-  const hiddenBlueprintCount = displayedIds.length - displayedBlueprints.length;
   const shareDialogBlueprint = shareDialogBlueprintId
     ? blueprintById.get(shareDialogBlueprintId) ?? null
     : null;
+  const shareDialogResourceEntry = shareDialogResourceEntryId
+    ? inventoryResources.find((resourceEntry) => resourceEntry.id === shareDialogResourceEntryId) ?? null
+    : null;
+  const hiddenBlueprintCount = useMemo(() => {
+    const referencedIds = new Set([...inventorySnapshotIds, ...favoriteSnapshotIds]);
+    let hiddenCount = 0;
+    for (const blueprintId of referencedIds) {
+      if (!blueprintById.has(blueprintId)) {
+        hiddenCount += 1;
+      }
+    }
+    return hiddenCount;
+  }, [blueprintById, favoriteSnapshotIds, inventorySnapshotIds]);
+  const filteredAssetEntries = useMemo<AccountLibraryEntry[]>(() => {
+    const normalizedSearch = assetSearch.trim().toLowerCase();
+    const entries: AccountLibraryEntry[] = [];
+    const includedBlueprintIds = new Set<string>();
 
-  const activeCollectionLabel = libraryMode === 'inventory'
-    ? t('Account inventory', 'Inventaire du compte', 'Konto-Inventar')
-    : t('Favorite blueprints', 'Blueprints favoris', 'Favorisierte Blueprints');
-  const activeCollectionEmptyLabel = libraryMode === 'inventory'
-    ? t(
-      'No blueprints are stored in the account inventory yet.',
-      'Aucun blueprint n est encore stocke dans l inventaire du compte.',
-      'Es sind noch keine Blueprints im Konto-Inventar gespeichert.',
-    )
-    : t(
-      'No favorite blueprints are stored yet.',
-      'Aucun blueprint favori n est encore stocke.',
-      'Es sind noch keine favorisierten Blueprints gespeichert.',
-    );
+    const includeInventoryBlueprints =
+      assetFilter === 'all' || assetFilter === 'inventory-blueprints';
+    const includeFavoriteBlueprints =
+      assetFilter === 'all' || assetFilter === 'favorite-blueprints';
+    const includeResources = assetFilter === 'all' || assetFilter === 'resources';
+
+    if (includeInventoryBlueprints) {
+      for (const blueprintId of inventorySnapshotIds) {
+        const blueprint = blueprintById.get(blueprintId);
+        if (!blueprint || includedBlueprintIds.has(blueprint.id)) {
+          continue;
+        }
+        includedBlueprintIds.add(blueprint.id);
+        const sharedOrganizationIds = sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
+        entries.push({
+          key: `blueprint:${blueprint.id}`,
+          kind: 'blueprint',
+          blueprint,
+          searchHaystack: [
+            blueprint.name,
+            blueprint.manufacturer,
+            blueprint.category,
+            'inventory',
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase(),
+          isFavorite: favoriteIdSet.has(blueprint.id),
+          isInInventory: true,
+          isShared: sharedOrganizationIds.length > 0,
+          sharedOrganizationIds,
+        });
+      }
+    }
+
+    if (includeFavoriteBlueprints) {
+      for (const blueprintId of favoriteSnapshotIds) {
+        const blueprint = blueprintById.get(blueprintId);
+        if (!blueprint || includedBlueprintIds.has(blueprint.id)) {
+          continue;
+        }
+        includedBlueprintIds.add(blueprint.id);
+        const sharedOrganizationIds = sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
+        entries.push({
+          key: `blueprint:${blueprint.id}`,
+          kind: 'blueprint',
+          blueprint,
+          searchHaystack: [
+            blueprint.name,
+            blueprint.manufacturer,
+            blueprint.category,
+            'favorite',
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase(),
+          isFavorite: true,
+          isInInventory: inventoryIdSet.has(blueprint.id),
+          isShared: sharedOrganizationIds.length > 0,
+          sharedOrganizationIds,
+        });
+      }
+    }
+
+    if (includeResources) {
+      for (const resourceEntry of inventoryResources) {
+        const resource = resourceById.get(resourceEntry.resourceId) ?? null;
+        const sharedOrganizationIds = sharedOrganizationIdsByResourceEntryId.get(resourceEntry.id) ?? [];
+        entries.push({
+          key: `resource:${resourceEntry.id}`,
+          kind: 'resource',
+          resourceEntry,
+          resource,
+          searchHaystack: [
+            resourceEntry.resourceName,
+            resource?.description,
+            formatResourceQuantity(resourceEntry.quantity, resourceEntry.quantityUnit, 'en', 'long'),
+            resourceEntry.quality == null ? '' : `quality ${resourceEntry.quality}`,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase(),
+          isShared: sharedOrganizationIds.length > 0,
+          sharedOrganizationIds,
+        });
+      }
+    }
+
+    return entries.filter((entry) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+      return entry.searchHaystack.includes(normalizedSearch);
+    });
+  }, [
+    assetFilter,
+    assetSearch,
+    blueprintById,
+    favoriteIdSet,
+    favoriteSnapshotIds,
+    inventoryIdSet,
+    inventoryResources,
+    inventorySnapshotIds,
+    resourceById,
+    sharedOrganizationIdsByBlueprintId,
+    sharedOrganizationIdsByResourceEntryId,
+  ]);
+  const visibleAssetEntries = useMemo(
+    () => filteredAssetEntries.slice(0, visibleBlueprintCount),
+    [filteredAssetEntries, visibleBlueprintCount],
+  );
+  const filteredBlueprintEntryCount = useMemo(
+    () => filteredAssetEntries.filter((entry) => entry.kind === 'blueprint').length,
+    [filteredAssetEntries],
+  );
+  const filteredResourceEntryCount = useMemo(
+    () => filteredAssetEntries.filter((entry) => entry.kind === 'resource').length,
+    [filteredAssetEntries],
+  );
 
   useEffect(() => {
     if (!missionRewards) {
@@ -267,9 +447,12 @@ export function AccountPage() {
     setImportError(null);
     setRsiUnlinkError(null);
     setBlueprintCollectionError(null);
+    setResourceCollectionError(null);
     setSharedBlueprintError(null);
     setShareDialogBlueprintId(null);
     setShareDialogSelection([]);
+    setShareDialogResourceEntryId(null);
+    setShareDialogResourceSelection([]);
     setOrganizationError(null);
     setOrganizationNotice(null);
     setOrganizationSidInput('');
@@ -279,11 +462,13 @@ export function AccountPage() {
     setCraftRequestActionId(null);
     setCraftRequestError(null);
     setCraftRequestNotice(null);
+    setAssetFilter('all');
+    setAssetSearch('');
   }, [account?.accountId, user?.id]);
 
   useEffect(() => {
     setVisibleBlueprintCount(ACCOUNT_BLUEPRINT_BATCH_SIZE);
-  }, [libraryMode, account?.accountId, displayedBlueprints.length]);
+  }, [assetFilter, assetSearch, account?.accountId, filteredAssetEntries.length]);
 
   const handlePersistedBlueprintCollectionsUpdate = async (
     nextCollections: {
@@ -587,6 +772,111 @@ export function AccountPage() {
     }
   };
 
+  const openShareResourceDialog = (resourceEntryId: string) => {
+    if (!account) {
+      return;
+    }
+
+    blurFocusedElement();
+    setResourceCollectionError(null);
+    setShareDialogResourceEntryId(resourceEntryId);
+    setShareDialogResourceSelection(sharedOrganizationIdsByResourceEntryId.get(resourceEntryId) ?? []);
+  };
+
+  const closeShareResourceDialog = () => {
+    if (!sharedResourceBusyId) {
+      setShareDialogResourceEntryId(null);
+      setShareDialogResourceSelection([]);
+    }
+  };
+
+  const handleSaveResourceOrganizationShares = async () => {
+    if (!account || !shareDialogResourceEntryId) {
+      return;
+    }
+
+    setSharedResourceBusyId(shareDialogResourceEntryId);
+    setResourceCollectionError(null);
+    try {
+      const nextOrganizationResourceShares = Object.fromEntries(
+        Object.entries(account.organizationResourceShares ?? {}).map(([sid, resourceEntryIds]) => [
+          sid,
+          resourceEntryIds.filter((resourceEntryId) => resourceEntryId !== shareDialogResourceEntryId),
+        ]),
+      ) as Record<string, string[]>;
+
+      for (const sid of shareDialogResourceSelection) {
+        const currentResourceEntryIds = nextOrganizationResourceShares[sid] ?? [];
+        nextOrganizationResourceShares[sid] = [
+          ...new Set([...currentResourceEntryIds, shareDialogResourceEntryId]),
+        ];
+      }
+
+      const prunedOrganizationResourceShares = Object.fromEntries(
+        Object.entries(nextOrganizationResourceShares).filter(([, resourceEntryIds]) => resourceEntryIds.length > 0),
+      );
+
+      await updateOrganizationResourceShares(prunedOrganizationResourceShares);
+      setShareDialogResourceEntryId(null);
+      setShareDialogResourceSelection([]);
+    } catch (error) {
+      setResourceCollectionError(
+        error instanceof Error
+          ? error.message
+          : t(
+              'Failed to update resource sharing.',
+              'La mise a jour du partage des ressources a echoue.',
+              'Die Ressourcenfreigabe konnte nicht aktualisiert werden.',
+            ),
+      );
+    } finally {
+      setSharedResourceBusyId(null);
+    }
+  };
+
+  const handleRemoveResourceEntry = async (resourceEntryId: string) => {
+    if (!account) {
+      return;
+    }
+
+    setSharedResourceBusyId(resourceEntryId);
+    setResourceCollectionError(null);
+    try {
+      const nextInventoryResources = inventoryResources.filter((resourceEntry) => resourceEntry.id !== resourceEntryId);
+      const nextOrganizationResourceShares = Object.fromEntries(
+        Object.entries(account.organizationResourceShares ?? {}).map(([sid, resourceEntryIds]) => [
+          sid,
+          resourceEntryIds.filter((entryId) => entryId !== resourceEntryId),
+        ]),
+      );
+      const prunedOrganizationResourceShares = Object.fromEntries(
+        Object.entries(nextOrganizationResourceShares).filter(([, resourceEntryIds]) => resourceEntryIds.length > 0),
+      );
+
+      await Promise.all([
+        updateInventoryResources(nextInventoryResources),
+        updateOrganizationResourceShares(prunedOrganizationResourceShares),
+      ]);
+
+      if (shareDialogResourceEntryId === resourceEntryId) {
+        setShareDialogResourceEntryId(null);
+        setShareDialogResourceSelection([]);
+      }
+    } catch (error) {
+      setResourceCollectionError(
+        error instanceof Error
+          ? error.message
+          : t(
+              'Failed to update the resource inventory.',
+              'La mise a jour de l inventaire des ressources a echoue.',
+              'Das Ressourceninventar konnte nicht aktualisiert werden.',
+            ),
+      );
+    } finally {
+      setSharedResourceBusyId(null);
+    }
+  };
+
   const handleAddOrganization = async () => {
     const sid = normalizeOrganizationSidInput(organizationSidInput);
     if (!sid) {
@@ -873,7 +1163,7 @@ export function AccountPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minHeight: 0, overflow: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, md: 3 }, display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
       <Paper
         variant="outlined"
         sx={{
@@ -1762,219 +2052,318 @@ export function AccountPage() {
 
           <Stack spacing={2}>
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-            <Stack spacing={2}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                spacing={1.5}
-                justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', md: 'center' }}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-                  >
-                    {t('Blueprints', 'Blueprints', 'Blueprints')}
-                  </Typography>
-                  <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
-                    {activeCollectionLabel}
-                  </Typography>
-                  <Typography sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 720 }}>
-                    {t(
-                      'Switch between the account inventory and favorites. Inventory blueprints can be shared per organization from the account inventory.',
-                      'Bascule entre l inventaire du compte et les favoris. Les blueprints d inventaire peuvent etre partages organisation par organisation depuis cette vue.',
-                      'Wechsle zwischen Konto-Inventar und Favoriten. Inventar-Blueprints konnen in dieser Ansicht pro Organisation freigegeben werden.',
-                    )}
-                  </Typography>
-                </Box>
-
-                <ToggleButtonGroup
-                  exclusive
-                  value={libraryMode}
-                  onChange={(_event, value: 'inventory' | 'favorites' | null) => {
-                    if (value) {
-                      setLibraryMode(value);
-                    }
-                  }}
-                  size="small"
-                  aria-label={t('Blueprint collection filter', 'Filtre de collection blueprint', 'Blueprint-Sammlungsfilter')}
-                  sx={{
-                    alignSelf: { xs: 'stretch', md: 'center' },
-                    '& .MuiToggleButton-root': {
-                      px: 1.5,
-                      py: 1,
-                      textTransform: 'none',
-                    },
-                  }}
+              <Stack spacing={2}>
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  spacing={1.5}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', md: 'center' }}
                 >
-                  <ToggleButton value="inventory">
-                    {t('Inventory', 'Inventaire', 'Inventar')} ({inventoryCount})
-                  </ToggleButton>
-                  <ToggleButton value="favorites">
-                    {t('Favorites', 'Favoris', 'Favoriten')} ({favoriteCount})
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Stack>
-
-              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                <Chip
-                  label={t(
-                    `${displayedBlueprints.length} visible blueprints`,
-                    `${displayedBlueprints.length} blueprints visibles`,
-                    `${displayedBlueprints.length} sichtbare Blueprints`,
-                  )}
-                  size="small"
-                />
-                {libraryMode === 'inventory' && (
-                  <Chip
-                    label={t(
-                      `${sharedBlueprintIdSet.size} shared blueprints`,
-                      `${sharedBlueprintIdSet.size} blueprints partages`,
-                      `${sharedBlueprintIdSet.size} geteilte Blueprints`,
-                    )}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
-                {hiddenBlueprintCount > 0 && (
-                  <Chip
-                    label={t(
-                      `${hiddenBlueprintCount} unavailable in current dataset`,
-                      `${hiddenBlueprintCount} indisponibles dans le dataset actuel`,
-                      `${hiddenBlueprintCount} im aktuellen Datensatz nicht verfügbar`,
-                    )}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
-              </Stack>
-
-              {(blueprintCollectionError || sharedBlueprintError) && (
-                <Alert severity="error" variant="outlined">
-                  {blueprintCollectionError ?? sharedBlueprintError}
-                </Alert>
-              )}
-
-              {displayedBlueprints.length === 0 ? (
-                <Box
-                  sx={{
-                    py: { xs: 5, md: 8 },
-                    px: 2,
-                    textAlign: 'center',
-                    borderRadius: 2,
-                    border: `1px dashed ${theme.palette.divider}`,
-                    backgroundColor: alpha(theme.palette.background.default, 0.35),
-                  }}
-                >
-                  <Typography variant="h6" sx={{ mb: 0.75 }}>
-                    {activeCollectionLabel}
-                  </Typography>
-                  <Typography sx={{ color: 'text.secondary', maxWidth: 560, mx: 'auto' }}>
-                    {activeCollectionEmptyLabel}
-                  </Typography>
-                  {hiddenBlueprintCount > 0 && (
-                    <Typography sx={{ color: 'text.secondary', mt: 1 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="overline"
+                      sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
+                    >
+                      {t('Assets', 'Actifs', 'Assets')}
+                    </Typography>
+                    <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
+                      {t('Blueprints and resources', 'Blueprints et ressources', 'Blueprints und Ressourcen')}
+                    </Typography>
+                    <Typography sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 760 }}>
                       {t(
-                        'Some saved blueprint ids do not exist in the active dataset anymore.',
-                        'Certains ids blueprint sauvegardes n existent plus dans le dataset actif.',
-                        'Einige gespeicherte Blueprint-IDs existieren im aktiven Datensatz nicht mehr.',
+                        'Manage blueprint favorites, inventory snapshots, stored resources and organization sharing from one searchable account library.',
+                        'Gere les favoris blueprint, les snapshots d inventaire, les ressources stockees et le partage avec les organisations dans une seule bibliotheque de compte.',
+                        'Verwalte Blueprint-Favoriten, Inventar-Snapshots, gespeicherte Ressourcen und Organisationsfreigaben in einer durchsuchbaren Kontobibliothek.',
                       )}
                     </Typography>
-                  )}
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                      xs: '1fr',
-                      sm: 'repeat(2, 1fr)',
-                      md: 'repeat(2, 1fr)',
-                      lg: 'repeat(3, 1fr)',
-                      xl: 'repeat(4, 1fr)',
-                    },
-                    gap: { xs: 1.25, sm: 1.5, md: 2, lg: 2.5 },
-                  }}
-                  role="list"
-                  aria-label={activeCollectionLabel}
-                >
-                  {visibleDisplayedBlueprints.map((blueprint, index) => {
-                    const sharedOrganizationIds = sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
-                    const isShared = sharedOrganizationIds.length > 0;
-                    const showSharedControls = libraryMode === 'inventory';
+                  </Box>
 
-                    return (
-                      <BlueprintCard
-                        key={`${libraryMode}-${blueprint.id}`}
-                        blueprint={blueprint}
-                        activeBlueprintId={activeBlueprint?.id ?? null}
-                        isFavorite={favoriteIdSet.has(blueprint.id)}
-                        isInInventory={inventoryIdSet.has(blueprint.id)}
-                        organizationShareAction={showSharedControls
-                          ? {
-                            selected: isShared,
-                            busy: sharedBlueprintBusyId === blueprint.id,
-                            label: isShared
-                              ? t('Org sharing', 'Partage org', 'Org-Freigabe')
-                              : t('Share', 'Partage', 'Teilen'),
-                            ariaLabel: isShared
-                              ? t(
-                                'Choose which linked organizations can access this blueprint',
-                                'Choisir quelles organisations liees peuvent acceder a ce blueprint',
-                                'Auswählen, welche verknüpften Organisationen auf diesen Blueprint zugreifen konnen',
-                              )
-                              : t(
-                                'Choose which linked organizations can access this blueprint',
-                                'Choisir quelles organisations liees peuvent acceder a ce blueprint',
-                                'Auswählen, welche verknüpften Organisationen auf diesen Blueprint zugreifen konnen',
-                              ),
-                            disabled: linkedOrganizations.length === 0,
-                            tooltip: linkedOrganizations.length === 0
-                              ? t(
-                                'Link an organization on this account first.',
-                                'Lie d abord une organisation a ce compte.',
-                                'Verknüpfe zuerst eine Organisation mit diesem Konto.',
-                              )
-                              : isShared
-                              ? t(
-                                `Shared with ${sharedOrganizationIds.length} linked organization${sharedOrganizationIds.length > 1 ? 's' : ''}. Click to choose the organizations.`,
-                                `Partage avec ${sharedOrganizationIds.length} organisation${sharedOrganizationIds.length > 1 ? 's' : ''} liee${sharedOrganizationIds.length > 1 ? 's' : ''}. Clique pour choisir les organisations.`,
-                                `Mit ${sharedOrganizationIds.length} verknüpften Organisation${sharedOrganizationIds.length > 1 ? 'en' : ''} geteilt. Klicke, um die Organisationen zu wahlen.`,
-                              )
-                              : t(
-                                'Private to this account until you select one or more linked organizations.',
-                                'Prive pour ce compte tant que tu ne selectionnes pas une ou plusieurs organisations liees.',
-                                'Privat für dieses Konto, bis du eine oder mehrere verknüpfte Organisationen auswählen.',
-                              ),
-                            onToggle: (blueprintId) => { openShareBlueprintDialog(blueprintId); },
-                          }
-                          : undefined}
-                        statMaxima={statMaxima}
-                        resources={activeDataset.resources}
-                        priority={index < 8}
-                        onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
-                        onToggleFavorite={handleToggleFavoriteBlueprint}
-                        onToggleInventory={handleToggleInventoryBlueprint}
-                      />
-                    );
-                  })}
-                </Box>
-              )}
-              {visibleBlueprintCount < displayedBlueprints.length && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1 }}>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      setVisibleBlueprintCount((currentCount) =>
-                        Math.min(currentCount + ACCOUNT_BLUEPRINT_BATCH_SIZE, displayedBlueprints.length),
-                      )
-                    }
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{ width: { xs: '100%', md: 'auto' }, alignSelf: { xs: 'stretch', md: 'center' } }}
                   >
-                    {t('Load more blueprints', 'Afficher plus de blueprints', 'Mehr Blueprints laden')}
-                  </Button>
-                </Box>
-              )}
-            </Stack>
+                    <TextField
+                      size="small"
+                      label={t('Search assets', 'Rechercher des actifs', 'Assets suchen')}
+                      value={assetSearch}
+                      onChange={(event) => setAssetSearch(event.target.value)}
+                      sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchOutlinedIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    <TextField
+                      select
+                      size="small"
+                      label={t('Filter', 'Filtre', 'Filter')}
+                      value={assetFilter}
+                      onChange={(event) => setAssetFilter(event.target.value as AccountAssetFilter)}
+                      sx={{ minWidth: { xs: '100%', sm: 220 } }}
+                    >
+                      <MenuItem value="all">
+                        {t('All assets', 'Tous les actifs', 'Alle Assets')}
+                      </MenuItem>
+                      <MenuItem value="inventory-blueprints">
+                        {t('Inventory blueprints', 'Blueprints inventaire', 'Inventar-Blueprints')}
+                      </MenuItem>
+                      <MenuItem value="favorite-blueprints">
+                        {t('Favorite blueprints', 'Blueprints favoris', 'Favoriten-Blueprints')}
+                      </MenuItem>
+                      <MenuItem value="resources">
+                        {t('Stored resources', 'Ressources stockees', 'Gespeicherte Ressourcen')}
+                      </MenuItem>
+                    </TextField>
+                  </Stack>
+                </Stack>
+
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                  <Chip
+                    label={t(
+                      `${filteredAssetEntries.length} visible entries`,
+                      `${filteredAssetEntries.length} entrees visibles`,
+                      `${filteredAssetEntries.length} sichtbare Eintrage`,
+                    )}
+                    size="small"
+                  />
+                  <Chip
+                    label={t(
+                      `${filteredBlueprintEntryCount} blueprints`,
+                      `${filteredBlueprintEntryCount} blueprints`,
+                      `${filteredBlueprintEntryCount} Blueprints`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={t(
+                      `${filteredResourceEntryCount} resources`,
+                      `${filteredResourceEntryCount} ressources`,
+                      `${filteredResourceEntryCount} Ressourcen`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={t(
+                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} shared entries`,
+                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} entrees partagees`,
+                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} geteilte Eintrage`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {hiddenBlueprintCount > 0 && (
+                    <Chip
+                      label={t(
+                        `${hiddenBlueprintCount} unavailable blueprints`,
+                        `${hiddenBlueprintCount} blueprints indisponibles`,
+                        `${hiddenBlueprintCount} nicht verfugbare Blueprints`,
+                      )}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+
+                {(blueprintCollectionError || sharedBlueprintError || resourceCollectionError) && (
+                  <Alert severity="error" variant="outlined">
+                    {blueprintCollectionError ?? sharedBlueprintError ?? resourceCollectionError}
+                  </Alert>
+                )}
+
+                {filteredAssetEntries.length === 0 ? (
+                  <Box
+                    sx={{
+                      py: { xs: 5, md: 8 },
+                      px: 2,
+                      textAlign: 'center',
+                      borderRadius: 2,
+                      border: `1px dashed ${theme.palette.divider}`,
+                      backgroundColor: alpha(theme.palette.background.default, 0.35),
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ mb: 0.75 }}>
+                      {assetFilter === 'resources'
+                        ? t('No stored resources yet', 'Aucune ressource stockee pour le moment', 'Noch keine Ressourcen gespeichert')
+                        : assetFilter === 'favorite-blueprints'
+                          ? t('No favorite blueprints yet', 'Aucun blueprint favori pour le moment', 'Noch keine Favoriten-Blueprints')
+                          : assetFilter === 'inventory-blueprints'
+                            ? t('No inventory blueprints yet', 'Aucun blueprint d inventaire pour le moment', 'Noch keine Inventar-Blueprints')
+                            : t('No saved assets yet', 'Aucun actif sauvegarde pour le moment', 'Noch keine gespeicherten Assets')}
+                    </Typography>
+                    <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
+                      {assetFilter === 'resources'
+                        ? t(
+                            'Use Add to inventory on any resource card, then choose which linked organizations can access each stored entry.',
+                            'Utilise Ajouter a l inventaire sur une carte ressource, puis choisis quelles organisations liees peuvent acceder a chaque entree stockee.',
+                            'Nutze Auf beliebiger Ressourcenkarte Zum Inventar hinzufugen und wähle danach, welche verknüpften Organisationen auf jeden gespeicherten Eintrag zugreifen konnen.',
+                          )
+                        : t(
+                            'Save blueprints or resources to your account, then narrow the view with the search bar or the asset filter above.',
+                            'Sauvegarde des blueprints ou des ressources sur ton compte, puis affine la vue avec la recherche ou le filtre d actif ci-dessus.',
+                            'Speichere Blueprints oder Ressourcen in deinem Konto und verfeinere die Ansicht danach mit Suche oder Asset-Filter oben.',
+                          )}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        md: 'repeat(2, minmax(0, 1fr))',
+                        xl: 'repeat(3, minmax(0, 1fr))',
+                      },
+                      gap: { xs: 1.25, sm: 1.5, md: 2 },
+                    }}
+                    role="list"
+                    aria-label={t('Saved account assets', 'Actifs sauvegardes du compte', 'Gespeicherte Konto-Assets')}
+                  >
+                    {visibleAssetEntries.map((entry, index) => {
+                      if (entry.kind === 'blueprint') {
+                        return (
+                          <BlueprintCard
+                            key={entry.key}
+                            blueprint={entry.blueprint}
+                            activeBlueprintId={activeBlueprint?.id ?? null}
+                            isFavorite={entry.isFavorite}
+                            isInInventory={entry.isInInventory}
+                            organizationShareAction={entry.isInInventory
+                              ? {
+                                  selected: entry.isShared,
+                                  busy: sharedBlueprintBusyId === entry.blueprint.id,
+                                  label: entry.isShared
+                                    ? t('Org sharing', 'Partage org', 'Org-Freigabe')
+                                    : t('Share', 'Partage', 'Teilen'),
+                                  ariaLabel: t(
+                                    'Choose which linked organizations can access this blueprint',
+                                    'Choisir quelles organisations liees peuvent acceder a ce blueprint',
+                                    'Auswahlen, welche verknupften Organisationen auf diesen Blueprint zugreifen konnen',
+                                  ),
+                                  disabled: linkedOrganizations.length === 0,
+                                  tooltip: linkedOrganizations.length === 0
+                                    ? t(
+                                        'Link an organization on this account first.',
+                                        'Lie d abord une organisation a ce compte.',
+                                        'Verknupfe zuerst eine Organisation mit diesem Konto.',
+                                      )
+                                    : entry.isShared
+                                      ? t(
+                                          `Shared with ${entry.sharedOrganizationIds.length} linked organization${entry.sharedOrganizationIds.length > 1 ? 's' : ''}. Click to choose the organizations.`,
+                                          `Partage avec ${entry.sharedOrganizationIds.length} organisation${entry.sharedOrganizationIds.length > 1 ? 's' : ''} liee${entry.sharedOrganizationIds.length > 1 ? 's' : ''}. Clique pour choisir les organisations.`,
+                                          `Mit ${entry.sharedOrganizationIds.length} verknupften Organisation${entry.sharedOrganizationIds.length > 1 ? 'en' : ''} geteilt. Klicke, um die Organisationen zu wahlen.`,
+                                        )
+                                      : t(
+                                          'Private to this account until you select one or more linked organizations.',
+                                          'Prive pour ce compte tant que tu ne selectionnes pas une ou plusieurs organisations liees.',
+                                          'Privat fur dieses Konto, bis du eine oder mehrere verknupfte Organisationen auswahlen.',
+                                        ),
+                                  onToggle: (blueprintId) => { openShareBlueprintDialog(blueprintId); },
+                                }
+                              : undefined}
+                            statMaxima={statMaxima}
+                            resources={activeDataset.resources}
+                            priority={index < 8}
+                            onSelect={(blueprint) => startTransition(() => setActiveBlueprint(blueprint))}
+                            onToggleFavorite={handleToggleFavoriteBlueprint}
+                            onToggleInventory={handleToggleInventoryBlueprint}
+                          />
+                        );
+                      }
+
+                      const qualityLabel = entry.resourceEntry.quality == null
+                        ? t('No quality', 'Sans qualite', 'Ohne Qualitat')
+                        : formatQualityLabel(entry.resourceEntry.quality, lang);
+
+                      return (
+                        <ResourceAssetCard
+                          key={entry.key}
+                          resource={entry.resource}
+                          insight={resourceInsightById.get(entry.resourceEntry.resourceId) ?? null}
+                          onOpen={
+                            entry.resource
+                              ? () =>
+                                  navigateToPath(resourcePathFromSlug(entry.resourceEntry.resourceId), {
+                                    resourceId: entry.resourceEntry.resourceId,
+                                    mainView: 'resources',
+                                  })
+                              : null
+                          }
+                          title={entry.resourceEntry.resourceName}
+                          infoChips={[
+                            {
+                              label: formatResourceQuantity(entry.resourceEntry.quantity, entry.resourceEntry.quantityUnit, lang, 'long'),
+                            },
+                            {
+                              label: qualityLabel,
+                              variant: 'outlined',
+                            },
+                            ...(entry.isShared
+                              ? [
+                                  {
+                                    label: t(
+                                      `${entry.sharedOrganizationIds.length} orgs`,
+                                      `${entry.sharedOrganizationIds.length} orgs`,
+                                      `${entry.sharedOrganizationIds.length} Orgs`,
+                                    ),
+                                    color: 'primary' as const,
+                                    variant: 'outlined' as const,
+                                  },
+                                ]
+                              : []),
+                          ]}
+                          footer={
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                              <Button
+                                variant={entry.isShared ? 'secondary' : 'ghost'}
+                                size="sm"
+                                icon={entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
+                                onClick={() => { openShareResourceDialog(entry.resourceEntry.id); }}
+                                disabled={linkedOrganizations.length === 0 || sharedResourceBusyId === entry.resourceEntry.id}
+                                style={{ flex: 1 }}
+                              >
+                                {entry.isShared
+                                  ? t('Org sharing', 'Partage org', 'Org-Freigabe')
+                                  : t('Share', 'Partage', 'Teilen')}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                icon={<DeleteOutlineOutlinedIcon fontSize="small" />}
+                                onClick={() => { void handleRemoveResourceEntry(entry.resourceEntry.id); }}
+                                disabled={sharedResourceBusyId === entry.resourceEntry.id}
+                                style={{ flex: 1 }}
+                              >
+                                {t('Remove', 'Retirer', 'Entfernen')}
+                              </Button>
+                            </Stack>
+                          }
+                        />
+                      );
+                    })}
+                  </Box>
+                )}
+
+                {visibleBlueprintCount < filteredAssetEntries.length && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1 }}>
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setVisibleBlueprintCount((currentCount) =>
+                          Math.min(currentCount + ACCOUNT_BLUEPRINT_BATCH_SIZE, filteredAssetEntries.length),
+                        )
+                      }
+                    >
+                      {t('Load more assets', 'Afficher plus d actifs', 'Mehr Assets laden')}
+                    </Button>
+                  </Box>
+                )}
+              </Stack>
             </Paper>
 
             <CraftRequestsPanel
@@ -2200,6 +2589,130 @@ export function AccountPage() {
             disabled={Boolean(sharedBlueprintBusyId) || linkedOrganizations.length === 0}
           >
             {sharedBlueprintBusyId
+              ? t('Saving...', 'Enregistrement...', 'Speichere...')
+              : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(shareDialogResourceEntry)}
+        onClose={closeShareResourceDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {t(
+            'Share resource entry with organizations',
+            'Partager l entree ressource avec des organisations',
+            'Ressourceneintrag mit Organisationen teilen',
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography sx={{ color: 'text.secondary' }}>
+              {shareDialogResourceEntry
+                ? t(
+                    `Choose which linked organizations can access ${shareDialogResourceEntry.resourceName} (${formatResourceQuantity(shareDialogResourceEntry.quantity, shareDialogResourceEntry.quantityUnit, lang, 'long')}).`,
+                    `Choisis quelles organisations liees peuvent acceder a ${shareDialogResourceEntry.resourceName} (${formatResourceQuantity(shareDialogResourceEntry.quantity, shareDialogResourceEntry.quantityUnit, lang, 'long')}).`,
+                    `Wahle, welche verknupften Organisationen auf ${shareDialogResourceEntry.resourceName} (${formatResourceQuantity(shareDialogResourceEntry.quantity, shareDialogResourceEntry.quantityUnit, lang, 'long')}) zugreifen konnen.`,
+                  )
+                : t(
+                    'Choose which linked organizations can access this resource entry.',
+                    'Choisis quelles organisations liees peuvent acceder a cette entree ressource.',
+                    'Wahle, welche verknupften Organisationen auf diesen Ressourceneintrag zugreifen konnen.',
+                  )}
+            </Typography>
+
+            {linkedOrganizations.length === 0 ? (
+              <Alert severity="info" variant="outlined">
+                {t(
+                  'Link at least one organization on this account before sharing stored resources.',
+                  'Lie au moins une organisation a ce compte avant de partager des ressources stockees.',
+                  'Verknupfe mindestens eine Organisation mit diesem Konto, bevor du gespeicherte Ressourcen teilst.',
+                )}
+              </Alert>
+            ) : (
+              <Stack spacing={1}>
+                {linkedOrganizations.map((organization) => {
+                  const checked = shareDialogResourceSelection.includes(organization.sid);
+                  return (
+                    <Paper
+                      key={organization.sid}
+                      variant="outlined"
+                      sx={{
+                        p: 1.1,
+                        borderColor: checked ? 'primary.main' : 'divider',
+                        backgroundColor: checked
+                          ? alpha(theme.palette.primary.main, 0.08)
+                          : alpha(theme.palette.background.default, 0.2),
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.1} alignItems="center">
+                        <Checkbox
+                          checked={checked}
+                          onChange={() =>
+                            setShareDialogResourceSelection((currentSelection) =>
+                              checked
+                                ? currentSelection.filter((sid) => sid !== organization.sid)
+                                : [...currentSelection, organization.sid],
+                            )
+                          }
+                        />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            {organization.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {organization.sid}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={
+                            organization.status === 'verified_admin'
+                              ? t('Verified admin', 'Admin verifie', 'Verifizierter Admin')
+                              : organization.status === 'verified_member'
+                                ? t('Verified member', 'Membre verifie', 'Verifiziertes Mitglied')
+                                : t('Linked only', 'Simplement liee', 'Nur verknupft')
+                          }
+                          color={
+                            organization.status === 'verified_admin'
+                              ? 'success'
+                              : organization.status === 'verified_member'
+                                ? 'info'
+                                : 'default'
+                          }
+                        />
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
+
+            {resourceCollectionError && (
+              <Alert severity="error" variant="outlined">
+                {resourceCollectionError}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="ghost"
+            onClick={closeShareResourceDialog}
+            disabled={Boolean(sharedResourceBusyId)}
+          >
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { void handleSaveResourceOrganizationShares(); }}
+            disabled={Boolean(sharedResourceBusyId) || linkedOrganizations.length === 0}
+          >
+            {sharedResourceBusyId
               ? t('Saving...', 'Enregistrement...', 'Speichere...')
               : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
           </Button>

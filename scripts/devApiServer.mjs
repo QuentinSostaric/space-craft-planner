@@ -29,7 +29,9 @@ import {
   getNextAllowedRsiLinkAt,
   isRsiLinkRateLimited,
   readAccountRecord,
+  saveAccountInventoryResources,
   saveAccountOrganizationBlueprintShares,
+  saveAccountOrganizationResourceShares,
   saveAccountState,
   saveRsiAccountLink,
   upsertDiscordAccount,
@@ -37,6 +39,7 @@ import {
 import {
   addAccountOrganizationBySid,
   buildOrganizationSharedBlueprints,
+  buildOrganizationSharedResources,
   claimAccountOrganization,
   deleteOwnedOrganizationFromApp,
   OrganizationServiceError,
@@ -523,6 +526,90 @@ async function handleAccountSharedBlueprintsUpdate(request, response) {
   );
 }
 
+async function handleAccountResourcesUpdate(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  await ensureAccountForSession(session);
+  const account = await saveAccountInventoryResources(
+    accountStore,
+    session.accountId,
+    payload?.inventoryResources,
+    session.user,
+  );
+  const decoratedAccount = await buildDecoratedAccount(account);
+  sendJson(
+    response,
+    200,
+    { account: decoratedAccount },
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
+async function handleAccountSharedResourcesUpdate(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  await ensureAccountForSession(session);
+  const account = await saveAccountOrganizationResourceShares(
+    accountStore,
+    session.accountId,
+    payload?.organizationResourceShares,
+    session.user,
+  );
+  const decoratedAccount = await buildDecoratedAccount(account);
+  sendJson(
+    response,
+    200,
+    { account: decoratedAccount },
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
 async function handleRsiLink(request, response) {
   const session = await requireAuthenticatedSession(request);
   if (!session) {
@@ -894,6 +981,32 @@ async function handleOrganizationSharedBlueprints(request, response, sid) {
   }
 }
 
+async function handleOrganizationSharedResources(request, response, sid) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  try {
+    const account = await ensureAccountForSession(session);
+    const decoratedAccount = await buildDecoratedAccount(account);
+    const payload = await buildOrganizationSharedResources(accountStore, decoratedAccount, sid);
+    sendJson(
+      response,
+      200,
+      payload,
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+  } catch (error) {
+    sendOrganizationError(response, error, 'Failed to load shared organization resources.');
+  }
+}
+
 async function handleOrganizationCraftRequestCreate(request, response, sid) {
   const session = await requireAuthenticatedSession(request);
   if (!session) {
@@ -1168,6 +1281,16 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === 'PUT' && path === '/api/auth/account/resources') {
+      await handleAccountResourcesUpdate(request, response);
+      return;
+    }
+
+    if (request.method === 'PUT' && path === '/api/auth/account/shared-resources') {
+      await handleAccountSharedResourcesUpdate(request, response);
+      return;
+    }
+
     if (request.method === 'DELETE' && path === '/api/auth/account') {
       await handleDeleteAccount(request, response, url);
       return;
@@ -1246,6 +1369,18 @@ const server = http.createServer(async (request, response) => {
         request,
         response,
         decodeURIComponent(organizationSharedBlueprintsMatch[1]),
+      );
+      return;
+    }
+
+    const organizationSharedResourcesMatch = path.match(
+      /^\/api\/auth\/organizations\/([^/]+)\/shared-resources$/,
+    );
+    if (request.method === 'GET' && organizationSharedResourcesMatch) {
+      await handleOrganizationSharedResources(
+        request,
+        response,
+        decodeURIComponent(organizationSharedResourcesMatch[1]),
       );
       return;
     }

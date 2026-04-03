@@ -18,6 +18,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -30,14 +32,31 @@ import { useLocalPersist } from '../hooks/useLocalPersist';
 import { useI18n } from '../i18n/I18nContext';
 import { type AccountCraftRequestResourcesOption } from '../services/authService';
 import { useCraft } from '../store/CraftContext';
-import { CATEGORY_LABELS, LS_KEYS, type Blueprint, type ItemCategory } from '../types';
-import { computeStatMaxima } from '../utils/crafting';
+import { CATEGORY_LABELS, LS_KEYS, type Blueprint, type ItemCategory, type ResourceInsight } from '../types';
+import { computeStatMaxima, formatQualityLabel, formatResourceQuantity } from '../utils/crafting';
+import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
 import { BlueprintCard, type BlueprintCardQuickAction } from './BlueprintGrid';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { ResourceAssetCard } from './resources/ResourceAssetCard';
 
 type SharedBlueprintRow = {
   key: string;
   blueprint: Blueprint;
+  ownerHandle: string;
+  ownerDisplay: string;
+  ownerImage: string | null;
+  ownerRank: string | null;
+  ownerStars: number | null;
+};
+
+type SharedResourceRow = {
+  key: string;
+  entryId: string;
+  resourceId: string;
+  resourceName: string;
+  quantity: number;
+  quantityUnit: 'scu' | 'count';
+  quality: number | null;
   ownerHandle: string;
   ownerDisplay: string;
   ownerImage: string | null;
@@ -58,7 +77,8 @@ type OrganizationAccordionLoadState =
   | { status: 'error'; error: string }
   | {
       status: 'success';
-      rows: SharedBlueprintRow[];
+      blueprintRows: SharedBlueprintRow[];
+      resourceRows: SharedResourceRow[];
       hiddenBlueprintCount: number;
       sharedMemberCount: number;
     };
@@ -85,6 +105,19 @@ function buildOrganizationBlueprintSearchHaystack(row: SharedBlueprintRow): stri
     .toLowerCase();
 }
 
+function buildOrganizationResourceSearchHaystack(row: SharedResourceRow): string {
+  return [
+    row.resourceName,
+    row.ownerHandle,
+    row.ownerDisplay,
+    row.ownerRank,
+    row.quantityUnit,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
 function normalizeComparableText(value: string | null | undefined): string {
   return String(value ?? '').trim().toLowerCase();
 }
@@ -96,6 +129,7 @@ function OrganizationBlueprintAccordion({
   expanded,
   onExpandedChange,
   blueprintById,
+  resourceInsightById,
   statMaxima,
   resources,
   favoriteIdSet,
@@ -105,6 +139,7 @@ function OrganizationBlueprintAccordion({
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   blueprintById: Map<string, Blueprint>;
+  resourceInsightById: Map<string, ResourceInsight>;
   statMaxima: ReturnType<typeof computeStatMaxima>;
   resources: ReturnType<typeof useCraft>['activeDataset']['resources'];
   favoriteIdSet: Set<string>;
@@ -115,6 +150,7 @@ function OrganizationBlueprintAccordion({
   const {
     account,
     loadOrganizationSharedBlueprints,
+    loadOrganizationSharedResources,
     requestOrganizationCraft,
   } = useAuth();
   const {
@@ -124,24 +160,36 @@ function OrganizationBlueprintAccordion({
     toggleInventory,
   } = useCraft();
   const [loadState, setLoadState] = useState<OrganizationAccordionLoadState>({ status: 'idle' });
-  const [search, setSearch] = useState('');
+  const [assetTab, setAssetTab] = useState<'blueprints' | 'resources'>('blueprints');
+  const [blueprintSearch, setBlueprintSearch] = useState('');
+  const [resourceSearch, setResourceSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | ItemCategory>('all');
   const [manufacturerFilter, setManufacturerFilter] = useState('all');
-  const [ownerFilter, setOwnerFilter] = useState<string | null>(null);
+  const [blueprintOwnerFilter, setBlueprintOwnerFilter] = useState<string | null>(null);
+  const [resourceOwnerFilter, setResourceOwnerFilter] = useState<string | null>(null);
+  const [resourceQualityFilter, setResourceQualityFilter] = useState<'all' | 'with-quality' | 'no-quality'>('all');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requestBusyKey, setRequestBusyKey] = useState<string | null>(null);
   const [craftRequestDialog, setCraftRequestDialog] = useState<CraftRequestDialogState | null>(null);
+  const resourceById = useMemo(
+    () => new Map(resources.map((resource) => [resource.id, resource])),
+    [resources],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     if (!expanded) {
       setLoadState({ status: 'idle' });
-      setSearch('');
+      setAssetTab('blueprints');
+      setBlueprintSearch('');
+      setResourceSearch('');
       setCategoryFilter('all');
       setManufacturerFilter('all');
-      setOwnerFilter(null);
+      setBlueprintOwnerFilter(null);
+      setResourceOwnerFilter(null);
+      setResourceQualityFilter('all');
       setNotice(null);
       setError(null);
       setRequestBusyKey(null);
@@ -155,19 +203,47 @@ function OrganizationBlueprintAccordion({
     setNotice(null);
     setError(null);
 
-    void loadOrganizationSharedBlueprints(organization.sid)
-      .then((payload) => {
+    void (async () => {
+      const loadSharedBlueprints = async () => {
+        try {
+          return await loadOrganizationSharedBlueprints(organization.sid);
+        } catch (nextError) {
+          if (nextError instanceof Error && nextError.message.toLowerCase().includes('no shared blueprints')) {
+            return null;
+          }
+          throw nextError;
+        }
+      };
+
+      const loadSharedResources = async () => {
+        try {
+          return await loadOrganizationSharedResources(organization.sid);
+        } catch (nextError) {
+          if (nextError instanceof Error && nextError.message.toLowerCase().includes('no shared resources')) {
+            return null;
+          }
+          throw nextError;
+        }
+      };
+
+      try {
+        const [blueprintPayload, resourcePayload] = await Promise.all([
+          loadSharedBlueprints(),
+          loadSharedResources(),
+        ]);
+
         if (cancelled) {
           return;
         }
 
-        const rows: SharedBlueprintRow[] = [];
+        const blueprintRows: SharedBlueprintRow[] = [];
+        const resourceRows: SharedResourceRow[] = [];
         let hiddenBlueprintCount = 0;
-        let sharedMemberCount = 0;
+        const sharedMemberHandles = new Set<string>();
 
-        for (const member of payload.members) {
+        for (const member of blueprintPayload?.members ?? []) {
           if ((member.sharedBlueprintIds?.length ?? 0) > 0) {
-            sharedMemberCount += 1;
+            sharedMemberHandles.add(normalizeComparableText(member.handle));
           }
           for (const blueprintId of member.sharedBlueprintIds) {
             const blueprint = blueprintById.get(blueprintId);
@@ -176,7 +252,7 @@ function OrganizationBlueprintAccordion({
               continue;
             }
 
-            rows.push({
+            blueprintRows.push({
               key: `${member.handle}:${blueprint.id}`,
               blueprint,
               ownerHandle: member.handle,
@@ -188,14 +264,36 @@ function OrganizationBlueprintAccordion({
           }
         }
 
+        for (const member of resourcePayload?.members ?? []) {
+          if ((member.sharedResources?.length ?? 0) > 0) {
+            sharedMemberHandles.add(normalizeComparableText(member.handle));
+          }
+          for (const resourceEntry of member.sharedResources) {
+            resourceRows.push({
+              key: `${member.handle}:${resourceEntry.id}`,
+              entryId: resourceEntry.id,
+              resourceId: resourceEntry.resourceId,
+              resourceName: resourceEntry.resourceName,
+              quantity: resourceEntry.quantity,
+              quantityUnit: resourceEntry.quantityUnit,
+              quality: resourceEntry.quality,
+              ownerHandle: member.handle,
+              ownerDisplay: member.display,
+              ownerImage: member.image,
+              ownerRank: member.rank,
+              ownerStars: member.stars,
+            });
+          }
+        }
+
         setLoadState({
           status: 'success',
-          rows,
+          blueprintRows,
+          resourceRows,
           hiddenBlueprintCount,
-          sharedMemberCount,
+          sharedMemberCount: sharedMemberHandles.size,
         });
-      })
-      .catch((nextError) => {
+      } catch (nextError) {
         if (cancelled) {
           return;
         }
@@ -211,12 +309,20 @@ function OrganizationBlueprintAccordion({
                   'Die Organisations-Blueprints konnten nicht geladen werden.',
                 ),
         });
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [blueprintById, expanded, loadOrganizationSharedBlueprints, organization.sid, t]);
+  }, [
+    blueprintById,
+    expanded,
+    loadOrganizationSharedBlueprints,
+    loadOrganizationSharedResources,
+    organization.sid,
+    t,
+  ]);
 
   const closeCraftRequestDialog = () => {
     if (requestBusyKey) {
@@ -287,12 +393,13 @@ function OrganizationBlueprintAccordion({
       });
   };
 
-  const rows = loadState.status === 'success' ? loadState.rows : [];
+  const blueprintRows = loadState.status === 'success' ? loadState.blueprintRows : [];
+  const resourceRows = loadState.status === 'success' ? loadState.resourceRows : [];
   const sharedMemberCount = loadState.status === 'success' ? loadState.sharedMemberCount : null;
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+  const filteredBlueprintRows = useMemo(() => {
+    const normalizedSearch = blueprintSearch.trim().toLowerCase();
 
-    return rows.filter((row) => {
+    return blueprintRows.filter((row) => {
       if (normalizedSearch && !buildOrganizationBlueprintSearchHaystack(row).includes(normalizedSearch)) {
         return false;
       }
@@ -302,39 +409,74 @@ function OrganizationBlueprintAccordion({
       if (manufacturerFilter !== 'all' && row.blueprint.manufacturer !== manufacturerFilter) {
         return false;
       }
-      if (ownerFilter && normalizeComparableText(row.ownerHandle) !== normalizeComparableText(ownerFilter)) {
+      if (
+        blueprintOwnerFilter &&
+        normalizeComparableText(row.ownerHandle) !== normalizeComparableText(blueprintOwnerFilter)
+      ) {
         return false;
       }
       return true;
     });
-  }, [categoryFilter, manufacturerFilter, ownerFilter, rows, search]);
+  }, [blueprintOwnerFilter, blueprintRows, blueprintSearch, categoryFilter, manufacturerFilter]);
+
+  const filteredResourceRows = useMemo(() => {
+    const normalizedSearch = resourceSearch.trim().toLowerCase();
+
+    return resourceRows.filter((row) => {
+      if (normalizedSearch && !buildOrganizationResourceSearchHaystack(row).includes(normalizedSearch)) {
+        return false;
+      }
+      if (
+        resourceOwnerFilter &&
+        normalizeComparableText(row.ownerHandle) !== normalizeComparableText(resourceOwnerFilter)
+      ) {
+        return false;
+      }
+      if (resourceQualityFilter === 'with-quality' && row.quality == null) {
+        return false;
+      }
+      if (resourceQualityFilter === 'no-quality' && row.quality != null) {
+        return false;
+      }
+      return true;
+    });
+  }, [resourceOwnerFilter, resourceQualityFilter, resourceRows, resourceSearch]);
 
   const manufacturerOptions = useMemo(
     () =>
-      [...new Set(rows.map((row) => row.blueprint.manufacturer))]
+      [...new Set(blueprintRows.map((row) => row.blueprint.manufacturer))]
         .filter(Boolean)
         .sort((left, right) =>
           left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true }),
         ),
-    [rows],
+    [blueprintRows],
   );
-  const ownerOptions = useMemo(
+  const blueprintOwnerOptions = useMemo(
     () =>
-      [...new Set(rows.map((row) => row.ownerHandle))]
+      [...new Set(blueprintRows.map((row) => row.ownerHandle))]
         .filter(Boolean)
         .sort((left, right) =>
           left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true }),
         ),
-    [rows],
+    [blueprintRows],
+  );
+  const resourceOwnerOptions = useMemo(
+    () =>
+      [...new Set(resourceRows.map((row) => row.ownerHandle))]
+        .filter(Boolean)
+        .sort((left, right) =>
+          left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true }),
+        ),
+    [resourceRows],
   );
   const categoryOptions = useMemo(
     () =>
-      [...new Set(rows.map((row) => row.blueprint.category))]
+      [...new Set(blueprintRows.map((row) => row.blueprint.category))]
         .filter(Boolean)
         .sort((left, right) =>
           left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true }),
         ),
-    [rows],
+    [blueprintRows],
   );
 
   const pendingRequestKeys = useMemo(
@@ -351,7 +493,7 @@ function OrganizationBlueprintAccordion({
   );
   const currentUserRsiHandle = normalizeComparableText(account?.rsi?.handle);
   const { scrollContainerRef, sentinelRef, visibleCount, initialCount } = useInfiniteScroll(
-    filteredRows,
+    filteredBlueprintRows,
     { getColumns: organizationGridColumns },
   );
 
@@ -430,9 +572,9 @@ function OrganizationBlueprintAccordion({
             {loadState.status === 'success' && (
               <Chip
                 label={t(
-                  `${rows.length} shared entries`,
-                  `${rows.length} entrees partagees`,
-                  `${rows.length} geteilte Eintrage`,
+                  `${blueprintRows.length + resourceRows.length} shared entries`,
+                  `${blueprintRows.length + resourceRows.length} entrees partagees`,
+                  `${blueprintRows.length + resourceRows.length} geteilte Eintrage`,
                 )}
                 size="small"
                 variant="outlined"
@@ -468,9 +610,9 @@ function OrganizationBlueprintAccordion({
           >
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
-                'Filter shared blueprints for this organization by search, category, manufacturer or owner.',
-                'Filtre les blueprints partages de cette organisation par recherche, categorie, fabricant ou proprietaire.',
-                'Filtere die geteilten Blueprints dieser Organisation nach Suche, Kategorie, Hersteller oder Besitzer.',
+                'Filter shared organization entries by search or owner. Category and manufacturer filters apply to blueprints only.',
+                'Filtre les entrees partagees de cette organisation par recherche ou proprietaire. Les filtres categorie et fabricant ne s appliquent qu aux blueprints.',
+                'Filtere geteilte Organisationseintrage nach Suche oder Besitzer. Kategorie- und Herstellerfilter gelten nur fur Blueprints.',
               )}
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
@@ -513,89 +655,181 @@ function OrganizationBlueprintAccordion({
                   backgroundColor: alpha(theme.palette.background.default, 0.24),
                 }}
               >
-                <Stack
-                  direction={{ xs: 'column', lg: 'row' }}
-                  spacing={1}
-                  alignItems={{ xs: 'stretch', lg: 'center' }}
-                >
-                  <TextField
-                    size="small"
-                    fullWidth
-                    label={t('Search blueprints or owners', 'Rechercher blueprints ou proprietaires', 'Blueprints oder Besitzer suchen')}
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchOutlinedIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Category', 'Categorie', 'Kategorie')}
-                    value={categoryFilter}
-                    onChange={(event) =>
-                      setCategoryFilter(event.target.value as 'all' | ItemCategory)
-                    }
-                    sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                <Stack spacing={1.25}>
+                  <Tabs
+                    value={assetTab}
+                    onChange={(_event, value: 'blueprints' | 'resources') => setAssetTab(value)}
+                    variant="scrollable"
+                    allowScrollButtonsMobile
                   >
-                    <MenuItem value="all">{t('All categories', 'Toutes les categories', 'Alle Kategorien')}</MenuItem>
-                    {categoryOptions.map((category) => (
-                      <MenuItem key={category} value={category}>
-                        {CATEGORY_LABELS[category]
-                          ? CATEGORY_LABELS[category][lang] ?? CATEGORY_LABELS[category].en
-                          : category}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Manufacturer', 'Fabricant', 'Hersteller')}
-                    value={manufacturerFilter}
-                    onChange={(event) => setManufacturerFilter(event.target.value)}
-                    sx={{ minWidth: { xs: '100%', sm: 180 } }}
-                  >
-                    <MenuItem value="all">{t('All manufacturers', 'Tous les fabricants', 'Alle Hersteller')}</MenuItem>
-                    {manufacturerOptions.map((manufacturer) => (
-                      <MenuItem key={manufacturer} value={manufacturer}>
-                        {manufacturer}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Owner', 'Proprietaire', 'Besitzer')}
-                    value={ownerFilter ?? 'all'}
-                    onChange={(event) =>
-                      setOwnerFilter(event.target.value === 'all' ? null : event.target.value)
-                    }
-                    sx={{ minWidth: { xs: '100%', sm: 180 } }}
-                  >
-                    <MenuItem value="all">{t('All owners', 'Tous les proprietaires', 'Alle Besitzer')}</MenuItem>
-                    {ownerOptions.map((ownerHandle) => (
-                      <MenuItem key={ownerHandle} value={ownerHandle}>
-                        {ownerHandle}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FilterListOffOutlinedIcon />}
-                    onClick={() => {
-                      setSearch('');
-                      setCategoryFilter('all');
-                      setManufacturerFilter('all');
-                      setOwnerFilter(null);
-                    }}
-                    sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                  >
-                    {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
-                  </Button>
+                    <Tab
+                      value="blueprints"
+                      label={t(
+                        `Blueprints (${blueprintRows.length})`,
+                        `Blueprints (${blueprintRows.length})`,
+                        `Blueprints (${blueprintRows.length})`,
+                      )}
+                    />
+                    <Tab
+                      value="resources"
+                      label={t(
+                        `Resources (${resourceRows.length})`,
+                        `Ressources (${resourceRows.length})`,
+                        `Ressourcen (${resourceRows.length})`,
+                      )}
+                    />
+                  </Tabs>
+
+                  {assetTab === 'blueprints' ? (
+                    <Stack
+                      direction={{ xs: 'column', lg: 'row' }}
+                      spacing={1}
+                      alignItems={{ xs: 'stretch', lg: 'center' }}
+                    >
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label={t('Search blueprints or owners', 'Rechercher blueprints ou proprietaires', 'Blueprints oder Besitzer suchen')}
+                        value={blueprintSearch}
+                        onChange={(event) => setBlueprintSearch(event.target.value)}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchOutlinedIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label={t('Category', 'Categorie', 'Kategorie')}
+                        value={categoryFilter}
+                        onChange={(event) =>
+                          setCategoryFilter(event.target.value as 'all' | ItemCategory)
+                        }
+                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                      >
+                        <MenuItem value="all">{t('All categories', 'Toutes les categories', 'Alle Kategorien')}</MenuItem>
+                        {categoryOptions.map((category) => (
+                          <MenuItem key={category} value={category}>
+                            {CATEGORY_LABELS[category]
+                              ? CATEGORY_LABELS[category][lang] ?? CATEGORY_LABELS[category].en
+                              : category}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label={t('Manufacturer', 'Fabricant', 'Hersteller')}
+                        value={manufacturerFilter}
+                        onChange={(event) => setManufacturerFilter(event.target.value)}
+                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                      >
+                        <MenuItem value="all">{t('All manufacturers', 'Tous les fabricants', 'Alle Hersteller')}</MenuItem>
+                        {manufacturerOptions.map((manufacturer) => (
+                          <MenuItem key={manufacturer} value={manufacturer}>
+                            {manufacturer}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label={t('Owner', 'Proprietaire', 'Besitzer')}
+                        value={blueprintOwnerFilter ?? 'all'}
+                        onChange={(event) =>
+                          setBlueprintOwnerFilter(event.target.value === 'all' ? null : event.target.value)
+                        }
+                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                      >
+                        <MenuItem value="all">{t('All owners', 'Tous les proprietaires', 'Alle Besitzer')}</MenuItem>
+                        {blueprintOwnerOptions.map((ownerHandle) => (
+                          <MenuItem key={ownerHandle} value={ownerHandle}>
+                            {ownerHandle}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <Button
+                        variant="outlined"
+                        startIcon={<FilterListOffOutlinedIcon />}
+                        onClick={() => {
+                          setBlueprintSearch('');
+                          setCategoryFilter('all');
+                          setManufacturerFilter('all');
+                          setBlueprintOwnerFilter(null);
+                        }}
+                        sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Stack
+                      direction={{ xs: 'column', lg: 'row' }}
+                      spacing={1}
+                      alignItems={{ xs: 'stretch', lg: 'center' }}
+                    >
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label={t('Search resources or owners', 'Rechercher ressources ou proprietaires', 'Ressourcen oder Besitzer suchen')}
+                        value={resourceSearch}
+                        onChange={(event) => setResourceSearch(event.target.value)}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchOutlinedIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label={t('Owner', 'Proprietaire', 'Besitzer')}
+                        value={resourceOwnerFilter ?? 'all'}
+                        onChange={(event) =>
+                          setResourceOwnerFilter(event.target.value === 'all' ? null : event.target.value)
+                        }
+                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                      >
+                        <MenuItem value="all">{t('All owners', 'Tous les proprietaires', 'Alle Besitzer')}</MenuItem>
+                        {resourceOwnerOptions.map((ownerHandle) => (
+                          <MenuItem key={ownerHandle} value={ownerHandle}>
+                            {ownerHandle}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label={t('Quality', 'Qualite', 'Qualitat')}
+                        value={resourceQualityFilter}
+                        onChange={(event) =>
+                          setResourceQualityFilter(event.target.value as 'all' | 'with-quality' | 'no-quality')
+                        }
+                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                      >
+                        <MenuItem value="all">{t('All qualities', 'Toutes les qualites', 'Alle Qualitaten')}</MenuItem>
+                        <MenuItem value="with-quality">{t('With quality', 'Avec qualite', 'Mit Qualitat')}</MenuItem>
+                        <MenuItem value="no-quality">{t('No quality', 'Sans qualite', 'Ohne Qualitat')}</MenuItem>
+                      </TextField>
+                      <Button
+                        variant="outlined"
+                        startIcon={<FilterListOffOutlinedIcon />}
+                        onClick={() => {
+                          setResourceSearch('');
+                          setResourceOwnerFilter(null);
+                          setResourceQualityFilter('all');
+                        }}
+                        sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
+                      </Button>
+                    </Stack>
+                  )}
                 </Stack>
               </Paper>
 
@@ -610,10 +844,11 @@ function OrganizationBlueprintAccordion({
               )}
 
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {filteredRows.length} {t('visible shared entries', 'entrees partagees visibles', 'sichtbare geteilte Eintrage')}
+                {assetTab === 'blueprints' ? filteredBlueprintRows.length : filteredResourceRows.length}{' '}
+                {t('visible shared entries', 'entrees partagees visibles', 'sichtbare geteilte Eintrage')}
               </Typography>
 
-              {filteredRows.length === 0 ? (
+              {assetTab === 'blueprints' && filteredBlueprintRows.length === 0 ? (
                 <Paper
                   variant="outlined"
                   sx={{
@@ -637,33 +872,109 @@ function OrganizationBlueprintAccordion({
                     )}
                   </Typography>
                 </Paper>
-              ) : (
-                <Box
-                  ref={scrollContainerRef}
+              ) : assetTab === 'resources' && filteredResourceRows.length === 0 ? (
+                <Paper
+                  variant="outlined"
                   sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1,
-                    maxHeight: { xs: '62vh', md: '68vh', lg: '72vh' },
-                    overflow: 'auto',
-                    pr: 0.5,
+                    p: 3,
+                    textAlign: 'center',
+                    color: 'text.secondary',
                   }}
                 >
-                  <Box
-                    role="list"
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: 'repeat(2, minmax(0, 1fr))',
-                        md: 'repeat(3, minmax(0, 1fr))',
-                        lg: 'repeat(4, minmax(0, 1fr))',
-                        xl: 'repeat(5, minmax(0, 1fr))',
-                      },
-                      gap: { xs: 1.25, md: 1.5, xl: 2 },
-                    }}
-                  >
-                    {filteredRows.slice(0, visibleCount).map((row, index) => {
+                  <Typography variant="body1" sx={{ mb: 0.75 }}>
+                    {t(
+                      'No shared resource matches the current filters.',
+                      'Aucune ressource partagee ne correspond aux filtres actuels.',
+                      'Keine geteilte Ressource entspricht den aktuellen Filtern.',
+                    )}
+                  </Typography>
+                  <Typography variant="body2">
+                    {t(
+                      'Try clearing the owner or quality filter first.',
+                      'Essaie d abord de retirer le filtre proprietaire ou qualite.',
+                      'Entferne zuerst den Besitzer- oder Qualitatsfilter.',
+                    )}
+                  </Typography>
+                </Paper>
+              ) : (
+                <Stack spacing={1.5}>
+                  {assetTab === 'resources' && (
+                    <Box
+                      role="list"
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr',
+                          md: 'repeat(2, minmax(0, 1fr))',
+                          xl: 'repeat(3, minmax(0, 1fr))',
+                        },
+                        gap: { xs: 1.25, md: 1.5, xl: 2 },
+                      }}
+                    >
+                      {filteredResourceRows.map((row) => (
+                        <ResourceAssetCard
+                          key={row.key}
+                          resource={resourceById.get(row.resourceId) ?? null}
+                          insight={resourceInsightById.get(row.resourceId) ?? null}
+                          onOpen={() =>
+                            navigateToPath(resourcePathFromSlug(row.resourceId), {
+                              resourceId: row.resourceId,
+                              mainView: 'resources',
+                            })
+                          }
+                          title={row.resourceName}
+                          owner={{
+                            label: row.ownerDisplay || row.ownerHandle,
+                            avatarSrc: row.ownerImage,
+                            avatarAlt: row.ownerHandle,
+                            supportingText: row.ownerRank
+                              ? `${row.ownerHandle} • ${row.ownerRank}`
+                              : row.ownerHandle,
+                          }}
+                          infoChips={[
+                            {
+                              label: formatResourceQuantity(row.quantity, row.quantityUnit, lang, 'long'),
+                            },
+                            {
+                              label:
+                                row.quality == null
+                                  ? t('No quality', 'Sans qualite', 'Ohne Qualitat')
+                                  : formatQualityLabel(row.quality, lang),
+                              variant: 'outlined',
+                            },
+                          ]}
+                        />
+                      ))}
+                    </Box>
+                  )}
+
+                  {assetTab === 'blueprints' && filteredBlueprintRows.length > 0 && (
+                    <Box
+                      ref={scrollContainerRef}
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 1,
+                        maxHeight: { xs: '62vh', md: '68vh', lg: '72vh' },
+                        overflow: 'auto',
+                        pr: 0.5,
+                      }}
+                    >
+                      <Box
+                        role="list"
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: 'repeat(2, minmax(0, 1fr))',
+                            md: 'repeat(3, minmax(0, 1fr))',
+                            lg: 'repeat(4, minmax(0, 1fr))',
+                            xl: 'repeat(5, minmax(0, 1fr))',
+                          },
+                          gap: { xs: 1.25, md: 1.5, xl: 2 },
+                        }}
+                      >
+                    {filteredBlueprintRows.slice(0, visibleCount).map((row, index) => {
                       const pendingRequestKey = `${organization.sid}::${row.blueprint.id}::${normalizeComparableText(row.ownerHandle)}`;
                       const requestAlreadyPending = pendingRequestKeys.has(pendingRequestKey);
                       const ownSharedBlueprint =
@@ -685,12 +996,12 @@ function OrganizationBlueprintAccordion({
                             `Nur Blueprints anzeigen, die von ${row.ownerDisplay || row.ownerHandle} geteilt werden.`,
                           ),
                           selected:
-                            normalizeComparableText(ownerFilter) ===
+                            normalizeComparableText(blueprintOwnerFilter) ===
                             normalizeComparableText(row.ownerHandle),
                           avatarSrc: row.ownerImage,
                           avatarAlt: row.ownerHandle,
                           onClick: () => {
-                            setOwnerFilter((currentOwnerFilter) =>
+                            setBlueprintOwnerFilter((currentOwnerFilter) =>
                               normalizeComparableText(currentOwnerFilter) ===
                               normalizeComparableText(row.ownerHandle)
                                 ? null
@@ -765,11 +1076,13 @@ function OrganizationBlueprintAccordion({
                         />
                       );
                     })}
-                  </Box>
-                  {visibleCount < filteredRows.length && (
-                    <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+                      </Box>
+                      {visibleCount < filteredBlueprintRows.length && (
+                        <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+                      )}
+                    </Box>
                   )}
-                </Box>
+                </Stack>
               )}
             </>
           ) : null}
@@ -921,6 +1234,10 @@ export function OrganizationsPage() {
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const inventoryIdSet = useMemo(() => new Set(inventoryIds), [inventoryIds]);
   const resources = activeDataset.resources;
+  const resourceInsightById = useMemo(
+    () => new Map((activeDataset.resourceInsights ?? []).map((insight) => [insight.resourceId, insight])),
+    [activeDataset.resourceInsights],
+  );
 
   const linkedOrganizations = account?.organizations ?? [];
   const accessibleOrganizations = linkedOrganizations.filter(
@@ -957,9 +1274,9 @@ export function OrganizationsPage() {
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 900 }}>
               {t(
-                'Browse blueprints shared by verified members of your linked RSI organizations. Each organization grid stays unloaded until its accordion is opened.',
-                'Parcours les blueprints partages par les membres verifies de tes organisations RSI liees. Chaque grille reste dechargee tant que son accordéon n est pas ouvert.',
-                'Durchsuche Blueprints, die von verifizierten Mitgliedern deiner verknupften RSI-Organisationen geteilt werden. Jedes Raster bleibt entladen, bis sein Akkordeon geoffnet wird.',
+                'Browse blueprints and resources shared by verified members of your linked RSI organizations. Each organization section stays unloaded until its accordion is opened.',
+                'Parcours les blueprints et ressources partages par les membres verifies de tes organisations RSI liees. Chaque section d organisation reste dechargee tant que son accordeon n est pas ouvert.',
+                'Durchsuche Blueprints und Ressourcen, die von verifizierten Mitgliedern deiner verknupften RSI-Organisationen geteilt werden. Jeder Organisationsbereich bleibt entladen, bis sein Akkordeon geoffnet wird.',
               )}
             </Typography>
           </Box>
@@ -1017,9 +1334,9 @@ export function OrganizationsPage() {
           {!account?.rsi?.handle && (
             <Alert severity="info" variant="outlined">
               {t(
-              'Link an RSI account first from the account page to access organization-shared blueprints.',
-              'Lie d abord un compte RSI depuis la page compte pour acceder aux blueprints partages d organisation.',
-              'Verknupfe zuerst auf der Kontoseite ein RSI-Konto, um auf organisationsgeteilte Blueprints zuzugreifen.',
+              'Link an RSI account first from the account page to access organization-shared blueprints and resources.',
+              'Lie d abord un compte RSI depuis la page compte pour acceder aux blueprints et ressources partages d organisation.',
+              'Verknupfe zuerst auf der Kontoseite ein RSI-Konto, um auf organisationsgeteilte Blueprints und Ressourcen zuzugreifen.',
             )}
           </Alert>
         )}
@@ -1042,9 +1359,9 @@ export function OrganizationsPage() {
             </Typography>
             <Typography variant="body2">
               {t(
-                'As soon as an organization membership is verified and a member snapshot exists, it will appear here with its own lazy-loaded blueprint grid.',
-                'Des qu une appartenance a une organisation est verifiee et qu un snapshot de membres existe, elle apparaitra ici avec sa propre grille lazy-load.',
-                'Sobald eine Organisationsmitgliedschaft verifiziert ist und ein Mitgliedersnapshot existiert, erscheint sie hier mit ihrem eigenen lazy geladenen Blueprint-Raster.',
+                'As soon as an organization membership is verified and shared entries exist, it will appear here with its own lazy-loaded section.',
+                'Des qu une appartenance a une organisation est verifiee et que des entrees partagees existent, elle apparaitra ici avec sa propre section lazy-load.',
+                'Sobald eine Organisationsmitgliedschaft verifiziert ist und geteilte Eintrage existieren, erscheint sie hier mit ihrem eigenen lazy geladenen Bereich.',
               )}
             </Typography>
           </Paper>
@@ -1055,6 +1372,7 @@ export function OrganizationsPage() {
               organization={organization}
               expanded={Boolean(accordionState[organization.sid])}
               blueprintById={blueprintById}
+              resourceInsightById={resourceInsightById}
               statMaxima={statMaxima}
               resources={resources}
               favoriteIdSet={favoriteIdSet}
@@ -1088,9 +1406,9 @@ export function OrganizationsPage() {
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {t(
-                  'These organizations are linked to the account, but their shared blueprints stay locked until the membership is verified in the app snapshot.',
-                  'Ces organisations sont bien liees au compte, mais leurs blueprints partages restent verrouilles tant que l appartenance n est pas verifiee dans le snapshot de l appli.',
-                  'Diese Organisationen sind mit dem Konto verknupft, aber ihre geteilten Blueprints bleiben gesperrt, bis die Mitgliedschaft im App-Snapshot verifiziert ist.',
+                  'These organizations are linked to the account, but their shared entries stay locked until the membership is verified in the app snapshot.',
+                  'Ces organisations sont bien liees au compte, mais leurs entrees partagees restent verrouillees tant que l appartenance n est pas verifiee dans le snapshot de l appli.',
+                  'Diese Organisationen sind mit dem Konto verknupft, aber ihre geteilten Eintrage bleiben gesperrt, bis die Mitgliedschaft im App-Snapshot verifiziert ist.',
                 )}
               </Typography>
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
