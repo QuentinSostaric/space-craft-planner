@@ -27,6 +27,7 @@ const ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS = new Set([
   'buy_resources',
 ]);
 const RESOURCE_QUANTITY_UNITS = new Set(['scu', 'count']);
+const RESOURCE_SCU_PRECISION = 1_000_000;
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -334,7 +335,7 @@ function normalizeResourceQuantity(value, quantityUnit = 'scu') {
     return Math.max(1, Math.round(number));
   }
 
-  return Math.round(number * 1000) / 1000;
+  return Math.round(number * RESOURCE_SCU_PRECISION) / RESOURCE_SCU_PRECISION;
 }
 
 function normalizeAccountInventoryResourceEntry(value) {

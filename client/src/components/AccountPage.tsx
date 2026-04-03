@@ -8,15 +8,23 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Rating from '@mui/material/Rating';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -34,10 +42,17 @@ import {
 import { useI18n } from '../i18n/I18nContext';
 import {
   getDiscordBotInviteUrl,
+  type AccountInventoryResourceQuantityUnit,
   type AccountInventoryResourceEntry,
 } from '../services/authService';
 import { useCraft } from '../store/CraftContext';
-import { computeStatMaxima, formatQualityLabel, formatResourceQuantity } from '../utils/crafting';
+import {
+  clampQualityValue,
+  computeStatMaxima,
+  formatQualityLabel,
+  formatResourceQuantity,
+  isResourceSlot,
+} from '../utils/crafting';
 import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
 import { AccountGuestView } from './account/AccountGuestView';
 import { CraftRequestsPanel } from './account/CraftRequestsPanel';
@@ -52,6 +67,8 @@ function readAuthError(): string | null {
 
 const RSI_VERIFICATION_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACCOUNT_BLUEPRINT_BATCH_SIZE = 24;
+const RESOURCE_BATCH_SCU_STEP = 0.000001;
+const ALL_RESOURCES_SHARE_OPTION = '__all__';
 
 type AccountAssetFilter =
   | 'all'
@@ -79,6 +96,20 @@ type AccountLibraryEntry =
       isShared: boolean;
       sharedOrganizationIds: string[];
     };
+
+type ResourceBatchDraftRow = {
+  id: string;
+  resourceId: string;
+  quantity: string;
+  quality: string;
+};
+
+type ResourceBulkShareDraft = {
+  organizationSid: string;
+  resourceId: string;
+  minQuality: string;
+  maxQuality: string;
+};
 
 function createRsiVerificationCode(length = 6): string {
   const bytes = new Uint32Array(length);
@@ -120,6 +151,25 @@ function normalizeOrganizationSidInput(value: string): string {
   }
 
   return input.toUpperCase();
+}
+
+function normalizeBatchResourceQuantity(
+  value: string,
+  quantityUnit: AccountInventoryResourceQuantityUnit,
+): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return Number.NaN;
+  }
+
+  if (quantityUnit === 'count') {
+    return Math.max(1, Math.round(parsed));
+  }
+
+  return Math.max(
+    RESOURCE_BATCH_SCU_STEP,
+    Math.round(parsed * 1_000_000) / 1_000_000,
+  );
 }
 
 function openDiscordBotInvite() {
@@ -189,9 +239,23 @@ export function AccountPage() {
   const [shareDialogSelection, setShareDialogSelection] = useState<string[]>([]);
   const [sharedBlueprintBusyId, setSharedBlueprintBusyId] = useState<string | null>(null);
   const [resourceCollectionError, setResourceCollectionError] = useState<string | null>(null);
+  const [resourceCollectionNotice, setResourceCollectionNotice] = useState<string | null>(null);
   const [shareDialogResourceEntryId, setShareDialogResourceEntryId] = useState<string | null>(null);
   const [shareDialogResourceSelection, setShareDialogResourceSelection] = useState<string[]>([]);
   const [sharedResourceBusyId, setSharedResourceBusyId] = useState<string | null>(null);
+  const [resourceBatchDialogOpen, setResourceBatchDialogOpen] = useState(false);
+  const [resourceBatchRows, setResourceBatchRows] = useState<ResourceBatchDraftRow[]>([]);
+  const [resourceBatchBusy, setResourceBatchBusy] = useState(false);
+  const [resourceBatchError, setResourceBatchError] = useState<string | null>(null);
+  const [resourceBulkShareDialogOpen, setResourceBulkShareDialogOpen] = useState(false);
+  const [resourceBulkShareDraft, setResourceBulkShareDraft] = useState<ResourceBulkShareDraft>({
+    organizationSid: '',
+    resourceId: ALL_RESOURCES_SHARE_OPTION,
+    minQuality: '',
+    maxQuality: '',
+  });
+  const [resourceBulkShareBusy, setResourceBulkShareBusy] = useState(false);
+  const [resourceBulkShareError, setResourceBulkShareError] = useState<string | null>(null);
   const [organizationSidInput, setOrganizationSidInput] = useState('');
   const [organizationAddBusy, setOrganizationAddBusy] = useState(false);
   const [organizationActionSid, setOrganizationActionSid] = useState<string | null>(null);
@@ -284,6 +348,39 @@ export function AccountPage() {
     () => new Map(activeDataset.resources.map((resource) => [resource.id, resource])),
     [activeDataset.resources],
   );
+  const sortedResources = useMemo(
+    () =>
+      [...activeDataset.resources].sort((left, right) =>
+        left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
+      ),
+    [activeDataset.resources],
+  );
+  const resourceQuantityUnitById = useMemo(() => {
+    const nextMap = new Map<string, AccountInventoryResourceQuantityUnit>(
+      activeDataset.resources.map((resource) => [resource.id, 'scu']),
+    );
+
+    for (const blueprint of blueprints) {
+      for (const slot of blueprint.slots) {
+        if (!isResourceSlot(slot)) {
+          continue;
+        }
+
+        const resourceId = slot.requiredResource
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
+        if (!resourceId) {
+          continue;
+        }
+
+        nextMap.set(resourceId, slot.quantityUnit === 'count' ? 'count' : 'scu');
+      }
+    }
+
+    return nextMap;
+  }, [activeDataset.resources, blueprints]);
   const resourceInsightById = useMemo(
     () =>
       new Map(
@@ -431,6 +528,59 @@ export function AccountPage() {
     () => filteredAssetEntries.filter((entry) => entry.kind === 'resource').length,
     [filteredAssetEntries],
   );
+  const bulkResourceSharePreview = useMemo(() => {
+    const targetOrganizationSid = resourceBulkShareDraft.organizationSid.trim();
+    const targetResourceId = resourceBulkShareDraft.resourceId.trim();
+    const minQuality = resourceBulkShareDraft.minQuality.trim()
+      ? clampQualityValue(Number(resourceBulkShareDraft.minQuality))
+      : null;
+    const maxQuality = resourceBulkShareDraft.maxQuality.trim()
+      ? clampQualityValue(Number(resourceBulkShareDraft.maxQuality))
+      : null;
+
+    if (!targetOrganizationSid) {
+      return {
+        matchingEntryIds: [] as string[],
+        newEntryIds: [] as string[],
+      };
+    }
+
+    const matchingEntryIds = inventoryResources
+      .filter((resourceEntry) => {
+        if (
+          targetResourceId &&
+          targetResourceId !== ALL_RESOURCES_SHARE_OPTION &&
+          resourceEntry.resourceId !== targetResourceId
+        ) {
+          return false;
+        }
+
+        if (minQuality != null || maxQuality != null) {
+          if (resourceEntry.quality == null) {
+            return false;
+          }
+
+          if (minQuality != null && resourceEntry.quality < minQuality) {
+            return false;
+          }
+
+          if (maxQuality != null && resourceEntry.quality > maxQuality) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .map((resourceEntry) => resourceEntry.id);
+
+    const existingSharedIds = new Set(organizationResourceShares[targetOrganizationSid] ?? []);
+    const newEntryIds = matchingEntryIds.filter((resourceEntryId) => !existingSharedIds.has(resourceEntryId));
+
+    return {
+      matchingEntryIds,
+      newEntryIds,
+    };
+  }, [inventoryResources, organizationResourceShares, resourceBulkShareDraft]);
 
   useEffect(() => {
     if (!missionRewards) {
@@ -448,6 +598,7 @@ export function AccountPage() {
     setRsiUnlinkError(null);
     setBlueprintCollectionError(null);
     setResourceCollectionError(null);
+    setResourceCollectionNotice(null);
     setSharedBlueprintError(null);
     setShareDialogBlueprintId(null);
     setShareDialogSelection([]);
@@ -455,6 +606,19 @@ export function AccountPage() {
     setShareDialogResourceSelection([]);
     setOrganizationError(null);
     setOrganizationNotice(null);
+    setResourceBatchDialogOpen(false);
+    setResourceBatchRows([]);
+    setResourceBatchBusy(false);
+    setResourceBatchError(null);
+    setResourceBulkShareDialogOpen(false);
+    setResourceBulkShareDraft({
+      organizationSid: '',
+      resourceId: ALL_RESOURCES_SHARE_OPTION,
+      minQuality: '',
+      maxQuality: '',
+    });
+    setResourceBulkShareBusy(false);
+    setResourceBulkShareError(null);
     setOrganizationSidInput('');
     setOrganizationClaimDialogSid(null);
     setOrganizationDeleteDialogSid(null);
@@ -787,6 +951,274 @@ export function AccountPage() {
     if (!sharedResourceBusyId) {
       setShareDialogResourceEntryId(null);
       setShareDialogResourceSelection([]);
+    }
+  };
+
+  const createEmptyResourceBatchRow = (
+    resourceId = sortedResources[0]?.id ?? '',
+  ): ResourceBatchDraftRow => {
+    const quantityUnit = resourceQuantityUnitById.get(resourceId) ?? 'scu';
+    return {
+      id: globalThis.crypto.randomUUID(),
+      resourceId,
+      quantity: quantityUnit === 'count' ? '1' : RESOURCE_BATCH_SCU_STEP.toFixed(6),
+      quality: '',
+    };
+  };
+
+  const openResourceBatchDialog = () => {
+    setResourceCollectionError(null);
+    setResourceCollectionNotice(null);
+    setResourceBatchError(null);
+    setResourceBatchRows([createEmptyResourceBatchRow()]);
+    setResourceBatchDialogOpen(true);
+  };
+
+  const closeResourceBatchDialog = () => {
+    if (resourceBatchBusy) {
+      return;
+    }
+    setResourceBatchDialogOpen(false);
+    setResourceBatchRows([]);
+    setResourceBatchError(null);
+  };
+
+  const addResourceBatchRow = () => {
+    setResourceBatchRows((currentRows) => [...currentRows, createEmptyResourceBatchRow()]);
+  };
+
+  const updateResourceBatchRow = (
+    rowId: string,
+    updates: Partial<ResourceBatchDraftRow>,
+  ) => {
+    setResourceBatchRows((currentRows) =>
+      currentRows.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
+
+        const nextRow = { ...row, ...updates };
+        if (updates.resourceId !== undefined) {
+          const quantityUnit = resourceQuantityUnitById.get(nextRow.resourceId) ?? 'scu';
+          nextRow.quantity = quantityUnit === 'count' ? '1' : RESOURCE_BATCH_SCU_STEP.toFixed(6);
+        }
+        return nextRow;
+      }),
+    );
+  };
+
+  const removeResourceBatchRow = (rowId: string) => {
+    setResourceBatchRows((currentRows) => {
+      if (currentRows.length <= 1) {
+        return [createEmptyResourceBatchRow()];
+      }
+      return currentRows.filter((row) => row.id !== rowId);
+    });
+  };
+
+  const handleAddResourceBatch = async () => {
+    if (!account) {
+      return;
+    }
+
+    setResourceCollectionError(null);
+    setResourceCollectionNotice(null);
+    setResourceBatchError(null);
+
+    const normalizedEntries: AccountInventoryResourceEntry[] = [];
+    for (const row of resourceBatchRows) {
+      const resource = resourceById.get(row.resourceId) ?? null;
+      if (!resource) {
+        setResourceBatchError(
+          t(
+            'Choose a valid resource for every row before saving.',
+            'Choisis une ressource valide sur chaque ligne avant d enregistrer.',
+            'Wahle fur jede Zeile eine gultige Ressource, bevor du speicherst.',
+          ),
+        );
+        return;
+      }
+
+      const quantityUnit = resourceQuantityUnitById.get(row.resourceId) ?? 'scu';
+      const normalizedQuantity = normalizeBatchResourceQuantity(row.quantity, quantityUnit);
+      if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
+        setResourceBatchError(
+          t(
+            'Enter a valid quantity on every row before saving.',
+            'Saisis une quantite valide sur chaque ligne avant d enregistrer.',
+            'Gib in jeder Zeile eine gultige Menge ein, bevor du speicherst.',
+          ),
+        );
+        return;
+      }
+
+      const normalizedQuality = clampQualityValue(
+        row.quality.trim() ? Number(row.quality) : undefined,
+      );
+      const nowIso = new Date().toISOString();
+      normalizedEntries.push({
+        id: globalThis.crypto.randomUUID(),
+        resourceId: resource.id,
+        resourceName: resource.name,
+        quantity: normalizedQuantity,
+        quantityUnit,
+        quality: normalizedQuality ?? null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+    }
+
+    setResourceBatchBusy(true);
+    try {
+      await updateInventoryResources([
+        ...inventoryResources,
+        ...normalizedEntries,
+      ]);
+      setResourceBatchDialogOpen(false);
+      setResourceBatchRows([]);
+      setResourceCollectionNotice(
+        t(
+          `${normalizedEntries.length} resource entries added to your account inventory.`,
+          `${normalizedEntries.length} entrees ressource ajoutees a l inventaire du compte.`,
+          `${normalizedEntries.length} Ressourceneintrage wurden deinem Konto-Inventar hinzugefugt.`,
+        ),
+      );
+    } catch (error) {
+      setResourceBatchError(
+        error instanceof Error
+          ? error.message
+          : t(
+              'Failed to update the resource inventory.',
+              'La mise a jour de l inventaire des ressources a echoue.',
+              'Das Ressourceninventar konnte nicht aktualisiert werden.',
+            ),
+      );
+    } finally {
+      setResourceBatchBusy(false);
+    }
+  };
+
+  const openResourceBulkShareDialog = () => {
+    setResourceCollectionError(null);
+    setResourceCollectionNotice(null);
+    setResourceBulkShareError(null);
+    setResourceBulkShareDraft({
+      organizationSid: linkedOrganizations[0]?.sid ?? '',
+      resourceId: ALL_RESOURCES_SHARE_OPTION,
+      minQuality: '',
+      maxQuality: '',
+    });
+    setResourceBulkShareDialogOpen(true);
+  };
+
+  const closeResourceBulkShareDialog = () => {
+    if (resourceBulkShareBusy) {
+      return;
+    }
+
+    setResourceBulkShareDialogOpen(false);
+    setResourceBulkShareError(null);
+  };
+
+  const handleSaveResourceBulkShare = async () => {
+    if (!account) {
+      return;
+    }
+
+    const organizationSid = resourceBulkShareDraft.organizationSid.trim();
+    if (!organizationSid) {
+      setResourceBulkShareError(
+        t(
+          'Choose which linked organization should receive these resource shares.',
+          'Choisis quelle organisation liee doit recevoir ce partage de ressources.',
+          'Wahle aus, welche verknupfte Organisation diese Ressourcenfreigabe erhalten soll.',
+        ),
+      );
+      return;
+    }
+
+    const minQuality = resourceBulkShareDraft.minQuality.trim()
+      ? clampQualityValue(Number(resourceBulkShareDraft.minQuality))
+      : null;
+    const maxQuality = resourceBulkShareDraft.maxQuality.trim()
+      ? clampQualityValue(Number(resourceBulkShareDraft.maxQuality))
+      : null;
+
+    if (
+      minQuality != null &&
+      maxQuality != null &&
+      minQuality > maxQuality
+    ) {
+      setResourceBulkShareError(
+        t(
+          'Minimum quality cannot be higher than maximum quality.',
+          'La qualite minimale ne peut pas etre superieure a la qualite maximale.',
+          'Die minimale Qualitat kann nicht hoher als die maximale Qualitat sein.',
+        ),
+      );
+      return;
+    }
+
+    if (bulkResourceSharePreview.matchingEntryIds.length === 0) {
+      setResourceBulkShareError(
+        t(
+          'No stored resource entries match this filter yet.',
+          'Aucune entree ressource stockee ne correspond encore a ce filtre.',
+          'Keine gespeicherten Ressourceneintrage passen aktuell zu diesem Filter.',
+        ),
+      );
+      return;
+    }
+
+    if (bulkResourceSharePreview.newEntryIds.length === 0) {
+      setResourceBulkShareError(
+        t(
+          'All matching entries are already shared with this organization.',
+          'Toutes les entrees correspondantes sont deja partagees avec cette organisation.',
+          'Alle passenden Eintrage sind bereits mit dieser Organisation geteilt.',
+        ),
+      );
+      return;
+    }
+
+    setResourceBulkShareBusy(true);
+    setResourceCollectionError(null);
+    setResourceCollectionNotice(null);
+    setResourceBulkShareError(null);
+    try {
+      const nextOrganizationResourceShares = {
+        ...(account.organizationResourceShares ?? {}),
+      };
+      const currentSharedIds = nextOrganizationResourceShares[organizationSid] ?? [];
+      nextOrganizationResourceShares[organizationSid] = [
+        ...new Set([...currentSharedIds, ...bulkResourceSharePreview.newEntryIds]),
+      ];
+
+      const prunedOrganizationResourceShares = Object.fromEntries(
+        Object.entries(nextOrganizationResourceShares).filter(([, resourceEntryIds]) => resourceEntryIds.length > 0),
+      );
+
+      await updateOrganizationResourceShares(prunedOrganizationResourceShares);
+      setResourceBulkShareDialogOpen(false);
+      setResourceCollectionNotice(
+        t(
+          `${bulkResourceSharePreview.newEntryIds.length} resource entries shared with ${organizationSid}.`,
+          `${bulkResourceSharePreview.newEntryIds.length} entrees ressource partagees avec ${organizationSid}.`,
+          `${bulkResourceSharePreview.newEntryIds.length} Ressourceneintrage wurden mit ${organizationSid} geteilt.`,
+        ),
+      );
+    } catch (error) {
+      setResourceBulkShareError(
+        error instanceof Error
+          ? error.message
+          : t(
+              'Failed to update resource sharing.',
+              'La mise a jour du partage des ressources a echoue.',
+              'Die Ressourcenfreigabe konnte nicht aktualisiert werden.',
+            ),
+      );
+    } finally {
+      setResourceBulkShareBusy(false);
     }
   };
 
@@ -2118,6 +2550,26 @@ export function AccountPage() {
                         {t('Stored resources', 'Ressources stockees', 'Gespeicherte Ressourcen')}
                       </MenuItem>
                     </TextField>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={<GroupsOutlinedIcon fontSize="small" />}
+                      onClick={openResourceBulkShareDialog}
+                      disabled={linkedOrganizations.length === 0 || inventoryResources.length === 0}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      {t('Share batch', 'Partager en lot', 'Batch teilen')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<AddCircleOutlineOutlinedIcon fontSize="small" />}
+                      onClick={openResourceBatchDialog}
+                      disabled={sortedResources.length === 0}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      {t('Add resources', 'Ajouter des ressources', 'Ressourcen hinzufügen')}
+                    </Button>
                   </Stack>
                 </Stack>
 
@@ -2176,6 +2628,12 @@ export function AccountPage() {
                   </Alert>
                 )}
 
+                {resourceCollectionNotice && (
+                  <Alert severity="success" variant="outlined">
+                    {resourceCollectionNotice}
+                  </Alert>
+                )}
+
                 {filteredAssetEntries.length === 0 ? (
                   <Box
                     sx={{
@@ -2199,9 +2657,9 @@ export function AccountPage() {
                     <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
                       {assetFilter === 'resources'
                         ? t(
-                            'Use Add to inventory on any resource card, then choose which linked organizations can access each stored entry.',
-                            'Utilise Ajouter a l inventaire sur une carte ressource, puis choisis quelles organisations liees peuvent acceder a chaque entree stockee.',
-                            'Nutze Auf beliebiger Ressourcenkarte Zum Inventar hinzufugen und wähle danach, welche verknüpften Organisationen auf jeden gespeicherten Eintrag zugreifen konnen.',
+                            'Use Add resources to open the batch table, then capture as many stored resource entries as you need before choosing which linked organizations can access each one.',
+                            'Utilise Ajouter des ressources pour ouvrir la table batch, puis enregistre autant d entrees ressource que necessaire avant de choisir quelles organisations liees peuvent acceder a chacune.',
+                            'Nutze Ressourcen hinzufügen, um die Batch-Tabelle zu öffnen und so viele gespeicherte Ressourceneintrage wie nötig zu erfassen, bevor du auswählst, welche verknüpften Organisationen auf jeden Eintrag zugreifen konnen.',
                           )
                         : t(
                             'Save blueprints or resources to your account, then narrow the view with the search bar or the asset filter above.',
@@ -2721,6 +3179,356 @@ export function AccountPage() {
             {sharedResourceBusyId
               ? t('Saving...', 'Enregistrement...', 'Speichere...')
               : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={resourceBatchDialogOpen}
+        onClose={closeResourceBatchDialog}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>
+          {t(
+            'Add stored resources in batch',
+            'Ajouter des ressources stockees en batch',
+            'Gespeicherte Ressourcen gesammelt hinzufügen',
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="info" variant="outlined">
+              {t(
+                'Add as many resource rows as needed. SCU quantities support micro precision down to 0.000001 SCU.',
+                'Ajoute autant de lignes ressource que necessaire. Les quantites en SCU acceptent une precision micro jusqu a 0.000001 SCU.',
+                'Fuge so viele Ressourcenzeilen wie nötig hinzu. SCU-Mengen unterstützen eine Mikrogenauigkeit bis 0.000001 SCU.',
+              )}
+            </Alert>
+
+            {resourceBatchError && (
+              <Alert severity="error" variant="outlined">
+                {resourceBatchError}
+              </Alert>
+            )}
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <Typography sx={{ color: 'text.secondary' }}>
+                {t(
+                  'Each line creates a separate inventory entry so you can store the same resource with different quantities or qualities.',
+                  'Chaque ligne cree une entree d inventaire separee pour stocker la meme ressource avec des quantites ou qualites differentes.',
+                  'Jede Zeile erstellt einen eigenen Inventareintrag, damit du dieselbe Ressource mit unterschiedlichen Mengen oder Qualitaten speichern kannst.',
+                )}
+              </Typography>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<AddCircleOutlineOutlinedIcon fontSize="small" />}
+                onClick={addResourceBatchRow}
+                disabled={resourceBatchBusy || sortedResources.length === 0}
+                style={{ whiteSpace: 'nowrap', alignSelf: 'flex-start' }}
+              >
+                {t('Add row', 'Ajouter une ligne', 'Zeile hinzufügen')}
+              </Button>
+            </Stack>
+
+            <TableContainer
+              component={Paper}
+              variant="outlined"
+              sx={{
+                borderColor: alpha(theme.palette.primary.main, 0.16),
+                backgroundColor: alpha(theme.palette.background.default, 0.18),
+              }}
+            >
+              <Table size="small" sx={{ minWidth: 720 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {t('Resource', 'Ressource', 'Ressource')}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {t('Unit', 'Unite', 'Einheit')}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {t('Quantity', 'Quantite', 'Menge')}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {t('Quality (0-1000)', 'Qualite (0-1000)', 'Qualitat (0-1000)')}
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {t('Action', 'Action', 'Aktion')}
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {resourceBatchRows.map((row) => {
+                    const quantityUnit = resourceQuantityUnitById.get(row.resourceId) ?? 'scu';
+                    return (
+                      <TableRow key={row.id} hover>
+                        <TableCell sx={{ minWidth: 260 }}>
+                          <TextField
+                            select
+                            size="small"
+                            value={row.resourceId}
+                            onChange={(event) =>
+                              updateResourceBatchRow(row.id, { resourceId: event.target.value })
+                            }
+                            fullWidth
+                          >
+                            {sortedResources.map((resource) => (
+                              <MenuItem key={resource.id} value={resource.id}>
+                                {resource.name}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        </TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 110 }}>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={
+                              quantityUnit === 'count'
+                                ? t('Items', 'Objets', 'Stuck')
+                                : 'SCU'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 150 }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={row.quantity}
+                            onChange={(event) =>
+                              updateResourceBatchRow(row.id, { quantity: event.target.value })
+                            }
+                            fullWidth
+                            inputProps={{
+                              min: quantityUnit === 'count' ? 1 : RESOURCE_BATCH_SCU_STEP,
+                              step: quantityUnit === 'count' ? 1 : RESOURCE_BATCH_SCU_STEP,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 150 }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={row.quality}
+                            onChange={(event) =>
+                              updateResourceBatchRow(row.id, { quality: event.target.value })
+                            }
+                            fullWidth
+                            placeholder="0 - 1000"
+                            inputProps={{ min: 0, max: 1000, step: 1 }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Tooltip
+                            title={t(
+                              'Remove this row',
+                              'Supprimer cette ligne',
+                              'Diese Zeile entfernen',
+                            )}
+                          >
+                            <span>
+                              <IconButton
+                                onClick={() => { removeResourceBatchRow(row.id); }}
+                                disabled={resourceBatchBusy}
+                                aria-label={t(
+                                  'Remove this resource row',
+                                  'Supprimer cette ligne ressource',
+                                  'Diese Ressourcenzeile entfernen',
+                                )}
+                              >
+                                <DeleteOutlineOutlinedIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="ghost"
+            onClick={closeResourceBatchDialog}
+            disabled={resourceBatchBusy}
+          >
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { void handleAddResourceBatch(); }}
+            disabled={resourceBatchBusy || resourceBatchRows.length === 0 || sortedResources.length === 0}
+          >
+            {resourceBatchBusy
+              ? t('Saving...', 'Enregistrement...', 'Speichere...')
+              : t('Add resource entries', 'Ajouter les entrees ressource', 'Ressourceneintrage hinzufügen')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={resourceBulkShareDialogOpen}
+        onClose={closeResourceBulkShareDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {t(
+            'Share stored resources with an organization',
+            'Partager des ressources stockees avec une organisation',
+            'Gespeicherte Ressourcen mit einer Organisation teilen',
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography sx={{ color: 'text.secondary' }}>
+              {t(
+                'Choose one linked organization, then target all stored resources or only one resource family. Quality filters are optional, so you can batch share ranges such as Hadanite quality 700 to 800.',
+                'Choisis une organisation liee, puis cible toutes les ressources stockees ou une seule famille de ressources. Les filtres de qualite sont optionnels, ce qui permet par exemple de partager les Hadanites de qualite 700 a 800.',
+                'Wahle eine verknupfte Organisation und danach entweder alle gespeicherten Ressourcen oder nur eine Ressourcenfamilie. Qualitatsfilter sind optional, sodass du zum Beispiel Hadanite mit Qualitat 700 bis 800 gesammelt teilen kannst.',
+              )}
+            </Typography>
+
+            <TextField
+              select
+              size="small"
+              label={t('Organization', 'Organisation', 'Organisation')}
+              value={resourceBulkShareDraft.organizationSid}
+              onChange={(event) =>
+                setResourceBulkShareDraft((currentDraft) => ({
+                  ...currentDraft,
+                  organizationSid: event.target.value,
+                }))
+              }
+              fullWidth
+            >
+              {linkedOrganizations.map((organization) => (
+                <MenuItem key={organization.sid} value={organization.sid}>
+                  {organization.name} ({organization.sid})
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label={t('Resource scope', 'Portee ressource', 'Ressourcenbereich')}
+              value={resourceBulkShareDraft.resourceId}
+              onChange={(event) =>
+                setResourceBulkShareDraft((currentDraft) => ({
+                  ...currentDraft,
+                  resourceId: event.target.value,
+                }))
+              }
+              fullWidth
+            >
+              <MenuItem value={ALL_RESOURCES_SHARE_OPTION}>
+                {t('All stored resources', 'Toutes les ressources stockees', 'Alle gespeicherten Ressourcen')}
+              </MenuItem>
+              {sortedResources.map((resource) => (
+                <MenuItem key={resource.id} value={resource.id}>
+                  {resource.name}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+              <TextField
+                size="small"
+                type="number"
+                label={t('Minimum quality', 'Qualite minimale', 'Minimale Qualitat')}
+                value={resourceBulkShareDraft.minQuality}
+                onChange={(event) =>
+                  setResourceBulkShareDraft((currentDraft) => ({
+                    ...currentDraft,
+                    minQuality: event.target.value,
+                  }))
+                }
+                fullWidth
+                placeholder="0"
+                inputProps={{ min: 0, max: 1000, step: 1 }}
+              />
+              <TextField
+                size="small"
+                type="number"
+                label={t('Maximum quality', 'Qualite maximale', 'Maximale Qualitat')}
+                value={resourceBulkShareDraft.maxQuality}
+                onChange={(event) =>
+                  setResourceBulkShareDraft((currentDraft) => ({
+                    ...currentDraft,
+                    maxQuality: event.target.value,
+                  }))
+                }
+                fullWidth
+                placeholder="1000"
+                inputProps={{ min: 0, max: 1000, step: 1 }}
+              />
+            </Stack>
+
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 1.5,
+                backgroundColor: alpha(theme.palette.background.default, 0.24),
+                borderColor: alpha(theme.palette.primary.main, 0.14),
+              }}
+            >
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                <Chip
+                  size="small"
+                  label={t(
+                    `${bulkResourceSharePreview.matchingEntryIds.length} matching entries`,
+                    `${bulkResourceSharePreview.matchingEntryIds.length} entrees correspondantes`,
+                    `${bulkResourceSharePreview.matchingEntryIds.length} passende Eintrage`,
+                  )}
+                />
+                <Chip
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  label={t(
+                    `${bulkResourceSharePreview.newEntryIds.length} new shares`,
+                    `${bulkResourceSharePreview.newEntryIds.length} nouveaux partages`,
+                    `${bulkResourceSharePreview.newEntryIds.length} neue Freigaben`,
+                  )}
+                />
+              </Stack>
+            </Paper>
+
+            {resourceBulkShareError && (
+              <Alert severity="error" variant="outlined">
+                {resourceBulkShareError}
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            variant="ghost"
+            onClick={closeResourceBulkShareDialog}
+            disabled={resourceBulkShareBusy}
+          >
+            {t('Cancel', 'Annuler', 'Abbrechen')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { void handleSaveResourceBulkShare(); }}
+            disabled={resourceBulkShareBusy || linkedOrganizations.length === 0}
+          >
+            {resourceBulkShareBusy
+              ? t('Saving...', 'Enregistrement...', 'Speichere...')
+              : t('Share matching entries', 'Partager les entrees correspondantes', 'Passende Eintrage teilen')}
           </Button>
         </DialogActions>
       </Dialog>
