@@ -33,6 +33,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.80.0'
+          packageManager: npm
           command: pages deploy client/dist --project-name=space-craft-planner --branch=preview
 
       - name: Deploy production
@@ -41,4 +43,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.80.0'
+          packageManager: npm
           command: pages deploy client/dist --project-name=space-craft-planner --branch=main
