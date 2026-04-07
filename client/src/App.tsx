@@ -565,7 +565,7 @@ function MainContent({ mainView }: { mainView: MainView }) {
   return (
     <Suspense fallback={<MainContentFallback view={resolvedView} />}>
       <Fade in timeout={resolvedView === 'workspace' ? 200 : 180}>
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <SelectedView />
         </Box>
       </Fade>
@@ -655,20 +655,22 @@ function AppShell() {
           id="main-content"
           sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
-            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                {t('Loading published dataset', 'Chargement du dataset publie')}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {t(
-                  'The app is connecting to the published dataset API.',
-                  'L\'application se connecte a l API du dataset publie.',
-                )}
-              </Typography>
-            </Paper>
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
+              <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
+                  {t('Loading published dataset', 'Chargement du dataset publie')}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t(
+                    'The app is connecting to the published dataset API.',
+                    'L\'application se connecte a l API du dataset publie.',
+                  )}
+                </Typography>
+              </Paper>
+            </Box>
+            <Footer />
           </Box>
-          <Footer />
         </Box>
       </Box>
     );
@@ -710,24 +712,26 @@ function AppShell() {
             }}
             aria-live="polite"
           >
-            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-              <Fade in timeout={300}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <CircularProgress
-                    size={56}
-                    thickness={2}
-                    sx={{ mb: 3, color: 'primary.main' }}
-                  />
-                  <Typography variant="h6" sx={{ mb: 0.75 }}>
-                    {t('Loading new dataset', 'Chargement du dataset')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t('Please wait\u2026', 'Veuillez patienter\u2026')}
-                  </Typography>
-                </Box>
-              </Fade>
+            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+                <Fade in timeout={300}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <CircularProgress
+                      size={56}
+                      thickness={2}
+                      sx={{ mb: 3, color: 'primary.main' }}
+                    />
+                    <Typography variant="h6" sx={{ mb: 0.75 }}>
+                      {t('Loading new dataset', 'Chargement du dataset')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {t('Please wait\u2026', 'Veuillez patienter\u2026')}
+                    </Typography>
+                  </Box>
+                </Fade>
+              </Box>
+              <Footer />
             </Box>
-            <Footer />
           </Box>
         </Box>
       </Box>
@@ -743,21 +747,23 @@ function AppShell() {
           id="main-content"
           sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
-            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
-              <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
-                {t('Published dataset unavailable', 'Dataset publie indisponible')}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
-              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                {t(
-                  'This app reads published datasets through the runtime API. The API must be available.',
-                  'Cette app lit les datasets publies via l API runtime. L API doit etre disponible.',
-                )}
-              </Typography>
-            </Paper>
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
+              <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
+                <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
+                  {t('Published dataset unavailable', 'Dataset publie indisponible')}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                  {t(
+                    'This app reads published datasets through the runtime API. The API must be available.',
+                    'Cette app lit les datasets publies via l API runtime. L API doit etre disponible.',
+                  )}
+                </Typography>
+              </Paper>
+            </Box>
+            <Footer />
           </Box>
-          <Footer />
         </Box>
       </Box>
     );
@@ -804,8 +810,10 @@ function AppShell() {
           }}
           aria-label={t('Content', 'Contenu')}
         >
-          <MainContent mainView={guardedMainView} />
-          <Footer />
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+            <MainContent mainView={guardedMainView} />
+            <Footer />
+          </Box>
         </Box>
       </Box>
       {comparisonOpen && (
