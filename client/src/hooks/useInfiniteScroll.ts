@@ -30,6 +30,9 @@ export interface UseInfiniteScrollOptions {
    *  A stable module-scope function is recommended for clarity, though an inline
    *  function also works correctly (the hook captures it via a ref on every render). */
   getColumns?: (containerWidth: number) => number;
+  /** Optional resolver for an external scroll root, such as #main-content.
+   *  When omitted, the hook falls back to scrollContainerRef.current. */
+  getScrollRoot?: () => HTMLDivElement | null;
 }
 
 export interface UseInfiniteScrollResult {
@@ -42,6 +45,14 @@ export interface UseInfiniteScrollResult {
   visibleCount: number;
   /** Stable initial batch size — use for the `priority` image prop on the first N cards. */
   initialCount: number;
+}
+
+export function getMainContentScrollRoot(): HTMLDivElement | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const element = document.getElementById('main-content');
+  return element instanceof HTMLDivElement ? element : null;
 }
 
 /**
@@ -73,6 +84,10 @@ export function useInfiniteScroll<T>(
   // Callers should still pass a stable module-scope function for clarity.
   const getColumnsRef = useRef(getColumns);
   getColumnsRef.current = getColumns;
+  const getScrollRootRef = useRef(options?.getScrollRoot ?? null);
+  getScrollRootRef.current = options?.getScrollRoot ?? null;
+
+  const resolveScrollRoot = () => getScrollRootRef.current?.() ?? scrollContainerRef.current;
 
   const [visibleCount, setVisibleCount] = useState<number>(() => {
     if (typeof window === 'undefined') return 10;
@@ -89,7 +104,7 @@ export function useInfiniteScroll<T>(
   // Resets visibleCount whenever the filtered list changes (filter / search / sort).
   // Also refreshes initialCount using real container dimensions once the DOM is mounted.
   useEffect(() => {
-    const el = scrollContainerRef.current;
+    const el = resolveScrollRoot();
     const w = el?.clientWidth ?? window.innerWidth;
     const h = el?.clientHeight ?? window.innerHeight;
     const count = calcCount(w, h, getColumnsRef.current);
@@ -100,7 +115,7 @@ export function useInfiniteScroll<T>(
   // Loads the next batch when the sentinel enters the scroll container's viewport.
   useEffect(() => {
     const el = sentinelRef.current;
-    const root = scrollContainerRef.current;
+    const root = resolveScrollRoot();
     if (!el || !root) return;
 
     const observer = new IntersectionObserver(

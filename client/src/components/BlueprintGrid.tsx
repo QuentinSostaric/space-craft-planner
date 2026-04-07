@@ -17,7 +17,7 @@ import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
@@ -849,8 +849,11 @@ export function BlueprintGrid() {
     weaponTypeFilter,
   ]);
 
-  const { scrollContainerRef, sentinelRef, visibleCount, initialCount } =
-    useInfiniteScroll(filteredBlueprints, { getColumns: blueprintGetColumns });
+  const { sentinelRef, visibleCount, initialCount } =
+    useInfiniteScroll(filteredBlueprints, {
+      getColumns: blueprintGetColumns,
+      getScrollRoot: getMainContentScrollRoot,
+    });
 
   const shipComponentFiltersBlocked =
     !ENABLE_SHIP_COMPONENT_BLUEPRINTS;
@@ -946,8 +949,7 @@ export function BlueprintGrid() {
 
   return (
     <Box
-      ref={scrollContainerRef}
-      sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}
+      sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}
     >
       <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
         <Typography

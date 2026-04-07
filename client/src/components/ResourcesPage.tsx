@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -1777,8 +1777,11 @@ export function ResourcesPage() {
     systemFilter,
   ]);
 
-  const { scrollContainerRef, sentinelRef, visibleCount } =
-    useInfiniteScroll(filteredResources, { getColumns: resourceGetColumns });
+  const { sentinelRef, visibleCount } =
+    useInfiniteScroll(filteredResources, {
+      getColumns: resourceGetColumns,
+      getScrollRoot: getMainContentScrollRoot,
+    });
 
   const resourceStats = useMemo(() => {
     const systemCount = new Set(resourceInsights.flatMap((insight) => insight.systems)).size;
@@ -1896,8 +1899,7 @@ export function ResourcesPage() {
 
   return (
     <Box
-      ref={scrollContainerRef}
-      sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'auto' }}
+      sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto', minHeight: 0 }}
     >
       <Box
         sx={{
