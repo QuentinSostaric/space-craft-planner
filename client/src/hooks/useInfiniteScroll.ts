@@ -32,7 +32,7 @@ export interface UseInfiniteScrollOptions {
   getColumns?: (containerWidth: number) => number;
   /** Optional resolver for an external scroll root, such as #main-content.
    *  When omitted, the hook falls back to scrollContainerRef.current. */
-  getScrollRoot?: () => HTMLDivElement | null;
+  getScrollRoot?: () => HTMLElement | null;
 }
 
 export interface UseInfiniteScrollResult {
@@ -47,12 +47,12 @@ export interface UseInfiniteScrollResult {
   initialCount: number;
 }
 
-export function getMainContentScrollRoot(): HTMLDivElement | null {
+export function getMainContentScrollRoot(): HTMLElement | null {
   if (typeof document === 'undefined') {
     return null;
   }
   const element = document.getElementById('main-content');
-  return element instanceof HTMLDivElement ? element : null;
+  return element instanceof HTMLElement ? element : null;
 }
 
 /**

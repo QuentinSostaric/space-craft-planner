@@ -26,6 +26,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
@@ -49,6 +50,7 @@ import {
 } from './ui/StarCitizenLicensedIcon';
 import { useCraft } from '../store/CraftContext';
 import { useAuth } from '../auth/AuthContext';
+import { readLocalInventoryResources, writeLocalInventoryResources } from '../auth/localAccountImport';
 import { loc, useI18n } from '../i18n/I18nContext';
 import {
   CATEGORY_LABELS,
@@ -417,6 +419,37 @@ function ResourceCard({
   const imageUrl = resource.visual?.imageUrl ?? null;
   const showImage = Boolean(imageUrl && !imgError);
   const systems = insight?.systems ?? [];
+  const quickActionBaseSx = {
+    width: '100%',
+    minWidth: 0,
+    minHeight: { xs: 38, sm: 40 },
+    gap: { xs: 0.5, sm: 0.625 },
+    px: { xs: 0.9, sm: 1.05 },
+    py: { xs: 0.65, sm: 0.8 },
+    justifyContent: 'flex-start',
+    textTransform: 'none',
+    fontSize: { xs: '0.72rem', sm: '0.78rem' },
+    fontWeight: 600,
+    lineHeight: 1.15,
+    borderColor: 'divider',
+    backgroundColor: alpha(theme.palette.background.default, 0.22),
+    color: 'text.secondary',
+    '& .MuiSvgIcon-root': {
+      fontSize: { xs: '0.95rem', sm: '1rem' },
+      flexShrink: 0,
+    },
+    '& .resource-quick-action-label': {
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    },
+    '&:hover': {
+      borderColor: 'primary.main',
+      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+      color: 'text.primary',
+    },
+  } as const;
 
   return (
     <Card
@@ -563,56 +596,52 @@ function ResourceCard({
           </Stack>
         </Box>
       </CardActionArea>
-      <Divider />
-      <Box sx={{ p: { xs: 1.15, sm: 1.35 } }}>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
-            gap: 0.8,
-          }}
-        >
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={onAddToPlanner}
-            startIcon={<PlaylistAddOutlinedIcon />}
-            sx={{
-              minHeight: { xs: 38, sm: 40 },
-              px: { xs: 1.1, sm: 1.4 },
-              borderColor: alpha(theme.palette.primary.main, 0.28),
-              backgroundColor: alpha(theme.palette.background.default, 0.2),
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: { xs: '0.76rem', sm: '0.82rem' },
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+      <Box
+        sx={{
+          px: { xs: 1.15, sm: 1.4 },
+          pb: { xs: 1.15, sm: 1.4 },
+          pt: 0.75,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+          gap: 0.75,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          backgroundColor: alpha(theme.palette.background.default, 0.08),
+        }}
+      >
+        <Tooltip title={t('Add this resource to the planner', 'Ajouter cette ressource au planificateur', 'Diese Ressource zum Planer hinzufügen')}>
+          <ToggleButton
+            value="planner"
+            size="small"
+            aria-label={t('Add resource to planner', 'Ajouter la ressource au planificateur', 'Ressource zum Planer hinzufügen')}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddToPlanner();
             }}
+            sx={quickActionBaseSx}
           >
-            {t('Add to Planner', 'Ajouter au planificateur')}
-          </Button>
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={onAddToInventory}
-            startIcon={<Inventory2OutlinedIcon />}
-            sx={{
-              minHeight: { xs: 38, sm: 40 },
-              px: { xs: 1.1, sm: 1.4 },
-              borderColor: alpha(theme.palette.secondary.main, 0.3),
-              backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: { xs: '0.76rem', sm: '0.82rem' },
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+            <PlaylistAddOutlinedIcon />
+            <Box component="span" className="resource-quick-action-label">
+              {t('Add to planner', 'Ajouter au planificateur', 'Zum Planer')}
+            </Box>
+          </ToggleButton>
+        </Tooltip>
+        <Tooltip title={t('Add a stored inventory entry for this resource', 'Ajouter une entree d inventaire stockee pour cette ressource', 'Einen gespeicherten Inventareintrag fur diese Ressource hinzufügen')}>
+          <ToggleButton
+            value="inventory"
+            size="small"
+            aria-label={t('Add resource to inventory', 'Ajouter la ressource a l inventaire', 'Ressource zum Inventar hinzufügen')}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddToInventory();
             }}
+            sx={quickActionBaseSx}
           >
-            {addToInventoryLabel}
-          </Button>
-        </Box>
+            <Inventory2OutlinedIcon />
+            <Box component="span" className="resource-quick-action-label">
+              {addToInventoryLabel}
+            </Box>
+          </ToggleButton>
+        </Tooltip>
       </Box>
     </Card>
   );
@@ -1508,6 +1537,9 @@ export function ResourcesPage() {
   const { account, updateInventoryResources } = useAuth();
   const theme = useTheme();
   const resources = activeDataset.resources;
+  const [localInventoryResources, setLocalInventoryResources] = useState(() =>
+    readLocalInventoryResources(),
+  );
 
   const [selectedResourceSlug, setSelectedResourceSlug] = useState<string | null>(() =>
     resourceSlugFromPathname(window.location.pathname),
@@ -1523,6 +1555,12 @@ export function ResourcesPage() {
   const [inventoryBusy, setInventoryBusy] = useState(false);
   const [inventoryNotice, setInventoryNotice] = useState<string | null>(null);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!account) {
+      setLocalInventoryResources(readLocalInventoryResources());
+    }
+  }, [account]);
 
   const allContracts = useMemo<FlatMissionContract[]>(() => {
     if (!missionRewards) return [];
@@ -1566,11 +1604,6 @@ export function ResourcesPage() {
     const quantityUnit = resourcePlannerUnitById.get(resource.id) ?? 'scu';
     const defaultQuantity = quantityUnit === 'count' ? 1 : 0.01;
 
-    if (!account) {
-      navigateToPath('/account', { mainView: 'account' });
-      return;
-    }
-
     setInventoryNotice(null);
     setInventoryError(null);
     setInventoryDialog({
@@ -1589,7 +1622,7 @@ export function ResourcesPage() {
   };
 
   const submitInventoryDialog = async () => {
-    if (!account || !inventoryDialog) {
+    if (!inventoryDialog) {
       return;
     }
 
@@ -1617,25 +1650,40 @@ export function ResourcesPage() {
 
     try {
       const nowIso = new Date().toISOString();
-      await updateInventoryResources([
-        ...(account.inventoryResources ?? []),
-        {
-          id: globalThis.crypto.randomUUID(),
-          resourceId: inventoryDialog.resourceId,
-          resourceName: inventoryDialog.resourceName,
-          quantity: normalizedQuantity,
-          quantityUnit: inventoryDialog.quantityUnit,
-          quality: normalizedQuality ?? null,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        },
-      ]);
+      const nextEntry = {
+        id: globalThis.crypto.randomUUID(),
+        resourceId: inventoryDialog.resourceId,
+        resourceName: inventoryDialog.resourceName,
+        quantity: normalizedQuantity,
+        quantityUnit: inventoryDialog.quantityUnit,
+        quality: normalizedQuality ?? null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      if (account) {
+        await updateInventoryResources([
+          ...(account.inventoryResources ?? []),
+          nextEntry,
+        ]);
+      } else {
+        const nextLocalInventoryResources = writeLocalInventoryResources([
+          ...localInventoryResources,
+          nextEntry,
+        ]);
+        setLocalInventoryResources(nextLocalInventoryResources);
+      }
       setInventoryDialog(null);
       setInventoryNotice(
         t(
-          `${inventoryDialog.resourceName} was added to the account inventory.`,
-          `${inventoryDialog.resourceName} a ete ajoutee a l inventaire du compte.`,
-          `${inventoryDialog.resourceName} wurde dem Konto-Inventar hinzugefugt.`,
+          account
+            ? `${inventoryDialog.resourceName} was added to the account inventory.`
+            : `${inventoryDialog.resourceName} was added to the local inventory.`,
+          account
+            ? `${inventoryDialog.resourceName} a ete ajoutee a l inventaire du compte.`
+            : `${inventoryDialog.resourceName} a ete ajoutee a l inventaire local.`,
+          account
+            ? `${inventoryDialog.resourceName} wurde dem Konto-Inventar hinzugefugt.`
+            : `${inventoryDialog.resourceName} wurde dem lokalen Inventar hinzugefugt.`,
         ),
       );
     } catch (error) {
@@ -2029,9 +2077,7 @@ export function ResourcesPage() {
                     openInventoryDialog(resource);
                   }}
                   addToInventoryLabel={
-                    account
-                      ? t('Add to inventory', 'Ajouter a l inventaire')
-                      : t('Sign in for inventory', 'Connexion pour l inventaire')
+                    t('Add to inventory', 'Ajouter a l inventaire')
                   }
                 />
               ))}

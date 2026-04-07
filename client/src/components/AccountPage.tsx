@@ -22,6 +22,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
@@ -37,8 +38,9 @@ import discordSymbol from '../assets/discord-symbol.svg';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
 import { useAuth } from '../auth/AuthContext';
 import {
-  computeLocalBlueprintImportPlan,
-  readLocalBlueprintCollections,
+  computeLocalAccountImportPlan,
+  readLocalAccountCollections,
+  writeLocalInventoryResources,
 } from '../auth/localAccountImport';
 import { useI18n } from '../i18n/I18nContext';
 import {
@@ -269,7 +271,9 @@ export function AccountPage() {
   const [craftRequestError, setCraftRequestError] = useState<string | null>(null);
   const [craftRequestNotice, setCraftRequestNotice] = useState<string | null>(null);
   const [visibleBlueprintCount, setVisibleBlueprintCount] = useState(ACCOUNT_BLUEPRINT_BATCH_SIZE);
-  const [localCollections, setLocalCollections] = useState(() => readLocalBlueprintCollections());
+  const [localAccountCollections, setLocalAccountCollections] = useState(() =>
+    readLocalAccountCollections(),
+  );
 
   const favoriteSnapshotIds = account?.favoriteBlueprintIds ?? favoriteIds;
   const inventorySnapshotIds = account?.inventoryBlueprintIds ?? inventoryIds;
@@ -320,8 +324,8 @@ export function AccountPage() {
     (organization) => organization.sid === organizationSharingDialogState?.sid,
   ) ?? null;
   const localImportPlan = useMemo(
-    () => computeLocalBlueprintImportPlan(account, localCollections),
-    [account, localCollections],
+    () => computeLocalAccountImportPlan(account, localAccountCollections),
+    [account, localAccountCollections],
   );
   const importDialogOpen = Boolean(account && localImportPlan.hasPendingImport && !importModalDismissed);
 
@@ -587,7 +591,7 @@ export function AccountPage() {
   }, [ensureMissionRewardsLoaded, missionRewards]);
 
   useEffect(() => {
-    setLocalCollections(readLocalBlueprintCollections());
+    setLocalAccountCollections(readLocalAccountCollections());
   }, [account?.accountId, user?.id]);
 
   useEffect(() => {
@@ -735,7 +739,7 @@ export function AccountPage() {
     );
   };
 
-  const handleImportLocalBlueprintCollections = async () => {
+  const handleImportLocalCollections = async () => {
     if (!account) {
       return;
     }
@@ -743,6 +747,9 @@ export function AccountPage() {
     await importAction.run(async () => {
       const importedFavoriteIds = new Set(localImportPlan.missingFavoriteBlueprintIds);
       const importedInventoryIds = new Set(localImportPlan.missingInventoryBlueprintIds);
+      const importedResourceEntryIds = new Set(
+        localImportPlan.missingInventoryResources.map((resourceEntry) => resourceEntry.id),
+      );
       const nextFavoriteBlueprintIds = [
         ...new Set([
           ...account.favoriteBlueprintIds,
@@ -755,30 +762,43 @@ export function AccountPage() {
           ...localImportPlan.missingInventoryBlueprintIds,
         ]),
       ];
+      const nextInventoryResources = [
+        ...(account.inventoryResources ?? []),
+        ...localImportPlan.missingInventoryResources,
+      ];
 
       await syncAccountState({
         favoriteBlueprintIds: nextFavoriteBlueprintIds,
         inventoryBlueprintIds: nextInventoryBlueprintIds,
         planner: account.planner,
       });
-      const nextLocalCollections = {
+
+      if (localImportPlan.missingInventoryResources.length > 0) {
+        await updateInventoryResources(nextInventoryResources);
+      }
+
+      const nextLocalAccountCollections = {
         favoriteBlueprintIds: localImportPlan.favoriteBlueprintIds.filter(
           (blueprintId) => !importedFavoriteIds.has(blueprintId),
         ),
         inventoryBlueprintIds: localImportPlan.inventoryBlueprintIds.filter(
           (blueprintId) => !importedInventoryIds.has(blueprintId),
         ),
+        inventoryResources: localImportPlan.inventoryResources.filter(
+          (resourceEntry) => !importedResourceEntryIds.has(resourceEntry.id),
+        ),
       };
       replaceLocalBlueprintCollections({
-        favoriteBlueprintIds: nextLocalCollections.favoriteBlueprintIds,
-        inventoryBlueprintIds: nextLocalCollections.inventoryBlueprintIds,
+        favoriteBlueprintIds: nextLocalAccountCollections.favoriteBlueprintIds,
+        inventoryBlueprintIds: nextLocalAccountCollections.inventoryBlueprintIds,
       });
-      setLocalCollections(nextLocalCollections);
+      writeLocalInventoryResources(nextLocalAccountCollections.inventoryResources);
+      setLocalAccountCollections(nextLocalAccountCollections);
       setImportModalDismissed(true);
     }, t(
-      'Failed to import the local blueprint collections.',
-      'L import des collections blueprint locales a echoue.',
-      'Der Import der lokalen Blueprint-Sammlungen ist fehlgeschlagen.',
+      'Failed to import the local collections.',
+      'L import des collections locales a echoue.',
+      'Der Import der lokalen Sammlungen ist fehlgeschlagen.',
     ));
   };
 
@@ -2739,32 +2759,109 @@ export function AccountPage() {
                             <Box
                               sx={{
                                 display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
-                                gap: 0.8,
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+                                gap: 0.75,
                               }}
                             >
-                              <Button
-                                variant={entry.isShared ? 'secondary' : 'ghost'}
-                                size="sm"
-                                icon={entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
+                              <ToggleButton
+                                value={`share-${entry.resourceEntry.id}`}
+                                size="small"
+                                selected={entry.isShared}
+                                aria-pressed={entry.isShared}
+                                aria-label={t(
+                                  'Choose which linked organizations can access this resource entry',
+                                  'Choisir quelles organisations liees peuvent acceder a cette entree ressource',
+                                  'Auswahlen, welche verknupften Organisationen auf diesen Ressourceneintrag zugreifen konnen',
+                                )}
                                 onClick={() => { openShareResourceDialog(entry.resourceEntry.id); }}
                                 disabled={linkedOrganizations.length === 0 || sharedResourceBusyId === entry.resourceEntry.id}
-                                style={{ width: '100%' }}
+                                sx={{
+                                  width: '100%',
+                                  minWidth: 0,
+                                  minHeight: { xs: 38, sm: 40 },
+                                  gap: { xs: 0.5, sm: 0.625 },
+                                  px: { xs: 0.9, sm: 1.05 },
+                                  py: { xs: 0.65, sm: 0.8 },
+                                  justifyContent: 'flex-start',
+                                  textTransform: 'none',
+                                  fontSize: { xs: '0.72rem', sm: '0.78rem' },
+                                  fontWeight: 600,
+                                  lineHeight: 1.15,
+                                  borderColor: 'divider',
+                                  backgroundColor: alpha(theme.palette.background.default, 0.22),
+                                  color: 'text.secondary',
+                                  '& .MuiSvgIcon-root': {
+                                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                                    flexShrink: 0,
+                                  },
+                                  '& .resource-asset-action-label': {
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  },
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                    color: 'text.primary',
+                                  },
+                                  ...(entry.isShared && {
+                                    color: 'primary.main',
+                                    borderColor: 'primary.main',
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                                  }),
+                                }}
                               >
-                                {entry.isShared
-                                  ? t('Org sharing', 'Partage org', 'Org-Freigabe')
-                                  : t('Share', 'Partage', 'Teilen')}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                icon={<DeleteOutlineOutlinedIcon fontSize="small" />}
+                                {entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
+                                <Box component="span" className="resource-asset-action-label">
+                                  {entry.isShared
+                                    ? t('Org sharing', 'Partage org', 'Org-Freigabe')
+                                    : t('Share', 'Partage', 'Teilen')}
+                                </Box>
+                              </ToggleButton>
+                              <ToggleButton
+                                value={`remove-${entry.resourceEntry.id}`}
+                                size="small"
+                                aria-label={t('Remove this resource entry', 'Retirer cette entree ressource', 'Diesen Ressourceneintrag entfernen')}
                                 onClick={() => { void handleRemoveResourceEntry(entry.resourceEntry.id); }}
                                 disabled={sharedResourceBusyId === entry.resourceEntry.id}
-                                style={{ width: '100%' }}
+                                sx={{
+                                  width: '100%',
+                                  minWidth: 0,
+                                  minHeight: { xs: 38, sm: 40 },
+                                  gap: { xs: 0.5, sm: 0.625 },
+                                  px: { xs: 0.9, sm: 1.05 },
+                                  py: { xs: 0.65, sm: 0.8 },
+                                  justifyContent: 'flex-start',
+                                  textTransform: 'none',
+                                  fontSize: { xs: '0.72rem', sm: '0.78rem' },
+                                  fontWeight: 600,
+                                  lineHeight: 1.15,
+                                  borderColor: 'divider',
+                                  backgroundColor: alpha(theme.palette.background.default, 0.22),
+                                  color: 'text.secondary',
+                                  '& .MuiSvgIcon-root': {
+                                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                                    flexShrink: 0,
+                                  },
+                                  '& .resource-asset-action-label': {
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  },
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                    color: 'text.primary',
+                                  },
+                                }}
                               >
-                                {t('Remove', 'Retirer', 'Entfernen')}
-                              </Button>
+                                <DeleteOutlineOutlinedIcon fontSize="small" />
+                                <Box component="span" className="resource-asset-action-label">
+                                  {t('Remove', 'Retirer', 'Entfernen')}
+                                </Box>
+                              </ToggleButton>
                             </Box>
                           }
                         />
@@ -2819,25 +2916,25 @@ export function AccountPage() {
         >
           <DialogTitle>
             {t(
-              'Import local blueprint collections?',
-              'Importer les collections blueprint locales ?',
-              'Lokale Blueprint-Sammlungen importieren?',
+              'Import local inventory data?',
+              'Importer les donnees locales d inventaire ?',
+              'Lokale Inventardaten importieren?',
             )}
           </DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2}>
               <Typography sx={{ color: 'text.secondary' }}>
                 {t(
-                  'Blueprints were found in local storage after login. They are not all present in the cloud account yet.',
-                  'Des blueprints ont ete trouves dans le local storage apres connexion. Ils ne sont pas encore tous presents dans le compte cloud.',
-                  'Nach der Anmeldung wurden Blueprints im lokalen Speicher gefunden. Sie sind noch nicht alle im Cloud-Konto vorhanden.',
+                  'Local blueprint collections or stored resources were found after login. Some of them are not present in the cloud account yet.',
+                  'Des collections blueprint locales ou des ressources stockees localement ont ete trouvees apres connexion. Certaines ne sont pas encore presentes dans le compte cloud.',
+                  'Nach der Anmeldung wurden lokale Blueprint-Sammlungen oder gespeicherte Ressourcen gefunden. Ein Teil davon ist noch nicht im Cloud-Konto vorhanden.',
                 )}
               </Typography>
 
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
                   gap: 1,
                 }}
               >
@@ -2857,13 +2954,21 @@ export function AccountPage() {
                     {localImportPlan.missingFavoriteBlueprintIds.length}
                   </Typography>
                 </Paper>
+                <Paper variant="outlined" sx={{ p: 1.5 }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    {t('Resources to import', 'Ressources a importer', 'Zu importierende Ressourcen')}
+                  </Typography>
+                  <Typography variant="h5" sx={{ mt: 0.5 }}>
+                    {localImportPlan.missingInventoryResources.length}
+                  </Typography>
+                </Paper>
               </Box>
 
               <Typography sx={{ color: 'text.secondary' }}>
                 {t(
-                  'Accepting merges these blueprint collections into the cloud account, then clears the imported local collections.',
-                  'Accepter fusionne ces collections blueprint dans le compte cloud, puis vide les collections locales importees.',
-                  'Beim Bestatigen werden diese Blueprint-Sammlungen in das Cloud-Konto ubernommen und die importierten lokalen Sammlungen geleert.',
+                  'Accepting merges the missing local blueprints and resource entries into the cloud account, then clears the imported local entries.',
+                  'Accepter fusionne les blueprints et entrees de ressources locales manquants dans le compte cloud, puis vide les entrees locales importees.',
+                  'Beim Bestatigen werden die fehlenden lokalen Blueprints und Ressourceneintrage in das Cloud-Konto ubernommen und die importierten lokalen Eintrage geleert.',
                 )}
               </Typography>
 
@@ -2884,7 +2989,7 @@ export function AccountPage() {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => { void handleImportLocalBlueprintCollections(); }}
+              onClick={() => { void handleImportLocalCollections(); }}
               disabled={importAction.busy}
             >
               {importAction.busy
