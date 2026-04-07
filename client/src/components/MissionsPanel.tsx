@@ -1,5 +1,5 @@
 import { startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -1665,8 +1665,11 @@ export function MissionsPanel() {
     standingBucketFilter,
   ]);
 
-  const { scrollContainerRef, sentinelRef, visibleCount } =
-    useInfiniteScroll(filteredContracts, { getColumns: missionGetColumns });
+  const { sentinelRef, visibleCount } =
+    useInfiniteScroll(filteredContracts, {
+      getColumns: missionGetColumns,
+      getScrollRoot: getMainContentScrollRoot,
+    });
 
   useEffect(() => {
     const syncSelectedMissionFromPath = () => {
@@ -1731,8 +1734,7 @@ export function MissionsPanel() {
 
   return (
     <Box
-      ref={scrollContainerRef}
-      sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, overflow: 'auto' }}
+      sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 0 auto' }}
     >
       {factionsLoading && <LinearProgress sx={{ flexShrink: 0 }} />}
       {!selectedMission && (
