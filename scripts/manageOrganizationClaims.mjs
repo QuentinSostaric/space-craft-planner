@@ -20,6 +20,7 @@ import {
   getR2Config,
   listObjectKeys,
 } from '../shared/r2Storage.mjs';
+import { toIsoNow } from '../shared/normalize.mjs';
 
 function loadDevVars() {
   const envPath = resolve('.dev.vars');
@@ -45,10 +46,6 @@ function loadDevVars() {
       process.env[key] = value;
     }
   }
-}
-
-function toIsoNow() {
-  return new Date().toISOString();
 }
 
 function formatDateTime(value) {
