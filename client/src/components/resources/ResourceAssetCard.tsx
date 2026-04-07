@@ -5,7 +5,6 @@ import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -294,8 +293,17 @@ export function ResourceAssetCard({
       )}
       {footer ? (
         <>
-          <Divider />
-          <Box sx={{ p: 1.5 }}>{footer}</Box>
+          <Box
+            sx={{
+              px: { xs: 1.15, sm: 1.4 },
+              pb: { xs: 1.15, sm: 1.4 },
+              pt: 0.75,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              backgroundColor: alpha(theme.palette.background.default, 0.08),
+            }}
+          >
+            {footer}
+          </Box>
         </>
       ) : null}
     </Card>

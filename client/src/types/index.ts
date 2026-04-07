@@ -16,6 +16,7 @@ export const LS_KEYS = {
   THEME: 'sc-craft-theme',
   DATASET_SELECTIONS: 'sc-craft-dataset-selections',
   INVENTORY: 'sc-craft-inventory',
+  INVENTORY_RESOURCES: 'sc-craft-inventory-resources',
   INVENTORY_SEED_VERSION: 'sc-craft-inventory-seed-version',
   NAV_COLLAPSED: 'sc-craft-nav-collapsed',
   RESOURCE_PROGRESS: 'sc-craft-resource-progress',
