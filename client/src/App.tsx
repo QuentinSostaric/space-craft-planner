@@ -12,7 +12,6 @@ import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import { createAppTheme } from './theme';
 import { useTheme } from './hooks/useTheme';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
@@ -36,7 +35,6 @@ const LazyBlueprintsView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <BlueprintGrid />
-          <Footer />
         </Box>
       );
     },
@@ -49,7 +47,6 @@ const LazyWorkspaceView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <ItemWorkspace />
-          <Footer />
         </Box>
       );
     },
@@ -62,7 +59,6 @@ const LazyMissionsView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <MissionsPanel />
-          <Footer />
         </Box>
       );
     },
@@ -75,7 +71,6 @@ const LazyResourcesView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <ResourcesPage />
-          <Footer />
         </Box>
       );
     },
@@ -88,7 +83,6 @@ const LazyOrganizationsView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <OrganizationsPage />
-          <Footer />
         </Box>
       );
     },
@@ -101,7 +95,6 @@ const LazyPlannerView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <PlannerPage />
-          <Footer />
         </Box>
       );
     },
@@ -114,7 +107,6 @@ const LazyAccountView = lazy(() =>
       return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <AccountPage />
-          <Footer />
         </Box>
       );
     },
@@ -192,7 +184,6 @@ function BlueprintGridFallback() {
           ))}
         </Box>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -305,7 +296,6 @@ function MissionsFallback() {
           ))}
         </Box>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -366,7 +356,6 @@ function ResourcesFallback() {
           ))}
         </Box>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -399,7 +388,6 @@ function OrganizationsFallback() {
           ))}
         </Stack>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -454,7 +442,6 @@ function PlannerFallback() {
           </Stack>
         </Box>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -470,7 +457,6 @@ function AccountFallback() {
           <Skeleton variant="rounded" height={220} />
         </Paper>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -599,9 +585,6 @@ function AppShell() {
   } = useCraft();
   const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
-  const [themeMode] = useTheme();
-  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
-  const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
 
   const [mainView, setMainView] = useState<MainView>(() => mainViewFromPathname(window.location.pathname));
   const [navCollapsed, setNavCollapsed] = useState(() => {
@@ -665,7 +648,7 @@ function AppShell() {
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
         <Header />
         <LinearProgress sx={{ height: 2 }} />
         <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -691,7 +674,7 @@ function AppShell() {
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
         <Header />
         <LinearProgress sx={{ height: 2 }} />
         <Box
@@ -700,7 +683,7 @@ function AppShell() {
             flex: 1,
             minHeight: 0,
             flexDirection: { xs: 'column', md: 'row' },
-            overflow: isCompactLayout ? 'visible' : 'hidden',
+            overflow: 'visible',
           }}
         >
           <NavRail
@@ -716,27 +699,28 @@ function AppShell() {
               flex: 1,
               minWidth: 0,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              p: 4,
+              flexDirection: 'column',
             }}
             aria-live="polite"
           >
-            <Fade in timeout={300}>
-              <Box sx={{ textAlign: 'center' }}>
-                <CircularProgress
-                  size={56}
-                  thickness={2}
-                  sx={{ mb: 3, color: 'primary.main' }}
-                />
-                <Typography variant="h6" sx={{ mb: 0.75 }}>
-                  {t('Loading new dataset', 'Chargement du dataset')}
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {t('Please wait\u2026', 'Veuillez patienter\u2026')}
-                </Typography>
-              </Box>
-            </Fade>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+              <Fade in timeout={300}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress
+                    size={56}
+                    thickness={2}
+                    sx={{ mb: 3, color: 'primary.main' }}
+                  />
+                  <Typography variant="h6" sx={{ mb: 0.75 }}>
+                    {t('Loading new dataset', 'Chargement du dataset')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('Please wait\u2026', 'Veuillez patienter\u2026')}
+                  </Typography>
+                </Box>
+              </Fade>
+            </Box>
+            <Footer />
           </Box>
         </Box>
       </Box>
@@ -745,7 +729,7 @@ function AppShell() {
 
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
         <Header />
         <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
@@ -769,7 +753,7 @@ function AppShell() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', height: '100dvh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       <Header />
       {isPending && <LinearProgress sx={{ height: 2 }} />}
       <Box
@@ -778,7 +762,7 @@ function AppShell() {
           flex: 1,
           minHeight: 0,
           flexDirection: { xs: 'column', md: 'row' },
-          overflow: isCompactLayout ? 'visible' : 'hidden',
+          overflow: 'visible',
         }}
       >
         <NavRail
@@ -795,12 +779,12 @@ function AppShell() {
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflowY: 'auto',
-            overflowX: 'hidden',
+            overflow: 'visible',
           }}
           aria-label={t('Content', 'Contenu')}
         >
           <MainContent mainView={guardedMainView} />
+          <Footer />
         </Box>
       </Box>
       {comparisonOpen && (
