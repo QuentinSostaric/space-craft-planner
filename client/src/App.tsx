@@ -647,10 +647,14 @@ function AppShell() {
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <Header />
         <LinearProgress sx={{ height: 2 }} />
-        <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box
+          component="main"
+          id="main-content"
+          sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
             <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
@@ -673,16 +677,16 @@ function AppShell() {
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <Header />
         <LinearProgress sx={{ height: 2 }} />
         <Box
           sx={{
             display: 'flex',
             flex: 1,
-            minHeight: { xs: 'auto', md: 'calc(100dvh - 84px)' },
+            minHeight: 0,
             flexDirection: { xs: 'column', md: 'row' },
-            overflow: 'visible',
+            overflow: 'hidden',
             alignItems: 'stretch',
           }}
         >
@@ -697,9 +701,12 @@ function AppShell() {
             id="main-content"
             sx={{
               flex: 1,
+              minHeight: 0,
               minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
+              overflowY: 'auto',
+              overflowX: 'hidden',
             }}
             aria-live="polite"
           >
@@ -729,9 +736,13 @@ function AppShell() {
 
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <Header />
-        <Box component="main" id="main-content" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box
+          component="main"
+          id="main-content"
+          sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
             <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
               <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
@@ -757,7 +768,8 @@ function AppShell() {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100dvh',
+        height: '100dvh',
+        overflow: 'hidden',
       }}
     >
       <Header />
@@ -766,9 +778,9 @@ function AppShell() {
         sx={{
           display: 'flex',
           flex: 1,
-          minHeight: { xs: 'auto', md: 'calc(100dvh - 84px)' },
+          minHeight: 0,
           flexDirection: { xs: 'column', md: 'row' },
-          overflow: 'visible',
+          overflow: 'hidden',
           alignItems: 'stretch',
         }}
       >
@@ -783,10 +795,12 @@ function AppShell() {
           id="main-content"
           sx={{
             flex: 1,
+            minHeight: 0,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'visible',
+            overflowY: 'auto',
+            overflowX: 'hidden',
           }}
           aria-label={t('Content', 'Contenu')}
         >
@@ -818,17 +832,20 @@ function AppContent() {
       <GlobalStyles styles={{
         html: { height: '100%' },
         body: {
-          minHeight: '100dvh',
+          height: '100dvh',
           margin: 0,
           padding: 0,
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         },
         '#root': {
           flex: 1,
-          minHeight: '100dvh',
+          minHeight: 0,
+          height: '100dvh',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         },
         '*': {
           scrollbarWidth: 'thin',
