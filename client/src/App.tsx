@@ -244,7 +244,6 @@ function WorkspaceFallback() {
           </Paper>
         </Stack>
       </Box>
-      <Footer />
     </Box>
   );
 }
@@ -681,9 +680,10 @@ function AppShell() {
           sx={{
             display: 'flex',
             flex: 1,
-            minHeight: 0,
+            minHeight: { xs: 'auto', md: 'calc(100dvh - 84px)' },
             flexDirection: { xs: 'column', md: 'row' },
             overflow: 'visible',
+            alignItems: 'stretch',
           }}
         >
           <NavRail
@@ -753,16 +753,23 @@ function AppShell() {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100dvh',
+      }}
+    >
       <Header />
       {isPending && <LinearProgress sx={{ height: 2 }} />}
       <Box
         sx={{
           display: 'flex',
           flex: 1,
-          minHeight: 0,
+          minHeight: { xs: 'auto', md: 'calc(100dvh - 84px)' },
           flexDirection: { xs: 'column', md: 'row' },
           overflow: 'visible',
+          alignItems: 'stretch',
         }}
       >
         <NavRail
