@@ -30,6 +30,7 @@ import type { Blueprint, ComparisonItem, Lang, NumericItemStatKey } from '../typ
 import { aggregateBlueprintResources, summarizeAssignedQualities } from '../utils/crafting';
 import { Button } from './ui/Button';
 import { CategoryBadge } from './ui/Badge';
+import { FONT_HEADING, FONT_MONO } from '../theme';
 
 // ─── Radar Chart ─────────────────────────────────────────────────────────────
 interface RadarChartProps {
@@ -129,7 +130,7 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
             key={`lbl-${key}`}
             x={x} y={y}
             fontSize="9"
-            fontFamily="Khand, sans-serif"
+            fontFamily={FONT_HEADING}
             fontWeight="600"
             fill="rgba(221,228,245,0.7)"
             textAnchor={textAnchor(i)}
@@ -230,7 +231,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                     <TableCell key={item.id} align="center">
                       <Typography
                         variant="body2"
-                        sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
+                        sx={{ fontFamily: FONT_MONO, fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
                       >
                         {displayVal}
                       </Typography>
@@ -261,7 +262,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                   <TableCell key={item.id} align="center">
                     <Typography
                       variant="body2"
-                      sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
+                      sx={{ fontFamily: FONT_MONO, fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
                     >
                       {item.qualityScore}<Typography component="span" sx={{ color: 'text.disabled', fontSize: '.58rem' }}>/100</Typography>
                     </Typography>
@@ -300,7 +301,7 @@ function ResourceSummary({ item, lang, blueprints }: { item: ComparisonItem; lan
               secondary: { variant: 'caption', sx: { fontSize: '.6rem' } },
             }}
           />
-          <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.65rem', ml: 1, flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ fontFamily: FONT_MONO, fontSize: '.65rem', ml: 1, flexShrink: 0 }}>
             ×{entry.totalScu.toFixed(2)} SCU
           </Typography>
         </ListItem>
@@ -351,7 +352,7 @@ export function ComparisonModal() {
           <Typography
             variant="h6"
             sx={{
-              fontFamily: "'Khand', sans-serif",
+              fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: '1.3rem',
             }}
@@ -397,7 +398,7 @@ export function ComparisonModal() {
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
                       <CategoryBadge category={item.category} iconOnly />
                       <span>{item.blueprintName}</span>
-                      <Typography component="span" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '.62rem', color: 'text.secondary' }}>
+                      <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '.62rem', color: 'text.secondary' }}>
                         {item.qualityScore}/100
                       </Typography>
                     </Box>
@@ -421,14 +422,14 @@ export function ComparisonModal() {
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 2 }}>
               {allStatKeys.length >= 3 && (
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
                     {t('Radar', 'Radar')}
                   </Typography>
                   <RadarChart items={comparisonItems} statKeys={allStatKeys} lang={lang} />
                 </Box>
               )}
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
+                <Typography variant="h6" sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>
                   {t('Stat breakdown', 'Detail des stats')}
                 </Typography>
                 <StatTable items={comparisonItems} statKeys={allStatKeys} lang={lang} />
@@ -438,7 +439,7 @@ export function ComparisonModal() {
             <Divider sx={{ my: 2 }} />
 
             {/* Materials section */}
-            <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1.5 }}>
+            <Typography variant="h6" sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '.9rem', textTransform: 'uppercase', letterSpacing: '.06em', mb: 1.5 }}>
               {t('Required resources', 'Ressources requises')}
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${Math.min(comparisonItems.length, 2)}, 1fr)`, md: `repeat(${comparisonItems.length}, 1fr)` }, gap: 1.5 }}>

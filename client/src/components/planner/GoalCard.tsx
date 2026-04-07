@@ -11,6 +11,7 @@ import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { CategoryBadge } from '../ui/Badge';
 import type { CraftGoal } from '../../types';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 interface GoalCardProps {
   goal: CraftGoal;
@@ -104,10 +105,10 @@ export const GoalCard = memo(function GoalCard({
           )}
           {blueprint && <CategoryBadge category={blueprint.category} iconOnly />}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '.85rem', lineHeight: 1.2 }}>
+            <Typography variant="body2" sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '.85rem', lineHeight: 1.2 }}>
               {goal.blueprintName}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace", fontSize: '.62rem' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: '.62rem' }}>
               {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
             </Typography>
           </Box>

@@ -16,6 +16,7 @@ import {
 import { ResourceIcon } from '../ui/ResourceIcon';
 import { useI18n } from '../../i18n/I18nContext';
 import type { Resource, ResourceInsight } from '../../types';
+import { FONT_HEADING } from '../../theme';
 
 type ResourceCardChip = {
   label: string;
@@ -176,7 +177,7 @@ export function ResourceAssetCard({
         <Box>
           <Typography
             sx={{
-              fontFamily: "'Khand', sans-serif",
+              fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: '1.15rem',
               lineHeight: 1,

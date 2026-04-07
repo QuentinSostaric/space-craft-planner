@@ -1,6 +1,7 @@
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
+import { FONT_HEADING } from '../../theme';
 
 export function PageStatCard({
   label,
@@ -38,7 +39,7 @@ export function PageStatCard({
       </Typography>
       <Typography
         sx={{
-          fontFamily: "'Khand', sans-serif",
+          fontFamily: FONT_HEADING,
           fontWeight: 700,
           fontSize: { xs: '1rem', md: '1.35rem' },
           lineHeight: 1,

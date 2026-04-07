@@ -32,6 +32,7 @@ import type { AggregatedResource, ResourceMethod, ResourceProgress } from '../..
 import { ResourceMethodDetail } from './ResourceMethodDetail';
 import { AppGlyph } from '../ui/AppGlyph';
 import { ResourceIcon } from '../ui/ResourceIcon';
+import { FONT_MONO } from '../../theme';
 
 const DEFAULT_PROGRESS: ResourceProgress = { collected: 0, method: null };
 
@@ -181,7 +182,7 @@ export const ResourceRow = memo(function ResourceRow({
           <Typography
             variant="caption"
             sx={{
-              fontFamily: "'Share Tech Mono', monospace",
+              fontFamily: FONT_MONO,
               color: 'text.secondary',
               flexShrink: 0,
             }}

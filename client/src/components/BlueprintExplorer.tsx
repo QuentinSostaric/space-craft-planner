@@ -32,7 +32,7 @@ import {
   buildShipComponentCardModel,
   isDisplayableShipComponent,
 } from '../utils/shipComponents';
-import { isResourceSlot } from '../utils/crafting';
+import { isResourceSlot, ls, STANDING_OPTIONS } from '../utils/crafting';
 import { CategoryBadge } from './ui/Badge';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
@@ -50,8 +50,6 @@ import type {
 } from '../types';
 
 type LocalizedOption = { label: LocalizedString };
-
-const ls = (en: string, fr: string, de?: string): LocalizedString => ({ en, fr, de });
 
 function getOptionText(option: LocalizedOption, lang: Lang): string {
   return loc(option.label, lang);
@@ -112,15 +110,6 @@ const CRAFT_TIME_OPTIONS: Array<{ value: CraftTimeBucket } & LocalizedOption> = 
   { value: '61-120', label: ls('1-2 min', '1-2 min', '1-2 Min') },
   { value: '121-180', label: ls('2-3 min', '2-3 min', '2-3 Min') },
   { value: '180+', label: ls('3+ min', '3+ min', '3+ Min') },
-];
-
-const STANDING_OPTIONS: Array<{ value: StandingBucket } & LocalizedOption> = [
-  { value: 'all', label: ls('Any standing', 'Toute réputation', 'Beliebiger Ruf') },
-  { value: 'none', label: ls('No standing gate', 'Sans prérequis', 'Keine Rufschwelle') },
-  { value: '1-999', label: ls('1-999', '1-999', '1-999') },
-  { value: '1000-4999', label: ls('1k-4.9k', '1k-4,9k', '1k-4,9k') },
-  { value: '5000-14999', label: ls('5k-14.9k', '5k-14,9k', '5k-14,9k') },
-  { value: '15000+', label: ls('15k+', '15k+', '15k+') },
 ];
 
 function getStandingLabel(value: StandingBucket, lang: Lang): string {

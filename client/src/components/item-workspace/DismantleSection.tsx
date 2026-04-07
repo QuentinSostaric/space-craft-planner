@@ -10,6 +10,7 @@ import type { AggregatedResource, Blueprint, Resource } from '../../types';
 import { formatResourceQuantity, summarizeAssignedQualities } from '../../utils/crafting';
 import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import { ResourceIcon } from '../ui/ResourceIcon';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 function normalizeResourceKey(value: string) {
   return value
@@ -171,7 +172,7 @@ export function DismantleSection({
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography
                         sx={{
-                          fontFamily: "'Khand', sans-serif",
+                          fontFamily: FONT_HEADING,
                           fontWeight: 700,
                           fontSize: '1.25rem',
                           lineHeight: 1,
@@ -215,7 +216,7 @@ export function DismantleSection({
                       </Typography>
                       <Typography
                         variant="body1"
-                        sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700 }}
+                        sx={{ fontFamily: FONT_MONO, fontWeight: 700 }}
                       >
                         {formatResourceQuantity(recovered, resource.quantityUnit, lang)}
                       </Typography>

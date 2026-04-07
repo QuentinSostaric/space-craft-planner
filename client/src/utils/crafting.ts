@@ -17,6 +17,7 @@ import type {
   NumericItemStatKey,
   PlannerResourceRequirements,
   ResourceSourceMethod,
+  StandingBucket,
 } from '../types';
 import { NUMERIC_ITEM_STAT_KEYS } from '../types';
 import { loc } from '../i18n/I18nContext';
@@ -629,3 +630,28 @@ export function getMaterialProviders(
 
   return matchedEntry?.providers ? sortMaterialProviders(matchedEntry.providers) : [];
 }
+
+// ---------------------------------------------------------------------------
+// Shared standing helpers (used by BlueprintGrid, MissionsPanel, BlueprintExplorer)
+// ---------------------------------------------------------------------------
+
+export function ls(en: string, fr: string, de?: string): LocalizedString {
+  return { en, fr, de };
+}
+
+export function getStandingBucket(value: number | null | undefined): StandingBucket {
+  if (value == null || value <= 0) return 'none';
+  if (value <= 999) return '1-999';
+  if (value <= 4999) return '1000-4999';
+  if (value <= 14999) return '5000-14999';
+  return '15000+';
+}
+
+export const STANDING_OPTIONS: Array<{ value: StandingBucket; label: LocalizedString }> = [
+  { value: 'all', label: ls('Any standing', 'Toute réputation', 'Beliebiger Ruf') },
+  { value: 'none', label: ls('No standing gate', 'Sans prérequis', 'Keine Rufschwelle') },
+  { value: '1-999', label: ls('1-999', '1-999', '1-999') },
+  { value: '1000-4999', label: ls('1k-4.9k', '1k-4,9k', '1k-4,9k') },
+  { value: '5000-14999', label: ls('5k-14.9k', '5k-14,9k', '5k-14,9k') },
+  { value: '15000+', label: ls('15k+', '15k+', '15k+') },
+];

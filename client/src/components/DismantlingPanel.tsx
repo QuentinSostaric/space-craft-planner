@@ -8,6 +8,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
+import { FONT_MONO } from '../theme';
 
 function ConfidenceBadge({ level }: { level: string }) {
   const color = level === 'high' ? 'success' : level === 'medium' ? 'warning' : 'error';
@@ -19,7 +20,7 @@ function ConfidenceBadge({ level }: { level: string }) {
       color={color}
       variant="outlined"
       sx={{
-        fontFamily: "'Share Tech Mono', monospace",
+        fontFamily: FONT_MONO,
         fontSize: '0.7rem',
         height: 20,
       }}
@@ -120,7 +121,7 @@ export function DismantlingPanel() {
                 borderBottom: (theme) => `1px solid ${theme.palette.divider}` 
               }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{queue.debugName}</Typography>
-                <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                <Typography variant="caption" sx={{ fontFamily: FONT_MONO }}>
                   {queue.maxJobsInProgress}/{queue.maxJobsWaiting}
                 </Typography>
               </Box>

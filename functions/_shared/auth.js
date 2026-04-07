@@ -259,111 +259,90 @@ export function handleLogoutRequest(request, env) {
   );
 }
 
-export async function handleAccountRequest(request, env) {
+/**
+ * Higher-order helper: authenticates the request, ensures an account record
+ * exists, then delegates to `handler(accountStore, session, account, env)`.
+ * The handler should return the updated account record; the wrapper decorates
+ * it and returns a no-store JSON response.
+ */
+async function withAuthenticatedAccount(request, env, handler) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
     return errorResponse(401, 'Authentication required.');
   }
 
   const accountStore = getAccountStore(request, env);
-  const account = await ensureAccountForSession(accountStore, session);
+  const ensuredAccount = await ensureAccountForSession(accountStore, session);
+  const account = await handler(accountStore, session, ensuredAccount, env);
   const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
   return noStoreJson({ account: decoratedAccount });
+}
+
+/**
+ * Like `withAuthenticatedAccount` but also parses the JSON body before
+ * delegating.  Handler receives `(accountStore, session, account, payload, env)`.
+ */
+async function withAuthenticatedAccountJson(request, env, handler) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  let payload;
+  try {
+    payload = await readAccountJsonFromRequest(request);
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
+  }
+
+  const accountStore = getAccountStore(request, env);
+  const ensuredAccount = await ensureAccountForSession(accountStore, session);
+  const account = await handler(accountStore, session, ensuredAccount, payload, env);
+  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+  return noStoreJson({ account: decoratedAccount });
+}
+
+export async function handleAccountRequest(request, env) {
+  return withAuthenticatedAccount(request, env, (_accountStore, _session, account) => account);
 }
 
 export async function handleAccountUpdateRequest(request, env) {
-  const session = await requireAuthenticatedSession(request, env);
-  if (!session) {
-    return errorResponse(401, 'Authentication required.');
-  }
-
-  let payload;
-  try {
-    payload = await readAccountJsonFromRequest(request);
-  } catch (error) {
-    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
-  }
-
-  const accountStore = getAccountStore(request, env);
-  await ensureAccountForSession(accountStore, session);
-  const account = await saveAccountState(accountStore, session.accountId, payload, session.user);
-  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
-  return noStoreJson({ account: decoratedAccount });
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+    return saveAccountState(accountStore, session.accountId, payload, session.user);
+  });
 }
 
 export async function handleAccountSharedBlueprintsUpdateRequest(request, env) {
-  const session = await requireAuthenticatedSession(request, env);
-  if (!session) {
-    return errorResponse(401, 'Authentication required.');
-  }
-
-  let payload;
-  try {
-    payload = await readAccountJsonFromRequest(request);
-  } catch (error) {
-    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
-  }
-
-  const accountStore = getAccountStore(request, env);
-  await ensureAccountForSession(accountStore, session);
-  const account = await saveAccountOrganizationBlueprintShares(
-    accountStore,
-    session.accountId,
-    payload?.organizationBlueprintShares,
-    session.user,
-  );
-  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
-  return noStoreJson({ account: decoratedAccount });
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+    return saveAccountOrganizationBlueprintShares(
+      accountStore,
+      session.accountId,
+      payload?.organizationBlueprintShares,
+      session.user,
+    );
+  });
 }
 
 export async function handleAccountResourcesUpdateRequest(request, env) {
-  const session = await requireAuthenticatedSession(request, env);
-  if (!session) {
-    return errorResponse(401, 'Authentication required.');
-  }
-
-  let payload;
-  try {
-    payload = await readAccountJsonFromRequest(request);
-  } catch (error) {
-    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
-  }
-
-  const accountStore = getAccountStore(request, env);
-  await ensureAccountForSession(accountStore, session);
-  const account = await saveAccountInventoryResources(
-    accountStore,
-    session.accountId,
-    payload?.inventoryResources,
-    session.user,
-  );
-  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
-  return noStoreJson({ account: decoratedAccount });
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+    return saveAccountInventoryResources(
+      accountStore,
+      session.accountId,
+      payload?.inventoryResources,
+      session.user,
+    );
+  });
 }
 
 export async function handleAccountSharedResourcesUpdateRequest(request, env) {
-  const session = await requireAuthenticatedSession(request, env);
-  if (!session) {
-    return errorResponse(401, 'Authentication required.');
-  }
-
-  let payload;
-  try {
-    payload = await readAccountJsonFromRequest(request);
-  } catch (error) {
-    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
-  }
-
-  const accountStore = getAccountStore(request, env);
-  await ensureAccountForSession(accountStore, session);
-  const account = await saveAccountOrganizationResourceShares(
-    accountStore,
-    session.accountId,
-    payload?.organizationResourceShares,
-    session.user,
-  );
-  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
-  return noStoreJson({ account: decoratedAccount });
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+    return saveAccountOrganizationResourceShares(
+      accountStore,
+      session.accountId,
+      payload?.organizationResourceShares,
+      session.user,
+    );
+  });
 }
 
 export async function handleDeleteAccountRequest(request, env) {

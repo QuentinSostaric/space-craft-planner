@@ -23,6 +23,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import { useCraft } from '../../store/CraftContext';
 import type { PlannerTodoItem, PlannerTodoSource } from '../../types';
+import { FONT_HEADING } from '../../theme';
 
 type PlannerTodoFilter = 'all' | 'open' | 'done' | 'manual' | 'mission-blueprint';
 
@@ -229,7 +230,7 @@ export function PlannerTodoBoard() {
             </Typography>
             <Typography
               variant="h5"
-              sx={{ fontFamily: "'Khand', sans-serif", lineHeight: 0.95 }}
+              sx={{ fontFamily: FONT_HEADING, lineHeight: 0.95 }}
             >
               {t('Operations board', 'Tableau des opérations')}
             </Typography>
@@ -286,7 +287,7 @@ export function PlannerTodoBoard() {
                 letterSpacing: '0.08em',
                 fontSize: '0.7rem',
                 fontWeight: 700,
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
               },
             }}
           >
@@ -413,7 +414,7 @@ export function PlannerTodoBoard() {
               letterSpacing: '0.06em',
               fontSize: '0.68rem',
               fontWeight: 700,
-              fontFamily: "'Khand', sans-serif",
+              fontFamily: FONT_HEADING,
             },
           }}
         >
@@ -470,7 +471,7 @@ export function PlannerTodoBoard() {
           >
             <Typography
               variant="body1"
-              sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700 }}
+              sx={{ fontFamily: FONT_HEADING, fontWeight: 700 }}
             >
               {t('No tasks match the current view.', 'Aucune tâche ne correspond à la vue actuelle.')}
             </Typography>
@@ -550,7 +551,7 @@ export function PlannerTodoBoard() {
                         <Typography
                           variant="body1"
                           sx={{
-                            fontFamily: "'Khand', sans-serif",
+                            fontFamily: FONT_HEADING,
                             fontWeight: 700,
                             textDecoration: item.completed ? 'line-through' : 'none',
                           }}
@@ -590,7 +591,7 @@ export function PlannerTodoBoard() {
                                 border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
                                 borderRadius: 999,
                                 color: 'primary.main',
-                                fontFamily: "'Khand', sans-serif",
+                                fontFamily: FONT_HEADING,
                                 fontWeight: 700,
                                 fontSize: '0.78rem',
                               }}

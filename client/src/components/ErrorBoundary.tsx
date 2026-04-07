@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
+import { FONT_HEADING } from '../theme';
 
 interface Props { children: ReactNode }
 interface State { error: Error | null }
@@ -46,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Typography
               variant="h5"
               sx={{
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 mb: 2,
                 color: 'error.main',

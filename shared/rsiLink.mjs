@@ -1,13 +1,11 @@
+import {
+  isObject,
+  normalizeOrganizationSid,
+  normalizeText,
+} from './normalize.mjs';
+
 const STARCITIZEN_API_BASE_URL = 'https://api.starcitizen-api.com';
 const ORGANIZATION_MEMBERS_PAGE_SIZE = 32;
-
-function isObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
 
 function normalizeComparableText(value) {
   return normalizeText(value)
@@ -42,17 +40,6 @@ export function normalizeRsiLink(value) {
     profileUrl: value.profileUrl ? String(value.profileUrl) : null,
     verifiedAt: value.verifiedAt ? String(value.verifiedAt) : null,
   };
-}
-
-function normalizeOrganizationSid(value) {
-  const input = normalizeText(value);
-  if (!input) {
-    return null;
-  }
-
-  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
-  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
 }
 
 function normalizeOrganizationMetadata(value, fallbackSid = null) {

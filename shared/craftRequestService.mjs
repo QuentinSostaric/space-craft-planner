@@ -4,35 +4,15 @@ import {
   writeAccountRecord,
 } from './accountStorage.mjs';
 import { readOrganizationRecord } from './organizationStorage.mjs';
-
-function toIsoNow() {
-  return new Date().toISOString();
-}
-
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
+import {
+  normalizeBaseUrl,
+  normalizeOrganizationSid,
+  normalizeText,
+  toIsoNow,
+} from './normalize.mjs';
 
 function normalizeComparableText(value) {
   return normalizeText(value).toLowerCase();
-}
-
-function normalizeBaseUrl(value) {
-  const input = normalizeText(value);
-  if (!input) {
-    return null;
-  }
-
-  try {
-    const url = new URL(input);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return null;
-    }
-
-    return url.origin.replace(/\/+$/, '');
-  } catch {
-    return null;
-  }
 }
 
 function normalizeStorageScope(value) {
@@ -60,17 +40,6 @@ function normalizeCraftRequestResourcesOption(value) {
     return option;
   }
   return 'unspecified';
-}
-
-function normalizeOrganizationSid(value) {
-  const input = normalizeText(value);
-  if (!input) {
-    return null;
-  }
-
-  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
-  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
 }
 
 function createCraftRequestId() {

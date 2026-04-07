@@ -16,6 +16,7 @@ import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import type { DatasetChangelogSection, DatasetDiffEntry, Lang } from '../types';
+import { FONT_MONO } from '../theme';
 
 function renderDiffLabel(entry: DatasetDiffEntry) {
   return entry.nameAfter ?? entry.name ?? entry.id;
@@ -116,7 +117,7 @@ function DiffCard({
               <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '.6rem', display: 'block' }}>
                 {c.label}
               </Typography>
-              <Typography variant="body2" sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, color: COUNT_COLORS[c.key] }}>
+              <Typography variant="body2" sx={{ fontFamily: FONT_MONO, fontWeight: 700, color: COUNT_COLORS[c.key] }}>
                 {c.value}
               </Typography>
             </Box>

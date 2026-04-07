@@ -23,7 +23,7 @@ import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
-import { CARD_STATS, computeStatMaxima, isResourceSlot } from '../utils/crafting';
+import { CARD_STATS, computeStatMaxima, getStandingBucket, isResourceSlot } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
 import {
@@ -39,9 +39,9 @@ import type {
   NumericItemStatKey,
   Resource,
   ShipComponentEntry,
-  StandingBucket,
 } from '../types';
 import type { GameIconName } from './ui/GameIcon';
+import { FONT_HEADING } from '../theme';
 
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
 
@@ -67,14 +67,6 @@ function getCraftTimeBucket(craftTimeSecs: number): string {
   if (craftTimeSecs <= 120) return '61-120';
   if (craftTimeSecs <= 180) return '121-180';
   return '180+';
-}
-
-function getStandingBucket(value: number | null | undefined): StandingBucket {
-  if (value == null || value <= 0) return 'none';
-  if (value <= 999) return '1-999';
-  if (value <= 4999) return '1000-4999';
-  if (value <= 14999) return '5000-14999';
-  return '15000+';
 }
 
 function getRarityRank(rarity?: Blueprint['rarity']): number {
@@ -340,7 +332,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           <Box>
             <Typography
               sx={{
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: '1.1rem',
                 lineHeight: 1.1,
@@ -960,7 +952,7 @@ export function BlueprintGrid() {
       <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
         <Typography
           sx={{
-            fontFamily: "'Khand', sans-serif",
+            fontFamily: FONT_HEADING,
             fontWeight: 700,
             fontSize: { xs: '1.9rem', md: '2.2rem' },
             textTransform: 'uppercase',
@@ -1004,7 +996,7 @@ export function BlueprintGrid() {
                   sx={{
                     mb: 1.5,
                     color: 'text.secondary',
-                    fontFamily: "'Khand', sans-serif",
+                    fontFamily: FONT_HEADING,
                     fontSize: '1.15rem',
                     fontWeight: 700,
                     letterSpacing: '0.08em',
@@ -1057,7 +1049,7 @@ export function BlueprintGrid() {
                   sx={{
                     mb: 0.75,
                     color: 'text.secondary',
-                    fontFamily: "'Khand', sans-serif",
+                    fontFamily: FONT_HEADING,
                     fontSize: '1.15rem',
                     fontWeight: 700,
                     letterSpacing: '0.08em',

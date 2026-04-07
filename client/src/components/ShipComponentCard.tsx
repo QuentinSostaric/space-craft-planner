@@ -15,6 +15,7 @@ import {
 import { Badge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import type { GameIconName } from './ui/GameIcon';
+import { FONT_HEADING } from '../theme';
 
 const SHIP_COMPONENT_ICON_MAP: Record<ShipComponentCardProfileKey, GameIconName> = {
   scanner: 'radars',
@@ -168,7 +169,7 @@ export const ShipComponentCard = memo(function ShipComponentCard({
         <Box>
           <Typography
             sx={{
-              fontFamily: "'Khand', sans-serif",
+              fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: '1.1rem',
               lineHeight: 1.1,

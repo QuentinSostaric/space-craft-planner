@@ -23,6 +23,7 @@ import {
   isResourceSlot,
 } from '../../utils/crafting';
 import type { CraftGoal, MaterialSlot } from '../../types';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 interface GoalEditModalProps {
   goal: CraftGoal;
@@ -67,12 +68,12 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
       <DialogTitle id="goal-edit-modal-title" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 0.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CategoryBadge category={blueprint.category} iconOnly />
-          <Typography variant="h6" sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}>
+          <Typography variant="h6" sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '1.1rem' }}>
             {goal.blueprintName}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace" }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontFamily: FONT_MONO }}>
             {t('Build index', 'Indice de build')}: <strong>{qualityScore}</strong>/100
           </Typography>
           <IconButton onClick={onClose} aria-label={t('Close', 'Fermer')} size="small">
@@ -103,7 +104,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
                     <GameIcon name="utilities" size={16} />
                   )}
                   <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{requirementName}</Typography>
-                  <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", color: 'text.secondary' }}>
+                  <Typography variant="caption" sx={{ fontFamily: FONT_MONO, color: 'text.secondary' }}>
                     {formatSlotQuantity(slot)}
                   </Typography>
                   {slot.minQuality != null && slot.minQuality > 0 && (
