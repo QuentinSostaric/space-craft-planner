@@ -33,8 +33,9 @@ const LazyBlueprintsView = lazy(() =>
   import('./components/BlueprintGrid').then(({ BlueprintGrid }) => ({
     default: function BlueprintsView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <BlueprintGrid />
+          <Footer />
         </Box>
       );
     },
@@ -45,8 +46,9 @@ const LazyWorkspaceView = lazy(() =>
   import('./components/ItemWorkspace').then(({ ItemWorkspace }) => ({
     default: function WorkspaceView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <ItemWorkspace />
+          <Footer />
         </Box>
       );
     },
@@ -57,8 +59,9 @@ const LazyMissionsView = lazy(() =>
   import('./components/MissionsPanel').then(({ MissionsPanel }) => ({
     default: function MissionsView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <MissionsPanel />
+          <Footer />
         </Box>
       );
     },
@@ -69,8 +72,9 @@ const LazyResourcesView = lazy(() =>
   import('./components/ResourcesPage').then(({ ResourcesPage }) => ({
     default: function ResourcesView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <ResourcesPage />
+          <Footer />
         </Box>
       );
     },
@@ -81,8 +85,9 @@ const LazyOrganizationsView = lazy(() =>
   import('./components/OrganizationsPage').then(({ OrganizationsPage }) => ({
     default: function OrganizationsView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <OrganizationsPage />
+          <Footer />
         </Box>
       );
     },
@@ -93,8 +98,9 @@ const LazyPlannerView = lazy(() =>
   import('./components/PlannerPage').then(({ PlannerPage }) => ({
     default: function PlannerView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <PlannerPage />
+          <Footer />
         </Box>
       );
     },
@@ -105,8 +111,9 @@ const LazyAccountView = lazy(() =>
   import('./components/AccountPage').then(({ AccountPage }) => ({
     default: function AccountView() {
       return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           <AccountPage />
+          <Footer />
         </Box>
       );
     },
@@ -184,6 +191,7 @@ function BlueprintGridFallback() {
           ))}
         </Box>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -244,6 +252,7 @@ function WorkspaceFallback() {
           </Paper>
         </Stack>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -295,6 +304,7 @@ function MissionsFallback() {
           ))}
         </Box>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -355,6 +365,7 @@ function ResourcesFallback() {
           ))}
         </Box>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -387,6 +398,7 @@ function OrganizationsFallback() {
           ))}
         </Stack>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -441,6 +453,7 @@ function PlannerFallback() {
           </Stack>
         </Box>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -456,6 +469,7 @@ function AccountFallback() {
           <Skeleton variant="rounded" height={220} />
         </Paper>
       </Box>
+      <Footer />
     </Box>
   );
 }
@@ -810,10 +824,7 @@ function AppShell() {
           }}
           aria-label={t('Content', 'Contenu')}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-            <MainContent mainView={guardedMainView} />
-            <Footer />
-          </Box>
+          <MainContent mainView={guardedMainView} />
         </Box>
       </Box>
       {comparisonOpen && (
