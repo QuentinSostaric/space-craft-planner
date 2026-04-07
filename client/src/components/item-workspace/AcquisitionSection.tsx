@@ -30,6 +30,7 @@ import type {
   MissionContract,
   MissionRewardsData,
 } from '../../types';
+import { FONT_HEADING } from '../../theme';
 
 interface AcquisitionSectionProps {
   entry: AcquisitionGraphEntry | null;
@@ -350,7 +351,7 @@ export function AcquisitionSection({
                       <Box sx={{ minWidth: 0 }}>
                         <Typography
                           sx={{
-                            fontFamily: "'Khand', sans-serif",
+                            fontFamily: FONT_HEADING,
                             fontWeight: 700,
                             fontSize: '1.08rem',
                             lineHeight: 1,

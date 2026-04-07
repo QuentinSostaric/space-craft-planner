@@ -13,6 +13,7 @@ import {
   STAT_PERCENT_KEYS,
 } from '../../../types';
 import type { Blueprint, ItemStats, NumericItemStatKey } from '../../../types';
+import { FONT_HEADING } from '../../../theme';
 
 const WEAPON_METRICS: NumericItemStatKey[] = [
   'damage',
@@ -147,7 +148,7 @@ export function StatImpactRadar({
       <Box component="section">
         <Typography
           variant="body2"
-          sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}
+          sx={{ fontWeight: 700, fontFamily: FONT_HEADING, mb: 0.5, fontSize: '.85rem' }}
         >
           {t('Quality Impact Profile', 'Profil d impact qualite')}
         </Typography>
@@ -175,7 +176,7 @@ export function StatImpactRadar({
         <Box>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", fontSize: '.85rem' }}
+            sx={{ fontWeight: 700, fontFamily: FONT_HEADING, fontSize: '.85rem' }}
           >
             {t('Quality Impact Profile', 'Profil d impact qualite')}
           </Typography>
@@ -276,7 +277,7 @@ export function StatImpactRadar({
           '& .MuiChartsAxis-tickLabel, & .MuiRadarMetricLabels-root text': {
             fill: theme.palette.text.secondary,
             fontSize: 11,
-            fontFamily: "'Khand', sans-serif",
+            fontFamily: FONT_HEADING,
           },
           '& .MuiRadarGrid-root line, & .MuiRadarGrid-root path, & .MuiRadarGrid-root polygon': {
             stroke: alpha(theme.palette.primary.main, 0.18),

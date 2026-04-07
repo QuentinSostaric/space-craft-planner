@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { useI18n } from '../../../i18n/I18nContext';
+import { FONT_MONO } from '../../../theme';
 
 export function QualityScore({ score }: { score: number }) {
   const { t } = useI18n();
@@ -30,7 +31,7 @@ export function QualityScore({ score }: { score: number }) {
           variant="caption"
           sx={{
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'Share Tech Mono', monospace", fontWeight: 700, fontSize: '0.85rem',
+            fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.85rem',
           }}
         >
           {score}

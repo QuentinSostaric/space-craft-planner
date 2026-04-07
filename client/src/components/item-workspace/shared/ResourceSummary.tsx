@@ -6,6 +6,7 @@ import { useI18n } from '../../../i18n/I18nContext';
 import { summarizeAssignedQualities } from '../../../utils/crafting';
 import type { AggregatedResource, Resource } from '../../../types';
 import { ResourceIcon } from '../../ui/ResourceIcon';
+import { FONT_HEADING, FONT_MONO } from '../../../theme';
 
 function normalizeResourceKey(value: string) {
   return value
@@ -54,7 +55,7 @@ export function ResourceSummary({
     <Box component="section">
       <Typography
         variant="body2"
-        sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.75, fontSize: '.85rem' }}
+        sx={{ fontWeight: 700, fontFamily: FONT_HEADING, mb: 0.75, fontSize: '.85rem' }}
       >
         {t('Required Resources', 'Ressources necessaires')}
       </Typography>
@@ -123,7 +124,7 @@ export function ResourceSummary({
               <Typography
                 variant="caption"
                 sx={{
-                  fontFamily: "'Share Tech Mono', monospace",
+                  fontFamily: FONT_MONO,
                   fontSize: '0.72rem',
                   ml: 0.5,
                   flexShrink: 0,

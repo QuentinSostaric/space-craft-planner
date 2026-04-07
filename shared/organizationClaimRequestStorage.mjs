@@ -1,33 +1,12 @@
+import {
+  isObject,
+  normalizeIsoTimestamp,
+  normalizeOrganizationSid,
+  toIsoNow,
+} from './normalize.mjs';
+
 const ORGANIZATION_CLAIM_REQUEST_VERSION = 1;
 const CLAIM_REQUEST_STATUSES = new Set(['pending', 'approved', 'rejected', 'cancelled']);
-
-function isObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function toIsoNow() {
-  return new Date().toISOString();
-}
-
-function normalizeIsoTimestamp(value) {
-  const timestamp = String(value ?? '').trim();
-  if (!timestamp) {
-    return null;
-  }
-
-  return Number.isNaN(Date.parse(timestamp)) ? null : timestamp;
-}
-
-function normalizeOrganizationSid(value) {
-  const input = String(value ?? '').trim();
-  if (!input) {
-    return null;
-  }
-
-  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
-  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
-}
 
 function normalizeClaimRequestStatus(value) {
   const status = String(value ?? '').trim().toLowerCase();

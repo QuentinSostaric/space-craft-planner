@@ -38,6 +38,7 @@ import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
 import { BlueprintCard, type BlueprintCardQuickAction } from './BlueprintGrid';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { ResourceAssetCard } from './resources/ResourceAssetCard';
+import { FONT_HEADING } from '../theme';
 
 type SharedBlueprintRow = {
   key: string;
@@ -1263,7 +1264,7 @@ export function OrganizationsPage() {
           <Box>
             <Typography
               sx={{
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: { xs: '1.9rem', md: '2.2rem' },
                 textTransform: 'uppercase',

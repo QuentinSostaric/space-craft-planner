@@ -13,6 +13,7 @@ import { StarCitizenLicensedIcon } from '../ui/StarCitizenLicensedIcon';
 import type { AggregatedResource } from '../../types';
 import { ResourceRow } from './ResourceRow';
 import { alpha, useTheme } from '@mui/material/styles';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[] }) {
   const { plannerResourceRequirements, resourceProgress } = useCraft();
@@ -158,13 +159,13 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
                 {t('Resources', 'Ressources')}
               </Typography>
             </Box>
-            <Typography sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.25rem', lineHeight: 0.95 }}>
+            <Typography sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '1.25rem', lineHeight: 0.95 }}>
               {t('Material checklist', 'Checklist matériaux')}
             </Typography>
           </Box>
           <Typography
             variant="caption"
-            sx={{ color: 'text.secondary', fontFamily: "'Share Tech Mono', monospace" }}
+            sx={{ color: 'text.secondary', fontFamily: FONT_MONO }}
           >
             {[
               scuRequired > 0

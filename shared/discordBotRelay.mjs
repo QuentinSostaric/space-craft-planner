@@ -1,30 +1,4 @@
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
-
-function readProcessEnv(name) {
-  return typeof process !== 'undefined' && process?.env
-    ? process.env[name]
-    : undefined;
-}
-
-function normalizeBaseUrl(value) {
-  const input = normalizeText(value);
-  if (!input) {
-    return null;
-  }
-
-  try {
-    const url = new URL(input);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return null;
-    }
-
-    return url.origin.replace(/\/+$/, '');
-  } catch {
-    return null;
-  }
-}
+import { normalizeBaseUrl, normalizeText, readProcessEnv } from './normalize.mjs';
 
 function isPreviewHostname(hostname) {
   return (

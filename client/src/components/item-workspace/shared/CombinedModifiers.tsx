@@ -11,6 +11,7 @@ import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import { loc, useI18n } from '../../../i18n/I18nContext';
 import { NUMERIC_ITEM_STAT_KEYS, STAT_LABELS, STAT_LOWER_IS_BETTER } from '../../../types';
 import type { ItemStats, NumericItemStatKey } from '../../../types';
+import { FONT_HEADING, FONT_MONO } from '../../../theme';
 
 export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { baseStats: ItemStats }; projectedStats: ItemStats }) {
   const { lang, t } = useI18n();
@@ -31,7 +32,7 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
   if (rows.length === 0) return null;
   return (
     <Box component="section">
-      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: "'Khand', sans-serif", mb: 0.5, fontSize: '.85rem' }}>
+      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_HEADING, mb: 0.5, fontSize: '.85rem' }}>
         <ElectricBoltIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'text-bottom' }} /> {t('Final Combined Modifiers', 'Modificateurs combines')}
       </Typography>
       <TableContainer component={Paper} variant="outlined">
@@ -42,16 +43,16 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
                 <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>
                   {r.label}
                 </TableCell>
-                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', py: 0.5, color: 'text.secondary' }}>
+                <TableCell align="right" sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', py: 0.5, color: 'text.secondary' }}>
                   {r.base.toFixed(2)}
                 </TableCell>
-                <TableCell align="right" sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', py: 0.5 }}>
+                <TableCell align="right" sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', py: 0.5 }}>
                   {r.projected.toFixed(2)}
                 </TableCell>
                 <TableCell
                   align="right"
                   sx={{
-                    fontFamily: "'Share Tech Mono', monospace",
+                    fontFamily: FONT_MONO,
                     fontWeight: 600,
                     fontSize: '0.75rem',
                     py: 0.5,

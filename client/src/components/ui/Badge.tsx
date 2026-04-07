@@ -6,6 +6,7 @@ import { CATEGORY_LABELS } from '../../types';
 import { loc, useI18n } from '../../i18n/I18nContext';
 import { GameIcon } from './GameIcon';
 import type { GameIconName } from './GameIcon';
+import { FONT_MONO } from '../../theme';
 
 // ─── Quality badge ────────────────────────────────────────────────────────────
 interface QualityBadgeProps { qualityValue: number; size?: 'sm' | 'md' }
@@ -20,7 +21,7 @@ export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
       variant="outlined"
       aria-label={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
       sx={{
-        fontFamily: "'Share Tech Mono', monospace",
+        fontFamily: FONT_MONO,
         fontSize: size === 'sm' ? '.62rem' : '.65rem',
         height: size === 'sm' ? 20 : 24,
         px: size === 'sm' ? 0.5 : 1,
@@ -44,7 +45,7 @@ export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProp
       variant="outlined"
       aria-label={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
       sx={{
-        fontFamily: "'Share Tech Mono', monospace",
+        fontFamily: FONT_MONO,
         fontSize: size === 'sm' ? '.62rem' : '.65rem',
         height: size === 'sm' ? 20 : 24,
         px: size === 'sm' ? 0.5 : 1,

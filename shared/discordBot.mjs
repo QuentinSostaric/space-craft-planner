@@ -1,3 +1,5 @@
+import { normalizeText, readProcessEnv } from './normalize.mjs';
+
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10';
 const DISCORD_COMPONENT_TYPE_ACTION_ROW = 1;
 const DISCORD_COMPONENT_TYPE_BUTTON = 2;
@@ -5,16 +7,6 @@ const DISCORD_BUTTON_STYLE_PRIMARY = 1;
 const DISCORD_BUTTON_STYLE_SECONDARY = 2;
 const DISCORD_BUTTON_STYLE_SUCCESS = 3;
 const DISCORD_BUTTON_STYLE_DANGER = 4;
-
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
-
-function readProcessEnv(name) {
-  return typeof process !== 'undefined' && process?.env
-    ? process.env[name]
-    : undefined;
-}
 
 function getAppBaseUrl(env) {
   return normalizeText(env?.APP_BASE_URL ?? readProcessEnv('APP_BASE_URL') ?? 'https://itemfab.space').replace(/\/+$/, '');

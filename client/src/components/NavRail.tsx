@@ -18,6 +18,7 @@ import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
+import { FONT_HEADING } from '../theme';
 
 export type MainView =
   | 'blueprints'
@@ -103,7 +104,7 @@ function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
       <Typography
         aria-hidden={collapsed}
         sx={{
-          fontFamily: "'Khand', sans-serif",
+          fontFamily: FONT_HEADING,
           fontWeight: 700,
           fontSize: DESKTOP_LABEL_FONT_SIZE,
           textTransform: 'uppercase',
@@ -177,7 +178,7 @@ function MobileNavItem({
       </Box>
       <Typography
         sx={{
-          fontFamily: "'Khand', sans-serif",
+          fontFamily: FONT_HEADING,
           fontWeight: 700,
           fontSize: MOBILE_LABEL_FONT_SIZE,
           lineHeight: 0.9,

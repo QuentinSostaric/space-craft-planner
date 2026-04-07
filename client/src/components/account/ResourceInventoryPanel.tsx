@@ -21,6 +21,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { formatQualityLabel, formatResourceQuantity } from '../../utils/crafting';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import { Button } from '../ui/Button';
+import { FONT_HEADING } from '../../theme';
 
 interface ResourceInventoryPanelProps {
   account: StoredAccount;
@@ -166,7 +167,7 @@ export function ResourceInventoryPanel({
               <Typography
                 variant="h6"
                 sx={{
-                  fontFamily: "'Khand', sans-serif",
+                  fontFamily: FONT_HEADING,
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                 }}

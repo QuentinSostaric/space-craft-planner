@@ -11,6 +11,7 @@ import { LS_KEYS } from '../../types';
 import { areStringArraysEqual, moveIdBefore, synchronizeOrderedIds } from '../../utils/reorder';
 import { GoalCard } from './GoalCard';
 import { GoalEditModal } from './GoalEditModal';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 export function GoalsList() {
   const { goals, blueprints, activeBlueprint, removeGoal, updateGoalQuantity, selectGoalBlueprint } = useCraft();
@@ -142,7 +143,7 @@ export function GoalsList() {
           <Typography variant="overline" sx={{ display: 'block', color: 'primary.main' }}>
             {t('Queue', 'File')}
           </Typography>
-          <Typography sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.25rem', lineHeight: 0.95 }}>
+          <Typography sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '1.25rem', lineHeight: 0.95 }}>
             {t('Build queue', 'File de craft')}
           </Typography>
         </Box>
@@ -201,7 +202,7 @@ export function GoalsList() {
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {t('Total craft time', 'Temps de craft total')}
           </Typography>
-          <Typography variant="caption" sx={{ fontFamily: "'Share Tech Mono', monospace", color: 'secondary.main', fontWeight: 700 }}>
+          <Typography variant="caption" sx={{ fontFamily: FONT_MONO, color: 'secondary.main', fontWeight: 700 }}>
             {craftTimeLabel}
           </Typography>
         </Box>

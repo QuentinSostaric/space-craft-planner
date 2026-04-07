@@ -23,6 +23,7 @@ import {
   getSlotRequirementName,
   isResourceSlot,
 } from '../../../utils/crafting';
+import { FONT_HEADING, FONT_MONO } from '../../../theme';
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon': 'weapons',
@@ -124,7 +125,7 @@ export function SlotCard({
           <Typography
             variant="body2"
             sx={{
-              fontFamily: "'Khand', sans-serif",
+              fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: '0.875rem',
               lineHeight: 1.2,
@@ -172,7 +173,7 @@ export function SlotCard({
           <Typography
             variant="body2"
             sx={{
-              fontFamily: "'Share Tech Mono', monospace",
+              fontFamily: FONT_MONO,
               fontWeight: 700,
               fontSize: '0.875rem',
               color: isAssigned ? theme.palette.primary.main : 'text.disabled',
@@ -260,7 +261,7 @@ export function SlotCard({
           {slot.minQuality != null && slot.minQuality > 0 && (
             <Typography
               variant="caption"
-              sx={{ color: 'warning.main', fontFamily: "'Share Tech Mono', monospace", fontSize: '0.75rem', flexShrink: 0 }}
+              sx={{ color: 'warning.main', fontFamily: FONT_MONO, fontSize: '0.75rem', flexShrink: 0 }}
             >
               MIN {slot.minQuality}
             </Typography>

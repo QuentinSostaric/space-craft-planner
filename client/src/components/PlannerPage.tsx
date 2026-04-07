@@ -11,6 +11,7 @@ import { PlannerTodoBoard } from './planner/PlannerTodoBoard';
 import { ResourcesList } from './planner/ResourcesList';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { aggregatePlannedResources, formatResourceQuantity } from '../utils/crafting';
+import { FONT_HEADING } from '../theme';
 
 function SummaryMetric({
   eyebrow,
@@ -40,7 +41,7 @@ function SummaryMetric({
       >
         {eyebrow}
       </Typography>
-      <Typography sx={{ fontFamily: "'Khand', sans-serif", fontWeight: 700, fontSize: '1.6rem', lineHeight: 0.95 }}>
+      <Typography sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '1.6rem', lineHeight: 0.95 }}>
         {value}
       </Typography>
       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -223,7 +224,7 @@ export function PlannerPage() {
               <Typography
                 variant="h3"
                 sx={{
-                  fontFamily: "'Khand', sans-serif",
+                  fontFamily: FONT_HEADING,
                   fontSize: { xs: '2rem', md: '2.6rem' },
                   lineHeight: 0.92,
                 }}

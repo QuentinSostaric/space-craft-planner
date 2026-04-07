@@ -32,6 +32,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { startTransition, useEffect, useMemo, useState } from 'react';
+import { useAsyncAction } from '../hooks/useAsyncAction';
 import discordSymbol from '../assets/discord-symbol.svg';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
 import { useAuth } from '../auth/AuthContext';
@@ -59,6 +60,7 @@ import { CraftRequestsPanel } from './account/CraftRequestsPanel';
 import { BlueprintCard } from './BlueprintGrid';
 import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { Button } from './ui/Button';
+import { FONT_MONO } from '../theme';
 
 function readAuthError(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -218,21 +220,17 @@ export function AccountPage() {
   } = useCraft();
   const theme = useTheme();
   const authError = useMemo(() => readAuthError(), []);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteAction = useAsyncAction();
   const [assetFilter, setAssetFilter] = useState<AccountAssetFilter>('all');
   const [assetSearch, setAssetSearch] = useState('');
   const [importModalDismissed, setImportModalDismissed] = useState(false);
-  const [importBusy, setImportBusy] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
+  const importAction = useAsyncAction();
   const [rsiDialogOpen, setRsiDialogOpen] = useState(false);
   const [rsiCode, setRsiCode] = useState('');
   const [rsiHandleInput, setRsiHandleInput] = useState('');
-  const [rsiBusy, setRsiBusy] = useState(false);
-  const [rsiError, setRsiError] = useState<string | null>(null);
+  const rsiAction = useAsyncAction();
   const [rsiCopyFeedback, setRsiCopyFeedback] = useState<string | null>(null);
-  const [rsiUnlinkBusy, setRsiUnlinkBusy] = useState(false);
-  const [rsiUnlinkError, setRsiUnlinkError] = useState<string | null>(null);
+  const rsiUnlinkAction = useAsyncAction();
   const [blueprintCollectionError, setBlueprintCollectionError] = useState<string | null>(null);
   const [sharedBlueprintError, setSharedBlueprintError] = useState<string | null>(null);
   const [shareDialogBlueprintId, setShareDialogBlueprintId] = useState<string | null>(null);
@@ -594,8 +592,8 @@ export function AccountPage() {
 
   useEffect(() => {
     setImportModalDismissed(false);
-    setImportError(null);
-    setRsiUnlinkError(null);
+    importAction.clearError();
+    rsiUnlinkAction.clearError();
     setBlueprintCollectionError(null);
     setResourceCollectionError(null);
     setResourceCollectionNotice(null);
@@ -727,23 +725,14 @@ export function AccountPage() {
       return;
     }
 
-    setDeleteBusy(true);
-    setDeleteError(null);
-    try {
-      await deleteAccount();
-    } catch (error) {
-      setDeleteError(
-        error instanceof Error
-          ? error.message
-          : t(
-            'Failed to delete the account.',
-            'La suppression du compte a echoue.',
-            'Das Konto konnte nicht gelöscht werden.',
-          ),
-      );
-    } finally {
-      setDeleteBusy(false);
-    }
+    await deleteAction.run(
+      () => deleteAccount(),
+      t(
+        'Failed to delete the account.',
+        'La suppression du compte a echoue.',
+        'Das Konto konnte nicht gelöscht werden.',
+      ),
+    );
   };
 
   const handleImportLocalBlueprintCollections = async () => {
@@ -751,9 +740,7 @@ export function AccountPage() {
       return;
     }
 
-    setImportBusy(true);
-    setImportError(null);
-    try {
+    await importAction.run(async () => {
       const importedFavoriteIds = new Set(localImportPlan.missingFavoriteBlueprintIds);
       const importedInventoryIds = new Set(localImportPlan.missingInventoryBlueprintIds);
       const nextFavoriteBlueprintIds = [
@@ -788,25 +775,17 @@ export function AccountPage() {
       });
       setLocalCollections(nextLocalCollections);
       setImportModalDismissed(true);
-    } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? error.message
-          : t(
-            'Failed to import the local blueprint collections.',
-            'L import des collections blueprint locales a echoue.',
-            'Der Import der lokalen Blueprint-Sammlungen ist fehlgeschlagen.',
-          ),
-      );
-    } finally {
-      setImportBusy(false);
-    }
+    }, t(
+      'Failed to import the local blueprint collections.',
+      'L import des collections blueprint locales a echoue.',
+      'Der Import der lokalen Blueprint-Sammlungen ist fehlgeschlagen.',
+    ));
   };
 
   const openRsiDialog = () => {
     blurFocusedElement();
-    setRsiUnlinkError(null);
-    setRsiError(null);
+    rsiUnlinkAction.clearError();
+    rsiAction.clearError();
     setRsiCopyFeedback(null);
     setRsiHandleInput(account?.rsi?.handle ?? '');
     setRsiCode(createRsiVerificationCode());
@@ -835,45 +814,26 @@ export function AccountPage() {
   };
 
   const handleVerifyRsiLink = async () => {
-    setRsiBusy(true);
-    setRsiError(null);
     setRsiCopyFeedback(null);
-    try {
+    await rsiAction.run(async () => {
       await linkRsiAccount(rsiHandleInput, rsiCode);
       setRsiDialogOpen(false);
-    } catch (error) {
-      setRsiError(
-        error instanceof Error
-          ? error.message
-          : t(
-            'Failed to verify the RSI account.',
-            'La verification du compte RSI a echoue.',
-            'Die Verifizierung des RSI-Kontos ist fehlgeschlagen.',
-          ),
-      );
-    } finally {
-      setRsiBusy(false);
-    }
+    }, t(
+      'Failed to verify the RSI account.',
+      'La verification du compte RSI a echoue.',
+      'Die Verifizierung des RSI-Kontos ist fehlgeschlagen.',
+    ));
   };
 
   const handleUnlinkRsiAccount = async () => {
-    setRsiUnlinkBusy(true);
-    setRsiUnlinkError(null);
-    try {
-      await unlinkRsiAccount();
-    } catch (error) {
-      setRsiUnlinkError(
-        error instanceof Error
-          ? error.message
-          : t(
-            'Failed to remove the RSI account link.',
-            'La suppression du lien RSI a echoue.',
-            'Die RSI-Verknüpfung konnte nicht entfernt werden.',
-          ),
-      );
-    } finally {
-      setRsiUnlinkBusy(false);
-    }
+    await rsiUnlinkAction.run(
+      () => unlinkRsiAccount(),
+      t(
+        'Failed to remove the RSI account link.',
+        'La suppression du lien RSI a echoue.',
+        'Die RSI-Verknüpfung konnte nicht entfernt werden.',
+      ),
+    );
   };
 
   const openShareBlueprintDialog = (blueprintId: string) => {
@@ -1775,9 +1735,9 @@ export function AccountPage() {
               </Box>
             </Paper>
 
-            {deleteError && (
+            {deleteAction.error && (
               <Alert severity="error" variant="outlined">
-                {deleteError}
+                {deleteAction.error}
               </Alert>
             )}
 
@@ -2437,18 +2397,18 @@ export function AccountPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => { void handleUnlinkRsiAccount(); }}
-                      disabled={rsiUnlinkBusy}
+                      disabled={rsiUnlinkAction.busy}
                     >
-                      {rsiUnlinkBusy
+                      {rsiUnlinkAction.busy
                         ? t('Removing...', 'Suppression...', 'Entferne...')
                         : t('Remove link', 'Supprimer le lien', 'Verknüpfung entfernen')}
                     </Button>
                   </Stack>
                 )}
 
-                {rsiUnlinkError && (
+                {rsiUnlinkAction.error && (
                   <Alert severity="error" variant="outlined">
-                    {rsiUnlinkError}
+                    {rsiUnlinkAction.error}
                   </Alert>
                 )}
 
@@ -2464,9 +2424,9 @@ export function AccountPage() {
                   variant="danger"
                   fullWidth
                   onClick={() => { void handleDeleteAccount(); }}
-                  disabled={deleteBusy}
+                  disabled={deleteAction.busy}
                 >
-                  {deleteBusy
+                  {deleteAction.busy
                     ? t('Deleting account...', 'Suppression du compte...', 'Konto wird gelöscht...')
                     : t('Delete account', 'Supprimer le compte', 'Konto löschen')}
                 </Button>
@@ -2853,7 +2813,7 @@ export function AccountPage() {
       {account && (
         <Dialog
           open={importDialogOpen}
-          onClose={importBusy ? undefined : () => setImportModalDismissed(true)}
+          onClose={importAction.busy ? undefined : () => setImportModalDismissed(true)}
           fullWidth
           maxWidth="sm"
         >
@@ -2907,9 +2867,9 @@ export function AccountPage() {
                 )}
               </Typography>
 
-              {importError && (
+              {importAction.error && (
                 <Alert severity="error" variant="outlined">
-                  {importError}
+                  {importAction.error}
                 </Alert>
               )}
             </Stack>
@@ -2918,16 +2878,16 @@ export function AccountPage() {
             <Button
               variant="ghost"
               onClick={() => setImportModalDismissed(true)}
-              disabled={importBusy}
+              disabled={importAction.busy}
             >
               {t('Not now', 'Plus tard', 'Nicht jetzt')}
             </Button>
             <Button
               variant="secondary"
               onClick={() => { void handleImportLocalBlueprintCollections(); }}
-              disabled={importBusy}
+              disabled={importAction.busy}
             >
-              {importBusy
+              {importAction.busy
                 ? t('Importing...', 'Import en cours...', 'Importiere...')
                 : t('Import into account', 'Importer dans le compte', 'In Konto importieren')}
             </Button>
@@ -3732,7 +3692,7 @@ export function AccountPage() {
 
       <Dialog
         open={rsiDialogOpen}
-        onClose={rsiBusy ? undefined : () => setRsiDialogOpen(false)}
+        onClose={rsiAction.busy ? undefined : () => setRsiDialogOpen(false)}
         fullWidth
         maxWidth="sm"
       >
@@ -3774,7 +3734,7 @@ export function AccountPage() {
                 <Typography
                   variant="h3"
                   sx={{
-                    fontFamily: "'Share Tech Mono', monospace",
+                    fontFamily: FONT_MONO,
                     letterSpacing: '0.16em',
                     lineHeight: 1,
                   }}
@@ -3803,9 +3763,9 @@ export function AccountPage() {
               autoFocus
             />
 
-            {rsiError && (
+            {rsiAction.error && (
               <Alert severity="error" variant="outlined">
-                {rsiError}
+                {rsiAction.error}
               </Alert>
             )}
           </Stack>
@@ -3814,16 +3774,16 @@ export function AccountPage() {
           <Button
             variant="ghost"
             onClick={() => setRsiDialogOpen(false)}
-            disabled={rsiBusy}
+            disabled={rsiAction.busy}
           >
             {t('Cancel', 'Annuler', 'Abbrechen')}
           </Button>
           <Button
             variant="secondary"
             onClick={() => { void handleVerifyRsiLink(); }}
-            disabled={rsiBusy || !rsiHandleInput.trim() || !rsiCode}
+            disabled={rsiAction.busy || !rsiHandleInput.trim() || !rsiCode}
           >
-            {rsiBusy
+            {rsiAction.busy
               ? t('Verifying...', 'Verification...', 'Verifiziere...')
               : t('Verify and link', 'Verifier et lier', 'Verifizieren und verknupfen')}
           </Button>

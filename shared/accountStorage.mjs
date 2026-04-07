@@ -5,6 +5,12 @@ import {
   writeOrganizationRecord,
 } from './organizationStorage.mjs';
 import { normalizeRsiHandle, normalizeRsiLink } from './rsiLink.mjs';
+import {
+  isObject,
+  normalizeIsoTimestamp,
+  normalizeOrganizationSid,
+  toIsoNow,
+} from './normalize.mjs';
 
 const ACCOUNT_RECORD_VERSION = 9;
 export const RSI_LINK_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
@@ -29,25 +35,8 @@ const ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS = new Set([
 const RESOURCE_QUANTITY_UNITS = new Set(['scu', 'count']);
 const RESOURCE_SCU_PRECISION = 1_000_000;
 
-function isObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function toIsoNow() {
-  return new Date().toISOString();
-}
-
 function normalizeCaseInsensitiveKey(value) {
   return String(value ?? '').trim().toLowerCase();
-}
-
-function normalizeIsoTimestamp(value) {
-  const timestamp = String(value ?? '').trim();
-  if (!timestamp) {
-    return null;
-  }
-
-  return Number.isNaN(Date.parse(timestamp)) ? null : timestamp;
 }
 
 function pickLatestIsoTimestamp(left, right) {
@@ -211,17 +200,6 @@ function normalizeStateSnapshot(snapshot) {
     inventoryBlueprintIds: normalizeStringArray(value.inventoryBlueprintIds),
     planner: normalizePlannerState(value.planner),
   };
-}
-
-function normalizeOrganizationSid(value) {
-  const input = String(value ?? '').trim();
-  if (!input) {
-    return null;
-  }
-
-  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
-  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
 }
 
 function normalizeIgnoredOrganizationSids(value) {

@@ -80,6 +80,7 @@ import {
   getResourceQuantityInputStep,
   getSlotQuantityValue,
   clampQualityValue,
+  ls,
 } from '../utils/crafting';
 import {
   missionPathFromSlug,
@@ -88,6 +89,7 @@ import {
   resourcePathFromSlug,
   resourceSlugFromPathname,
 } from '../utils/slug';
+import { FONT_HEADING } from '../theme';
 
 type ResourceSort = 'name-asc' | 'providers-desc' | 'missions-desc' | 'blueprints-desc';
 type ResourceFamilyFilter = 'all' | 'metal' | 'mineral' | 'crystal' | 'ice';
@@ -124,8 +126,6 @@ interface ResourceIdentityPanelProps {
   craftDemandUnit: 'scu' | 'count' | 'mixed';
   onBack: () => void;
 }
-
-const ls = (en: string, fr: string, de?: string): LocalizedString => ({ en, fr, de });
 
 const RESOURCE_SORT_OPTIONS: Array<{
   value: ResourceSort;
@@ -514,7 +514,7 @@ function ResourceCard({
           <Box>
             <Typography
               sx={{
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: '1.15rem',
                 lineHeight: 1,
@@ -1026,7 +1026,7 @@ function ResourceIdentityPanel({
             </Stack>
             <Typography
               sx={{
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: { xs: '2rem', md: '2.4rem' },
                 lineHeight: 0.95,
@@ -1911,7 +1911,7 @@ export function ResourcesPage() {
           <Box>
             <Typography
               sx={{
-                fontFamily: "'Khand', sans-serif",
+                fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: { xs: '1.9rem', md: '2.2rem' },
                 textTransform: 'uppercase',

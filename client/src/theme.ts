@@ -37,6 +37,10 @@ declare module '@mui/material/styles' {
 
 export type ThemeMode = 'light' | 'dark';
 
+// ─── Font Families ──────────────────────────────────────────────────────────────
+export const FONT_HEADING = "'Khand', sans-serif";
+export const FONT_MONO = "'Share Tech Mono', monospace";
+
 // ─── Design Tokens ──────────────────────────────────────────────────────────────
 
 const COLORS = {
@@ -135,15 +139,15 @@ export const createAppTheme = (mode: ThemeMode) => {
     typography: {
       fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
       fontSize: 14,
-      h1: { fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase' },
-      h2: { fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase' },
-      h3: { fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase' },
-      h4: { fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase' },
-      h5: { fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase' },
-      h6: { fontFamily: "'Khand', sans-serif", fontWeight: 700, textTransform: 'uppercase' },
-      button: { fontFamily: "'Khand', sans-serif", fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' },
-      caption: { fontFamily: "'Share Tech Mono', monospace", letterSpacing: '0.02em' },
-      overline: { fontFamily: "'Share Tech Mono', monospace" },
+      h1: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
+      h2: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
+      h3: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
+      h4: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
+      h5: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
+      h6: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
+      button: { fontFamily: FONT_HEADING, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' },
+      caption: { fontFamily: FONT_MONO, letterSpacing: '0.02em' },
+      overline: { fontFamily: FONT_MONO },
     },
 
     components: {

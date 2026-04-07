@@ -35,6 +35,7 @@ import {
   StarCitizenLicensedIcon,
   getMaterialProviderIconName,
 } from '../ui/StarCitizenLicensedIcon';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 function normalizeResourceKey(value: string) {
   return value
@@ -268,7 +269,7 @@ export function MaterialSourcesSection({
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
                       sx={{
-                        fontFamily: "'Khand', sans-serif",
+                        fontFamily: FONT_HEADING,
                         fontWeight: 700,
                         fontSize: '1.08rem',
                         lineHeight: 1,
@@ -320,7 +321,7 @@ export function MaterialSourcesSection({
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ fontFamily: "'Share Tech Mono', monospace", fontWeight: 700 }}
+                      sx={{ fontFamily: FONT_MONO, fontWeight: 700 }}
                     >
                       {formatResourceQuantity(requiredQuantity, resourceEntry.quantityUnit, lang)}
                     </Typography>
@@ -425,7 +426,7 @@ export function MaterialSourcesSection({
                                 textAlign: 'right',
                                 padding: '3px 6px',
                                 fontSize: '0.8rem',
-                                fontFamily: "'Share Tech Mono', monospace",
+                                fontFamily: FONT_MONO,
                               },
                             },
                           }}

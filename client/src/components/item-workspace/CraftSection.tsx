@@ -17,6 +17,7 @@ import { SlotCard } from './shared/SlotCard';
 import { CombinedModifiers } from './shared/CombinedModifiers';
 import { QualityScore } from './shared/QualityScore';
 import { StatImpactRadar } from './shared/StatImpactRadar';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 function StatBox({
   label,
@@ -63,7 +64,7 @@ function StatBox({
       <Typography
         variant="h5"
         sx={{
-          fontFamily: "'Share Tech Mono', monospace",
+          fontFamily: FONT_MONO,
           color: color || 'text.primary',
           lineHeight: 1,
           display: 'flex',
@@ -245,7 +246,7 @@ export function CraftSection({
                   variant="body2"
                   sx={{
                     fontWeight: 700,
-                    fontFamily: "'Khand', sans-serif",
+                    fontFamily: FONT_HEADING,
                     mb: 0.75,
                     fontSize: '0.85rem',
                     display: 'flex',
@@ -295,7 +296,7 @@ export function CraftSection({
                         <Typography
                           variant="body2"
                           sx={{
-                            fontFamily: "'Share Tech Mono', monospace",
+                            fontFamily: FONT_MONO,
                             fontWeight: 700,
                             fontSize: '0.75rem',
                             color: value > 0 ? 'success.main' : 'text.disabled',
@@ -323,7 +324,7 @@ export function CraftSection({
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.85rem' }}
+                      sx={{ fontFamily: FONT_MONO, fontSize: '0.85rem' }}
                     >
                       {tempMinValue} / {tempMaxValue} C
                     </Typography>
@@ -342,7 +343,7 @@ export function CraftSection({
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.85rem' }}
+                      sx={{ fontFamily: FONT_MONO, fontSize: '0.85rem' }}
                     >
                       {isBackpack ? `${radiationValue} mRem/s` : `x${mobilityValue}`}
                     </Typography>

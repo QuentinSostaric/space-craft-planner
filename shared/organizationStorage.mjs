@@ -1,34 +1,13 @@
+import {
+  isObject,
+  normalizeIsoTimestamp,
+  normalizeOrganizationSid,
+  toIsoNow,
+} from './normalize.mjs';
+
 const ORGANIZATION_RECORD_VERSION = 3;
 export const ORGANIZATION_LIVE_SYNC_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export const ORGANIZATION_SNAPSHOT_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-
-function isObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function toIsoNow() {
-  return new Date().toISOString();
-}
-
-function normalizeIsoTimestamp(value) {
-  const timestamp = String(value ?? '').trim();
-  if (!timestamp) {
-    return null;
-  }
-
-  return Number.isNaN(Date.parse(timestamp)) ? null : timestamp;
-}
-
-function normalizeOrganizationSid(value) {
-  const input = String(value ?? '').trim();
-  if (!input) {
-    return null;
-  }
-
-  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
-  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
-}
 
 function normalizeStringArray(value) {
   if (!Array.isArray(value)) {

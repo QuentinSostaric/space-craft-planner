@@ -25,41 +25,23 @@ import {
   fetchRsiProfileByHandle,
   isOrganizationAdminCandidate,
 } from './rsiLink.mjs';
+import {
+  normalizeIsoTimestamp,
+  normalizeOrganizationSid,
+  normalizeText,
+  toIsoNow,
+} from './normalize.mjs';
 
 const PROFILE_MAIN_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
-function toIsoNow() {
-  return new Date().toISOString();
-}
-
 function normalizeComparableText(value) {
-  return String(value ?? '').trim().toLowerCase();
+  return normalizeText(value).toLowerCase();
 }
 
 function isLikelyNotFoundError(error) {
   const message = error instanceof Error ? error.message : String(error ?? '');
   const normalizedMessage = message.toLowerCase();
   return normalizedMessage.includes('404') || normalizedMessage.includes('not found');
-}
-
-function normalizeOrganizationSid(value) {
-  const input = String(value ?? '').trim();
-  if (!input) {
-    return null;
-  }
-
-  const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
-  const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
-}
-
-function normalizeIsoTimestamp(value) {
-  const timestamp = String(value ?? '').trim();
-  if (!timestamp) {
-    return null;
-  }
-
-  return Number.isNaN(Date.parse(timestamp)) ? null : timestamp;
 }
 
 function isTimestampWithinWindow(timestamp, windowMs, nowMs = Date.now()) {
