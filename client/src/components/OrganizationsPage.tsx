@@ -36,7 +36,7 @@ import { CATEGORY_LABELS, LS_KEYS, type Blueprint, type ItemCategory, type Resou
 import { computeStatMaxima, formatQualityLabel, formatResourceQuantity } from '../utils/crafting';
 import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
 import { BlueprintCard, type BlueprintCardQuickAction } from './BlueprintGrid';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { FONT_HEADING } from '../theme';
 
@@ -493,10 +493,10 @@ function OrganizationBlueprintAccordion({
     [account?.outgoingCraftRequests],
   );
   const currentUserRsiHandle = normalizeComparableText(account?.rsi?.handle);
-  const { scrollContainerRef, sentinelRef, visibleCount, initialCount } = useInfiniteScroll(
-    filteredBlueprintRows,
-    { getColumns: organizationGridColumns },
-  );
+  const { sentinelRef, visibleCount, initialCount } = useInfiniteScroll(filteredBlueprintRows, {
+    getColumns: organizationGridColumns,
+    getScrollRoot: getMainContentScrollRoot,
+  });
 
   return (
     <Accordion
@@ -951,14 +951,10 @@ function OrganizationBlueprintAccordion({
 
                   {assetTab === 'blueprints' && filteredBlueprintRows.length > 0 && (
                     <Box
-                      ref={scrollContainerRef}
                       sx={{
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 1,
-                        maxHeight: { xs: '62vh', md: '68vh', lg: '72vh' },
-                        overflow: 'auto',
-                        pr: 0.5,
                       }}
                     >
                       <Box
@@ -1313,7 +1309,6 @@ export function OrganizationsPage() {
           gap: 1.5,
           flex: 1,
           minHeight: 0,
-          overflow: 'auto',
         }}
         >
           {syncError && (
