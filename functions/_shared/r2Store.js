@@ -16,6 +16,10 @@ function buildCacheKey(scope, key) {
   return new Request(`https://game-data-cache.internal/${scope}/${key}`);
 }
 
+function shouldUseWorkerCache(ttl) {
+  return ttl >= TTL_IMMUTABLE;
+}
+
 async function putCachedJson(scope, key, text, ttl) {
   await caches.default.put(
     buildCacheKey(scope, key),
@@ -30,9 +34,11 @@ async function putCachedJson(scope, key, text, ttl) {
 
 export async function getJson(env, key, ttl = TTL_MUTABLE, request = null) {
   const scope = resolveRuntimeStorageScope(env, request);
-  const cached = await caches.default.match(buildCacheKey(scope, key));
-  if (cached) {
-    return cached.json();
+  if (shouldUseWorkerCache(ttl)) {
+    const cached = await caches.default.match(buildCacheKey(scope, key));
+    if (cached) {
+      return cached.json();
+    }
   }
 
   const bucket = getGameDataBucket(env, request);
@@ -46,7 +52,9 @@ export async function getJson(env, key, ttl = TTL_MUTABLE, request = null) {
   }
 
   const text = await object.text();
-  await putCachedJson(scope, key, text, ttl);
+  if (shouldUseWorkerCache(ttl)) {
+    await putCachedJson(scope, key, text, ttl);
+  }
   return JSON.parse(text);
 }
 
