@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
+Sitemap: https://itemfab.space/sitemap.xml
+Content-Signal: ai-train=no, search=yes, ai-input=no
 
 # Block AI training scrapers
 User-agent: GPTBot

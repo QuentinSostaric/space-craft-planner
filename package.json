@@ -1,6 +1,6 @@
 {
   "name": "item-fabricator",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "predev": "node scripts/checkDevPorts.mjs",
+    "prebuild": "node scripts/generateAgentArtifacts.mjs",
     "dev": "concurrently -k -n vite,api -c blue,yellow \"npm run dev:vite\" \"npm run dev:api\"",
     "dev:vite": "npm run dev --workspace client -- --port 5173 --strictPort",
     "dev:api": "node scripts/devApiServer.mjs",
