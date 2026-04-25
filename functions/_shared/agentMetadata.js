@@ -8,6 +8,14 @@ export function getSiteOrigin(request, env) {
   return getPublicOrigin(request, env);
 }
 
+export function buildHomeLinkHeader(origin) {
+  return [
+    `</>; rel="alternate"; type="text/markdown"`,
+    `</.well-known/agent-skills/index.json>; rel="describedby"; type="application/json"`,
+    `</.well-known/mcp/server-card.json>; rel="describedby"; type="application/json"`,
+  ].join(', ');
+}
+
 export function appendVaryHeader(headers, value) {
   const current = headers.get('Vary');
   if (!current) {
@@ -135,7 +143,6 @@ export function buildServerCard(origin) {
       version: '1.0.0',
     },
     description: DEFAULT_SITE_DESCRIPTION,
-    documentationUrl: `${origin}/docs/api/`,
     transport: {
       type: 'streamable-http',
       endpoint: `${origin}/`,

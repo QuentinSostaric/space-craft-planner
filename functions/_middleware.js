@@ -1,5 +1,6 @@
 import {
   appendVaryHeader,
+  buildHomeLinkHeader,
   buildMarkdownResponse,
   wantsMarkdown,
 } from './_shared/agentMetadata.js';
@@ -22,6 +23,9 @@ export async function onRequest(context) {
   const response = await context.next();
   const headers = new Headers(response.headers);
   appendVaryHeader(headers, 'Accept');
+  if (url.pathname === '/') {
+    headers.set('Link', buildHomeLinkHeader(new URL(request.url).origin));
+  }
 
   return new Response(response.body, {
     status: response.status,
