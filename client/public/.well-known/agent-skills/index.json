@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agentskills.io/schemas/agent-skills-index-v0.2.0.json",
+  "version": "0.2.0",
+  "generatedAt": "2026-04-25T18:01:07.919Z",
+  "skills": [
+    {
+      "name": "browse-blueprints",
+      "type": "workflow",
+      "description": "Open the blueprint explorer and inspect craftable items by route.",
+      "url": "https://itemfab.space/.well-known/agent-skills/browse-blueprints.md",
+      "sha256": "5a68391d130540a9b4b3a4bfb063b442393a2bc719e2fedfd16dae77a229aa23"
+    },
+    {
+      "name": "browse-missions",
+      "type": "workflow",
+      "description": "Open mission routes and inspect faction contract rewards.",
+      "url": "https://itemfab.space/.well-known/agent-skills/browse-missions.md",
+      "sha256": "ea62b89009e1ccceb7c67b9f54392e0d0d7257dcefc85f61e87eac41247fed93"
+    },
+    {
+      "name": "browse-resources",
+      "type": "workflow",
+      "description": "Inspect resource routes, source locations, and mission links.",
+      "url": "https://itemfab.space/.well-known/agent-skills/browse-resources.md",
+      "sha256": "670aa5dbae6f359c4649aab831c0775c400c54cfcbd88309830b5d6cdad01fe7"
+    }
+  ]
+}
