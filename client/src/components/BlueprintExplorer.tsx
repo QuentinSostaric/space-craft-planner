@@ -63,6 +63,15 @@ const CATEGORY_FILTERS: Array<{ value: CategoryFilter } & LocalizedOption> = [
   { value: 'fps-undersuit', label: ls('Undersuits', 'Combis', 'Unteranzüge') },
   { value: 'fps-backpack', label: ls('Backpacks', 'Sacs', 'Rucksäcke') },
   { value: 'fps-magazine', label: ls('Magazines', 'Chargeurs', 'Magazine') },
+  { value: 'powerplant', label: ls('Power', 'Centrales', 'Kraftwerke') },
+  { value: 'cooler', label: ls('Coolers', 'Refroid.', 'Kuhler') },
+  { value: 'shield-generator', label: ls('Shields', 'Boucliers', 'Schilde') },
+  { value: 'quantum-drive', label: ls('Quantum', 'Quantique', 'Quantum') },
+  { value: 'radar', label: ls('Radars', 'Radars', 'Radare') },
+  { value: 'ship-weapon', label: ls('Ship guns', 'Armes v.', 'Schiffswaffen') },
+  { value: 'mining-laser', label: ls('Mining', 'Minage', 'Bergbau') },
+  { value: 'salvage-head', label: ls('Salvage', 'Salvage', 'Bergung') },
+  { value: 'tractor-beam', label: ls('Tractor', 'Tracteur', 'Traktor') },
 ];
 
 const SEGMENTS: Array<{ value: LibrarySegment; icon: ElementType | null } & LocalizedOption> = [
