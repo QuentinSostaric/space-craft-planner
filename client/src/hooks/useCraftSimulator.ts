@@ -32,7 +32,7 @@ function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKe
   }
 
   const statKey = DIRECT_GPP_TO_STAT[gppId];
-  return statKey && typeof result[statKey] === 'number' ? [statKey] : [];
+  return statKey ? [statKey] : [];
 }
 
 function roundStatValue(value: number): number {
@@ -65,8 +65,7 @@ function calcProjectedStats(
       const appliedModifier = Math.pow(modifier, mod.occurrenceCount ?? 1);
 
       for (const statKey of targets) {
-        const currentValue = result[statKey];
-        if (typeof currentValue !== 'number') continue;
+        const currentValue = typeof result[statKey] === 'number' ? result[statKey] : 1;
         result[statKey] = currentValue * appliedModifier;
       }
     }

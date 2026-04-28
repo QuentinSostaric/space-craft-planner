@@ -14,7 +14,7 @@ import { useI18n, loc } from '../../../i18n/I18nContext';
 import { gppModifier } from '../../../hooks/useCraftSimulator';
 import { ResourceIcon } from '../../ui/ResourceIcon';
 import { GameIcon } from '../../ui/GameIcon';
-import { GPP_LABELS } from '../../../types';
+import { GPP_LABELS, GPP_LOWER_IS_BETTER } from '../../../types';
 import type { MaterialSlot, ItemCategory } from '../../../types';
 import type { GameIconName } from '../../ui/GameIcon';
 import {
@@ -71,7 +71,7 @@ export function SlotCard({
         const label = loc(GPP_LABELS[modifier.gppId] ?? { en: modifier.gppId, fr: modifier.gppId }, lang);
         const multiplier = gppModifier(modifier.modAtMin, modifier.modAtMax, qualityValue, modifier.qualityStart, modifier.qualityEnd);
         const pct = (multiplier - 1) * 100;
-        const lowerIsBetter = modifier.gppId.includes('Recoil');
+        const lowerIsBetter = GPP_LOWER_IS_BETTER.has(modifier.gppId);
         const isImproved = lowerIsBetter ? pct < 0 : pct > 0;
         return { gppId: modifier.gppId, label, pct, isImproved, isNeutral: Math.abs(pct) < 0.005, occurrenceCount: modifier.occurrenceCount };
       })

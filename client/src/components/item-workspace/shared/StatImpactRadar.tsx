@@ -8,6 +8,7 @@ import { RadarChart } from '@mui/x-charts/RadarChart';
 import { loc, useI18n } from '../../../i18n/I18nContext';
 import {
   ARMOR_DAMAGE_RESISTANCE_KEYS,
+  NUMERIC_ITEM_STAT_KEYS,
   STAT_LABELS,
   STAT_LOWER_IS_BETTER,
   STAT_PERCENT_KEYS,
@@ -33,6 +34,18 @@ const ARMOR_METRICS: NumericItemStatKey[] = [
   'wearMovementMultiplier',
 ];
 
+const COMPONENT_METRICS: Partial<Record<Blueprint['category'], NumericItemStatKey[]>> = {
+  powerplant: ['powerGeneration', 'maxHealth'],
+  cooler: ['coolantGeneration', 'maxHealth'],
+  'shield-generator': ['shieldMaxHealth', 'maxHealth'],
+  'quantum-drive': ['quantumSpeed', 'quantumFuelRequirement', 'maxHealth'],
+  radar: ['radarMinAimAssistDistance', 'radarMaxAimAssistDistance', 'maxHealth'],
+  'salvage-head': ['hullScrapingEfficiency', 'hullScrapingRadius', 'hullScrapingSpeed', 'maxHealth'],
+  'tractor-beam': ['tractorForce', 'tractorFullStrengthDistance', 'tractorMaxDistance', 'tractorMaxVolume'],
+  'ship-weapon': ['damage', 'rateOfFire', 'reloadSpeed', 'spread', 'maxHealth'],
+  'mining-laser': ['powerGeneration', 'coolantGeneration', 'maxHealth'],
+};
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -51,7 +64,9 @@ function getMetricKeys(blueprint: Blueprint, projectedStats: ItemStats): Numeric
       ? WEAPON_METRICS
       : blueprint.category === 'fps-magazine'
         ? (['magazineSize'] as NumericItemStatKey[])
-        : ARMOR_METRICS;
+        : ['fps-armor', 'fps-helmet', 'fps-undersuit', 'fps-backpack'].includes(blueprint.category)
+          ? ARMOR_METRICS
+          : COMPONENT_METRICS[blueprint.category] ?? NUMERIC_ITEM_STAT_KEYS;
 
   return candidates.filter((key) => {
     const base = blueprint.baseStats[key];
@@ -123,14 +138,14 @@ export function StatImpactRadar({
 
       return {
         key,
-        label: loc(STAT_LABELS[key], lang) ?? key,
+        label: loc(STAT_LABELS[key] ?? { en: key, fr: key }, lang),
         pct,
         isNeutral,
         isImproved,
       };
     });
     const metricsArr = keys.map((key) => ({
-      name: loc(STAT_LABELS[key], lang) ?? key,
+      name: loc(STAT_LABELS[key] ?? { en: key, fr: key }, lang),
       min: 80,
       max: 120,
     }));
