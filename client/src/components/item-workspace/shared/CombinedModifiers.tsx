@@ -16,16 +16,19 @@ import { FONT_HEADING, FONT_MONO } from '../../../theme';
 export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { baseStats: ItemStats }; projectedStats: ItemStats }) {
   const { lang, t } = useI18n();
   const theme = useTheme();
-  const statKeys = NUMERIC_ITEM_STAT_KEYS.filter((key) => typeof blueprint.baseStats[key] === 'number');
+  const statKeys = NUMERIC_ITEM_STAT_KEYS.filter(
+    (key) => typeof blueprint.baseStats[key] === 'number' || typeof projectedStats[key] === 'number',
+  );
   const rows = statKeys
     .map((key) => {
-      const base = blueprint.baseStats[key];
-      if (typeof base !== 'number' || base === 0) return null;
+      const rawBase = blueprint.baseStats[key];
+      const base = typeof rawBase === 'number' ? rawBase : 1;
+      if (base === 0) return null;
       const projectedValue = projectedStats[key];
       const projected = typeof projectedValue === 'number' ? projectedValue : base;
       const pct = (projected / base - 1) * 100;
       const isImproved = STAT_LOWER_IS_BETTER.has(key) ? pct < 0 : pct > 0;
-      return { key, label: loc(STAT_LABELS[key], lang) ?? String(key), base, projected, pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
+      return { key, label: loc(STAT_LABELS[key] ?? { en: String(key), fr: String(key) }, lang), base, projected, pct, isImproved, isNeutral: Math.abs(pct) < 0.005 };
     })
     .filter(Boolean) as Array<{ key: NumericItemStatKey; label: string; base: number; projected: number; pct: number; isImproved: boolean; isNeutral: boolean }>;
 

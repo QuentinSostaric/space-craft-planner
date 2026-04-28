@@ -291,7 +291,7 @@ export function CraftSection({
                             overflow: 'hidden',
                           }}
                         >
-                          {loc(STAT_LABELS[key], lang).replace(' Resist.', '').replace('Resist. ', '')}
+                          {loc(STAT_LABELS[key] ?? { en: key, fr: key }, lang).replace(' Resist.', '').replace('Resist. ', '')}
                         </Typography>
                         <Typography
                           variant="body2"

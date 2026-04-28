@@ -136,7 +136,7 @@ function RadarChart({ items, statKeys, lang }: RadarChartProps) {
             textAnchor={textAnchor(i)}
             dominantBaseline={dominantBaseline(i)}
           >
-            {loc(STAT_LABELS[key], lang) ?? String(key)}
+{loc(STAT_LABELS[key] ?? { en: String(key), fr: String(key) }, lang)}
           </text>
         );
       })}
@@ -213,7 +213,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
             return (
               <TableRow key={key}>
                 <TableCell component="th" scope="row">
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.7rem' }}>{loc(STAT_LABELS[key], lang) ?? String(key)}</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.7rem' }}>{loc(STAT_LABELS[key] ?? { en: String(key), fr: String(key) }, lang)}</Typography>
                   {STAT_UNITS[key] && (
                     <Typography component="span" variant="caption" sx={{ color: 'text.disabled', ml: 0.5, fontSize: '.58rem' }}>
                       {STAT_UNITS[key]}

@@ -76,6 +76,8 @@ export interface ItemStats {
   ammoFlavor?: string;
   projectileSpeed?: number;
   idealCombatRange?: number;
+  reloadSpeed?: number;
+  spread?: number;
 
   // Armor-specific categorical & tactical stats
   armorType?: string;
@@ -85,6 +87,22 @@ export interface ItemStats {
   wearAimingMultiplier?: number;
   radiationCapacity?: number;
   impactForceResistance?: number;
+
+  maxHealth?: number;
+  shieldMaxHealth?: number;
+  powerGeneration?: number;
+  coolantGeneration?: number;
+  quantumSpeed?: number;
+  quantumFuelRequirement?: number;
+  radarMinAimAssistDistance?: number;
+  radarMaxAimAssistDistance?: number;
+  hullScrapingEfficiency?: number;
+  hullScrapingRadius?: number;
+  hullScrapingSpeed?: number;
+  tractorForce?: number;
+  tractorFullStrengthDistance?: number;
+  tractorMaxDistance?: number;
+  tractorMaxVolume?: number;
 }
 
 export type NumericItemStatKey = {
@@ -110,11 +128,28 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'radiationDissipation',
   'projectileSpeed',
   'idealCombatRange',
+  'reloadSpeed',
+  'spread',
   'wearMovementMultiplier',
   'wearSprintMultiplier',
   'wearAimingMultiplier',
   'radiationCapacity',
   'impactForceResistance',
+  'maxHealth',
+  'shieldMaxHealth',
+  'powerGeneration',
+  'coolantGeneration',
+  'quantumSpeed',
+  'quantumFuelRequirement',
+  'radarMinAimAssistDistance',
+  'radarMaxAimAssistDistance',
+  'hullScrapingEfficiency',
+  'hullScrapingRadius',
+  'hullScrapingSpeed',
+  'tractorForce',
+  'tractorFullStrengthDistance',
+  'tractorMaxDistance',
+  'tractorMaxVolume',
 ] as const satisfies readonly NumericItemStatKey[];
 
 export function isNumericItemStatKey(key: keyof ItemStats): key is NumericItemStatKey {
@@ -136,9 +171,27 @@ export const DIRECT_GPP_TO_STAT: Partial<Record<string, NumericItemStatKey>> = {
   GPP_Weapon_Recoil_Smoothness: 'recoilSmoothness',
   GPP_Weapon_Recoil_Handling: 'recoilHandling',
   GPP_Weapon_Recoil_Kick: 'recoilKick',
+  GPP_Weapon_ReloadSpeed: 'reloadSpeed',
+  GPP_Weapon_Spread: 'spread',
+  GPP_Weapon_HullScraping_Efficiency: 'hullScrapingEfficiency',
+  GPP_Weapon_HullScraping_Radius: 'hullScrapingRadius',
+  GPP_Weapon_HullScraping_Speed: 'hullScrapingSpeed',
+  GPP_Weapon_Tractor_Force: 'tractorForce',
+  GPP_Weapon_Tractor_FullStrengthDist: 'tractorFullStrengthDistance',
+  GPP_Weapon_Tractor_MaxDist: 'tractorMaxDistance',
+  GPP_Weapon_Tractor_MaxVolume: 'tractorMaxVolume',
   GPP_Armor_TemperatureMin: 'temperatureMin',
   GPP_Armor_TemperatureMax: 'temperatureMax',
   GPP_Armor_RadiationDissipation: 'radiationDissipation',
+  GPP_Armor_RadiationCapacity: 'radiationCapacity',
+  GPP_Health_MaxHealth: 'maxHealth',
+  GPP_Shield_MaxHealth: 'shieldMaxHealth',
+  GPP_ItemResource_PowerGeneration: 'powerGeneration',
+  GPP_ItemResource_CoolantGeneration: 'coolantGeneration',
+  GPP_Quantum_Speed: 'quantumSpeed',
+  GPP_Quantum_FuelRequirement: 'quantumFuelRequirement',
+  GPP_Radar_MinAimAssistDistance: 'radarMinAimAssistDistance',
+  GPP_Radar_MaxAimAssistDistance: 'radarMaxAimAssistDistance',
 };
 
 export const GPP_LABELS: Record<string, LocalizedString> = {
@@ -153,7 +206,28 @@ export const GPP_LABELS: Record<string, LocalizedString> = {
   GPP_Armor_RadiationDissipation: { en: 'Radiation Dissipation', fr: 'Dissipation radiation', de: 'Strahlungsableitung' },
 };
 
-export const STAT_LABELS: Record<keyof ItemStats, LocalizedString> = {
+Object.assign(GPP_LABELS, {
+  GPP_Weapon_ReloadSpeed: { en: 'Reload Speed', fr: 'Vitesse rechargement', de: 'Reload Speed' },
+  GPP_Weapon_Spread: { en: 'Spread', fr: 'Dispersion', de: 'Spread' },
+  GPP_Weapon_HullScraping_Efficiency: { en: 'Scraping Efficiency', fr: 'Efficacite raclage', de: 'Scraping Efficiency' },
+  GPP_Weapon_HullScraping_Radius: { en: 'Scraping Radius', fr: 'Rayon raclage', de: 'Scraping Radius' },
+  GPP_Weapon_HullScraping_Speed: { en: 'Scraping Speed', fr: 'Vitesse raclage', de: 'Scraping Speed' },
+  GPP_Weapon_Tractor_Force: { en: 'Tractor Force', fr: 'Force tracteur', de: 'Tractor Force' },
+  GPP_Weapon_Tractor_FullStrengthDist: { en: 'Full Strength Distance', fr: 'Distance pleine force', de: 'Full Strength Distance' },
+  GPP_Weapon_Tractor_MaxDist: { en: 'Max Tractor Distance', fr: 'Distance tracteur max', de: 'Max Tractor Distance' },
+  GPP_Weapon_Tractor_MaxVolume: { en: 'Max Tractor Volume', fr: 'Volume tracteur max', de: 'Max Tractor Volume' },
+  GPP_Armor_RadiationCapacity: { en: 'Radiation Capacity', fr: 'Capacite radiation', de: 'Radiation Capacity' },
+  GPP_Health_MaxHealth: { en: 'Max Health', fr: 'PV max', de: 'Max Health' },
+  GPP_Shield_MaxHealth: { en: 'Shield HP', fr: 'PV bouclier', de: 'Shield HP' },
+  GPP_ItemResource_PowerGeneration: { en: 'Power Generation', fr: 'Production energie', de: 'Power Generation' },
+  GPP_ItemResource_CoolantGeneration: { en: 'Coolant Generation', fr: 'Production refroidissement', de: 'Coolant Generation' },
+  GPP_Quantum_Speed: { en: 'Quantum Speed', fr: 'Vitesse quantum', de: 'Quantum Speed' },
+  GPP_Quantum_FuelRequirement: { en: 'Quantum Fuel Required', fr: 'Carburant quantum requis', de: 'Quantum Fuel Required' },
+  GPP_Radar_MinAimAssistDistance: { en: 'Min Aim Assist Distance', fr: 'Distance aide visee min', de: 'Min Aim Assist Distance' },
+  GPP_Radar_MaxAimAssistDistance: { en: 'Max Aim Assist Distance', fr: 'Distance aide visee max', de: 'Max Aim Assist Distance' },
+} satisfies Record<string, LocalizedString>);
+
+export const STAT_LABELS: Partial<Record<keyof ItemStats, LocalizedString>> = {
   damage: { en: 'Damage', fr: 'Degats', de: 'Schaden' },
   rateOfFire: { en: 'Rate of Fire', fr: 'Cadence', de: 'Feuerrate' },
   magazineSize: { en: 'Magazine', fr: 'Chargeur', de: 'Magazin' },
@@ -186,7 +260,27 @@ export const STAT_LABELS: Record<keyof ItemStats, LocalizedString> = {
   impactForceResistance: { en: 'Impact Resistance', fr: 'Resist. impact', de: 'Aufprallresistenz' },
 };
 
-export const STAT_UNITS: Record<keyof ItemStats, string> = {
+Object.assign(STAT_LABELS, {
+  reloadSpeed: { en: 'Reload Speed', fr: 'Vitesse rechargement', de: 'Reload Speed' },
+  spread: { en: 'Spread', fr: 'Dispersion', de: 'Spread' },
+  maxHealth: { en: 'Max Health', fr: 'PV max', de: 'Max Health' },
+  shieldMaxHealth: { en: 'Shield HP', fr: 'PV bouclier', de: 'Shield HP' },
+  powerGeneration: { en: 'Power Generation', fr: 'Production energie', de: 'Power Generation' },
+  coolantGeneration: { en: 'Coolant Generation', fr: 'Production refroidissement', de: 'Coolant Generation' },
+  quantumSpeed: { en: 'Quantum Speed', fr: 'Vitesse quantum', de: 'Quantum Speed' },
+  quantumFuelRequirement: { en: 'Quantum Fuel Required', fr: 'Carburant quantum requis', de: 'Quantum Fuel Required' },
+  radarMinAimAssistDistance: { en: 'Min Aim Assist', fr: 'Aide visee min', de: 'Min Aim Assist' },
+  radarMaxAimAssistDistance: { en: 'Max Aim Assist', fr: 'Aide visee max', de: 'Max Aim Assist' },
+  hullScrapingEfficiency: { en: 'Scraping Efficiency', fr: 'Efficacite raclage', de: 'Scraping Efficiency' },
+  hullScrapingRadius: { en: 'Scraping Radius', fr: 'Rayon raclage', de: 'Scraping Radius' },
+  hullScrapingSpeed: { en: 'Scraping Speed', fr: 'Vitesse raclage', de: 'Scraping Speed' },
+  tractorForce: { en: 'Tractor Force', fr: 'Force tracteur', de: 'Tractor Force' },
+  tractorFullStrengthDistance: { en: 'Full Strength Distance', fr: 'Distance pleine force', de: 'Full Strength Distance' },
+  tractorMaxDistance: { en: 'Max Tractor Distance', fr: 'Distance tracteur max', de: 'Max Tractor Distance' },
+  tractorMaxVolume: { en: 'Max Tractor Volume', fr: 'Volume tracteur max', de: 'Max Tractor Volume' },
+} satisfies Partial<Record<keyof ItemStats, LocalizedString>>);
+
+export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
   damage: 'dmg',
   rateOfFire: 'rpm',
   magazineSize: 'rds',
@@ -219,6 +313,26 @@ export const STAT_UNITS: Record<keyof ItemStats, string> = {
   impactForceResistance: 'x',
 };
 
+Object.assign(STAT_UNITS, {
+  reloadSpeed: 'x',
+  spread: 'x',
+  maxHealth: 'x',
+  shieldMaxHealth: 'x',
+  powerGeneration: 'x',
+  coolantGeneration: 'x',
+  quantumSpeed: 'x',
+  quantumFuelRequirement: 'x',
+  radarMinAimAssistDistance: 'x',
+  radarMaxAimAssistDistance: 'x',
+  hullScrapingEfficiency: 'x',
+  hullScrapingRadius: 'x',
+  hullScrapingSpeed: 'x',
+  tractorForce: 'x',
+  tractorFullStrengthDistance: 'x',
+  tractorMaxDistance: 'x',
+  tractorMaxVolume: 'x',
+} satisfies Partial<Record<keyof ItemStats, string>>);
+
 export const STAT_PERCENT_KEYS = new Set<NumericItemStatKey>([
   'damageResistanceKinetic',
   'damageResistanceEnergy',
@@ -232,6 +346,20 @@ export const STAT_LOWER_IS_BETTER = new Set<NumericItemStatKey>([
   'recoilSmoothness',
   'recoilHandling',
   'recoilKick',
+  'spread',
+  'reloadSpeed',
+  'quantumFuelRequirement',
+  'radarMinAimAssistDistance',
+]);
+
+export const GPP_LOWER_IS_BETTER = new Set<string>([
+  'GPP_Weapon_Recoil_Smoothness',
+  'GPP_Weapon_Recoil_Handling',
+  'GPP_Weapon_Recoil_Kick',
+  'GPP_Weapon_ReloadSpeed',
+  'GPP_Weapon_Spread',
+  'GPP_Quantum_FuelRequirement',
+  'GPP_Radar_MinAimAssistDistance',
 ]);
 
 export type ItemCategory =
