@@ -94,7 +94,7 @@ import {
 import { FONT_HEADING } from '../theme';
 
 type ResourceSort = 'name-asc' | 'providers-desc' | 'missions-desc' | 'blueprints-desc';
-type ResourceFamilyFilter = 'all' | 'metal' | 'mineral' | 'crystal' | 'ice';
+type ResourceFamilyFilter = 'all' | 'metal' | 'mineral' | 'crystal' | 'ice' | 'crafting-slot';
 type ResourceSourceTypeFilter = 'all' | 'planetary' | 'asteroid';
 type ResourceMissionFilter = 'all' | 'mission-linked' | 'no-mission';
 
@@ -182,9 +182,10 @@ function getResourceFamilyLabel(
     mineral: { en: 'Mineral', fr: 'Mineral', de: 'Mineral' },
     crystal: { en: 'Crystal', fr: 'Cristal', de: 'Kristall' },
     ice: { en: 'Ice', fr: 'Glace', de: 'Eis' },
+    'crafting-slot': { en: 'Crafting part', fr: 'Piece de craft', de: 'Fertigungsteil' },
   };
 
-  return loc(labels[family], lang);
+  return loc(labels[family] ?? labels.all, lang);
 }
 
 function getSourceTypeLabel(
@@ -806,7 +807,7 @@ function ResourcesFilterBar({
           },
         }}
       >
-        {(['all', 'metal', 'mineral', 'crystal', 'ice'] as ResourceFamilyFilter[]).map((family) => (
+        {(['all', 'metal', 'mineral', 'crystal', 'ice', 'crafting-slot'] as ResourceFamilyFilter[]).map((family) => (
           <ToggleButton key={family} value={family}>
             {getResourceFamilyLabel(family, lang)}
           </ToggleButton>

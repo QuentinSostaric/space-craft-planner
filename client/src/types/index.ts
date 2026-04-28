@@ -401,7 +401,7 @@ export interface Resource {
   visualNotes: string | null;
 }
 
-export type ResourceVisualKind = 'metal' | 'mineral' | 'crystal' | 'ice';
+export type ResourceVisualKind = 'metal' | 'mineral' | 'crystal' | 'ice' | 'crafting-slot';
 
 export interface ResourceInsight {
   resourceId: string;

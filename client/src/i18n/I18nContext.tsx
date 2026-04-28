@@ -43,7 +43,11 @@ export function useI18n(): I18nState {
   return ctx;
 }
 
-export function loc(str: { en: string; fr: string; de?: string }, lang: Lang): string {
+export function loc(str: { en: string; fr: string; de?: string } | null | undefined, lang: Lang): string {
+  if (!str) {
+    return '';
+  }
+
   if (lang === 'de') {
     return str.de ?? GERMAN_FALLBACKS[str.en] ?? str.en;
   }
