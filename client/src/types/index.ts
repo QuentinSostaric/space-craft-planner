@@ -240,7 +240,16 @@ export type ItemCategory =
   | 'fps-armor'
   | 'fps-helmet'
   | 'fps-undersuit'
-  | 'fps-backpack';
+  | 'fps-backpack'
+  | 'powerplant'
+  | 'cooler'
+  | 'shield-generator'
+  | 'quantum-drive'
+  | 'radar'
+  | 'ship-weapon'
+  | 'mining-laser'
+  | 'salvage-head'
+  | 'tractor-beam';
 
 export type CategoryFilter = ItemCategory | 'all' | 'favorites' | 'obtainable';
 
@@ -299,6 +308,15 @@ export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
   'fps-helmet': { en: 'Helmet', fr: 'Casque', de: 'Helm' },
   'fps-undersuit': { en: 'Undersuit', fr: 'Combinaison', de: 'Unteranzug' },
   'fps-backpack': { en: 'Backpack', fr: 'Sac a dos', de: 'Rucksack' },
+  powerplant: { en: 'Power Plant', fr: 'Centrale', de: 'Kraftwerk' },
+  cooler: { en: 'Cooler', fr: 'Refroidisseur', de: 'Kuhler' },
+  'shield-generator': { en: 'Shield Generator', fr: 'Generateur de bouclier', de: 'Schildgenerator' },
+  'quantum-drive': { en: 'Quantum Drive', fr: 'Moteur quantique', de: 'Quantenantrieb' },
+  radar: { en: 'Radar', fr: 'Radar', de: 'Radar' },
+  'ship-weapon': { en: 'Ship Weapon', fr: 'Arme de vaisseau', de: 'Schiffswaffe' },
+  'mining-laser': { en: 'Mining Laser', fr: 'Laser de minage', de: 'Bergbaulaser' },
+  'salvage-head': { en: 'Salvage Head', fr: 'Tete de salvage', de: 'Bergungskopf' },
+  'tractor-beam': { en: 'Tractor Beam', fr: 'Rayon tracteur', de: 'Traktorstrahl' },
 };
 
 export interface BlueprintMediaAsset {

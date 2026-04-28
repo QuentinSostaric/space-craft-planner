@@ -64,11 +64,29 @@ const CAT_GAME_ICON: Record<ItemCategory, GameIconName> = {
   'fps-helmet':    'armor',
   'fps-undersuit': 'utilities',
   'fps-backpack':  'utilities',
+  powerplant:      'power-plants',
+  cooler:          'coolers',
+  'shield-generator': 'shields',
+  'quantum-drive': 'engines',
+  radar:           'radars',
+  'ship-weapon':   'weapons',
+  'mining-laser':  'mining-lasers',
+  'salvage-head':  'salvage',
+  'tractor-beam':  'tractor-beams',
 };
 
 const CAT_HUE: Partial<Record<ItemCategory, number>> = {
   'fps-helmet':    220,
   'fps-backpack':  160,
+  powerplant:      40,
+  cooler:          190,
+  'shield-generator': 220,
+  'quantum-drive': 280,
+  radar:           120,
+  'ship-weapon':   0,
+  'mining-laser':  110,
+  'salvage-head':  55,
+  'tractor-beam':  150,
 };
 
 interface CategoryBadgeProps { category: ItemCategory; iconOnly?: boolean; shimmer?: boolean }

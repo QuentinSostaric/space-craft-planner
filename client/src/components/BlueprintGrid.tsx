@@ -52,6 +52,15 @@ const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-helmet':    'armor',
   'fps-undersuit': 'utilities',
   'fps-backpack':  'utilities',
+  powerplant:      'power-plants',
+  cooler:          'coolers',
+  'shield-generator': 'shields',
+  'quantum-drive': 'engines',
+  radar:           'radars',
+  'ship-weapon':   'weapons',
+  'mining-laser':  'mining-lasers',
+  'salvage-head':  'salvage',
+  'tractor-beam':  'tractor-beams',
 };
 
 /** Resolves the thumbnail URL and mode from the blueprint media fallback chain. */
