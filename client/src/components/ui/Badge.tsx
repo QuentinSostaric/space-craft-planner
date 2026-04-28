@@ -94,12 +94,14 @@ interface CategoryBadgeProps { category: ItemCategory; iconOnly?: boolean; shimm
 export function CategoryBadge({ category, iconOnly = false, shimmer = false }: CategoryBadgeProps) {
   const { lang } = useI18n();
   const theme = useTheme();
-  const label = loc(CATEGORY_LABELS[category], lang);
+  const fallbackLabel = String(category).replace(/[-_]+/g, ' ');
+  const label = loc(CATEGORY_LABELS[category], lang) || fallbackLabel;
+  const iconName = CAT_GAME_ICON[category] ?? 'utilities';
   return (
     <Chip
       icon={
         <GameIcon
-          name={CAT_GAME_ICON[category]}
+          name={iconName}
           size={14}
           shimmer={shimmer}
           hue={CAT_HUE[category]}

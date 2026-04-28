@@ -51,5 +51,5 @@ export function loc(str: { en: string; fr: string; de?: string } | null | undefi
   if (lang === 'de') {
     return str.de ?? GERMAN_FALLBACKS[str.en] ?? str.en;
   }
-  return str[lang];
+  return str[lang] ?? str.en ?? '';
 }
