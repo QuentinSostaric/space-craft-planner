@@ -203,6 +203,23 @@ function getMissionMaxStanding(contract: MissionContract): number {
   return Math.max(0, ...contract.minimumRequiredStandings.map((standing) => standing.minReputation ?? 0));
 }
 
+function getMissionReputationActivity(contract: MissionContract): string | null {
+  const primaryScope = contract.reputationScope?.displayName?.trim()
+    || contract.reputationScope?.scopeName?.trim();
+  if (primaryScope) {
+    return primaryScope;
+  }
+
+  for (const standing of contract.minimumRequiredStandings) {
+    const standingScope = standing.scopeName?.trim() || standing.scopeKey?.trim();
+    if (standingScope) {
+      return standingScope;
+    }
+  }
+
+  return null;
+}
+
 function getMissionRewardedBlueprintCount(contract: MissionContract): number {
   return new Set(
     contract.rewardedBlueprints
@@ -272,6 +289,7 @@ function MissionsFilterBar({
   contractors,
   employers,
   factions,
+  reputationActivities,
   rewardCategories,
   rewardManufacturers,
   rewardBlueprints,
@@ -282,6 +300,7 @@ function MissionsFilterBar({
   selectedContractor: contractorFilter,
   selectedEmployer: employerFilter,
   selectedFaction: factionFilter,
+  selectedReputationActivity: reputationActivityFilter,
   selectedStandingBucket: standingBucketFilter,
   selectedRewardCategory: rewardCategoryFilter,
   selectedRewardManufacturer: rewardManufacturerFilter,
@@ -296,6 +315,7 @@ function MissionsFilterBar({
   onContractorChange,
   onEmployerChange,
   onFactionChange,
+  onReputationActivityChange,
   onStandingBucketChange,
   onRewardCategoryChange,
   onRewardManufacturerChange,
@@ -310,6 +330,7 @@ function MissionsFilterBar({
   contractors: string[];
   employers: string[];
   factions: string[];
+  reputationActivities: string[];
   rewardCategories: ItemCategory[];
   rewardManufacturers: string[];
   rewardBlueprints: string[];
@@ -320,6 +341,7 @@ function MissionsFilterBar({
   selectedContractor: string | null;
   selectedEmployer: string | null;
   selectedFaction: string | null;
+  selectedReputationActivity: string | null;
   selectedStandingBucket: StandingBucket;
   selectedRewardCategory: ItemCategory | 'all';
   selectedRewardManufacturer: string | null;
@@ -334,6 +356,7 @@ function MissionsFilterBar({
   onContractorChange: (v: string | null) => void;
   onEmployerChange: (v: string | null) => void;
   onFactionChange: (v: string | null) => void;
+  onReputationActivityChange: (v: string | null) => void;
   onStandingBucketChange: (v: StandingBucket) => void;
   onRewardCategoryChange: (v: ItemCategory | 'all') => void;
   onRewardManufacturerChange: (v: string | null) => void;
@@ -351,6 +374,7 @@ function MissionsFilterBar({
     contractorFilter !== null ||
     employerFilter !== null ||
     factionFilter !== null ||
+    reputationActivityFilter !== null ||
     legalityFilter !== 'all' ||
     standingBucketFilter !== 'all' ||
     rewardCategoryFilter !== 'all' ||
@@ -414,6 +438,7 @@ function MissionsFilterBar({
               onContractorChange(null);
               onEmployerChange(null);
               onFactionChange(null);
+              onReputationActivityChange(null);
               onLegalityChange('all');
               onStandingBucketChange('all');
               onRewardCategoryChange('all');
@@ -514,6 +539,14 @@ function MissionsFilterBar({
             value={scaleFilter}
             onChange={(_event, value) => onScaleChange(value)}
             renderInput={(params) => <TextField {...params} placeholder={t('Scale', 'Echelle')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
+            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+          />
+          <Autocomplete
+            size="small"
+            options={reputationActivities}
+            value={reputationActivityFilter}
+            onChange={(_event, value) => onReputationActivityChange(value)}
+            renderInput={(params) => <TextField {...params} placeholder={t('Reputation type / Activities', 'Type reputation / activites')} sx={{ width: { xs: '100%', md: 220 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
             slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
           />
         </Stack>
@@ -1385,6 +1418,7 @@ export function MissionsPanel() {
   const [contractorFilter, setContractorFilter] = useState<string | null>(null);
   const [employerFilter, setEmployerFilter] = useState<string | null>(null);
   const [factionFilter, setFactionFilter] = useState<string | null>(null);
+  const [reputationActivityFilter, setReputationActivityFilter] = useState<string | null>(null);
   const [standingBucketFilter, setStandingBucketFilter] = useState<StandingBucket>('all');
   const [rewardCategoryFilter, setRewardCategoryFilter] = useState<ItemCategory | 'all'>('all');
   const [rewardManufacturerFilter, setRewardManufacturerFilter] = useState<string | null>(null);
@@ -1478,6 +1512,17 @@ export function MissionsPanel() {
     return [...set].sort();
   }, [allContracts, missionRewards]);
 
+  const allReputationActivities = useMemo(() => {
+    const set = new Set<string>();
+    for (const { contract } of allContracts) {
+      const activity = getMissionReputationActivity(contract);
+      if (activity) {
+        set.add(activity);
+      }
+    }
+    return [...set].sort();
+  }, [allContracts]);
+
   const allRewardCategories = useMemo(() => {
     const set = new Set<ItemCategory>();
     for (const { contract } of allContracts) {
@@ -1559,6 +1604,9 @@ export function MissionsPanel() {
       if (scaleFilter && contract.availability.derivedScale !== scaleFilter) {
         return false;
       }
+      if (reputationActivityFilter && getMissionReputationActivity(contract) !== reputationActivityFilter) {
+        return false;
+      }
       if (standingBucketFilter !== 'all' && getStandingBucket(maxStanding) !== standingBucketFilter) {
         return false;
       }
@@ -1604,6 +1652,7 @@ export function MissionsPanel() {
         group.contractorDisplayName,
         employerName,
         factionName ?? '',
+        getMissionReputationActivity(contract) ?? '',
         ...getMissionLocalities(contract),
         ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.name),
         ...contract.rewardedBlueprints.map((rewardedBlueprint) => rewardedBlueprint.manufacturer ?? ''),
@@ -1654,6 +1703,7 @@ export function MissionsPanel() {
     factionFilter,
     legalityFilter,
     locationFilter,
+    reputationActivityFilter,
     resourceObjectiveMode,
     resourceObjectiveResourceFilter,
     rewardBlueprintFilter,
@@ -1792,6 +1842,7 @@ export function MissionsPanel() {
             contractors={allContractors}
             employers={allEmployers}
             factions={allFactions}
+            reputationActivities={allReputationActivities}
             rewardCategories={allRewardCategories}
             rewardManufacturers={allRewardManufacturers}
             rewardBlueprints={allRewardBlueprints}
@@ -1802,6 +1853,7 @@ export function MissionsPanel() {
             selectedContractor={contractorFilter}
             selectedEmployer={employerFilter}
             selectedFaction={factionFilter}
+            selectedReputationActivity={reputationActivityFilter}
             selectedStandingBucket={standingBucketFilter}
             selectedRewardCategory={rewardCategoryFilter}
             selectedRewardManufacturer={rewardManufacturerFilter}
@@ -1816,6 +1868,7 @@ export function MissionsPanel() {
             onContractorChange={setContractorFilter}
             onEmployerChange={setEmployerFilter}
             onFactionChange={setFactionFilter}
+            onReputationActivityChange={setReputationActivityFilter}
             onStandingBucketChange={setStandingBucketFilter}
             onRewardCategoryChange={setRewardCategoryFilter}
             onRewardManufacturerChange={setRewardManufacturerFilter}
