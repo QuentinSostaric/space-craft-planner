@@ -43,6 +43,8 @@ function getResourceFamilyLabel(
       return lang === 'fr' ? 'Cristal' : lang === 'de' ? 'Kristall' : 'Crystal';
     case 'ice':
       return lang === 'fr' ? 'Glace' : lang === 'de' ? 'Eis' : 'Ice';
+    case 'crafting-slot':
+      return lang === 'fr' ? 'Piece de craft' : lang === 'de' ? 'Fertigungsteil' : 'Crafting part';
     default:
       return lang === 'fr' ? 'Ressource' : lang === 'de' ? 'Ressource' : 'Resource';
   }
