@@ -28,7 +28,8 @@ export function gppModifier(
 
 function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKey[] {
   if (gppId === 'GPP_Armor_DamageMitigation') {
-    return ARMOR_DAMAGE_RESISTANCE_KEYS.filter((key) => typeof result[key] === 'number');
+    const existingTargets = ARMOR_DAMAGE_RESISTANCE_KEYS.filter((key) => typeof result[key] === 'number');
+    return existingTargets.length > 0 ? existingTargets : [...ARMOR_DAMAGE_RESISTANCE_KEYS];
   }
 
   const statKey = DIRECT_GPP_TO_STAT[gppId];
