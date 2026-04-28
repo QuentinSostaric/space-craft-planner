@@ -1,6 +1,6 @@
 {
   "name": "item-fabricator",
-  "version": "1.8.6",
+  "version": "1.8.7",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
