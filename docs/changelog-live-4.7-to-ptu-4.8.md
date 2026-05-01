@@ -1,0 +1,1694 @@
+# Star Citizen Crafting Dataset Changelog - LIVE 4.7 vs PTU 4.8
+
+Comparison source: **Star Citizen LIVE 4.7.176.58286** (live-sc-4.7.176.58286-11592622) vs **Star Citizen PTU 4.8.179.2616** (ptu-sc-4.8.179.2616-11733560).
+
+## Summary
+
+- Blueprints: **1034 -> 1457** (**+423 net**)
+- Added blueprints: **427**
+- Removed blueprints: **4**
+- Resources: **32 -> 42** (**+10 net**)
+- Existing blueprints with stat changes: **59**
+- Existing blueprints with material changes: **6**
+
+## Added Blueprints By Category
+
+- Coolers: **75**
+- Power Plants: **75**
+- Shield Generators: **62**
+- Radars: **60**
+- Quantum Drives: **57**
+- Ship Weapons: **25**
+- FPS Armor: **17**
+- Mining Lasers: **17**
+- Tractor Beams: **12**
+- FPS Backpacks: **10**
+- FPS Helmets: **5**
+- FPS Weapons: **5**
+- Salvage Heads / Scraper Modules: **5**
+- FPS Undersuits: **2**
+
+## Added Blueprints - Item By Item
+
+### Coolers (75)
+
+- **AbsoluteZero** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Agricium (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Algid** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Riccite (5.25 scu); Coolant: Coolant (5.25 scu); Pump Impeller: Titanium (3.15 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Arctic** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Agricium (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **ArcticStorm** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tin (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Aufeis** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tungsten (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Avalanche** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Pump Impeller (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Berian** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tin (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **BlastChill** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Blizzard** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Stileron (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Pump Impeller (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Boreal** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Titanium (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Agricium (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Bracer** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Agricium (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Chill-Max** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Riccite (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Titanium (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **ColdSnap** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tin (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **ColdSurge** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Iron (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cool Aegs S04 Javelin Scitem** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Stileron (5.25 scu); Coolant: Coolant (5.25 scu); Pump Impeller: Pump Impeller (3.15 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cool S04 Cnou Pioneer** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (5.25 scu); Coolant: Coolant (5.25 scu); Pump Impeller: Agricium (3.15 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **CoolCore** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Agricium (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star EX** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star SL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.05 scu); Coolant: Coolant (0.05 scu); Pump Impeller: Iron (0.03 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star SL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Agricium (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star SL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tungsten (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star SL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Savrilium (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Pump Impeller (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Cryo-Star XL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Iron (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Draug** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Tungsten (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Eco-Flow** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tungsten (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Elsen** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Tungsten (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Endo** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Exotherm** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Stileron (5.25 scu); Coolant: Coolant (5.25 scu); Pump Impeller: Pump Impeller (3.15 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **FlashFreeze** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Fridan** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.05 scu); Coolant: Coolant (0.05 scu); Pump Impeller: Tin (0.03 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Frost-Star** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tin (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Frost-Star EX** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tin (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Frost-Star SL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.05 scu); Coolant: Coolant (0.05 scu); Pump Impeller: Tin (0.03 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Frost-Star XL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Tin (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **FrostBite** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Iron (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **FrostBurn** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Tin (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **FullFrost** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Galinstan** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Titanium (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Agricium (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Gelid** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tungsten (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Glacier** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Pump Impeller (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Graupel** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tin (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **HeatSafe** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Agricium (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Hydrocel** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **HydroJet** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Hydropulse** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Iron (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Ice-Flush** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Tungsten (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **IceDive** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tin (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **IcePlunge** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tin (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Kelvid** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.05 scu); Coolant: Coolant (0.05 scu); Pump Impeller: Iron (0.03 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Kragen** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Tungsten (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Mercury** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Agricium (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Permafrost** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Pump Impeller (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Polar** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Pump Impeller (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **QuikCool** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **RapidCool** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Serac** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (5.25 scu); Coolant: Coolant (5.25 scu); Pump Impeller: Tungsten (3.15 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Serac** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (5.25 scu); Coolant: Coolant (5.25 scu); Pump Impeller: Tungsten (3.15 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **SnowBlind** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Savrilium (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Pump Impeller (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Snowfall** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Tungsten (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Snowpack** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Titanium (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Taiga** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Tempest** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Pump Impeller (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Tepilo** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.05 scu); Coolant: Coolant (0.05 scu); Pump Impeller: Tungsten (0.03 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **ThermalCore** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Agricium (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Thermax** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Agricium (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Tundra** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Titanium (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Agricium (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Ultra-Flow** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Titanium (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **VaporBlock** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Tungsten (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **WhiteOut** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Winter-Star** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Iron (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Winter-Star EX** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.5 scu); Coolant: Coolant (0.5 scu); Pump Impeller: Iron (0.3 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Winter-Star SL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.05 scu); Coolant: Coolant (0.05 scu); Pump Impeller: Iron (0.03 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **Winter-Star XL** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Tin (1.64 scu); Coolant: Coolant (1.64 scu); Pump Impeller: Iron (1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+- **ZeroRush** (COOL) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.16 scu); Coolant: Coolant (0.16 scu); Pump Impeller: Agricium (0.1 scu)
+  - Modifiers: cooling generation: -15% to +15%; durability / health: -20% to +20%
+
+### FPS Armor (17)
+
+- **Carryable 2H Fl Missionitem Microsatellite A** (CARRYABLE) - craft time: 10s
+  - Materials: Frame: Aluminum (0.2 scu); Electronics: Silicon (0.2 scu)
+  - Modifiers: No extracted modifier range
+- **Chiron Arms Purgatory Camo** (Virgil Ltd) - craft time: 2m 30s
+  - Materials: Casing: Laranite (0.03 scu); Insulative Liner: Aslarite (0.02 scu); Casing Weave: Stileron (0.03 scu)
+  - Modifiers: No extracted modifier range
+- **Chiron Core Purgatory Camo** (Virgil Ltd) - craft time: 2m 30s
+  - Materials: Casing: Laranite (0.04 scu); Insulative Liner: Aslarite (0.02 scu); Casing Weave: Stileron (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Chiron Legs Purgatory Camo** (Virgil Ltd) - craft time: 2m 30s
+  - Materials: Casing: Laranite (0.03 scu); Insulative Liner: Aslarite (0.02 scu); Casing Weave: Stileron (0.03 scu)
+  - Modifiers: No extracted modifier range
+- **DustUp Legs Desert** (SLAVER) - craft time: 3m
+  - Materials: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -15% to +15%; heat protection: -20% to +20%
+- **Inquisitor Core Olive** (OUTLAW) - craft time: 3m 10s
+  - Materials: Protective Sheathing: Tungsten (0.05 scu); Insulative Liner: Aslarite (0.015 scu); Sheathing Coating: Laranite (0.05 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Monde Arms Purgatory Camo** (KAP) - craft time: 4m 30s
+  - Materials: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Savrilium (0.04 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Monde Core Purgatory Camo** (KAP) - craft time: 4m 30s
+  - Materials: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Savrilium (0.04 scu)
+  - Modifiers: cold protection: 0% to +20%; damage resistance: -10% to +10%; heat protection: 0% to +20%
+- **Monde Legs Purgatory Camo** (KAP) - craft time: 4m 30s
+  - Materials: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Savrilium (0.04 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **PAB-1 Legs White** (Kastak Arms) - craft time: 2m 10s
+  - Materials: Armoured Carapace: Ouratite (0.03 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Agricium (0.03 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Palatino Legs Daystar** (Quarterdeck) - craft time: 4m 30s
+  - Materials: Casing: Laranite (0.06 scu); Insulative Liner: Aslarite (0.02 scu); Casing Weave: Savrilium (0.06 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Tetsudo Arms Purgatory Camo** (Quarterdeck) - craft time: 3m 30s
+  - Materials: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Stileron (0.04 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Tetsudo Core Purgatory Camo** (Quarterdeck) - craft time: 3m 30s
+  - Materials: Armoured Carapace: Ouratite (0.05 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Stileron (0.05 scu)
+  - Modifiers: cold protection: 0% to +20%; damage resistance: -10% to +10%; heat protection: 0% to +20%
+- **Tetsudo Legs Purgatory Camo** (Quarterdeck) - craft time: 3m 30s
+  - Materials: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu); Support Structure: Stileron (0.04 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **TrueDef-Pro Arms Black/Silver** (Virgil Ltd) - craft time: 2m
+  - Materials: Casing: Laranite (0.03 scu); Insulative Liner: Aslarite (0.02 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -15% to +15%; heat protection: -20% to +20%
+- **TrueDef-Pro Core Black/Silver** (Virgil Ltd) - craft time: 2m
+  - Materials: Casing: Laranite (0.04 scu); Insulative Liner: Aslarite (0.02 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -15% to +15%; heat protection: -20% to +20%
+- **TrueDef-Pro Legs Black/Silver** (Virgil Ltd) - craft time: 2m
+  - Materials: Casing: Laranite (0.03 scu); Insulative Liner: Aslarite (0.02 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -15% to +15%; heat protection: -20% to +20%
+
+### FPS Backpacks (10)
+
+- **Chiron Backpack Purgatory Camo** (Virgil Ltd) - craft time: 1m
+  - Materials: Segment Panelling: Aluminum (0.03 scu)
+  - Modifiers: No extracted modifier range
+- **Novikov Backpack Halcyon** (Caldera) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Novikov Backpack Mire** (Caldera) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Novikov Backpack Patina** (Caldera) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Testudo Backpack Combustion** (Quarterdeck) - craft time: 1m 30s
+  - Materials: Frame: Ouratite (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Testudo Backpack Earthshake** (Quarterdeck) - craft time: 1m 30s
+  - Materials: Frame: Ouratite (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Testudo Backpack Nightveil** (Quarterdeck) - craft time: 1m 30s
+  - Materials: Frame: Ouratite (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Testudo Backpack Turfwar** (Quarterdeck) - craft time: 1m 30s
+  - Materials: Frame: Ouratite (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Tetsudo Backpack Purgatory Camo** (Quarterdeck) - craft time: 1m 30s
+  - Materials: Frame: Ouratite (0.04 scu)
+  - Modifiers: No extracted modifier range
+- **Warden Backpack Purgatory Camo** (Virgil Ltd) - craft time: 1m 45s
+  - Materials: Frame: Ouratite (0.06 scu)
+  - Modifiers: No extracted modifier range
+
+### FPS Helmets (5)
+
+- **Argus Helmet Black/Silver** (Virgil Ltd) - craft time: 2m
+  - Materials: Casing: Laranite (0.02 scu); Insulative Liner: Aslarite (0.01 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -15% to +15%; heat protection: -20% to +20%
+- **Chiron Helmet Purgatory Camo** (Virgil Ltd) - craft time: 2m 30s
+  - Materials: Casing: Laranite (0.02 scu); Insulative Liner: Aslarite (0.01 scu); Casing Weave: Stileron (0.02 scu)
+  - Modifiers: No extracted modifier range
+- **Monde Helmet Daimyo** (KAP) - craft time: 4m 30s
+  - Materials: Armoured Carapace: Ouratite (0.03 scu); Insulative Liner: Aslarite (0.01 scu); Support Structure: Savrilium (0.03 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Monde Helmet Purgatory Camo** (KAP) - craft time: 4m 30s
+  - Materials: Armoured Carapace: Ouratite (0.03 scu); Insulative Liner: Aslarite (0.01 scu); Support Structure: Savrilium (0.03 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+- **Tetsudo Helmet Purgatory Camo** (Quarterdeck) - craft time: 3m 30s
+  - Materials: Armoured Carapace: Ouratite (0.03 scu); Insulative Liner: Aslarite (0.01 scu); Support Structure: Stileron (0.03 scu)
+  - Modifiers: cold protection: -20% to +20%; damage resistance: -10% to +10%; heat protection: -20% to +20%
+
+### FPS Undersuits (2)
+
+- **Vgl Flightsuit 01 02 01** (Virgil Ltd) - craft time: 1m 30s
+  - Materials: Suit Underlay: Silicon (0.06 scu)
+  - Modifiers: cold protection: -20% to +20%; heat protection: -20% to +20%
+- **Vgl Flightsuit Helmet 01 02 01** (Virgil Ltd) - craft time: 1m 30s
+  - Materials: Suit Underlay: Silicon (0.03 scu)
+  - Modifiers: cold protection: -20% to +20%; heat protection: -20% to +20%
+
+### FPS Weapons (5)
+
+- **Behr Shotgun Ballistic 01 Mr01** (Behring) - craft time: 2m 30s
+  - Materials: Frame: Torite (0.04 scu); Stock:: Hephaestanite (0.02 scu); Barrel:: Iron (0.02 scu)
+  - Modifiers: fire rate: -12% to +12%; recoil handling: -20% to +20%; recoil kick: -20% to +20%; recoil smoothness: -20% to +20%; weapon damage: -7.5% to +7.5%
+- **Gmni Rifle Ballistic 01 Mr01** (Gemini) - craft time: 1m 30s
+  - Materials: Frame: Aluminum (0.04 scu); Stock:: Hephaestanite (0.02 scu); Barrel:: Iron (0.02 scu)
+  - Modifiers: fire rate: -12% to +12%; recoil handling: -20% to +20%; recoil kick: -20% to +20%; recoil smoothness: -20% to +20%; weapon damage: -7.5% to +7.5%
+- **Karna Rifle** (Klaus & Werner) - craft time: 3m
+  - Materials: Frame:: Riccite (0.04 scu); Conduit: Beryl (0.02 scu); Stabilizer: Beradom (3 count)
+  - Modifiers: fire rate: -12% to +12%; recoil handling: -40% to +40%; recoil kick: -40% to +40%; recoil smoothness: -40% to +40%; weapon damage: -7.5% to +7.5%
+- **Klwe Lmg Energy 01 Mr01** (Klaus & Werner) - craft time: 4m
+  - Materials: Frame: Corundum (0.06 scu); Wiring:: Copper (0.02 scu); Lenses: Hadanite (1 count)
+  - Modifiers: fire rate: -12% to +12%; recoil handling: -40% to +40%; recoil kick: -40% to +40%; recoil smoothness: -40% to +40%; weapon damage: -7.5% to +7.5%
+- **None Rifle Multi 01 Collector01** (Unknown) - craft time: 2m 30s
+  - Materials: Frame: Iron (0.04 scu); Stock:: Hephaestanite (0.02 scu); Barrel:: Iron (0.02 scu)
+  - Modifiers: fire rate: -12% to +12%; recoil handling: -20% to +20%; recoil kick: -20% to +20%; recoil smoothness: -20% to +20%; weapon damage: -7.5% to +7.5%
+
+### Mining Lasers (17)
+
+- **Arbor MH1 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **Arbor MH2 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Emitter: Sadaryx (13 count); Bus Bars: Copper (0.19 scu)
+  - Modifiers: No extracted modifier range
+- **Arbor MHV Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.2 scu); Emitter: Sadaryx (4 count); Bus Bars: Copper (0.06 scu)
+  - Modifiers: No extracted modifier range
+- **Helix I Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **Helix II Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Emitter: Sadaryx (13 count); Bus Bars: Copper (0.19 scu)
+  - Modifiers: No extracted modifier range
+- **Hofstede-S1 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **Hofstede-S2 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Emitter: Sadaryx (13 count); Bus Bars: Copper (0.19 scu)
+  - Modifiers: No extracted modifier range
+- **Impact I Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **Impact II Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Emitter: Sadaryx (13 count); Bus Bars: Copper (0.19 scu)
+  - Modifiers: No extracted modifier range
+- **Klein-S1 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **Klein-S2 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Emitter: Sadaryx (13 count); Bus Bars: Copper (0.19 scu)
+  - Modifiers: No extracted modifier range
+- **Lancet MH1 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **Lancet MH2 Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Emitter: Sadaryx (13 count); Bus Bars: Copper (0.19 scu)
+  - Modifiers: No extracted modifier range
+- **Lawson Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.2 scu); Emitter: Sadaryx (4 count); Bus Bars: Copper (0.06 scu)
+  - Modifiers: No extracted modifier range
+- **Pitman Mining Laser** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Emitter: Sadaryx (7 count); Bus Bars: Copper (0.11 scu)
+  - Modifiers: No extracted modifier range
+- **S0 Helix** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.2 scu); Emitter: Sadaryx (4 count); Bus Bars: Copper (0.06 scu)
+  - Modifiers: No extracted modifier range
+- **S00 Hofstede** (MINING) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.2 scu); Emitter: Sadaryx (4 count); Bus Bars: Copper (0.06 scu)
+  - Modifiers: No extracted modifier range
+
+### Power Plants (75)
+
+- **Bolide** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (1.22 scu); Voltage Regulator: Beryl (0.5 scu); Stator Cores: Ouratite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Breton** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Riccite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Celestial** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (4.3 scu); Voltage Regulator: Silicon (1.7 scu); Stator Cores: Laranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Centurion** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Taranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Charger** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Titanium (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Cirrus** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Stator Cores (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Defiant** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.1 scu); Voltage Regulator: Laranite (0.04 scu); Stator Cores: Taranite (0.07 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Defiant** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Taranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Defiant** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Stator Cores (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **DeltaMax** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Ouratite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Diligence** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Drassik** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Titanium (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Laranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **DuraJet** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.1 scu); Voltage Regulator: Silicon (0.04 scu); Stator Cores: Silicon (0.07 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Durango** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Riccite (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Riccite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **DynaFlux** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Ouratite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Eclipse** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Savrilium (1.22 scu); Voltage Regulator: Beryl (0.5 scu); Stator Cores: Stileron (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **ExoGen** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Titanium (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Fierell Cascade** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Ouratite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Fortitude** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Fulgur** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (4.3 scu); Voltage Regulator: Beryl (1.7 scu); Stator Cores: Ouratite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **FullForce** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Silicon (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **FullForce** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Silicon (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **FullForce Pro** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (4.3 scu); Voltage Regulator: Silicon (1.7 scu); Stator Cores: Silicon (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **GammaMax** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Riccite (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Ouratite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Genoa** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Riccite (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Riccite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Ginzel** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Laranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **HyperGen** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Titanium (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **IonBurst** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **IonSurge** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **IonSurge Pro** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (4.3 scu); Voltage Regulator: Silicon (1.7 scu); Stator Cores: Laranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **IonWave** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.1 scu); Voltage Regulator: Silicon (0.04 scu); Stator Cores: Laranite (0.07 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Jennet** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.1 scu); Voltage Regulator: Silicon (0.04 scu); Stator Cores: Laranite (0.07 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **JS-300** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Savrilium (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **JS-400** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (1.22 scu); Voltage Regulator: Beryl (0.5 scu); Stator Cores: Savrilium (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **LightBlossom** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Silicon (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Lotus** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Stator Cores (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **LumaCore** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Beryl (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **LuxCore** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Beryl (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Maelstrom** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Taranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **MagnaBloom** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Main Powerplant** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (15 scu); Voltage Regulator: Beryl (6 scu); Stator Cores: Savrilium (10.5 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Main Powerplant** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Riccite (15 scu); Voltage Regulator: Laranite (6 scu); Stator Cores: Riccite (10.5 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **MegaFlux** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (4.3 scu); Voltage Regulator: Beryl (1.7 scu); Stator Cores: Ouratite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **NewDawn** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (4.3 scu); Voltage Regulator: Silicon (1.7 scu); Stator Cores: Silicon (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **OverDrive** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Taranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **PowerBolt** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Silicon (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **QuadraCell** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Savrilium (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **QuadraCell MT** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (1.22 scu); Voltage Regulator: Beryl (0.5 scu); Stator Cores: Savrilium (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **QuadraCell MX** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (4.3 scu); Voltage Regulator: Beryl (1.7 scu); Stator Cores: Savrilium (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **QuadraCell MX** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Stileron (4.3 scu); Voltage Regulator: Beryl (1.7 scu); Stator Cores: Savrilium (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Radiance** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Radix** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.1 scu); Voltage Regulator: Silicon (0.04 scu); Stator Cores: Silicon (0.07 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Regulus** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Taranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Reliance** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Taranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Roughneck** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Sedulity** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Taranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Slipstream** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Ouratite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SmartGen** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Titanium (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Laranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SolarFlare** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SonicLite** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.35 scu); Voltage Regulator: Beryl (0.14 scu); Stator Cores: Ouratite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SparkJet** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tin (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Silicon (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SparkJet Pro** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tin (4.3 scu); Voltage Regulator: Silicon (1.7 scu); Stator Cores: Silicon (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **StarBurn** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **StarHeart** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.35 scu); Voltage Regulator: Laranite (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Steadfast** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.1 scu); Voltage Regulator: Laranite (0.04 scu); Stator Cores: Laranite (0.07 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Stellate** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (15 scu); Voltage Regulator: Laranite (6 scu); Stator Cores: Stator Cores (10.5 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Stellate** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (15 scu); Voltage Regulator: Laranite (6 scu); Stator Cores: Stator Cores (10.5 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SunFlare** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Laranite (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **SuperDrive** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Taranite (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **TigerLilly** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (4.3 scu); Voltage Regulator: Laranite (1.7 scu); Stator Cores: Stator Cores (3 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Trommel** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.22 scu); Voltage Regulator: Silicon (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **TurboDrive** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Taranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **UltraFlux** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (1.22 scu); Voltage Regulator: Beryl (0.5 scu); Stator Cores: Ouratite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **Vortex** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Titanium (1.22 scu); Voltage Regulator: Laranite (0.5 scu); Stator Cores: Laranite (0.85 scu)
+  - Modifiers: durability / health: -20% to +20%
+- **ZapJet** (POWR) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.35 scu); Voltage Regulator: Silicon (0.14 scu); Stator Cores: Silicon (0.24 scu)
+  - Modifiers: durability / health: -20% to +20%
+
+### Quantum Drives (57)
+
+- **Agni** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Agricium (4.28 scu); Injector Nozzles: Tungsten (1.72 scu); Containment Matrix: Beryl (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Aither** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Laranite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Allegro** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Torite (15 scu); Injector Nozzles: Tungsten (6 scu); Containment Matrix: Containment Matrix (6 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Atlas** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Torite (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Containment Matrix (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Balandin** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (4.28 scu); Injector Nozzles: Tungsten (1.72 scu); Containment Matrix: Ouratite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Bolon** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tungsten (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Laranite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Bolt** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tungsten (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Ouratite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Burst** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Laranite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Cascade** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Corundum (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Colossus** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Agricium (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Beryl (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Crossfield** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Titanium (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Beryl (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Drift** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Agricium (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Containment Matrix (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Drifter** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Corundum (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Echo** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Corundum (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Eos** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Hephaestanite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Erebos** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Torite (4.28 scu); Injector Nozzles: Tungsten (1.72 scu); Containment Matrix: Containment Matrix (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Expedition** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Hephaestanite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Fissure** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Hephaestanite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Flash** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Laranite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Flood** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Corundum (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **FoxFire** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Torite (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Beryl (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **FoxFire** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Laranite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **FoxFire** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Titanium (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Beryl (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Frontline** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (15 scu); Injector Nozzles: Tungsten (6 scu); Containment Matrix: Stileron (6 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Hemera** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Torite (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Containment Matrix (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Huracan** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Agricium (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Beryl (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Hyperion** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Laranite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Impulse** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Laranite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Kama** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tungsten (4.28 scu); Injector Nozzles: Tungsten (1.72 scu); Containment Matrix: Laranite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Khaos** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Hephaestanite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **LightFire** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Laranite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Metis** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Hephaestanite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Nova** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Agricium (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Containment Matrix (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Odyssey** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Hephaestanite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Pontes** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Titanium (4.28 scu); Injector Nozzles: Tungsten (1.72 scu); Containment Matrix: Beryl (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Quest** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Corundum (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Ranger** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Laranite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Rush** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Hephaestanite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Siren** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Ouratite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Sojourn** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Laranite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **SparkFire** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Laranite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Spectre** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Savrilium (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Spicule** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Savrilium (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **SunFire** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Torite (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Beryl (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Torrent** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Hephaestanite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **TS-2** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (4.28 scu); Injector Nozzles: Tungsten (1.72 scu); Containment Matrix: Stileron (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Tyche** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Laranite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Vesta** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Laranite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **VK-00** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Stileron (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Voyage** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Laranite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Vulcan** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Laranite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Wanderer** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (4.28 scu); Injector Nozzles: Iron (1.72 scu); Containment Matrix: Hephaestanite (1.72 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Wayfare** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tin (0.35 scu); Injector Nozzles: Iron (0.14 scu); Containment Matrix: Corundum (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **XL-1** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Stileron (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Yaluk** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Iron (1.24 scu); Injector Nozzles: Iron (0.5 scu); Containment Matrix: Laranite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Yeager** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Case (1.24 scu); Injector Nozzles: Tungsten (0.5 scu); Containment Matrix: Ouratite (0.5 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+- **Zephyr** (QDRV) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.35 scu); Injector Nozzles: Tungsten (0.14 scu); Containment Matrix: Ouratite (0.14 scu)
+  - Modifiers: durability / health: -20% to +20%; quantum fuel requirement: -20% to +20%; quantum speed: -20% to +20%
+
+### Radars (60)
+
+- **Abetti** (RADR) - craft time: 1m 30s
+  - Materials: Case: Torite (0.28 scu); Transmitter: Laranite (0.1 scu); Signal Processor: Gold (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Agrippa** (RADR) - craft time: 1m 30s
+  - Materials: Case: Torite (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Gold (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Agure** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.1 scu); Transmitter: Laranite (0.04 scu); Signal Processor: Agricium (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Anysta** (RADR) - craft time: 1m 30s
+  - Materials: Case: Torite (2 scu); Transmitter: Laranite (0.8 scu); Signal Processor: Gold (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Backlund** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (0.28 scu); Transmitter: Quartz (0.1 scu); Signal Processor: Agricium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Battani** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (1.2 scu); Transmitter: Quartz (0.3 scu); Signal Processor: Agricium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec** (RADR) - craft time: 1m 30s
+  - Materials: Case: Agricium (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Gold (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec** (RADR) - craft time: 1m 30s
+  - Materials: Case: Agricium (2 scu); Transmitter: Laranite (0.8 scu); Signal Processor: Gold (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Agricium (0.1 scu); Transmitter: Laranite (0.04 scu); Signal Processor: Gold (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (0.1 scu); Transmitter: Quartz (0.04 scu); Signal Processor: Silicon (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Torite (0.1 scu); Transmitter: Laranite (0.04 scu); Signal Processor: Gold (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (0.1 scu); Transmitter: Quartz (0.04 scu); Signal Processor: Agricium (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (0.28 scu); Transmitter: Quartz (0.1 scu); Signal Processor: Silicon (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **BroadSpec-Max** (RADR) - craft time: 1m 30s
+  - Materials: Case: Agricium (5.3 scu); Transmitter: Laranite (2.1 scu); Signal Processor: Gold (2.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Capsulo** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (2 scu); Transmitter: Quartz (0.8 scu); Signal Processor: Agricium (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Cassandra** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (1.2 scu); Transmitter: Transmitter (0.3 scu); Signal Processor: Savrilium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Chernykh** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (1.2 scu); Transmitter: Quartz (0.3 scu); Signal Processor: Silicon (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Devoue** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (2 scu); Transmitter: Transmitter (0.8 scu); Signal Processor: Lindinium (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Ecouter** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (0.28 scu); Transmitter: Laranite (0.1 scu); Signal Processor: Gold (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Epier** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Gold (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Fawad** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (1.2 scu); Transmitter: Quartz (0.3 scu); Signal Processor: Silicon (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Fidele** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (2 scu); Transmitter: Laranite (0.8 scu); Signal Processor: Agricium (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Fleming** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (0.28 scu); Transmitter: Quartz (0.1 scu); Signal Processor: Silicon (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **FullSpec** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Riccite (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **FullSpec-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (0.1 scu); Transmitter: Laranite (0.04 scu); Signal Processor: Riccite (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **FullSpec-Max** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (2 scu); Transmitter: Laranite (0.8 scu); Signal Processor: Riccite (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Hunter** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.28 scu); Transmitter: Laranite (0.1 scu); Signal Processor: Lindinium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Observer** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (1.2 scu); Transmitter: Quartz (0.3 scu); Signal Processor: Agricium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Observer-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (0.1 scu); Transmitter: Quartz (0.04 scu); Signal Processor: Agricium (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Observer-Lite** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (0.28 scu); Transmitter: Quartz (0.1 scu); Signal Processor: Agricium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Observer-Max** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (2 scu); Transmitter: Quartz (0.8 scu); Signal Processor: Agricium (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Pelerous** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (0.28 scu); Transmitter: Transmitter (0.1 scu); Signal Processor: Savrilium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Predator** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Lindinium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Prevenir** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (0.1 scu); Transmitter: Laranite (0.04 scu); Signal Processor: Gold (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Prophet** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (0.28 scu); Transmitter: Transmitter (0.1 scu); Signal Processor: Savrilium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Radr Gnrp S03 Idris Temp** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (2 scu); Transmitter: Transmitter (0.8 scu); Signal Processor: Stileron (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Radr Rsi S04 Polaris** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (5.3 scu); Transmitter: Transmitter (2.1 scu); Signal Processor: Stileron (2.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Radr Wlop S03 Lephari** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (2 scu); Transmitter: Quartz (0.8 scu); Signal Processor: Silicon (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Resolu** (RADR) - craft time: 1m 30s
+  - Materials: Case: Titanium (2 scu); Transmitter: Laranite (0.8 scu); Signal Processor: Gold (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Savoir** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Agricium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Sens** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (0.1 scu); Transmitter: Transmitter (0.04 scu); Signal Processor: Lindinium (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **SNS-R5x** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (1.2 scu); Transmitter: Quartz (0.3 scu); Signal Processor: Silicon (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **SNS-R6** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (0.28 scu); Transmitter: Quartz (0.1 scu); Signal Processor: Agricium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **SNS-R6x** (RADR) - craft time: 1m 30s
+  - Materials: Case: Iron (1.2 scu); Transmitter: Quartz (0.3 scu); Signal Processor: Agricium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **SNS-R7x** (RADR) - craft time: 1m 30s
+  - Materials: Case: Torite (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Agricium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **SNSR5** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (0.28 scu); Transmitter: Quartz (0.1 scu); Signal Processor: Silicon (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **SNSR7** (RADR) - craft time: 1m 30s
+  - Materials: Case: Torite (0.28 scu); Transmitter: Laranite (0.1 scu); Signal Processor: Agricium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Socoria** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tin (2 scu); Transmitter: Quartz (0.8 scu); Signal Processor: Silicon (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Spyglass** (RADR) - craft time: 1m 30s
+  - Materials: Case: Agricium (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Gold (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Surveyor** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (1.2 scu); Transmitter: Laranite (0.3 scu); Signal Processor: Agricium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Surveyor-Go** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.1 scu); Transmitter: Laranite (0.04 scu); Signal Processor: Agricium (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Surveyor-Lite** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.28 scu); Transmitter: Laranite (0.1 scu); Signal Processor: Agricium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Surveyor-Max** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (2 scu); Transmitter: Laranite (0.8 scu); Signal Processor: Agricium (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Tige** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (0.28 scu); Transmitter: Transmitter (0.1 scu); Signal Processor: Lindinium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **V60-26** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (0.1 scu); Transmitter: Transmitter (0.04 scu); Signal Processor: Stileron (0.04 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **V801-11** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (0.28 scu); Transmitter: Transmitter (0.1 scu); Signal Processor: Stileron (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **V801-12** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (1.2 scu); Transmitter: Transmitter (0.3 scu); Signal Processor: Stileron (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **V880** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (2 scu); Transmitter: Transmitter (0.8 scu); Signal Processor: Stileron (0.8 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Vigilance** (RADR) - craft time: 1m 30s
+  - Materials: Case: Case (1.2 scu); Transmitter: Transmitter (0.3 scu); Signal Processor: Lindinium (0.3 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+- **Voir** (RADR) - craft time: 1m 30s
+  - Materials: Case: Tungsten (0.28 scu); Transmitter: Laranite (0.1 scu); Signal Processor: Agricium (0.1 scu)
+  - Modifiers: durability / health: -20% to +20%; radar max aim-assist distance: -20% to +20%; radar min aim-assist distance: -20% to +20%
+
+### Salvage Heads / Scraper Modules (5)
+
+- **Abrade Scraper Module** (SALVAGE) - craft time: 1m 30s
+  - Materials: Case: Iron (0.04 scu); Wiring: Copper (0.04 scu); Ocular Enhancer: Sadaryx (4 count)
+  - Modifiers: No extracted modifier range
+- **Cinch Scraper Module** (SALVAGE) - craft time: 1m 30s
+  - Materials: Case: Iron (0.04 scu); Wiring: Copper (0.04 scu); Ocular Enhancer: Sadaryx (4 count)
+  - Modifiers: No extracted modifier range
+- **Cinch Scraper Module** (SALVAGE) - craft time: 1m 30s
+  - Materials: Case: Iron (0.03 scu); Wiring: Copper (0.03 scu); Ocular Enhancer: Sadaryx (3 count)
+  - Modifiers: No extracted modifier range
+- **Cinch Scraper Module** (SALVAGE) - craft time: 1m 30s
+  - Materials: Case: Iron (0.03 scu); Wiring: Copper (0.03 scu); Ocular Enhancer: Sadaryx (3 count)
+  - Modifiers: No extracted modifier range
+- **Trawler Scraper Module** (SALVAGE) - craft time: 1m 30s
+  - Materials: Case: Iron (0.06 scu); Wiring: Copper (0.06 scu); Ocular Enhancer: Sadaryx (6 count)
+  - Modifiers: No extracted modifier range
+
+### Shield Generators (62)
+
+- **5CA 'Akura'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (1.2 scu); Field Array: Corundum (1.9 scu); Frequency Controller: Glacosite (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **5MA 'Chimalli'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.42 scu); Field Array: Corundum (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **5SA 'Rhada'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.15 scu); Field Array: Corundum (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **6CA 'Bila'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.2 scu); Field Array: Laranite (1.9 scu); Frequency Controller: Glacosite (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **6CA 'Bila'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.2 scu); Field Array: Laranite (1.9 scu); Frequency Controller: Glacosite (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **6MA 'Kozane'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **6SA 'Arbiter'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **7CA 'Nargun'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.2 scu); Field Array: Gold (1.9 scu); Frequency Controller: Beradom (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **7MA 'Lorica'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.42 scu); Field Array: Gold (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **7SA 'Concord'** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.15 scu); Field Array: Gold (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **AllStop** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.15 scu); Field Array: Gold (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Armada** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Aspis** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Bamoty** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.42 scu); Field Array: Corundum (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Barbican** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.2 scu); Field Array: Gold (1.9 scu); Frequency Controller: Beradom (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **BLOC** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Bulwark** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Castra** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.05 scu); Field Array: Laranite (0.08 scu); Frequency Controller: Beradom (7 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Citadel** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.42 scu); Field Array: Gold (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Cloak** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Agricium (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **CoverAll** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.42 scu); Field Array: Lindinium (0.68 scu); Frequency Controller: Feynmaline (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Falco** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.15 scu); Field Array: Corundum (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **ForceWall** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (0.15 scu); Field Array: Lindinium (0.24 scu); Frequency Controller: Feynmaline (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **FR-66** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.15 scu); Field Array: Stileron (0.24 scu); Frequency Controller: Feynmaline (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **FR-76** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Stileron (0.42 scu); Field Array: Stileron (0.68 scu); Frequency Controller: Feynmaline (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **FR-86** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Stileron (1.2 scu); Field Array: Stileron (1.9 scu); Frequency Controller: Feynmaline (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **FullBlock** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Lindinium (1.2 scu); Field Array: Lindinium (1.9 scu); Frequency Controller: Feynmaline (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **FullStop** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.42 scu); Field Array: Gold (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Glacis** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (3.5 scu); Field Array: Riccite (5.7 scu); Frequency Controller: Beradom (495 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Glacis** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (3.5 scu); Field Array: Riccite (5.7 scu); Frequency Controller: Beradom (495 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **GUARD** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (1.2 scu); Field Array: Corundum (1.9 scu); Frequency Controller: Glacosite (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Guardian** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.15 scu); Field Array: Gold (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Haltur** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **HAVEN** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tin (1.2 scu); Field Array: Corundum (1.9 scu); Frequency Controller: Glacosite (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **HEX** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Holdstrong** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Stileron (3.5 scu); Field Array: Stileron (5.7 scu); Frequency Controller: Feynmaline (495 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **INK** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.15 scu); Field Array: Corundum (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Jaghte** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Mirage** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Savrilium (0.15 scu); Field Array: Savrilium (0.24 scu); Frequency Controller: Feynmaline (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Obscura** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.42 scu); Field Array: Gold (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Palisade** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.15 scu); Field Array: Riccite (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Parapet** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (1.2 scu); Field Array: Riccite (1.9 scu); Frequency Controller: Beradom (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **PIN** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.05 scu); Field Array: Corundum (0.08 scu); Frequency Controller: Glacosite (7 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Rampart** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.42 scu); Field Array: Riccite (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **RPEL** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tin (0.42 scu); Field Array: Corundum (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **RS-Barrier** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (3.5 scu); Field Array: Riccite (5.7 scu); Frequency Controller: Beradom (495 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **SecureHyde** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Titanium (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **SecureScreen** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Titanium (1.2 scu); Field Array: Laranite (1.9 scu); Frequency Controller: Beradom (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **SecureShield** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Titanium (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Sheut** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.42 scu); Field Array: Riccite (0.68 scu); Frequency Controller: Beradom (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Shimmer** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (0.15 scu); Field Array: Gold (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Shroud** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Agricium (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Steward** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **STOP** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.42 scu); Field Array: Corundum (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Stronghold** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (1.2 scu); Field Array: Laranite (1.9 scu); Frequency Controller: Beradom (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **SureStop** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Shell (1.2 scu); Field Array: Gold (1.9 scu); Frequency Controller: Beradom (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Targa** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.15 scu); Field Array: Laranite (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Trenta** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Tungsten (0.42 scu); Field Array: Laranite (0.68 scu); Frequency Controller: Glacosite (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Umbra** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Savrilium (0.42 scu); Field Array: Savrilium (0.68 scu); Frequency Controller: Feynmaline (58 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Veil** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Riccite (0.15 scu); Field Array: Riccite (0.24 scu); Frequency Controller: Beradom (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **Ward** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Torite (1.2 scu); Field Array: Laranite (1.9 scu); Frequency Controller: Glacosite (170 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+- **WEB** (SHLD) - craft time: 1m 30s
+  - Materials: Shell: Iron (0.15 scu); Field Array: Corundum (0.24 scu); Frequency Controller: Glacosite (20 count)
+  - Modifiers: durability / health: -20% to +20%; shield capacity: -10% to +10%
+
+### Ship Weapons (25)
+
+- **10-Series Greatsword Cannon** (KBAR) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Cycler: Riccite (0.09 scu); Barrel: Titanium (0.32 scu)
+  - Modifiers: No extracted modifier range
+- **11-Series Broadsword Cannon** (KBAR) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Cycler: Riccite (0.17 scu); Barrel: Titanium (0.58 scu)
+  - Modifiers: No extracted modifier range
+- **9-Series Longsword Cannon** (KBAR) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Cycler: Riccite (0.05 scu); Barrel: Titanium (0.18 scu)
+  - Modifiers: No extracted modifier range
+- **C-788 Cannon** (Behring) - craft time: 1m 30s
+  - Materials: Frame: Iron (2.08 scu); Cycler: Riccite (0.31 scu); Barrel: Titanium (1.04 scu)
+  - Modifiers: No extracted modifier range
+- **CVSA Cannon** (Behring) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Cycler: Riccite (0.09 scu); Barrel: Titanium (0.32 scu)
+  - Modifiers: No extracted modifier range
+- **Deadbolt I Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Cycler: Riccite (0.05 scu); Barrel: Titanium (0.18 scu)
+  - Modifiers: No extracted modifier range
+- **Deadbolt II Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Cycler: Riccite (0.09 scu); Barrel: Titanium (0.32 scu)
+  - Modifiers: No extracted modifier range
+- **Deadbolt III Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Cycler: Riccite (0.17 scu); Barrel: Titanium (0.58 scu)
+  - Modifiers: No extracted modifier range
+- **Deadbolt IV Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Iron (2.08 scu); Cycler: Riccite (0.31 scu); Barrel: Titanium (1.04 scu)
+  - Modifiers: No extracted modifier range
+- **Deadbolt V Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Iron (3.74 scu); Cycler: Riccite (0.56 scu); Barrel: Titanium (1.87 scu)
+  - Modifiers: No extracted modifier range
+- **Deadbolt VI Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Iron (6.74 scu); Cycler: Riccite (1 scu); Barrel: Titanium (3.37 scu)
+  - Modifiers: No extracted modifier range
+- **Lightstrike VI Cannon** (ESPR) - craft time: 1m 30s
+  - Materials: Frame: Agricium (6.74 scu); Emitter: Hadanite (135 count); Aperture Iris: Dolivine (135 count)
+  - Modifiers: No extracted modifier range
+- **NDB-26 Repeater** (MXOX) - craft time: 1m 30s
+  - Materials: Reinforced Frame: Titanium (0.36 scu); Electronics: Gold (0.13 scu); Radiator: Lindinium (0.07 scu)
+  - Modifiers: No extracted modifier range
+- **NDB-28 Repeater** (MXOX) - craft time: 1m 30s
+  - Materials: Reinforced Frame: Titanium (0.64 scu); Electronics: Gold (0.22 scu); Radiator: Lindinium (0.13 scu)
+  - Modifiers: No extracted modifier range
+- **NDB-30 Repeater** (MXOX) - craft time: 1m 30s
+  - Materials: Reinforced Frame: Titanium (1.16 scu); Electronics: Gold (0.4 scu); Radiator: Lindinium (0.23 scu)
+  - Modifiers: No extracted modifier range
+- **NN-13 Cannon** (MXOX) - craft time: 1m 30s
+  - Materials: Frame: Titanium (0.36 scu); Wiring: Copper (0.14 scu); Radiator: Lindinium (0.07 scu)
+  - Modifiers: No extracted modifier range
+- **NN-14 Cannon** (MXOX) - craft time: 1m 30s
+  - Materials: Frame: Titanium (0.64 scu); Wiring: Copper (0.26 scu); Radiator: Lindinium (0.13 scu)
+  - Modifiers: No extracted modifier range
+- **NN-15 Cannon** (MXOX) - craft time: 1m 30s
+  - Materials: Frame: Titanium (1.16 scu); Wiring: Copper (0.46 scu); Radiator: Lindinium (0.23 scu)
+  - Modifiers: No extracted modifier range
+- **Singe Cannon (S1)** (BANU) - craft time: 1m 30s
+  - Materials: Frame: Tungsten (0.36 scu); Wiring: Copper (0.14 scu); Acceleration Unit: Acceleration Unit (0.07 scu)
+  - Modifiers: No extracted modifier range
+- **Singe Cannon (S2)** (BANU) - craft time: 1m 30s
+  - Materials: Frame: Tungsten (0.64 scu); Wiring: Copper (0.26 scu); Acceleration Unit: Acceleration Unit (0.13 scu)
+  - Modifiers: No extracted modifier range
+- **Singe Cannon (S3)** (BANU) - craft time: 1m 30s
+  - Materials: Frame: Tungsten (1.16 scu); Wiring: Copper (0.46 scu); Acceleration Unit: Acceleration Unit (0.23 scu)
+  - Modifiers: No extracted modifier range
+- **Tarantula GT-870 Mark 1 Cannon** (GATS) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Cycler: Riccite (0.05 scu); Barrel: Titanium (0.18 scu)
+  - Modifiers: No extracted modifier range
+- **Tarantula GT-870 Mark 2 Cannon** (GATS) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Cycler: Riccite (0.09 scu); Barrel: Titanium (0.32 scu)
+  - Modifiers: No extracted modifier range
+- **Tarantula GT-870 Mark 3 Cannon** (GATS) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Cycler: Riccite (0.17 scu); Barrel: Titanium (0.58 scu)
+  - Modifiers: No extracted modifier range
+- **Thlilye Laser Gatling** (TOAG) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Drive Motor: Ouratite (0.06 scu); Emitter: Dolivine (13 count)
+  - Modifiers: No extracted modifier range
+
+### Tractor Beams (12)
+
+- **SureGrip HV-S1 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Focus Zone Plate: Agricium (0.14 scu); Apeture Iris: Dolivine (7 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip HV-S2 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Focus Zone Plate: Agricium (0.26 scu); Apeture Iris: Dolivine (13 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip HV-S3 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Focus Zone Plate: Agricium (0.46 scu); Apeture Iris: Dolivine (23 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip HV-S3 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Focus Zone Plate: Agricium (0.46 scu); Apeture Iris: Dolivine (23 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip PR-S1 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Focus Zone Plate: Agricium (0.14 scu); Apeture Iris: Dolivine (7 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip PR-S2 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Focus Zone Plate: Agricium (0.26 scu); Apeture Iris: Dolivine (13 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip S1 Tractor Beam** (GRIN) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Focus Zone Plate: Agricium (0.14 scu); Apeture Iris: Dolivine (7 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip S2 Tractor Beam** (GRIN) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Focus Zone Plate: Agricium (0.26 scu); Apeture Iris: Dolivine (13 count)
+  - Modifiers: No extracted modifier range
+- **SureGrip S3 Tractor Beam** (GRIN) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Focus Zone Plate: Agricium (0.46 scu); Apeture Iris: Dolivine (23 count)
+  - Modifiers: No extracted modifier range
+- **ViseLock S1 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.36 scu); Focus Zone Plate: Agricium (0.14 scu); Apeture Iris: Dolivine (7 count)
+  - Modifiers: No extracted modifier range
+- **ViseLock S2 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (0.64 scu); Focus Zone Plate: Agricium (0.26 scu); Apeture Iris: Dolivine (13 count)
+  - Modifiers: No extracted modifier range
+- **ViseLock S3 Tractor Beam** (WEP) - craft time: 1m 30s
+  - Materials: Frame: Iron (1.16 scu); Focus Zone Plate: Agricium (0.46 scu); Apeture Iris: Dolivine (23 count)
+  - Modifiers: No extracted modifier range
+
+## Added Resources / Materials
+
+- **Acceleration Unit** (acceleration-unit) - technical crafting part, source still to validate
+- **Case** (case) - likely extraction fallback, not a confirmed resource
+- **Containment Matrix** (containment-matrix) - technical crafting part, source still to validate
+- **Coolant** (coolant) - technical crafting part, source still to validate
+- **Feynmaline** (feynmaline) - confirmed game resource
+- **Glacosite** (glacosite) - confirmed game resource
+- **Pump Impeller** (pump-impeller) - technical crafting part, source still to validate
+- **Shell** (shell) - technical crafting part, source still to validate
+- **Stator Cores** (stator-cores) - technical crafting part, source still to validate
+- **Transmitter** (transmitter) - technical crafting part, source still to validate
+
+> Note: `Case` appears mostly as a recipe slot label (`@crafting_ui_slotname_case`). A small number of recipes currently resolve it as a material, but that looks like an unresolved-reference fallback rather than a confirmed resource.
+
+## Removed Blueprints
+
+- **Artimex Arms Chairman's Club** - FPS Armor
+- **Artimex Core Chairman's Club** - FPS Armor
+- **Artimex Legs Chairman's Club** - FPS Armor
+- **Artimex Helmet Chairman's Club** - FPS Helmets
+
+## Existing Blueprints With Stat Changes - Item By Item
+
+- **Pembroke Exploration Suit** - FPS Armor
+  - kinetic resistance: 40% -> 25%
+  - energy resistance: 40% -> 25%
+  - thermal resistance: 40% -> 25%
+  - distortion resistance: 40% -> 25%
+  - biochemical resistance: 40% -> 25%
+- **Stirling Exploration Suit** - FPS Armor
+  - kinetic resistance: 40% -> 25%
+  - energy resistance: 40% -> 25%
+  - thermal resistance: 40% -> 25%
+  - distortion resistance: 40% -> 25%
+  - biochemical resistance: 40% -> 25%
+- **Xanthule Suit** - FPS Armor
+  - kinetic resistance: 15% -> 10%
+  - energy resistance: 15% -> 10%
+  - thermal resistance: 15% -> 10%
+  - distortion resistance: 15% -> 10%
+  - biochemical resistance: 15% -> 10%
+  - stun resistance: 25% -> 15%
+- **Arden-CL Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+  - heat limit: - -> 1
+  - cold limit: - -> 1
+- **Aril Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+  - heat limit: - -> 1
+  - cold limit: - -> 1
+- **CSP-68L Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+  - heat limit: - -> 1
+  - cold limit: - -> 1
+- **Morozov-CH Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+  - heat limit: - -> 1
+  - cold limit: - -> 1
+- **Stirling Exploration Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+  - heat limit: - -> 1
+  - cold limit: - -> 1
+  - radiation dissipation: - -> 1
+- **Strata Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+  - heat limit: - -> 1
+  - cold limit: - -> 1
+- **Testudo Backpack** - FPS Backpacks
+  - kinetic resistance: - -> 100%
+  - energy resistance: - -> 100%
+  - thermal resistance: - -> 100%
+  - distortion resistance: - -> 100%
+  - biochemical resistance: - -> 100%
+  - stun resistance: - -> 100%
+- **A23 Helmet Woodland** - FPS Undersuits
+  - cold limit: -5 -> -30
+  - heat limit: 50 -> 60
+  - radiation dissipation: 5 -> 81
+  - radiation capacity: 50 -> 15200
+  - impact force resistance: 100% -> 90%
+- **Beacon Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Calva Helmet** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+  - cold limit: -5 -> -30
+  - heat limit: 50 -> 60
+  - radiation dissipation: 5 -> 81
+  - radiation capacity: 50 -> 15200
+- **Deep-Space Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **ForceFlex Undersuit Black/Gold** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Lamont Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Levin Undersuit (Refurbished)** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Markanda Undersuit (Refurbished)** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Mirai Racing Flight Suit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Mirai Racing Helmet** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+  - cold limit: -5 -> -30
+  - heat limit: 50 -> 60
+  - radiation dissipation: 5 -> 81
+  - radiation capacity: 50 -> 15200
+- **Odyssey II Helmet Alpha** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+  - cold limit: -5 -> -30
+  - heat limit: 50 -> 60
+  - radiation dissipation: 5 -> 81
+  - radiation capacity: 50 -> 15200
+- **Odyssey II Undersuit Alpha** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Sabine Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Scaleweave Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Second Life Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **TCS-4 Undersuit** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Venture Undersuit Base** - FPS Undersuits
+  - kinetic resistance: 10% -> 5%
+  - energy resistance: 10% -> 5%
+  - thermal resistance: 10% -> 5%
+  - distortion resistance: 10% -> 5%
+  - biochemical resistance: 10% -> 5%
+  - stun resistance: 15% -> 10%
+- **Why Not? Helmet** - FPS Undersuits
+  - cold limit: -5 -> -30
+  - heat limit: 50 -> 60
+  - radiation dissipation: 5 -> 81
+  - radiation capacity: 50 -> 15200
+  - impact force resistance: 100% -> 90%
+- **Xanthule Helmet** - FPS Undersuits
+  - cold limit: -5 -> -30
+  - heat limit: 50 -> 60
+  - radiation dissipation: 5 -> 81
+  - radiation capacity: 50 -> 15200
+  - impact force resistance: 100% -> 90%
+- **Arrowhead "Boneyard" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Desert Shadow" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Executive" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Midnight" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Nightstalker" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Pathfinder" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Stormfall" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Voyager" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead "Warhawk" Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Arrowhead Sniper Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Deadrig Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Brimstone" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Desert Shadow" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Executive Edition" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Midnight" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Nightstalker" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Pathfinder" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Rager" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Voyager" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator "Warhawk" Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Devastator Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Killshot Rifle** - FPS Weapons
+  - rate of fire: - -> 1
+- **Lumin V "Valor" SMG** - FPS Weapons
+  - rate of fire: - -> 1
+- **Lumin V SMG** - FPS Weapons
+  - rate of fire: - -> 1
+- **Ravager-212 "Outcast" Twin Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Ravager-212 Twin Shotgun** - FPS Weapons
+  - rate of fire: - -> 1
+- **Ripper "Sunblock" SMG** - FPS Weapons
+  - rate of fire: - -> 1
+- **Salvo Esteban Frag Pistol** - FPS Weapons
+  - rate of fire: - -> 1
+- **Salvo Frag Pistol** - FPS Weapons
+  - rate of fire: - -> 1
+- **Tripledown Pistol** - FPS Weapons
+  - rate of fire: - -> 1
+
+## Existing Blueprints With Material Changes
+
+- **CSP-68H Backpack** - FPS Backpacks
+  - 4.7: Armoured Carapace: Ouratite (0.06 scu); Insulative Liner: Aslarite (0.02 scu)
+  - 4.8: Frame: Ouratite (0.06 scu)
+- **CSP-68M Backpack** - FPS Backpacks
+  - 4.7: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu)
+  - 4.8: Frame: Ouratite (0.04 scu)
+- **Novikov Backpack Smolder** - FPS Backpacks
+  - 4.7: Shell: Stileron (0.04 scu); Insulative Liner: Aslarite (0.08 scu)
+  - 4.8: Shell: Stileron (0.04 scu)
+- **Pembroke Backpack** - FPS Backpacks
+  - 4.7: Shell: Stileron (0.04 scu); Insulative Liner: Aslarite (0.08 scu)
+  - 4.8: Shell: Stileron (0.04 scu)
+- **Sinkhole Backpack** - FPS Backpacks
+  - 4.7: Armoured Carapace: Ouratite (0.04 scu); Insulative Liner: Aslarite (0.02 scu)
+  - 4.8: Frame: Ouratite (0.04 scu)
+- **Testudo Backpack** - FPS Backpacks
+  - 4.7: Armoured Carapace: Ouratite (0.04 scu); Armoured Carapace: Stileron (0.04 scu); Insulative Liner: Aslarite (0.02 scu)
+  - 4.8: Frame: Ouratite (0.04 scu)
+
+## Existing Blueprints With Name Changes
+
+- **Antium Helmet Jet** -> **Antium Core Jet** (FPS Helmets)
+- **Antium Arms Maroon** -> **Antium Helmet Jet** (FPS Armor)
+- **Monde Helmet Daimyo** -> **Monde Helmet Hemlock Camo** (FPS Helmets)
+
+## Extraction Notes
+
+- 549 modifier records in newly added blueprints still have unreadable value ranges from the current game XML/unp4k output.
+- Some ?technical parts? are currently visible as resources because they are used directly in recipes, but they are not all confirmed mineable/harvestable resources.

@@ -12,6 +12,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import DifferenceOutlinedIcon from '@mui/icons-material/DifferenceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useCallback, useMemo } from 'react';
 import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
@@ -26,6 +27,7 @@ export type MainView =
   | 'resources'
   | 'organizations'
   | 'planner'
+  | 'changelog'
   | 'account';
 
 const EXPANDED_WIDTH = 200;
@@ -221,6 +223,7 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
   const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
   const goToOrganizations = useCallback(() => onChangeView('organizations'), [onChangeView]);
   const goToPlanner = useCallback(() => onChangeView('planner'), [onChangeView]);
+  const goToChangelog = useCallback(() => onChangeView('changelog'), [onChangeView]);
   const goToAccount = useCallback(() => onChangeView('account'), [onChangeView]);
   const canAccessOrganizations = Boolean(user);
   const accountIcon = useCallback(
@@ -275,6 +278,13 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       label: t('Resources', 'Ressources'),
       icon: <ScienceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
       onClick: goToResources,
+    },
+    {
+      key: 'changelog',
+      active: mainView === 'changelog',
+      label: t('Changelog', 'Changelog'),
+      icon: <DifferenceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      onClick: goToChangelog,
     },
     ...(canAccessOrganizations
       ? [{
@@ -390,6 +400,13 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           label={t('Resources', 'Ressources')}
           icon={<ScienceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           onClick={goToResources}
+        />
+        <NavItem
+          active={mainView === 'changelog'}
+          collapsed={collapsed}
+          label={t('Changelog', 'Changelog')}
+          icon={<DifferenceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
+          onClick={goToChangelog}
         />
         {canAccessOrganizations && (
           <NavItem

@@ -29,11 +29,12 @@ export function resourceSlugFromPathname(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
-export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' | 'resources' | 'organizations' | 'planner' | 'account' {
+export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' | 'resources' | 'organizations' | 'planner' | 'changelog' | 'account' {
   if (pathname === '/missions' || pathname.startsWith('/missions/')) return 'missions';
   if (pathname === '/resources' || pathname.startsWith('/resources/')) return 'resources';
   if (pathname === '/organizations' || pathname.startsWith('/organizations/')) return 'organizations';
   if (pathname === '/planner' || pathname.startsWith('/planner/')) return 'planner';
+  if (pathname === '/changelog' || pathname.startsWith('/changelog/')) return 'changelog';
   if (pathname === '/account' || pathname.startsWith('/account/')) return 'account';
   return 'blueprints';
 }

@@ -190,6 +190,7 @@ export function AccountPage() {
     optimisticState,
     syncStatus,
     syncError,
+    copyLiveDataToPtu,
     loginWithDiscord,
     logout,
     deleteAccount,
@@ -227,6 +228,7 @@ export function AccountPage() {
   const [assetSearch, setAssetSearch] = useState('');
   const [importModalDismissed, setImportModalDismissed] = useState(false);
   const importAction = useAsyncAction();
+  const copyLiveToPtuAction = useAsyncAction();
   const [rsiDialogOpen, setRsiDialogOpen] = useState(false);
   const [rsiCode, setRsiCode] = useState('');
   const [rsiHandleInput, setRsiHandleInput] = useState('');
@@ -735,6 +737,28 @@ export function AccountPage() {
         'Failed to delete the account.',
         'La suppression du compte a echoue.',
         'Das Konto konnte nicht gelöscht werden.',
+      ),
+    );
+  };
+
+  const handleCopyLiveDataToPtu = async () => {
+    const confirmed = window.confirm(
+      t(
+        'Copy your LIVE favorites, inventory, planner, organization shares and craft requests into PTU? This replaces the current PTU account data.',
+        'Copier tes favoris, inventaire, planner, partages d organisation et demandes de craft LIVE vers le PTU ? Cela remplace les donnees de compte PTU actuelles.',
+        'LIVE-Favoriten, Inventar, Planner, Organisationsfreigaben und Craft-Anfragen nach PTU kopieren? Das ersetzt die aktuellen PTU-Kontodaten.',
+      ),
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    await copyLiveToPtuAction.run(
+      () => copyLiveDataToPtu(),
+      t(
+        'Failed to copy LIVE account data to PTU.',
+        'La copie des donnees de compte LIVE vers PTU a echoue.',
+        'Die LIVE-Kontodaten konnten nicht nach PTU kopiert werden.',
       ),
     );
   };
@@ -2431,6 +2455,54 @@ export function AccountPage() {
                     {rsiUnlinkAction.error}
                   </Alert>
                 )}
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    backgroundColor: alpha(theme.palette.info.main, 0.06),
+                    borderColor: alpha(theme.palette.info.main, 0.22),
+                  }}
+                >
+                  <Stack spacing={1.25}>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {t('PTU data copy', 'Copie des donnees PTU', 'PTU-Datenkopie')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
+                        {t(
+                          'Copies LIVE account data into the PTU account scope only. PTU data is never copied back to LIVE.',
+                          'Copie les donnees LIVE uniquement vers le scope de compte PTU. Les donnees PTU ne sont jamais copiees vers LIVE.',
+                          'Kopiert LIVE-Kontodaten nur in den PTU-Kontobereich. PTU-Daten werden nie nach LIVE zuruckkopiert.',
+                        )}
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      onClick={() => { void handleCopyLiveDataToPtu(); }}
+                      disabled={copyLiveToPtuAction.busy || activeDataset.channel !== 'ptu'}
+                    >
+                      {copyLiveToPtuAction.busy
+                        ? t('Copying...', 'Copie...', 'Kopiere...')
+                        : t('Copy LIVE to PTU', 'Copier LIVE vers PTU', 'LIVE nach PTU kopieren')}
+                    </Button>
+                    {activeDataset.channel !== 'ptu' && (
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {t(
+                          'Switch to a PTU dataset before running the copy.',
+                          'Passe sur un dataset PTU avant de lancer la copie.',
+                          'Wechsle vor dem Kopieren zu einem PTU-Dataset.',
+                        )}
+                      </Typography>
+                    )}
+                    {copyLiveToPtuAction.error && (
+                      <Alert severity="error" variant="outlined">
+                        {copyLiveToPtuAction.error}
+                      </Alert>
+                    )}
+                  </Stack>
+                </Paper>
 
                 <Button
                   variant="secondary"

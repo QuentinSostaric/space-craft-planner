@@ -196,7 +196,16 @@ export function clampQualityValue(value: number | undefined): number | undefined
 }
 
 export function isResourceSlot(slot: MaterialSlot): boolean {
-  return Boolean(slot.requiredResource?.trim());
+  return Boolean(slot.requiredResource?.trim()) && !isPlaceholderResourceSlot(slot);
+}
+
+export function isPlaceholderResourceSlot(slot: MaterialSlot): boolean {
+  if (slot.isPlaceholderResource) return true;
+  const normalized = String(slot.requiredResource ?? slot.requirementName ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized === 'case' || normalized === 'containment-matrix' || normalized === 'shell';
 }
 
 export function getSlotRequirementName(slot: MaterialSlot): string {

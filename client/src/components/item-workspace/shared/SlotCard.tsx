@@ -21,6 +21,7 @@ import {
   clampQualityValue,
   formatSlotQuantity,
   getSlotRequirementName,
+  isPlaceholderResourceSlot,
   isResourceSlot,
 } from '../../../utils/crafting';
 import { FONT_HEADING, FONT_MONO } from '../../../theme';
@@ -63,6 +64,7 @@ export function SlotCard({
   const isAssigned = qualityValue !== undefined;
   const requirementName = getSlotRequirementName(slot);
   const isResourceRequirement = isResourceSlot(slot);
+  const isPlaceholderResource = isPlaceholderResourceSlot(slot);
 
   const modifiers = useMemo(() => {
     if (!isAssigned || qualityValue === undefined) return [];
@@ -151,7 +153,11 @@ export function SlotCard({
               variant="caption"
               sx={{ fontSize: '0.7rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '.1em' }}
             >
-              {isResourceRequirement ? t('Resource', 'Ressource') : t('Item', 'Objet')}
+              {isPlaceholderResource
+                ? t('System slot', 'Slot systeme')
+                : isResourceRequirement
+                  ? t('Resource', 'Ressource')
+                  : t('Item', 'Objet')}
             </Typography>
             <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 600 }}>
               {requirementName}

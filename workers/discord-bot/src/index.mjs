@@ -9,7 +9,7 @@ import {
   DISCORD_MESSAGE_FLAG_EPHEMERAL,
   getCommandOption,
 } from './commands.mjs';
-import { createBucketAccountStore, readAccountRecord } from '../../../shared/accountStorage.mjs';
+import { createBucketAccountStore, readScopedAccountRecord } from '../../../shared/accountStorage.mjs';
 import { respondToCraftRequest, saveCraftRequestNotificationState } from '../../../shared/craftRequestService.mjs';
 import {
   buildCraftRequestOwnerDmPayload,
@@ -184,7 +184,12 @@ async function loadOwnerCraftRequestContext(env, interaction) {
   }
 
   const accountStore = getAccountStore(env, parsedCustomId.storageScope);
-  const ownerAccount = await readAccountRecord(accountStore, parsedCustomId.ownerAccountId);
+  const ownerAccount = await readScopedAccountRecord(
+    accountStore,
+    parsedCustomId.ownerAccountId,
+    null,
+    parsedCustomId.datasetScope,
+  );
   if (!ownerAccount) {
     return { error: 'The blueprint owner account could not be loaded.' };
   }
@@ -201,7 +206,12 @@ async function loadOwnerCraftRequestContext(env, interaction) {
     return { error: 'This craft request could not be found anymore.' };
   }
 
-  const requesterAccount = await readAccountRecord(accountStore, request.requesterAccountId);
+  const requesterAccount = await readScopedAccountRecord(
+    accountStore,
+    request.requesterAccountId,
+    null,
+    request.datasetScope ?? parsedCustomId.datasetScope,
+  );
   if (!requesterAccount) {
     return { error: 'The requester account could not be loaded.' };
   }
@@ -209,6 +219,7 @@ async function loadOwnerCraftRequestContext(env, interaction) {
   return {
     action: parsedCustomId.action,
     storageScope: parsedCustomId.storageScope,
+    datasetScope: request.datasetScope ?? parsedCustomId.datasetScope,
     accountStore,
     ownerAccount,
     requesterAccount,
@@ -260,6 +271,7 @@ async function handleCraftRequestComponent(env, interaction) {
         context.ownerAccount,
         context.request.id,
         targetStatus,
+        { datasetScope: context.datasetScope },
       );
 
       return jsonResponse(
@@ -313,6 +325,7 @@ async function handleInternalCraftRequestCreated(request, env) {
           ownerDiscordChannelId: deliveredChannelId,
           ownerDiscordMessageId: deliveredMessageId,
         },
+        { datasetScope: craftRequest.datasetScope },
       );
     }
     return jsonResponse({ ok: true });
@@ -366,6 +379,7 @@ async function handleInternalCraftRequestStatusChanged(request, env) {
           ownerDiscordChannelId: null,
           ownerDiscordMessageId: null,
         },
+        { datasetScope: craftRequest.datasetScope },
       );
       return jsonResponse({ ok: true, action: 'deleted' });
     }

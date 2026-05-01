@@ -42,6 +42,7 @@ export interface MaterialSlot {
   requirementType: MaterialSlotRequirementType;
   requirementName: string;
   requiredResource: string;
+  isPlaceholderResource?: boolean;
   requiredItem: string | null;
   requiredItemClass: string | null;
   minQuality: number | null;
@@ -523,6 +524,7 @@ export interface Resource {
   name: string;
   description: string;
   color: string;
+  isPlaceholder?: boolean;
   visualKind: ResourceVisualKind | null;
   visual: BlueprintMediaAsset | null;
   visualStatus: string | null;
@@ -590,7 +592,7 @@ export interface DatasetChangelogSection {
 }
 
 export interface DatasetChangelog {
-  comparedAgainstChannel: 'live';
+  comparedAgainstChannel: DatasetChannel;
   comparedAgainstDatasetId: string;
   comparedAgainstVersion: string;
   generatedAt: string;

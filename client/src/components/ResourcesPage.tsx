@@ -103,6 +103,11 @@ interface FlatMissionContract {
   group: MissionRewardFactionGroup;
 }
 
+function isPlaceholderResource(resource: Resource) {
+  if (resource.isPlaceholder || resource.visualStatus === 'placeholder-slot') return true;
+  return resource.id === 'case' || resource.id === 'containment-matrix' || resource.id === 'shell';
+}
+
 interface ResourceCardProps {
   resource: Resource;
   insight: ResourceInsight | null;
@@ -1537,7 +1542,10 @@ export function ResourcesPage() {
   const { t, lang } = useI18n();
   const { account, updateInventoryResources } = useAuth();
   const theme = useTheme();
-  const resources = activeDataset.resources;
+  const resources = useMemo(
+    () => activeDataset.resources.filter((resource) => !isPlaceholderResource(resource)),
+    [activeDataset.resources],
+  );
   const [localInventoryResources, setLocalInventoryResources] = useState(() =>
     readLocalInventoryResources(),
   );
@@ -1585,9 +1593,15 @@ export function ResourcesPage() {
     [activeDataset.resourceInsights, allContracts, blueprints, materialSources, resources],
   );
 
+  const visibleResourceIds = useMemo(() => new Set(resources.map((resource) => resource.id)), [resources]);
+  const visibleResourceInsights = useMemo(
+    () => resourceInsights.filter((insight) => visibleResourceIds.has(insight.resourceId)),
+    [resourceInsights, visibleResourceIds],
+  );
+
   const resourceInsightById = useMemo(
-    () => new Map(resourceInsights.map((insight) => [insight.resourceId, insight])),
-    [resourceInsights],
+    () => new Map(visibleResourceInsights.map((insight) => [insight.resourceId, insight])),
+    [visibleResourceInsights],
   );
 
   const resourcePlannerUnitById = useMemo(
@@ -1704,22 +1718,22 @@ export function ResourcesPage() {
 
   const systems = useMemo(
     () =>
-      [...new Set(resourceInsights.flatMap((insight) => insight.systems))].sort((left, right) =>
+      [...new Set(visibleResourceInsights.flatMap((insight) => insight.systems))].sort((left, right) =>
         left.localeCompare(right),
       ),
-    [resourceInsights],
+    [visibleResourceInsights],
   );
 
   const blueprintCategories = useMemo(
     () =>
       [
         ...new Set(
-          resourceInsights.flatMap(
+          visibleResourceInsights.flatMap(
             (insight) => Object.keys(insight.blueprintCategoryCounts) as ItemCategory[],
           ),
         ),
       ].sort((left, right) => left.localeCompare(right)),
-    [resourceInsights],
+    [visibleResourceInsights],
   );
 
   useEffect(() => {
@@ -1833,13 +1847,13 @@ export function ResourcesPage() {
     });
 
   const resourceStats = useMemo(() => {
-    const systemCount = new Set(resourceInsights.flatMap((insight) => insight.systems)).size;
-    const missionLinkedCount = resourceInsights.filter(
+    const systemCount = new Set(visibleResourceInsights.flatMap((insight) => insight.systems)).size;
+    const missionLinkedCount = visibleResourceInsights.filter(
       (insight) => insight.missionObjectiveContractCount > 0,
     ).length;
     const providerCount =
       materialSources?.summary?.providerCount ??
-      resourceInsights.reduce((sum, insight) => sum + insight.providerCount, 0);
+      visibleResourceInsights.reduce((sum, insight) => sum + insight.providerCount, 0);
 
     return {
       resourceCount: resources.length,
@@ -1847,7 +1861,7 @@ export function ResourcesPage() {
       missionLinkedCount,
       providerCount,
     };
-  }, [materialSources, resourceInsights, resources.length]);
+  }, [materialSources, resources.length, visibleResourceInsights]);
 
   const selectedInsight = selectedResource
     ? resourceInsightById.get(selectedResource.id) ?? null

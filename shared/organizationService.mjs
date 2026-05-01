@@ -3,6 +3,7 @@ import {
   findAccountIdsSharingOrganizationResources,
   readAccountIdByRsiHandle,
   readAccountRecord,
+  readScopedAccountRecord,
   saveAccountOrganizations,
   writeAccountRecord,
 } from './accountStorage.mjs';
@@ -1232,7 +1233,8 @@ export async function refreshAccountOrganizationMembers(
   return safeSyncAndDecorateAccountOrganizations(store, nextAccount, apiKey, { fetchImpl });
 }
 
-export async function buildOrganizationSharedBlueprints(store, account, sid) {
+export async function buildOrganizationSharedBlueprints(store, account, sid, options = {}) {
+  const datasetScope = options?.datasetScope ?? account?.datasetScope ?? 'live';
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid) {
     throw new OrganizationServiceError(400, 'Organization SID is required.');
@@ -1257,28 +1259,19 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
       'Blueprint sharing is currently disabled for this organization.',
     );
   }
-  let sharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
+  const legacySharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
     ? organizationRecord.sharedAccountIds
     : [];
+  const scopedSharedAccountIds = await findAccountIdsSharingOrganizationBlueprints(
+    store,
+    normalizedSid,
+    datasetScope,
+  );
 
-  if (sharedAccountIds.length === 0) {
-    const backfilledSharedAccountIds = await findAccountIdsSharingOrganizationBlueprints(
-      store,
-      normalizedSid,
-    );
-    if (backfilledSharedAccountIds.length > 0) {
-      sharedAccountIds = backfilledSharedAccountIds;
-      if (organizationRecord) {
-        organizationRecord = await writeOrganizationRecord(store, {
-          ...organizationRecord,
-          sharedAccountIds: backfilledSharedAccountIds,
-          updatedAt: toIsoNow(),
-        });
-      }
-    }
-  }
-
-  const candidateAccountIds = new Set(sharedAccountIds);
+  const candidateAccountIds = new Set([
+    ...legacySharedAccountIds,
+    ...scopedSharedAccountIds,
+  ]);
 
   if (organizationRecord?.memberSnapshot?.length) {
     const snapshotMemberAccountIds = await Promise.all(
@@ -1300,7 +1293,7 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
   const members = (
     await Promise.all(
       [...candidateAccountIds].map(async (memberAccountId) => {
-        const memberAccount = await readAccountRecord(store, memberAccountId);
+        const memberAccount = await readScopedAccountRecord(store, memberAccountId, null, datasetScope);
         if (!memberAccount?.rsi?.handle) {
           return null;
         }
@@ -1391,7 +1384,8 @@ export async function buildOrganizationSharedBlueprints(store, account, sid) {
   };
 }
 
-export async function buildOrganizationSharedResources(store, account, sid) {
+export async function buildOrganizationSharedResources(store, account, sid, options = {}) {
+  const datasetScope = options?.datasetScope ?? account?.datasetScope ?? 'live';
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid) {
     throw new OrganizationServiceError(400, 'Organization SID is required.');
@@ -1410,28 +1404,19 @@ export async function buildOrganizationSharedResources(store, account, sid) {
 
   let organizationRecord = await readOrganizationRecord(store, normalizedSid);
   assertActiveOrganizationRecord(organizationRecord);
-  let sharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
+  const legacySharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
     ? organizationRecord.sharedAccountIds
     : [];
+  const scopedSharedAccountIds = await findAccountIdsSharingOrganizationResources(
+    store,
+    normalizedSid,
+    datasetScope,
+  );
 
-  if (sharedAccountIds.length === 0) {
-    const backfilledSharedAccountIds = await findAccountIdsSharingOrganizationResources(
-      store,
-      normalizedSid,
-    );
-    if (backfilledSharedAccountIds.length > 0) {
-      sharedAccountIds = backfilledSharedAccountIds;
-      if (organizationRecord) {
-        organizationRecord = await writeOrganizationRecord(store, {
-          ...organizationRecord,
-          sharedAccountIds: backfilledSharedAccountIds,
-          updatedAt: toIsoNow(),
-        });
-      }
-    }
-  }
-
-  const candidateAccountIds = new Set(sharedAccountIds);
+  const candidateAccountIds = new Set([
+    ...legacySharedAccountIds,
+    ...scopedSharedAccountIds,
+  ]);
 
   if (organizationRecord?.memberSnapshot?.length) {
     const snapshotMemberAccountIds = await Promise.all(
@@ -1453,7 +1438,7 @@ export async function buildOrganizationSharedResources(store, account, sid) {
   const members = (
     await Promise.all(
       [...candidateAccountIds].map(async (memberAccountId) => {
-        const memberAccount = await readAccountRecord(store, memberAccountId);
+        const memberAccount = await readScopedAccountRecord(store, memberAccountId, null, datasetScope);
         if (!memberAccount?.rsi?.handle) {
           return null;
         }
