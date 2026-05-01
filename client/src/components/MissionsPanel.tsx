@@ -8,7 +8,6 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
@@ -31,6 +30,8 @@ import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupported
 import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
@@ -42,7 +43,6 @@ import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
 import { ScaleBadge } from './ui/RarityBadge';
 import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLicensedIcon';
-import { StatBar } from './ui/StatBar';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import {
@@ -659,16 +659,16 @@ function ContractCard({
   const [imgError, setImgError] = useState(false);
   const factionType = group.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
-  const maxStanding = getMissionMaxStanding(contract);
   const standingLabel = contract.minimumRequiredStandings.length > 0 ? formatStandingSummary(contract.minimumRequiredStandings, lang) : null;
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
-  const visibleBlueprints = contract.rewardedBlueprints.slice(0, 3);
-  const blueprintOverflow = contract.rewardedBlueprints.length - 3;
+  const blueprintCount = getMissionRewardedBlueprintCount(contract);
   const primaryLocation = getPrimaryMissionLocation(contract);
   const locationIconName = primaryLocation ? getLocationIconName(primaryLocation) : null;
   const heroAsset = getMissionHeroAsset(contract, group);
   const showHeroImage = Boolean(heroAsset) && !imgError;
   const activityKind = getMissionActivityKind(contract);
+  const reputationActivity = getMissionReputationActivity(contract);
+  const blueprintChanceValue = Math.max(0, Math.min(100, blueprintDropChance * 100));
   const activityLabel = (() => {
     switch (activityKind) {
       case 'combat':
@@ -680,96 +680,133 @@ function ContractCard({
         return t('Objective activity', 'Activite d objectif');
     }
   })();
-
+  const activityShortLabel = (() => {
+    switch (activityKind) {
+      case 'combat':
+        return t('Combat', 'Combat');
+      case 'recovery':
+        return t('Recovery', 'Recuperation');
+      case 'objective':
+      default:
+        return t('Objective', 'Objectif');
+    }
+  })();
   return (
     <Card
       role="listitem"
+      onClick={onOpen}
       sx={{
         height: '100%',
+        minHeight: { xs: 'auto', md: 334 },
         display: 'flex',
-        flexDirection: 'column',
-        borderColor: theme.palette.ui.border,
-        backgroundColor: theme.palette.ui.surface1,
-        transition: 'border-color 150ms, background-color 150ms, transform 150ms',
+        borderColor: alpha(theme.palette.brand.blueLight, 0.22),
+        background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.15)} 0%, ${alpha(theme.palette.background.default, 0.98)} 48%, ${alpha(theme.palette.common.black, 0.28)} 100%)`,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'border-color 150ms, background-color 150ms, box-shadow 150ms, transform 150ms',
         '&:hover': {
-          borderColor: theme.palette.ui.borderStrong,
-          backgroundColor: theme.palette.ui.surface2,
-          transform: 'translateY(-2px)',
+          borderColor: alpha(theme.palette.secondary.main, 0.55),
+          boxShadow: `0 20px 44px ${alpha(theme.palette.common.black, 0.32)}`,
+          transform: 'translateY(-1px)',
         },
       }}
     >
-      <CardActionArea onClick={onOpen} sx={{ height: '100%', alignItems: 'stretch' }}>
+      <Box
+        sx={{
+          height: '100%',
+          width: '100%',
+          flex: 1,
+          minWidth: 0,
+          display: 'grid',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(148px, 35%) minmax(0, 1fr)' },
+          alignItems: 'stretch',
+        }}
+      >
         <Box
           sx={{
             position: 'relative',
-            height: { xs: 132, sm: 146 },
-            background: `linear-gradient(160deg, ${alpha(
-              isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
-              theme.palette.mode === 'dark' ? 0.12 : 0.08,
-            )}, ${alpha(theme.palette.brand.blue, theme.palette.mode === 'dark' ? 0.14 : 0.08)} 58%, ${alpha(
-              theme.palette.background.default,
-              0.45,
-            )})`,
-            borderBottom: `1px solid ${theme.palette.divider}`,
+            minHeight: { xs: 210, md: 334 },
+            height: '100%',
+            background: `
+              radial-gradient(circle at 20% 12%, ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.18)}, transparent 24%),
+              linear-gradient(135deg, ${alpha(isUnlawful ? theme.palette.error.dark : theme.palette.secondary.dark, 0.32)}, transparent 50%),
+              linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.18)} 0%, ${alpha(theme.palette.background.default, 0.96)} 100%)
+            `,
+            borderRight: { md: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}` },
+            borderBottom: { xs: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`, md: 0 },
             overflow: 'hidden',
           }}
         >
-          <Box sx={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at top right, ${alpha(theme.palette.common.white, 0.08)}, transparent 45%)` }} />
+          <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.24)} 56%, ${alpha(theme.palette.common.black, 0.72)} 100%), linear-gradient(180deg, ${alpha(theme.palette.common.black, 0.08)} 0%, ${alpha(theme.palette.common.black, 0.24)} 52%, ${alpha(theme.palette.common.black, 0.86)} 100%)` }} />
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              opacity: 0.42,
+              backgroundImage: `
+                linear-gradient(${alpha(theme.palette.common.white, 0.035)} 1px, transparent 1px),
+                linear-gradient(90deg, ${alpha(theme.palette.common.white, 0.028)} 1px, transparent 1px),
+                radial-gradient(circle at 72% 38%, ${alpha(theme.palette.secondary.main, 0.12)}, transparent 30%)
+              `,
+              backgroundSize: '42px 42px, 42px 42px, 100% 100%',
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              left: '-10%',
+              right: '12%',
+              bottom: '24%',
+              height: 42,
+              borderRadius: 1,
+              transform: 'skewX(-18deg)',
+              background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.28)} 10%, ${alpha(theme.palette.common.black, 0.72)} 48%, ${alpha(theme.palette.secondary.main, 0.18)} 100%)`,
+              borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.12)}`,
+              borderBottom: `1px solid ${alpha(theme.palette.common.black, 0.5)}`,
+              boxShadow: `0 16px 34px ${alpha(theme.palette.common.black, 0.42)}`,
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              left: '8%',
+              right: '32%',
+              bottom: '36%',
+              height: 10,
+              transform: 'skewX(-18deg)',
+              background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.brand.blueLight, 0.22)}, transparent)`,
+              opacity: 0.65,
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              background: `linear-gradient(90deg, ${alpha(theme.palette.background.default, 0.12)} 0%, transparent 42%, ${alpha(theme.palette.common.black, 0.48)} 100%)`,
+            }}
+          />
 
-          <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}>
-            <ScaleBadge scale={contract.availability.derivedScale} label={formatScaleLabel(contract.availability.derivedScale, lang)} />
-          </Box>
-
-          <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            {primaryLocation && (
-              <Chip
-                label={primaryLocation}
-                size="small"
-                variant="outlined"
-                icon={locationIconName ? <StarCitizenLicensedIcon name={locationIconName} size={14} dimmed /> : undefined}
-                sx={{
-                  height: 24,
-                  fontSize: '0.7rem',
-                  backgroundColor: alpha(theme.palette.background.paper, 0.5),
-                  backdropFilter: 'blur(8px)',
-                  '& .MuiChip-icon': { ml: '6px' },
-                }}
-              />
-            )}
-            <Box
+          <Box sx={{ position: 'absolute', top: 18, left: 18, right: 18, zIndex: 2, display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+            <Chip
+              label={activityShortLabel}
+              icon={<MissionActivityIcon kind={activityKind} size="0.95rem" />}
+              size="small"
+              title={activityLabel}
               sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                flexShrink: 0,
-                backgroundColor: isUnlawful ? theme.palette.error.main : theme.palette.success.main,
+                height: 34,
+                maxWidth: '72%',
+                color: isUnlawful ? theme.palette.error.light : activityKind === 'recovery' ? theme.palette.success.light : theme.palette.secondary.light,
+                backgroundColor: alpha(theme.palette.background.default, 0.58),
+                backdropFilter: 'blur(12px)',
+                border: `1px solid ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.secondary.main, 0.58)}`,
+                borderRadius: 1,
+                '& .MuiChip-label': { px: 0.9, fontFamily: FONT_HEADING, fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' },
+                '& .MuiChip-icon': { ml: '8px', mr: '-2px', color: 'inherit' },
               }}
-              title={factionType || undefined}
             />
           </Box>
 
-          <Box sx={{ position: 'absolute', right: 12, bottom: 12, zIndex: 1 }}>
-            <Box
-              title={activityLabel}
-              sx={{
-                width: 34,
-                height: 34,
-                borderRadius: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: theme.palette.text.primary,
-                backgroundColor: alpha(theme.palette.background.paper, 0.65),
-                backdropFilter: 'blur(10px)',
-                border: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
-                boxShadow: `0 8px 18px ${alpha(theme.palette.common.black, 0.22)}`,
-              }}
-            >
-              <MissionActivityIcon kind={activityKind} />
-            </Box>
-          </Box>
-
-          <Box sx={{ width: '100%', height: '100%', p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ width: '100%', height: '100%', p: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {showHeroImage ? (
               <CardMedia
                 component="img"
@@ -779,36 +816,36 @@ function ContractCard({
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 sx={{
-                  maxHeight: '100%',
-                  maxWidth: '100%',
+                  maxWidth: '52%',
+                  maxHeight: '48%',
                   objectFit: 'contain',
-                  p: 1.5,
                   filter: theme.palette.mode === 'dark'
-                    ? 'drop-shadow(0 10px 20px rgba(0,0,0,0.4))'
-                    : 'drop-shadow(0 10px 20px rgba(0,0,0,0.12))',
-                  opacity: 0.96,
-                  transition: 'transform 220ms ease',
-                  '.MuiCardActionArea-root:hover &': {
-                    transform: 'scale(1.04)',
+                    ? 'drop-shadow(0 22px 30px rgba(0,0,0,0.62)) saturate(0.9)'
+                    : 'drop-shadow(0 18px 28px rgba(0,0,0,0.2)) saturate(0.96)',
+                  opacity: 0.28,
+                  transition: 'transform 240ms ease, opacity 240ms ease',
+                  '.MuiCard-root:hover &': {
+                    transform: 'scale(1.05)',
+                    opacity: 0.38,
                   },
                 }}
               />
             ) : (
               <Box
                 sx={{
-                  width: 64,
-                  height: 64,
+                  width: 92,
+                  height: 92,
                   borderRadius: 1.5,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: alpha(
                     isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
-                    0.15,
+                    0.12,
                   ),
                   border: `1px solid ${alpha(
                     isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
-                    0.25,
+                    0.26,
                   )}`,
                   flexShrink: 0,
                 }}
@@ -817,7 +854,7 @@ function ContractCard({
                   sx={{
                     fontFamily: FONT_HEADING,
                     fontWeight: 700,
-                    fontSize: '1.1rem',
+                    fontSize: '1.45rem',
                     letterSpacing: '0.04em',
                     color: isUnlawful ? theme.palette.error.light : theme.palette.primary.light,
                     lineHeight: 1,
@@ -829,18 +866,99 @@ function ContractCard({
               </Box>
             )}
           </Box>
+
+          <Box sx={{ position: 'absolute', left: 18, right: 18, bottom: 18, zIndex: 2, minWidth: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 1.5 }}>
+            <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
+              {showHeroImage ? (
+                <Box
+                  component="img"
+                  src={heroAsset!}
+                  alt=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  sx={{
+                    width: 38,
+                    height: 38,
+                    objectFit: 'contain',
+                    flexShrink: 0,
+                    filter: `drop-shadow(0 2px 8px ${alpha(theme.palette.common.black, 0.65)})`,
+                  }}
+                />
+              ) : null}
+              <Stack spacing={0.1} sx={{ minWidth: 0 }}>
+                <Typography
+                  noWrap
+                  sx={{
+                    color: theme.palette.text.primary,
+                    fontFamily: FONT_HEADING,
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    lineHeight: 1,
+                    textShadow: `0 1px 8px ${alpha(theme.palette.common.black, 0.65)}`,
+                  }}
+                >
+                  {getMissionEmployerName(contract, group)}
+                </Typography>
+                <Typography
+                  noWrap
+                  sx={{
+                    color: alpha(theme.palette.text.primary, 0.68),
+                    fontFamily: FONT_HEADING,
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {group.contractorDisplayName}
+                </Typography>
+              </Stack>
+            </Stack>
+            <Stack direction="row" spacing={0.65} alignItems="center" sx={{ color: isUnlawful ? theme.palette.error.light : theme.palette.success.light, flexShrink: 0 }}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: isUnlawful ? theme.palette.error.main : theme.palette.success.main,
+                  boxShadow: `0 0 0 3px ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.16)}`,
+                }}
+              />
+              <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {factionType === 'unlawful' ? t('Unlawful', 'Illegal') : t('Lawful', 'Legal')}
+              </Typography>
+            </Stack>
+          </Box>
         </Box>
 
-        <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: 1.25, flex: 1 }}>
-          <Box>
+        <Box
+          sx={{
+            p: { xs: '16px', md: '16px' },
+            display: 'grid',
+            gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 116px' },
+            gridTemplateRows: { xs: 'auto auto auto minmax(0, 1fr)', lg: 'auto auto minmax(84px, 1fr)' },
+            columnGap: { xs: 0, lg: 1.2 },
+            rowGap: 1,
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
+          <Stack spacing={0.35} sx={{ gridColumn: { xs: '1', lg: '1' }, minWidth: 0 }}>
             <Typography
               sx={{
                 fontFamily: FONT_HEADING,
-                fontWeight: 700,
-                fontSize: '1rem',
-                lineHeight: 1.1,
+                fontWeight: 800,
+                fontSize: { xs: '1.42rem', md: '1.18rem', xl: '1.24rem' },
+                lineHeight: 0.95,
                 color: theme.palette.text.primary,
                 textTransform: 'uppercase',
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
               }}
             >
               {getMissionContractName(contract)}
@@ -848,52 +966,251 @@ function ContractCard({
             <Typography
               variant="caption"
               sx={{
-                color: theme.palette.brand.blueLight,
-                fontSize: '0.75rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                color: alpha(theme.palette.text.primary, 0.72),
+                fontSize: '0.68rem',
+                fontWeight: 600,
               }}
             >
-              {group.contractorDisplayName} // {group.faction?.displayName ?? group.contractorDisplayName}
+              {group.contractorDisplayName}
             </Typography>
-          </Box>
+          </Stack>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {standingLabel && (
-              <StatBar
-                label={t('Standing', 'Reputation', 'Ruf')}
-                value={standingLabel}
-                fill={Math.min(maxStanding / 15000, 1) * 100}
+          <Box
+            sx={{
+              display: { xs: 'grid', lg: 'contents' },
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 116px' },
+              gap: { xs: 1.25, lg: 1.2 },
+              alignItems: 'stretch',
+            }}
+          >
+            <Stack spacing={0.85} sx={{ minWidth: 0, gridColumn: { xs: '1', lg: '1' }, gridRow: { lg: '2' } }}>
+              {primaryLocation && (
+                <Stack direction="row" spacing={0.85} alignItems="center" sx={{ minWidth: 0, color: 'text.secondary' }}>
+                  {locationIconName ? (
+                    <StarCitizenLicensedIcon name={locationIconName} size={18} dimmed />
+                  ) : (
+                    <PlaceOutlinedIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
+                  )}
+                  <Stack direction="row" spacing={1.2} alignItems="baseline" sx={{ minWidth: 0 }}>
+                    <Typography
+                      noWrap
+                      variant="body2"
+                      sx={{
+                        color: theme.palette.text.primary,
+                        fontFamily: FONT_HEADING,
+                        fontSize: { xs: '0.98rem', md: '0.76rem' },
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {primaryLocation}
+                    </Typography>
+                    <Typography
+                      noWrap
+                      variant="caption"
+                      sx={{
+                        color: alpha(theme.palette.brand.blueLight, 0.68),
+                        fontSize: '0.62rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      {formatScaleLabel(contract.availability.derivedScale, lang)}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              )}
+              <Box sx={{ display: 'flex', gap: 0.5, minWidth: 0, overflow: 'hidden', flexWrap: 'wrap' }}>
+                <Chip
+                  label={activityShortLabel}
+                  icon={<MissionActivityIcon kind={activityKind} size="0.88rem" />}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    height: 27,
+                    borderRadius: 1,
+                    color: isUnlawful ? theme.palette.error.light : activityKind === 'recovery' ? theme.palette.success.light : theme.palette.secondary.light,
+                    borderColor: alpha(isUnlawful ? theme.palette.error.main : activityKind === 'recovery' ? theme.palette.success.main : theme.palette.secondary.main, 0.55),
+                    backgroundColor: alpha(isUnlawful ? theme.palette.error.main : activityKind === 'recovery' ? theme.palette.success.main : theme.palette.secondary.main, 0.08),
+                    '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
+                    '& .MuiChip-icon': { ml: '7px', mr: '-2px' },
+                  }}
+                />
+                {reputationActivity && (
+                  <Chip
+                    label={reputationActivity}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      height: 27,
+                      borderRadius: 1,
+                      maxWidth: 210,
+                      color: theme.palette.brand.blueLight,
+                      borderColor: alpha(theme.palette.brand.blueLight, 0.32),
+                      backgroundColor: alpha(theme.palette.brand.blueLight, 0.06),
+                      '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
+                    }}
+                  />
+                )}
+                {standingLabel && (
+                  <Chip
+                    label={standingLabel}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      height: 27,
+                      borderRadius: 1,
+                      maxWidth: 220,
+                      color: theme.palette.warning.light,
+                      borderColor: alpha(theme.palette.warning.main, 0.38),
+                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                      '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
+                    }}
+                  />
+                )}
+              </Box>
+            </Stack>
+
+            <Box
+              sx={{
+                border: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`,
+                background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.18)})`,
+                borderRadius: 1,
+                p: { xs: 1.5, lg: 1 },
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gridColumn: { xs: '1', lg: '2' },
+                gridRow: { lg: '1 / span 3' },
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: alpha(theme.palette.text.primary, 0.62), textTransform: 'uppercase', letterSpacing: '0.12em', display: 'block', fontSize: { xs: '0.72rem', lg: '0.55rem' } }}
+                >
+                  {t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}
+                </Typography>
+                <Typography aria-hidden="true" sx={{ color: alpha(theme.palette.text.primary, 0.66), fontSize: '0.62rem', lineHeight: 1, border: `1px solid ${alpha(theme.palette.text.primary, 0.38)}`, borderRadius: '50%', width: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  i
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{
+                  fontFamily: FONT_HEADING,
+                  fontSize: { xs: '3rem', lg: '2.28rem' },
+                  fontWeight: 800,
+                  lineHeight: 0.85,
+                  color: blueprintDropChance > 0 ? theme.palette.secondary.light : theme.palette.text.secondary,
+                  mt: 0.7,
+                }}
+              >
+                {blueprintDropChance > 0 ? formatProbabilityPercent(blueprintDropChance) : '-'}
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={blueprintChanceValue}
+                sx={{
+                  mt: 0.9,
+                  height: 6,
+                  borderRadius: 999,
+                  backgroundColor: alpha(theme.palette.common.white, 0.07),
+                  '& .MuiLinearProgress-bar': {
+                    borderRadius: 999,
+                    backgroundColor: theme.palette.secondary.light,
+                  },
+                }}
               />
-            )}
-            {blueprintDropChance > 0 && (
-              <StatBar
-                label={t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}
-                value={formatProbabilityPercent(blueprintDropChance)}
-                fill={blueprintDropChance * 100}
-              />
-            )}
+              <Typography variant="caption" sx={{ color: alpha(theme.palette.text.primary, 0.62), display: 'block', mt: 0.8, fontSize: { xs: '0.82rem', lg: '0.58rem' }, letterSpacing: 0 }}>
+                {t('From', 'Depuis')} {blueprintCount}-item blueprint pool
+              </Typography>
+              <Divider sx={{ my: 1, borderColor: alpha(theme.palette.brand.blueLight, 0.14) }} />
+              <Stack direction="row" spacing={0.7} alignItems="center">
+                <Inventory2OutlinedIcon sx={{ color: alpha(theme.palette.text.primary, 0.66), fontSize: { xs: 30, lg: 22 } }} />
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: { xs: '0.68rem', lg: '0.5rem' }, display: 'block' }}>
+                    {t('Potential blueprints', 'Blueprints potentiels')}
+                  </Typography>
+                  <Typography sx={{ color: theme.palette.secondary.light, fontFamily: FONT_HEADING, fontSize: { xs: '1.25rem', lg: '0.95rem' }, fontWeight: 800, lineHeight: 1 }}>
+                    {blueprintCount}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Button
+                variant="text"
+                endIcon={<KeyboardArrowRightIcon />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpen();
+                }}
+                sx={{
+                  mt: 'auto',
+                  mx: -0.6,
+                  mb: -0.7,
+                  pt: 0.8,
+                  fontSize: '0.62rem',
+                  justifyContent: 'space-between',
+                  color: alpha(theme.palette.text.primary, 0.78),
+                  borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.13)}`,
+                  borderRadius: 0,
+                  '&:hover': {
+                    color: theme.palette.secondary.light,
+                    backgroundColor: alpha(theme.palette.secondary.main, 0.06),
+                  },
+                }}
+              >
+                {t('Open dossier', 'Ouvrir dossier')}
+              </Button>
+            </Box>
           </Box>
 
           {contract.rewardedBlueprints.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography
-                variant="caption"
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6, minWidth: 0, minHeight: 0, mt: 0.2, gridColumn: { xs: '1', lg: '1' }, gridRow: { lg: '3' } }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.58rem',
+                    color: alpha(theme.palette.text.primary, 0.58),
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.13em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('Lootable blueprints', 'Blueprints recuperables')}
+                </Typography>
+                <Divider sx={{ flex: 1, borderColor: alpha(theme.palette.brand.blueLight, 0.16) }} />
+              </Stack>
+              <Box
+                onClick={(event) => event.stopPropagation()}
                 sx={{
-                  fontSize: '0.7rem',
-                  color: theme.palette.text.disabled,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
+                  display: 'grid',
+                  gridAutoFlow: 'column',
+                  gridAutoColumns: { xs: 164, md: 122, xl: 132 },
+                  gridTemplateRows: 'repeat(3, minmax(38px, 1fr))',
+                  gap: 0.55,
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  flex: 1,
+                  minHeight: 132,
+                  pb: 0.45,
+                  pr: 0.35,
+                  minWidth: 0,
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: `${alpha(theme.palette.brand.blueLight, 0.34)} transparent`,
+                  '&::-webkit-scrollbar': { height: 6 },
+                  '&::-webkit-scrollbar-track': { backgroundColor: alpha(theme.palette.common.white, 0.025) },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: alpha(theme.palette.brand.blueLight, 0.34),
+                    borderRadius: 999,
+                  },
                 }}
               >
-                {t('Lootable blueprints', 'Blueprints recuperables')}
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {visibleBlueprints.map((blueprint, index) => (
-                  <Chip
+                {contract.rewardedBlueprints.map((blueprint, index) => (
+                  <Button
                     key={`${blueprint.id}-${index}`}
-                    label={blueprint.name}
-                    icon={blueprint.category ? <CategoryBadge category={blueprint.category} iconOnly /> : undefined}
+                    startIcon={blueprint.category ? <CategoryBadge category={blueprint.category} iconOnly /> : undefined}
                     size="small"
                     variant="outlined"
                     onClick={(event) => {
@@ -901,28 +1218,39 @@ function ContractCard({
                       onBlueprintClick(blueprint.id);
                     }}
                     sx={{
-                      cursor: 'pointer',
-                      height: 24,
-                      fontSize: '0.75rem',
-                      '& .MuiChip-icon': { ml: '4px', mr: '-2px' },
+                      minWidth: 0,
+                      width: '100%',
+                      minHeight: 38,
+                      height: '100%',
+                      px: 0.75,
+                      justifyContent: 'flex-start',
+                      color: theme.palette.text.primary,
+                      borderColor: alpha(theme.palette.brand.blueLight, 0.2),
+                      background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.12)}, ${alpha(theme.palette.common.black, 0.18)})`,
+                      borderRadius: 1,
+                      textTransform: 'none',
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      lineHeight: 1.05,
+                      letterSpacing: '0.02em',
+                      '& .MuiButton-startIcon': { mr: 0.55, ml: 0, color: theme.palette.secondary.light },
+                      '&:hover': {
+                        borderColor: alpha(theme.palette.secondary.main, 0.55),
+                        backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+                      },
                     }}
-                  />
+                  >
+                    <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textAlign: 'left' }}>
+                      {blueprint.name}
+                    </Box>
+                  </Button>
                 ))}
-                {blueprintOverflow > 0 && (
-                  <Chip label={`+${blueprintOverflow}`} size="small" variant="outlined" sx={{ height: 24, fontSize: '0.75rem' }} />
-                )}
               </Box>
             </Box>
           )}
 
-          <Typography
-            variant="caption"
-            sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em', pt: 0.5 }}
-          >
-            {t('Open mission dossier', 'Ouvrir le dossier mission')}
-          </Typography>
         </Box>
-      </CardActionArea>
+      </Box>
     </Card>
   );
 }
@@ -1375,9 +1703,8 @@ function MissionDetail({
 }
 
 function missionGetColumns(containerWidth: number): number {
-  if (containerWidth >= 1200) return 4; // lg + xl
-  if (containerWidth >= 900)  return 3; // md
-  if (containerWidth >= 600)  return 2; // sm
+  if (containerWidth >= 1200) return 3;
+  if (containerWidth >= 760) return 2;
   return 1;
 }
 
@@ -1913,8 +2240,15 @@ export function MissionsPanel() {
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
-                    gap: { xs: 1.25, sm: 1.5, md: 2 },
+                    gridTemplateColumns: {
+                      xs: 'minmax(0, 1fr)',
+                      md: 'repeat(2, minmax(0, 1fr))',
+                      xl: 'repeat(3, minmax(0, 1fr))',
+                    },
+                    gridAutoRows: { xs: 'auto', md: 'minmax(334px, auto)' },
+                    alignItems: 'stretch',
+                    width: '100%',
+                    gap: { xs: 1.25, md: 1.5 },
                   }}
                   role="list"
                   aria-label={t('Contract list', 'Liste des contrats')}

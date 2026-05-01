@@ -11,6 +11,7 @@ import {
 import {
   addAccountOrganization,
   claimAccountOrganization,
+  copyLiveAccountDataToPtu,
   createOrganizationCraftRequest,
   deleteCurrentAccount,
   deleteOwnedOrganization,
@@ -32,6 +33,7 @@ import {
   verifyAndLinkRsiAccount,
   type AccountCraftRequest,
   type AccountCraftRequestResourcesOption,
+  type AccountDatasetScope,
   type AccountInventoryResourceEntry,
   type AccountStateSnapshot,
   type AuthSessionResponse,
@@ -76,6 +78,9 @@ interface AuthState {
   syncStatus: AccountSyncStatus;
   syncError: string | null;
   clearSyncError: () => void;
+  accountDatasetScope: AccountDatasetScope;
+  setAccountDatasetScope: (datasetScope: AccountDatasetScope) => void;
+  copyLiveDataToPtu: () => Promise<void>;
   refreshSession: () => Promise<void>;
   flushPendingMutations: () => Promise<void>;
   loginWithDiscord: (returnTo?: string) => void;
@@ -265,6 +270,29 @@ function releaseFlushLock(lockKey: string, ownerId: string): void {
   }
 }
 
+function isAccountDatasetScopeReady(
+  account: StoredAccount | null,
+  datasetScope: AccountDatasetScope,
+): account is StoredAccount {
+  return Boolean(account && (!account.datasetScope || account.datasetScope === datasetScope));
+}
+
+function buildScopedMutationStorageKey(
+  accountId: string,
+  storageScope: 'prod' | 'dev',
+  datasetScope: AccountDatasetScope,
+): string {
+  return `${buildMutationStorageKey(accountId, storageScope)}:${datasetScope}`;
+}
+
+function buildScopedMutationLockKey(
+  accountId: string,
+  storageScope: 'prod' | 'dev',
+  datasetScope: AccountDatasetScope,
+): string {
+  return `${buildMutationLockKey(accountId, storageScope)}:${datasetScope}`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSessionResponse>({
     enabled: false,
@@ -277,6 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastFlushAt, setLastFlushAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountDatasetScope, setAccountDatasetScope] = useState<AccountDatasetScope>('live');
 
   const storageScope = useMemo(() => resolveClientStorageScope(window.location.origin), []);
   const broadcastChannelName = useMemo(() => getMutationBroadcastChannelName(), []);
@@ -293,22 +322,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mutationStorageKey = useMemo(
     () =>
       serverAccount?.accountId
-        ? buildMutationStorageKey(serverAccount.accountId, storageScope)
+        ? buildScopedMutationStorageKey(serverAccount.accountId, storageScope, accountDatasetScope)
         : null,
-    [serverAccount?.accountId, storageScope],
+    [accountDatasetScope, serverAccount?.accountId, storageScope],
   );
   const mutationLockKey = useMemo(
     () =>
       serverAccount?.accountId
-        ? buildMutationLockKey(serverAccount.accountId, storageScope)
+        ? buildScopedMutationLockKey(serverAccount.accountId, storageScope, accountDatasetScope)
         : null,
-    [serverAccount?.accountId, storageScope],
+    [accountDatasetScope, serverAccount?.accountId, storageScope],
   );
 
-  const account = useMemo(
-    () => applyOptimisticAccountMutations(serverAccount, pendingMutations),
-    [pendingMutations, serverAccount],
-  );
+  const account = useMemo(() => {
+    const optimisticAccount = applyOptimisticAccountMutations(serverAccount, pendingMutations);
+    return isAccountDatasetScopeReady(optimisticAccount, accountDatasetScope)
+      ? optimisticAccount
+      : null;
+  }, [accountDatasetScope, pendingMutations, serverAccount]);
 
   const optimisticState = useMemo<OptimisticAccountState>(
     () => ({
@@ -382,7 +413,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession);
       if (nextSession.user) {
         try {
-          const nextAccount = await fetchCurrentAccount();
+          const nextAccount = await fetchCurrentAccount(accountDatasetScope);
           setServerAccount(nextAccount);
         } catch {
           setServerAccount(null);
@@ -396,7 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accountDatasetScope]);
 
   const refreshAccountSilently = useCallback(async () => {
     if (!session.user) {
@@ -405,12 +436,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const nextAccount = await fetchCurrentAccount();
+      const nextAccount = await fetchCurrentAccount(accountDatasetScope);
       setServerAccount(nextAccount);
     } catch {
       // Keep the optimistic account on silent refresh failures.
     }
-  }, [session.user]);
+  }, [accountDatasetScope, session.user]);
 
   useEffect(() => {
     void refreshSession();
@@ -608,7 +639,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (snapshotMutation) {
         try {
-          const nextAccount = await saveCurrentAccountState(snapshotMutation.payload);
+          const nextAccount = await saveCurrentAccountState(snapshotMutation.payload, accountDatasetScope);
           const nextMutations = workingMutations.filter(
             (mutation) => mutation.id !== snapshotMutation.id,
           );
@@ -641,6 +672,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const nextAccount = await saveAccountInventoryResources(
             inventoryResourcesMutation.payload.inventoryResources,
+            accountDatasetScope,
           );
           const nextMutations = workingMutations.filter(
             (mutation) => mutation.id !== inventoryResourcesMutation.id,
@@ -670,6 +702,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const result = await respondToOrganizationCraftRequestsBulk(
             craftRequestDecisionMutations.map((mutation) => mutation.payload),
+            accountDatasetScope,
           );
           let nextMutations = workingMutations;
           const mutationsByRequestId = new Map(
@@ -750,6 +783,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   comment: mutation.payload.comment,
                   resourcesOption: mutation.payload.resourcesOption,
                 },
+                accountDatasetScope,
               );
               const nextMutations = workingMutations.filter(
                 (entry) => entry.id !== mutation.id,
@@ -761,8 +795,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             case 'organization-membership': {
               const nextAccount =
                 mutation.payload.action === 'add'
-                  ? await addAccountOrganization(mutation.payload.sid)
-                  : await removeAccountOrganization(mutation.payload.sid);
+                  ? await addAccountOrganization(mutation.payload.sid, accountDatasetScope)
+                  : await removeAccountOrganization(mutation.payload.sid, accountDatasetScope);
               const nextMutations = workingMutations.filter(
                 (entry) => entry.id !== mutation.id,
               );
@@ -774,6 +808,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const nextAccount = await setAccountOrganizationBlueprintSharing(
                 mutation.payload.sid,
                 mutation.payload.enabled,
+                accountDatasetScope,
               );
               const nextMutations = workingMutations.filter(
                 (entry) => entry.id !== mutation.id,
@@ -783,7 +818,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               break;
             }
             case 'organization-claim': {
-              const nextAccount = await claimAccountOrganization(mutation.payload.sid);
+              const nextAccount = await claimAccountOrganization(mutation.payload.sid, accountDatasetScope);
               const nextMutations = workingMutations.filter(
                 (entry) => entry.id !== mutation.id,
               );
@@ -794,6 +829,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             case 'organization-refresh': {
               const nextAccount = await refreshAccountOrganizationMembers(
                 mutation.payload.sid,
+                accountDatasetScope,
               );
               const nextMutations = workingMutations.filter(
                 (entry) => entry.id !== mutation.id,
@@ -832,6 +868,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const nextAccount = await saveOrganizationBlueprintShares(
             sharesMutation.payload.organizationBlueprintShares,
+            accountDatasetScope,
           );
           const nextMutations = workingMutations.filter(
             (mutation) => mutation.id !== sharesMutation.id,
@@ -865,6 +902,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const nextAccount = await saveOrganizationResourceShares(
             resourceSharesMutation.payload.organizationResourceShares,
+            accountDatasetScope,
           );
           const nextMutations = workingMutations.filter(
             (mutation) => mutation.id !== resourceSharesMutation.id,
@@ -909,7 +947,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       type: 'server-account-updated',
       accountId: workingAccount.accountId,
     });
-  }, [mutationLockKey, mutationStorageKey, scheduleRetry, syncError, updatePersistedMutations]);
+  }, [accountDatasetScope, mutationLockKey, mutationStorageKey, scheduleRetry, syncError, updatePersistedMutations]);
 
   flushPendingMutationsRef.current = flushPendingMutations;
 
@@ -1008,7 +1046,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       return;
     }
 
@@ -1023,7 +1061,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       payload: nextSnapshot,
     } satisfies PersistedAccountMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const queueInventoryResourcesUpdate = useCallback<
     AuthState['queueInventoryResourcesUpdate']
@@ -1032,7 +1070,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       return;
     }
 
@@ -1052,7 +1090,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies AccountInventoryResourcesMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const queueOrganizationBlueprintSharesUpdate = useCallback<
     AuthState['queueOrganizationBlueprintSharesUpdate']
@@ -1061,7 +1099,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       return;
     }
 
@@ -1081,7 +1119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies OrganizationBlueprintSharesMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const queueOrganizationResourceSharesUpdate = useCallback<
     AuthState['queueOrganizationResourceSharesUpdate']
@@ -1090,7 +1128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       return;
     }
 
@@ -1110,7 +1148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies OrganizationResourceSharesMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
     window.location.assign(getDiscordLoginUrl(returnTo ?? getCurrentReturnTo()));
@@ -1120,6 +1158,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutAuthSession();
     await refreshSession();
   }, [refreshSession]);
+
+  const copyLiveDataToPtu = useCallback<AuthState['copyLiveDataToPtu']>(async () => {
+    await flushPendingMutationsRef.current();
+    const nextAccount = await copyLiveAccountDataToPtu();
+    const nextMutationStorageKey = buildScopedMutationStorageKey(
+      nextAccount.accountId,
+      storageScope,
+      'ptu',
+    );
+    const nextMutationLockKey = buildScopedMutationLockKey(
+      nextAccount.accountId,
+      storageScope,
+      'ptu',
+    );
+    writePersistedAccountMutations(nextMutationStorageKey, []);
+    try {
+      window.localStorage.removeItem(nextMutationLockKey);
+    } catch {
+      // Ignore storage failures; the API copy has already completed.
+    }
+    pendingMutationsRef.current = [];
+    setPendingMutations([]);
+    setAccountDatasetScope('ptu');
+    setServerAccount(nextAccount);
+    setSyncError(null);
+    setSyncStatus('idle');
+    broadcastChannelRef.current?.postMessage({
+      type: 'server-account-updated',
+      accountId: nextAccount.accountId,
+    });
+  }, [storageScope]);
 
   const syncAccountState = useCallback<AuthState['syncAccountState']>(
     async (snapshot, options) => {
@@ -1169,7 +1238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       throw new Error('Authentication required.');
     }
 
@@ -1192,14 +1261,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies OrganizationMembershipMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const removeOrganization = useCallback(async (sid: string) => {
     const currentAccount = applyOptimisticAccountMutations(
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       throw new Error('Authentication required.');
     }
 
@@ -1222,14 +1291,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies OrganizationMembershipMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const claimOrganizationBinding = useCallback(async (sid: string) => {
     const currentAccount = applyOptimisticAccountMutations(
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       throw new Error('Authentication required.');
     }
 
@@ -1251,13 +1320,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies OrganizationClaimMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const deleteOrganizationBinding = useCallback(async (sid: string) => {
-    const nextAccount = await deleteOwnedOrganization(sid);
+    const nextAccount = await deleteOwnedOrganization(sid, accountDatasetScope);
     setServerAccount(nextAccount);
     setSyncError(null);
-  }, []);
+  }, [accountDatasetScope]);
 
   const setOrganizationBlueprintSharingBinding = useCallback(
     async (sid: string, enabled: boolean) => {
@@ -1265,7 +1334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         serverAccountRef.current,
         pendingMutationsRef.current,
       );
-      if (!currentAccount) {
+      if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
         throw new Error('Authentication required.');
       }
 
@@ -1289,7 +1358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } satisfies OrganizationSharingMutation;
       enqueueMutation(mutation);
     },
-    [enqueueMutation],
+    [accountDatasetScope, enqueueMutation],
   );
 
   const refreshOrganizationMembersBinding = useCallback(async (sid: string) => {
@@ -1297,7 +1366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       throw new Error('Authentication required.');
     }
 
@@ -1319,15 +1388,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     } satisfies OrganizationRefreshMutation;
     enqueueMutation(mutation);
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const loadOrganizationSharedBlueprintsBinding = useCallback(async (sid: string) => {
-    return fetchOrganizationSharedBlueprints(sid);
-  }, []);
+    return fetchOrganizationSharedBlueprints(sid, accountDatasetScope);
+  }, [accountDatasetScope]);
 
   const loadOrganizationSharedResourcesBinding = useCallback(async (sid: string) => {
-    return fetchOrganizationSharedResources(sid);
-  }, []);
+    return fetchOrganizationSharedResources(sid, accountDatasetScope);
+  }, [accountDatasetScope]);
 
   const requestOrganizationCraftBinding = useCallback<
     AuthState['requestOrganizationCraft']
@@ -1336,7 +1405,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       throw new Error('Authentication required.');
     }
 
@@ -1393,6 +1462,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: mutation.payload.tempRequestId,
       appBaseUrl: mutation.payload.appBaseUrl,
       storageScope: mutation.payload.storageScope,
+      datasetScope: accountDatasetScope,
       organizationSid: normalizedSid,
       organizationName:
         currentAccount.organizations.find((organization) => organization.sid === normalizedSid)
@@ -1417,7 +1487,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatedAt: createdAt,
       respondedAt: null,
     };
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const respondToCraftRequestBinding = useCallback<
     AuthState['respondToCraftRequest']
@@ -1426,7 +1496,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverAccountRef.current,
       pendingMutationsRef.current,
     );
-    if (!currentAccount) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
       throw new Error('Authentication required.');
     }
 
@@ -1453,7 +1523,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } satisfies CraftRequestDecisionMutation;
     enqueueMutation(mutation);
     return decision;
-  }, [enqueueMutation]);
+  }, [accountDatasetScope, enqueueMutation]);
 
   const value = useMemo<AuthState>(
     () => ({
@@ -1467,6 +1537,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       syncStatus,
       syncError,
       clearSyncError,
+      accountDatasetScope,
+      setAccountDatasetScope,
+      copyLiveDataToPtu,
       refreshSession,
       flushPendingMutations,
       loginWithDiscord,
@@ -1495,9 +1568,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [
       account,
+      accountDatasetScope,
       addOrganization,
       claimOrganizationBinding,
       clearSyncError,
+      copyLiveDataToPtu,
       deleteAccount,
       deleteOrganizationBinding,
       flushPendingMutations,

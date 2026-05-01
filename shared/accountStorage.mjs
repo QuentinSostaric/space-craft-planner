@@ -13,6 +13,7 @@ import {
 } from './normalize.mjs';
 
 const ACCOUNT_RECORD_VERSION = 9;
+const ACCOUNT_SCOPE_RECORD_VERSION = 1;
 export const RSI_LINK_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
 const ADMIN_DISCORD_USER_IDS = new Set(['183946313669410816']);
 const ACCOUNT_ORGANIZATION_SOURCES = new Set(['profile-main', 'manual']);
@@ -34,6 +35,12 @@ const ACCOUNT_CRAFT_REQUEST_RESOURCES_OPTIONS = new Set([
 ]);
 const RESOURCE_QUANTITY_UNITS = new Set(['scu', 'count']);
 const RESOURCE_SCU_PRECISION = 1_000_000;
+const ACCOUNT_DATASET_SCOPES = new Set(['live', 'ptu']);
+
+export function normalizeAccountDatasetScope(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return ACCOUNT_DATASET_SCOPES.has(normalized) ? normalized : 'live';
+}
 
 function normalizeCaseInsensitiveKey(value) {
   return String(value ?? '').trim().toLowerCase();
@@ -397,6 +404,7 @@ function normalizeAccountCraftRequest(value) {
     id,
     appBaseUrl: normalizeOptionalString(value.appBaseUrl),
     storageScope: normalizeCraftRequestStorageScope(value.storageScope),
+    datasetScope: normalizeAccountDatasetScope(value.datasetScope),
     organizationSid,
     organizationName: String(value.organizationName ?? organizationSid).trim() || organizationSid,
     blueprintId,
@@ -731,6 +739,87 @@ function getOrganizationRefForSid(organizations, sid) {
   return normalizeAccountOrganizations(organizations).find((organization) => organization.sid === sid) ?? null;
 }
 
+function getOrganizationScopedShareIndexKey(sid, datasetScope = 'live') {
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    throw new Error('Organization SID is required to build the scoped share index key.');
+  }
+  return `organization-share-indexes/${normalizeAccountDatasetScope(datasetScope)}/${normalizedSid}.json`;
+}
+
+function normalizeOrganizationShareIndex(value, sid, datasetScope = 'live') {
+  const normalizedSid = normalizeOrganizationSid(value?.sid ?? sid);
+  if (!normalizedSid) {
+    return null;
+  }
+  return {
+    version: 1,
+    sid: normalizedSid,
+    datasetScope: normalizeAccountDatasetScope(value?.datasetScope ?? datasetScope),
+    accountIds: sortStringArray(value?.accountIds),
+    updatedAt: normalizeIsoTimestamp(value?.updatedAt) ?? toIsoNow(),
+  };
+}
+
+async function readOrganizationScopedShareIndex(store, sid, datasetScope = 'live') {
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const rawIndex = await store.readJson(getOrganizationScopedShareIndexKey(sid, normalizedScope));
+  return normalizeOrganizationShareIndex(rawIndex, sid, normalizedScope);
+}
+
+async function writeOrganizationScopedShareIndex(store, sid, datasetScope, accountIds) {
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const normalizedSid = normalizeOrganizationSid(sid);
+  if (!normalizedSid) {
+    return null;
+  }
+
+  const index = normalizeOrganizationShareIndex({
+    sid: normalizedSid,
+    datasetScope: normalizedScope,
+    accountIds,
+    updatedAt: toIsoNow(),
+  }, normalizedSid, normalizedScope);
+  await store.writeJson(getOrganizationScopedShareIndexKey(normalizedSid, normalizedScope), index);
+  return index;
+}
+
+async function syncOrganizationScopedShareIndexesForAccount(store, previousAccount, nextAccount, datasetScope = 'live') {
+  const accountId = String(nextAccount?.accountId ?? previousAccount?.accountId ?? '').trim();
+  if (!accountId) {
+    return;
+  }
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const previousSharedSids = new Set([
+    ...getOrganizationShareSids(previousAccount?.organizationBlueprintShares),
+    ...getOrganizationResourceShareSids(previousAccount?.organizationResourceShares),
+  ]);
+  const nextSharedSids = new Set([
+    ...getOrganizationShareSids(nextAccount?.organizationBlueprintShares),
+    ...getOrganizationResourceShareSids(nextAccount?.organizationResourceShares),
+  ]);
+  const affectedSids = sortStringArray([
+    ...previousSharedSids,
+    ...nextSharedSids,
+  ]);
+
+  for (const sid of affectedSids) {
+    const existingIndex = await readOrganizationScopedShareIndex(store, sid, normalizedScope);
+    const nextAccountIds = new Set(existingIndex?.accountIds ?? []);
+    if (nextSharedSids.has(sid)) {
+      nextAccountIds.add(accountId);
+    } else {
+      nextAccountIds.delete(accountId);
+    }
+    await writeOrganizationScopedShareIndex(store, sid, normalizedScope, [...nextAccountIds]);
+  }
+}
+
+export async function readOrganizationScopedShareAccountIds(store, sid, datasetScope = 'live') {
+  const existingIndex = await readOrganizationScopedShareIndex(store, sid, datasetScope);
+  return existingIndex?.accountIds ?? [];
+}
+
 async function syncOrganizationShareIndexesForAccount(store, previousAccount, nextAccount) {
   const accountId = String(nextAccount?.accountId ?? previousAccount?.accountId ?? '').trim();
   if (!accountId) {
@@ -853,6 +942,248 @@ export function getAccountObjectKey(accountId) {
   }
 
   return `accounts/${normalizedAccountId}.json`;
+}
+
+export function getAccountScopeObjectKey(accountId, datasetScope = 'live') {
+  const normalizedAccountId = String(accountId ?? '').trim();
+  if (!normalizedAccountId) {
+    throw new Error('Account id is required to build the account scope storage key.');
+  }
+
+  return `account-scopes/${normalizeAccountDatasetScope(datasetScope)}/${normalizedAccountId}.json`;
+}
+
+function createEmptyAccountScopeRecord(accountId, datasetScope = 'live', { now } = {}) {
+  const timestamp = now ?? toIsoNow();
+  return {
+    version: ACCOUNT_SCOPE_RECORD_VERSION,
+    accountId: String(accountId ?? '').trim(),
+    datasetScope: normalizeAccountDatasetScope(datasetScope),
+    favoriteBlueprintIds: [],
+    inventoryBlueprintIds: [],
+    inventoryResources: [],
+    planner: createEmptyAccountState().planner,
+    organizationBlueprintShares: {},
+    organizationResourceShares: {},
+    sharedBlueprintIds: [],
+    sharedResourceEntryIds: [],
+    incomingCraftRequests: [],
+    outgoingCraftRequests: [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+function normalizeAccountScopeRecord(value, { accountId, datasetScope = 'live', fallbackAccount = null } = {}) {
+  const normalizedAccountId = String(value?.accountId ?? accountId ?? fallbackAccount?.accountId ?? '').trim();
+  if (!normalizedAccountId) {
+    return null;
+  }
+
+  const normalizedScope = normalizeAccountDatasetScope(value?.datasetScope ?? datasetScope);
+  const state = normalizeStateSnapshot(value);
+  const inventoryResources = normalizeAccountInventoryResources(value?.inventoryResources);
+  const organizations = normalizeAccountOrganizations(fallbackAccount?.organizations);
+  const legacySharedBlueprintIds = clipSharedBlueprintIdsToInventory(
+    value?.sharedBlueprintIds,
+    state.inventoryBlueprintIds,
+  );
+  const legacySharedResourceEntryIds = clipSharedResourceIdsToInventory(
+    value?.sharedResourceEntryIds,
+    inventoryResources,
+  );
+  const organizationBlueprintShares = normalizeOrganizationBlueprintShares(
+    value?.organizationBlueprintShares,
+    state.inventoryBlueprintIds,
+    organizations,
+    legacySharedBlueprintIds,
+  );
+  const organizationResourceShares = normalizeOrganizationResourceShares(
+    value?.organizationResourceShares,
+    inventoryResources,
+    organizations,
+    legacySharedResourceEntryIds,
+  );
+  const sharedBlueprintIds = deriveSharedBlueprintIdsFromOrganizationShares(
+    organizationBlueprintShares,
+    legacySharedBlueprintIds,
+  );
+  const sharedResourceEntryIds = deriveSharedResourceIdsFromOrganizationShares(
+    organizationResourceShares,
+    legacySharedResourceEntryIds,
+  );
+  const incomingCraftRequests = normalizeAccountCraftRequests(value?.incomingCraftRequests);
+  const outgoingCraftRequests = normalizeAccountCraftRequests(value?.outgoingCraftRequests);
+  const now = toIsoNow();
+
+  return {
+    version: ACCOUNT_SCOPE_RECORD_VERSION,
+    accountId: normalizedAccountId,
+    datasetScope: normalizedScope,
+    favoriteBlueprintIds: state.favoriteBlueprintIds,
+    inventoryBlueprintIds: state.inventoryBlueprintIds,
+    inventoryResources,
+    planner: state.planner,
+    organizationBlueprintShares,
+    organizationResourceShares,
+    sharedBlueprintIds,
+    sharedResourceEntryIds,
+    incomingCraftRequests,
+    outgoingCraftRequests,
+    createdAt: normalizeIsoTimestamp(value?.createdAt) ?? now,
+    updatedAt: normalizeIsoTimestamp(value?.updatedAt) ?? normalizeIsoTimestamp(value?.createdAt) ?? now,
+  };
+}
+
+function createLiveScopeFromLegacyAccount(account, datasetScope = 'live') {
+  return normalizeAccountScopeRecord({
+    accountId: account.accountId,
+    datasetScope,
+    favoriteBlueprintIds: account.favoriteBlueprintIds,
+    inventoryBlueprintIds: account.inventoryBlueprintIds,
+    inventoryResources: account.inventoryResources,
+    planner: account.planner,
+    organizationBlueprintShares: account.organizationBlueprintShares,
+    organizationResourceShares: account.organizationResourceShares,
+    sharedBlueprintIds: account.sharedBlueprintIds,
+    sharedResourceEntryIds: account.sharedResourceEntryIds,
+    incomingCraftRequests: account.incomingCraftRequests,
+    outgoingCraftRequests: account.outgoingCraftRequests,
+    createdAt: account.createdAt,
+    updatedAt: account.updatedAt,
+  }, { accountId: account.accountId, datasetScope, fallbackAccount: account });
+}
+
+function mergeAccountWithScope(account, scopeRecord) {
+  if (!account || !scopeRecord) {
+    return account;
+  }
+
+  return {
+    ...account,
+    datasetScope: scopeRecord.datasetScope,
+    favoriteBlueprintIds: scopeRecord.favoriteBlueprintIds,
+    inventoryBlueprintIds: scopeRecord.inventoryBlueprintIds,
+    inventoryResources: scopeRecord.inventoryResources,
+    planner: scopeRecord.planner,
+    organizationBlueprintShares: scopeRecord.organizationBlueprintShares,
+    organizationResourceShares: scopeRecord.organizationResourceShares,
+    sharedBlueprintIds: scopeRecord.sharedBlueprintIds,
+    sharedResourceEntryIds: scopeRecord.sharedResourceEntryIds,
+    incomingCraftRequests: scopeRecord.incomingCraftRequests,
+    outgoingCraftRequests: scopeRecord.outgoingCraftRequests,
+  };
+}
+
+async function readAccountScopeRecord(store, account, datasetScope = 'live') {
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const rawScope = await store.readJson(getAccountScopeObjectKey(account.accountId, normalizedScope));
+  if (rawScope) {
+    return normalizeAccountScopeRecord(rawScope, {
+      accountId: account.accountId,
+      datasetScope: normalizedScope,
+      fallbackAccount: account,
+    });
+  }
+
+  if (normalizedScope === 'live') {
+    return createLiveScopeFromLegacyAccount(account, normalizedScope);
+  }
+
+  return normalizeAccountScopeRecord(
+    createEmptyAccountScopeRecord(account.accountId, normalizedScope, {
+      now: account.createdAt ?? toIsoNow(),
+    }),
+    { accountId: account.accountId, datasetScope: normalizedScope, fallbackAccount: account },
+  );
+}
+
+async function writeAccountScopeRecord(store, account, datasetScope = 'live', previousScopedAccount = undefined) {
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const scopeRecord = normalizeAccountScopeRecord({
+    accountId: account.accountId,
+    datasetScope: normalizedScope,
+    favoriteBlueprintIds: account.favoriteBlueprintIds,
+    inventoryBlueprintIds: account.inventoryBlueprintIds,
+    inventoryResources: account.inventoryResources,
+    planner: account.planner,
+    organizationBlueprintShares: account.organizationBlueprintShares,
+    organizationResourceShares: account.organizationResourceShares,
+    sharedBlueprintIds: account.sharedBlueprintIds,
+    sharedResourceEntryIds: account.sharedResourceEntryIds,
+    incomingCraftRequests: account.incomingCraftRequests,
+    outgoingCraftRequests: account.outgoingCraftRequests,
+    createdAt: account.createdAt,
+    updatedAt: toIsoNow(),
+  }, { accountId: account.accountId, datasetScope: normalizedScope, fallbackAccount: account });
+
+  await store.writeJson(getAccountScopeObjectKey(account.accountId, normalizedScope), scopeRecord);
+  await syncOrganizationScopedShareIndexesForAccount(
+    store,
+    previousScopedAccount,
+    mergeAccountWithScope(account, scopeRecord),
+    normalizedScope,
+  );
+  return mergeAccountWithScope(account, scopeRecord);
+}
+
+export async function readScopedAccountRecord(store, accountId, fallbackProfile = null, datasetScope = 'live') {
+  const account = await readAccountRecord(store, accountId, fallbackProfile);
+  if (!account) {
+    return null;
+  }
+
+  const scopeRecord = await readAccountScopeRecord(store, account, datasetScope);
+  return mergeAccountWithScope(account, scopeRecord);
+}
+
+export async function copyLiveAccountScopeToPtu(store, accountId, fallbackProfile = null) {
+  const liveAccount = await readScopedAccountRecord(store, accountId, fallbackProfile, 'live');
+  if (!liveAccount) {
+    throw new Error(`Account "${accountId}" does not exist.`);
+  }
+  const previousPtuAccount = await readScopedAccountRecord(store, accountId, fallbackProfile, 'ptu');
+  const now = toIsoNow();
+  const copyCraftRequestsToPtu = (requests) =>
+    normalizeAccountCraftRequests(requests).map((request) => ({
+      ...request,
+      datasetScope: 'ptu',
+      ownerDiscordChannelId: null,
+      ownerDiscordMessageId: null,
+      contactInitiatedAt: null,
+      updatedAt: now,
+    }));
+  const nextPtuAccount = {
+    ...previousPtuAccount,
+    ...liveAccount,
+    datasetScope: 'ptu',
+    incomingCraftRequests: copyCraftRequestsToPtu(liveAccount.incomingCraftRequests),
+    outgoingCraftRequests: copyCraftRequestsToPtu(liveAccount.outgoingCraftRequests),
+    updatedAt: now,
+  };
+  return writeAccountScopeRecord(store, nextPtuAccount, 'ptu', previousPtuAccount);
+}
+
+export async function saveScopedCraftRequestCollections(
+  store,
+  accountId,
+  { incomingCraftRequests, outgoingCraftRequests } = {},
+  fallbackProfile = null,
+  options = {},
+) {
+  const datasetScope = normalizeAccountDatasetScope(options?.datasetScope);
+  const existing = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
+  if (!existing) {
+    throw new Error(`Account "${accountId}" does not exist.`);
+  }
+
+  const nextAccount = {
+    ...existing,
+    incomingCraftRequests: normalizeAccountCraftRequests(incomingCraftRequests ?? existing.incomingCraftRequests),
+    outgoingCraftRequests: normalizeAccountCraftRequests(outgoingCraftRequests ?? existing.outgoingCraftRequests),
+    updatedAt: toIsoNow(),
+  };
+  return writeAccountScopeRecord(store, nextAccount, datasetScope, existing);
 }
 
 function getRsiHandleIndexKey(handle) {
@@ -1140,14 +1471,17 @@ export function createS3AccountStore(client, bucketName) {
   };
 }
 
-export async function findAccountIdsSharingOrganizationBlueprints(store, sid) {
+export async function findAccountIdsSharingOrganizationBlueprints(store, sid, datasetScope = 'live') {
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid || typeof store?.listJsonKeys !== 'function') {
     return [];
   }
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const indexedAccountIds = await readOrganizationScopedShareAccountIds(store, normalizedSid, normalizedScope);
 
-  const accountKeys = await store.listJsonKeys('accounts/');
   const matchingAccountIds = [];
+  const accountIdsToCheck = new Set(indexedAccountIds);
+  const accountKeys = await store.listJsonKeys('accounts/');
 
   for (const key of accountKeys) {
     if (!String(key).endsWith('.json')) {
@@ -1159,7 +1493,11 @@ export async function findAccountIdsSharingOrganizationBlueprints(store, sid) {
       continue;
     }
 
-    const account = await readAccountRecord(store, accountId);
+    accountIdsToCheck.add(accountId);
+  }
+
+  for (const accountId of accountIdsToCheck) {
+    const account = await readScopedAccountRecord(store, accountId, null, normalizedScope);
     if (!account) {
       continue;
     }
@@ -1172,17 +1510,22 @@ export async function findAccountIdsSharingOrganizationBlueprints(store, sid) {
     matchingAccountIds.push(accountId);
   }
 
-  return sortStringArray(matchingAccountIds);
+  const sortedAccountIds = sortStringArray(matchingAccountIds);
+  await writeOrganizationScopedShareIndex(store, normalizedSid, normalizedScope, sortedAccountIds);
+  return sortedAccountIds;
 }
 
-export async function findAccountIdsSharingOrganizationResources(store, sid) {
+export async function findAccountIdsSharingOrganizationResources(store, sid, datasetScope = 'live') {
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid || typeof store?.listJsonKeys !== 'function') {
     return [];
   }
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
+  const indexedAccountIds = await readOrganizationScopedShareAccountIds(store, normalizedSid, normalizedScope);
 
-  const accountKeys = await store.listJsonKeys('accounts/');
   const matchingAccountIds = [];
+  const accountIdsToCheck = new Set(indexedAccountIds);
+  const accountKeys = await store.listJsonKeys('accounts/');
 
   for (const key of accountKeys) {
     if (!String(key).endsWith('.json')) {
@@ -1194,7 +1537,11 @@ export async function findAccountIdsSharingOrganizationResources(store, sid) {
       continue;
     }
 
-    const account = await readAccountRecord(store, accountId);
+    accountIdsToCheck.add(accountId);
+  }
+
+  for (const accountId of accountIdsToCheck) {
+    const account = await readScopedAccountRecord(store, accountId, null, normalizedScope);
     if (!account) {
       continue;
     }
@@ -1207,7 +1554,9 @@ export async function findAccountIdsSharingOrganizationResources(store, sid) {
     matchingAccountIds.push(accountId);
   }
 
-  return sortStringArray(matchingAccountIds);
+  const sortedAccountIds = sortStringArray(matchingAccountIds);
+  await writeOrganizationScopedShareIndex(store, normalizedSid, normalizedScope, sortedAccountIds);
+  return sortedAccountIds;
 }
 
 export async function readAccountRecord(store, accountId, fallbackProfile = null) {
@@ -1274,8 +1623,9 @@ export async function upsertDiscordAccount(store, profile) {
   return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
 }
 
-export async function saveAccountState(store, accountId, stateSnapshot, fallbackProfile = null) {
-  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+export async function saveAccountState(store, accountId, stateSnapshot, fallbackProfile = null, options = {}) {
+  const datasetScope = normalizeAccountDatasetScope(options?.datasetScope);
+  const existing = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
   if (!existing) {
     throw new Error(`Account "${accountId}" does not exist.`);
   }
@@ -1320,7 +1670,7 @@ export async function saveAccountState(store, accountId, stateSnapshot, fallback
     updatedAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+  return writeAccountScopeRecord(store, nextRecord, datasetScope, existing);
 }
 
 export async function saveAccountOrganizations(
@@ -1379,8 +1729,10 @@ export async function saveAccountOrganizationBlueprintShares(
   accountId,
   organizationBlueprintShares,
   fallbackProfile = null,
+  options = {},
 ) {
-  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  const datasetScope = normalizeAccountDatasetScope(options?.datasetScope);
+  const existing = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
   if (!existing) {
     throw new Error(`Account "${accountId}" does not exist.`);
   }
@@ -1418,7 +1770,7 @@ export async function saveAccountOrganizationBlueprintShares(
     updatedAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+  return writeAccountScopeRecord(store, nextRecord, datasetScope, existing);
 }
 
 export async function saveAccountInventoryResources(
@@ -1426,8 +1778,10 @@ export async function saveAccountInventoryResources(
   accountId,
   inventoryResources,
   fallbackProfile = null,
+  options = {},
 ) {
-  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  const datasetScope = normalizeAccountDatasetScope(options?.datasetScope);
+  const existing = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
   if (!existing) {
     throw new Error(`Account "${accountId}" does not exist.`);
   }
@@ -1451,7 +1805,7 @@ export async function saveAccountInventoryResources(
     updatedAt: toIsoNow(),
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+  return writeAccountScopeRecord(store, nextRecord, datasetScope, existing);
 }
 
 export async function saveAccountOrganizationResourceShares(
@@ -1459,8 +1813,10 @@ export async function saveAccountOrganizationResourceShares(
   accountId,
   organizationResourceShares,
   fallbackProfile = null,
+  options = {},
 ) {
-  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  const datasetScope = normalizeAccountDatasetScope(options?.datasetScope);
+  const existing = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
   if (!existing) {
     throw new Error(`Account "${accountId}" does not exist.`);
   }
@@ -1483,7 +1839,7 @@ export async function saveAccountOrganizationResourceShares(
     updatedAt: toIsoNow(),
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+  return writeAccountScopeRecord(store, nextRecord, datasetScope, existing);
 }
 
 export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProfile = null) {
@@ -1612,6 +1968,13 @@ export async function deleteAccountRecord(store, accountId, fallbackProfile = nu
   const existing = await readAccountRecord(store, accountId, fallbackProfile);
   if (existing) {
     await syncOrganizationShareIndexesForAccount(store, existing, null);
+    for (const datasetScope of ACCOUNT_DATASET_SCOPES) {
+      const scopedAccount = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
+      if (scopedAccount) {
+        await syncOrganizationScopedShareIndexesForAccount(store, scopedAccount, null, datasetScope);
+      }
+      await store.deleteObject(getAccountScopeObjectKey(accountId, datasetScope));
+    }
   }
   if (existing?.rsi?.handle) {
     await deleteRsiHandleIndex(store, existing.rsi.handle);

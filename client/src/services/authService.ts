@@ -20,6 +20,8 @@ export interface AuthSessionResponse {
   user: AuthenticatedUser | null;
 }
 
+export type AccountDatasetScope = 'live' | 'ptu';
+
 export interface AccountPlannerState {
   goals: CraftGoal[];
   todoItems: PlannerTodoItem[];
@@ -115,6 +117,7 @@ export interface AccountCraftRequest {
   id: string;
   appBaseUrl?: string | null;
   storageScope?: 'prod' | 'dev';
+  datasetScope?: AccountDatasetScope;
   organizationSid: string;
   organizationName: string;
   blueprintId: string;
@@ -191,6 +194,7 @@ export interface OrganizationSharedResourcePayload {
 
 export interface StoredAccount {
   accountId: string;
+  datasetScope?: AccountDatasetScope;
   provider: 'discord';
   providerUserId: string;
   profile: AuthenticatedUser;
@@ -252,6 +256,11 @@ async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+function withDatasetScope(path: string, datasetScope: AccountDatasetScope = 'live'): string {
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}datasetScope=${encodeURIComponent(datasetScope)}`;
+}
+
 export async function fetchAuthSession(): Promise<AuthSessionResponse> {
   return authApiFetch<AuthSessionResponse>('/api/auth/session');
 }
@@ -262,20 +271,28 @@ export async function logoutAuthSession(): Promise<void> {
   });
 }
 
-export async function fetchCurrentAccount(): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account');
+export async function fetchCurrentAccount(datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account', datasetScope));
+  return payload.account;
+}
+
+export async function copyLiveAccountDataToPtu(): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/copy-live-to-ptu', {
+    method: 'POST',
+  });
   return payload.account;
 }
 
 export async function saveCurrentAccountState(
   snapshot: AccountStateSnapshot,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account', {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account', datasetScope), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(snapshot),
+    body: JSON.stringify({ ...snapshot, datasetScope }),
   });
 
   return payload.account;
@@ -312,15 +329,16 @@ export async function unlinkRsiAccount(): Promise<StoredAccount> {
 
 export async function saveOrganizationBlueprintShares(
   organizationBlueprintShares: Record<string, string[]>,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    '/api/auth/account/shared-blueprints',
+    withDatasetScope('/api/auth/account/shared-blueprints', datasetScope),
     {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ organizationBlueprintShares }),
+      body: JSON.stringify({ organizationBlueprintShares, datasetScope }),
     },
   );
 
@@ -329,13 +347,14 @@ export async function saveOrganizationBlueprintShares(
 
 export async function saveAccountInventoryResources(
   inventoryResources: AccountInventoryResourceEntry[],
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/resources', {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/resources', datasetScope), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ inventoryResources }),
+    body: JSON.stringify({ inventoryResources, datasetScope }),
   });
 
   return payload.account;
@@ -343,39 +362,40 @@ export async function saveAccountInventoryResources(
 
 export async function saveOrganizationResourceShares(
   organizationResourceShares: Record<string, string[]>,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    '/api/auth/account/shared-resources',
+    withDatasetScope('/api/auth/account/shared-resources', datasetScope),
     {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ organizationResourceShares }),
+      body: JSON.stringify({ organizationResourceShares, datasetScope }),
     },
   );
 
   return payload.account;
 }
 
-export async function addAccountOrganization(sid: string): Promise<StoredAccount> {
+export async function addAccountOrganization(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    '/api/auth/account/organizations',
+    withDatasetScope('/api/auth/account/organizations', datasetScope),
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ sid }),
+      body: JSON.stringify({ sid, datasetScope }),
     },
   );
 
   return payload.account;
 }
 
-export async function removeAccountOrganization(sid: string): Promise<StoredAccount> {
+export async function removeAccountOrganization(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    `/api/auth/account/organizations/${encodeURIComponent(sid)}`,
+    withDatasetScope(`/api/auth/account/organizations/${encodeURIComponent(sid)}`, datasetScope),
     {
       method: 'DELETE',
     },
@@ -384,9 +404,9 @@ export async function removeAccountOrganization(sid: string): Promise<StoredAcco
   return payload.account;
 }
 
-export async function claimAccountOrganization(sid: string): Promise<StoredAccount> {
+export async function claimAccountOrganization(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}/claim`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/claim`, datasetScope),
     {
       method: 'POST',
     },
@@ -395,9 +415,9 @@ export async function claimAccountOrganization(sid: string): Promise<StoredAccou
   return payload.account;
 }
 
-export async function deleteOwnedOrganization(sid: string): Promise<StoredAccount> {
+export async function deleteOwnedOrganization(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}`, datasetScope),
     {
       method: 'DELETE',
     },
@@ -409,24 +429,25 @@ export async function deleteOwnedOrganization(sid: string): Promise<StoredAccoun
 export async function setAccountOrganizationBlueprintSharing(
   sid: string,
   enabled: boolean,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}/sharing`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/sharing`, datasetScope),
     {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ enabled }),
+      body: JSON.stringify({ enabled, datasetScope }),
     },
   );
 
   return payload.account;
 }
 
-export async function refreshAccountOrganizationMembers(sid: string): Promise<StoredAccount> {
+export async function refreshAccountOrganizationMembers(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
   const payload = await authApiFetch<{ account: StoredAccount }>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}/refresh`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/refresh`, datasetScope),
     {
       method: 'POST',
     },
@@ -437,17 +458,19 @@ export async function refreshAccountOrganizationMembers(sid: string): Promise<St
 
 export async function fetchOrganizationSharedBlueprints(
   sid: string,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<OrganizationSharedBlueprintPayload> {
   return authApiFetch<OrganizationSharedBlueprintPayload>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}/shared-blueprints`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/shared-blueprints`, datasetScope),
   );
 }
 
 export async function fetchOrganizationSharedResources(
   sid: string,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<OrganizationSharedResourcePayload> {
   return authApiFetch<OrganizationSharedResourcePayload>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}/shared-resources`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/shared-resources`, datasetScope),
   );
 }
 
@@ -460,15 +483,16 @@ export async function createOrganizationCraftRequest(
     comment?: string | null;
     resourcesOption?: AccountCraftRequestResourcesOption;
   },
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<{ account: StoredAccount; request: AccountCraftRequest }> {
   return authApiFetch<{ account: StoredAccount; request: AccountCraftRequest }>(
-    `/api/auth/organizations/${encodeURIComponent(sid)}/craft-requests`,
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/craft-requests`, datasetScope),
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, datasetScope }),
     },
   );
 }
@@ -476,29 +500,31 @@ export async function createOrganizationCraftRequest(
 export async function respondToOrganizationCraftRequest(
   requestId: string,
   decision: CraftRequestDecision,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<{ account: StoredAccount; requestId: string; status: AccountCraftRequestStatus | 'deleted' }> {
   return authApiFetch<{
     account: StoredAccount;
     requestId: string;
     status: AccountCraftRequestStatus | 'deleted';
-  }>(`/api/auth/craft-requests/${encodeURIComponent(requestId)}`, {
+  }>(withDatasetScope(`/api/auth/craft-requests/${encodeURIComponent(requestId)}`, datasetScope), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ decision }),
+    body: JSON.stringify({ decision, datasetScope }),
   });
 }
 
 export async function respondToOrganizationCraftRequestsBulk(
   actions: CraftRequestBulkDecisionAction[],
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<AccountBulkCraftRequestDecisionResponse> {
-  return authApiFetch<AccountBulkCraftRequestDecisionResponse>('/api/auth/craft-requests/bulk', {
+  return authApiFetch<AccountBulkCraftRequestDecisionResponse>(withDatasetScope('/api/auth/craft-requests/bulk', datasetScope), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ actions }),
+    body: JSON.stringify({ actions, datasetScope }),
   });
 }
 

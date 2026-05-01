@@ -1,7 +1,8 @@
 import {
+  normalizeAccountDatasetScope,
   readAccountIdByRsiHandle,
-  readAccountRecord,
-  writeAccountRecord,
+  readScopedAccountRecord,
+  saveScopedCraftRequestCollections,
 } from './accountStorage.mjs';
 import { readOrganizationRecord } from './organizationStorage.mjs';
 import {
@@ -118,13 +119,33 @@ async function writeMirroredCraftRequestAccounts(
     ownerPreviousAccount,
     ownerNextAccount,
     requesterNextAccount,
+    datasetScope = 'live',
   },
 ) {
   let savedOwnerAccount = null;
+  const normalizedScope = normalizeAccountDatasetScope(datasetScope);
 
   try {
-    savedOwnerAccount = await writeAccountRecord(store, ownerNextAccount);
-    const savedRequesterAccount = await writeAccountRecord(store, requesterNextAccount);
+    savedOwnerAccount = await saveScopedCraftRequestCollections(
+      store,
+      ownerNextAccount.accountId,
+      {
+        incomingCraftRequests: ownerNextAccount.incomingCraftRequests,
+        outgoingCraftRequests: ownerNextAccount.outgoingCraftRequests,
+      },
+      ownerNextAccount.profile,
+      { datasetScope: normalizedScope },
+    );
+    const savedRequesterAccount = await saveScopedCraftRequestCollections(
+      store,
+      requesterNextAccount.accountId,
+      {
+        incomingCraftRequests: requesterNextAccount.incomingCraftRequests,
+        outgoingCraftRequests: requesterNextAccount.outgoingCraftRequests,
+      },
+      requesterNextAccount.profile,
+      { datasetScope: normalizedScope },
+    );
 
     return {
       ownerAccount: savedOwnerAccount,
@@ -133,7 +154,16 @@ async function writeMirroredCraftRequestAccounts(
   } catch (error) {
     if (savedOwnerAccount) {
       try {
-        await writeAccountRecord(store, ownerPreviousAccount);
+        await saveScopedCraftRequestCollections(
+          store,
+          ownerPreviousAccount.accountId,
+          {
+            incomingCraftRequests: ownerPreviousAccount.incomingCraftRequests,
+            outgoingCraftRequests: ownerPreviousAccount.outgoingCraftRequests,
+          },
+          ownerPreviousAccount.profile,
+          { datasetScope: normalizedScope },
+        );
       } catch (rollbackError) {
         console.error(
           '[craft-requests] failed to rollback owner account after mirrored write failure',
@@ -149,7 +179,7 @@ async function writeMirroredCraftRequestAccounts(
   }
 }
 
-async function updateCraftRequestRecords(store, ownerAccount, requesterAccount, requestId, updater) {
+async function updateCraftRequestRecords(store, ownerAccount, requesterAccount, requestId, updater, datasetScope = 'live') {
   const normalizedRequestId = normalizeText(requestId);
   const ownerRequest =
     (ownerAccount?.incomingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
@@ -183,6 +213,7 @@ async function updateCraftRequestRecords(store, ownerAccount, requesterAccount, 
     ownerPreviousAccount: ownerAccount,
     ownerNextAccount: nextOwnerAccount,
     requesterNextAccount: nextRequesterAccount,
+    datasetScope,
   });
   const savedRequest =
     (savedOwnerAccount.incomingCraftRequests ?? []).find((request) => request.id === normalizedRequestId) ??
@@ -216,8 +247,10 @@ export async function createOrganizationCraftRequest(
     resourcesOption = 'unspecified',
     appBaseUrl = null,
     storageScope = 'prod',
+    datasetScope = 'live',
   } = {},
 ) {
+  const normalizedDatasetScope = normalizeAccountDatasetScope(datasetScope);
   const normalizedSid = normalizeOrganizationSid(organizationSid);
   const normalizedBlueprintId = normalizeText(blueprintId);
   const normalizedOwnerHandle = normalizeText(ownerHandle);
@@ -284,7 +317,7 @@ export async function createOrganizationCraftRequest(
     );
   }
 
-  const ownerAccount = await readAccountRecord(store, ownerAccountId);
+  const ownerAccount = await readScopedAccountRecord(store, ownerAccountId, null, normalizedDatasetScope);
   if (!ownerAccount) {
     throw new CraftRequestServiceError(
       404,
@@ -333,6 +366,7 @@ export async function createOrganizationCraftRequest(
     id: createCraftRequestId(),
     appBaseUrl: normalizeBaseUrl(appBaseUrl),
     storageScope: normalizeStorageScope(storageScope),
+    datasetScope: normalizedDatasetScope,
     organizationSid: normalizedSid,
     organizationName:
       organizationRecord?.name ??
@@ -378,6 +412,7 @@ export async function createOrganizationCraftRequest(
     ownerPreviousAccount: ownerAccount,
     ownerNextAccount: nextOwnerAccount,
     requesterNextAccount: nextRequesterAccount,
+    datasetScope: normalizedDatasetScope,
   });
 
   return {
@@ -393,7 +428,9 @@ export async function respondToCraftRequest(
   actingAccount,
   requestId,
   decision,
+  { datasetScope = 'live' } = {},
 ) {
+  const normalizedDatasetScope = normalizeAccountDatasetScope(datasetScope);
   const normalizedRequestId = normalizeText(requestId);
   const normalizedDecision = normalizeComparableText(decision);
   if (!normalizedRequestId) {
@@ -441,7 +478,7 @@ export async function respondToCraftRequest(
     throw new CraftRequestServiceError(409, 'This craft request is already closed.');
   }
 
-  const requesterAccount = await readAccountRecord(store, existingRequest.requesterAccountId);
+  const requesterAccount = await readScopedAccountRecord(store, existingRequest.requesterAccountId, null, normalizedDatasetScope);
   if (!requesterAccount) {
     throw new CraftRequestServiceError(
       404,
@@ -450,7 +487,7 @@ export async function respondToCraftRequest(
   }
   const ownerAccount = isOwner
     ? actingAccount
-    : await readAccountRecord(store, existingRequest.ownerAccountId);
+    : await readScopedAccountRecord(store, existingRequest.ownerAccountId, null, normalizedDatasetScope);
   if (!ownerAccount) {
     throw new CraftRequestServiceError(404, 'The owner account could not be loaded.');
   }
@@ -477,6 +514,7 @@ export async function respondToCraftRequest(
     },
     normalizedRequestId,
     applyDecision,
+    normalizedDatasetScope,
   );
 
   return {
@@ -493,6 +531,7 @@ export async function respondToCraftRequestsBulk(
   store,
   actingAccount,
   actions,
+  { datasetScope = 'live' } = {},
 ) {
   if (!Array.isArray(actions) || actions.length === 0) {
     throw new CraftRequestServiceError(400, 'At least one craft request action is required.');
@@ -521,6 +560,7 @@ export async function respondToCraftRequestsBulk(
           store,
           currentActingAccount,
           requestId,
+          { datasetScope },
         );
         currentActingAccount = result.account;
         results.push({
@@ -540,6 +580,7 @@ export async function respondToCraftRequestsBulk(
           currentActingAccount,
           requestId,
           decision,
+          { datasetScope },
         );
         currentActingAccount = result.account;
         results.push({
@@ -577,7 +618,9 @@ export async function deleteCraftRequest(
   store,
   actingAccount,
   requestId,
+  { datasetScope = 'live' } = {},
 ) {
+  const normalizedDatasetScope = normalizeAccountDatasetScope(datasetScope);
   const normalizedRequestId = normalizeText(requestId);
   if (!normalizedRequestId) {
     throw new CraftRequestServiceError(400, 'Craft request id is required.');
@@ -604,14 +647,14 @@ export async function deleteCraftRequest(
     );
   }
 
-  const requesterAccount = await readAccountRecord(store, existingRequest.requesterAccountId);
+  const requesterAccount = await readScopedAccountRecord(store, existingRequest.requesterAccountId, null, normalizedDatasetScope);
   if (!requesterAccount) {
     throw new CraftRequestServiceError(404, 'The requester account could not be loaded.');
   }
   const isOwner = existingRequest.ownerAccountId === actingAccount.accountId;
   const ownerAccount = isOwner
     ? actingAccount
-    : await readAccountRecord(store, existingRequest.ownerAccountId);
+    : await readScopedAccountRecord(store, existingRequest.ownerAccountId, null, normalizedDatasetScope);
   if (!ownerAccount) {
     throw new CraftRequestServiceError(404, 'The owner account could not be loaded.');
   }
@@ -639,6 +682,7 @@ export async function deleteCraftRequest(
     ownerPreviousAccount: ownerAccount,
     ownerNextAccount: nextOwnerAccount,
     requesterNextAccount: nextRequesterAccount,
+    datasetScope: normalizedDatasetScope,
   });
 
   return {
@@ -658,14 +702,16 @@ export async function saveCraftRequestNotificationState(
     ownerDiscordMessageId,
     contactInitiatedAt,
   } = {},
+  { datasetScope = 'live' } = {},
 ) {
+  const normalizedDatasetScope = normalizeAccountDatasetScope(datasetScope);
   const normalizedOwnerAccountId = normalizeText(ownerAccountId);
   const normalizedRequestId = normalizeText(requestId);
   if (!normalizedOwnerAccountId || !normalizedRequestId) {
     throw new CraftRequestServiceError(400, 'Craft request identifiers are required.');
   }
 
-  const ownerAccount = await readAccountRecord(store, normalizedOwnerAccountId);
+  const ownerAccount = await readScopedAccountRecord(store, normalizedOwnerAccountId, null, normalizedDatasetScope);
   if (!ownerAccount) {
     throw new CraftRequestServiceError(404, 'The owner account could not be loaded.');
   }
@@ -677,7 +723,7 @@ export async function saveCraftRequestNotificationState(
     throw new CraftRequestServiceError(404, 'Craft request not found.');
   }
 
-  const requesterAccount = await readAccountRecord(store, existingRequest.requesterAccountId);
+  const requesterAccount = await readScopedAccountRecord(store, existingRequest.requesterAccountId, null, normalizedDatasetScope);
   if (!requesterAccount) {
     throw new CraftRequestServiceError(404, 'The requester account could not be loaded.');
   }
@@ -701,5 +747,6 @@ export async function saveCraftRequestNotificationState(
         contactInitiatedAt === undefined ? request.contactInitiatedAt ?? null : normalizeText(contactInitiatedAt) || null,
       updatedAt,
     }),
+    normalizedDatasetScope,
   );
 }

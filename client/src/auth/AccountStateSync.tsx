@@ -35,8 +35,9 @@ function createSnapshotFromAccount(account: StoredAccount): AccountStateSnapshot
 }
 
 export function AccountStateSync() {
-  const { enabled, loading, user, account, syncAccountState } = useAuth();
+  const { enabled, loading, user, account, syncAccountState, accountDatasetScope, setAccountDatasetScope } = useAuth();
   const {
+    activeDataset,
     favoriteIds,
     inventoryIds,
     goals,
@@ -47,6 +48,13 @@ export function AccountStateSync() {
   const initialSyncHandledRef = useRef(false);
   const mirrorEstablishedRef = useRef(false);
   const lastSyncedSnapshotRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const nextScope = activeDataset.channel === 'ptu' ? 'ptu' : 'live';
+    if (nextScope !== accountDatasetScope) {
+      setAccountDatasetScope(nextScope);
+    }
+  }, [accountDatasetScope, activeDataset.channel, setAccountDatasetScope]);
 
   const snapshot = useMemo<AccountStateSnapshot>(
     () => ({
@@ -79,10 +87,18 @@ export function AccountStateSync() {
     initialSyncHandledRef.current = false;
     mirrorEstablishedRef.current = false;
     lastSyncedSnapshotRef.current = null;
-  }, [account?.accountId, user?.id]);
+  }, [account?.accountId, accountDatasetScope, activeDataset.channel, user?.id]);
 
   useEffect(() => {
     if (loading || !enabled || !user || !account) {
+      return undefined;
+    }
+
+    if ((activeDataset.channel === 'ptu' ? 'ptu' : 'live') !== accountDatasetScope) {
+      return undefined;
+    }
+
+    if (account.datasetScope && account.datasetScope !== accountDatasetScope) {
       return undefined;
     }
 
@@ -123,6 +139,8 @@ export function AccountStateSync() {
     return () => window.clearTimeout(timeoutId);
   }, [
     account,
+    accountDatasetScope,
+    activeDataset.channel,
     enabled,
     loading,
     localImportPlan.hasPendingImport,

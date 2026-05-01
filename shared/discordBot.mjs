@@ -137,16 +137,23 @@ export async function sendDiscordDirectMessage(env, userId, payload, options = {
   return sendDiscordChannelMessage(env, channelId, payload, options);
 }
 
-export function buildCraftRequestActionCustomId(action, ownerAccountId, requestId, storageScope = 'prod') {
+export function buildCraftRequestActionCustomId(
+  action,
+  ownerAccountId,
+  requestId,
+  storageScope = 'prod',
+  datasetScope = 'live',
+) {
   const normalizedAction = normalizeText(action).toLowerCase();
   const normalizedStorageScope = normalizeText(storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  const normalizedDatasetScope = normalizeText(datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
   const normalizedOwnerAccountId = normalizeText(ownerAccountId);
   const normalizedRequestId = normalizeText(requestId);
   if (!normalizedAction || !normalizedOwnerAccountId || !normalizedRequestId) {
     throw new Error('Craft request action identifiers are required.');
   }
 
-  return `craftreq:${normalizedAction}:${normalizedStorageScope}:${normalizedOwnerAccountId}:${normalizedRequestId}`;
+  return `craftreq:${normalizedAction}:${normalizedStorageScope}:${normalizedDatasetScope}:${normalizedOwnerAccountId}:${normalizedRequestId}`;
 }
 
 export function parseCraftRequestActionCustomId(value) {
@@ -160,25 +167,38 @@ export function parseCraftRequestActionCustomId(value) {
     return {
       action: parts[1],
       storageScope: 'prod',
+      datasetScope: 'live',
       ownerAccountId: parts[2],
       requestId: parts[3],
     };
   }
 
-  if (parts.length !== 5) {
+  if (parts.length === 5) {
+    return {
+      action: parts[1],
+      storageScope: parts[2] === 'dev' ? 'dev' : 'prod',
+      datasetScope: 'live',
+      ownerAccountId: parts[3],
+      requestId: parts[4],
+    };
+  }
+
+  if (parts.length !== 6) {
     return null;
   }
 
   return {
     action: parts[1],
     storageScope: parts[2] === 'dev' ? 'dev' : 'prod',
-    ownerAccountId: parts[3],
-    requestId: parts[4],
+    datasetScope: parts[3] === 'ptu' ? 'ptu' : 'live',
+    ownerAccountId: parts[4],
+    requestId: parts[5],
   };
 }
 
 function buildCraftRequestButtons(request) {
   const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  const datasetScope = normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -187,13 +207,13 @@ function buildCraftRequestButtons(request) {
           type: DISCORD_COMPONENT_TYPE_BUTTON,
           style: DISCORD_BUTTON_STYLE_SUCCESS,
           label: 'Accept',
-          custom_id: buildCraftRequestActionCustomId('accept', request.ownerAccountId, request.id, storageScope),
+          custom_id: buildCraftRequestActionCustomId('accept', request.ownerAccountId, request.id, storageScope, datasetScope),
         },
         {
           type: DISCORD_COMPONENT_TYPE_BUTTON,
           style: DISCORD_BUTTON_STYLE_DANGER,
           label: 'Deny',
-          custom_id: buildCraftRequestActionCustomId('deny', request.ownerAccountId, request.id, storageScope),
+          custom_id: buildCraftRequestActionCustomId('deny', request.ownerAccountId, request.id, storageScope, datasetScope),
         },
       ],
     },
@@ -202,6 +222,7 @@ function buildCraftRequestButtons(request) {
 
 function buildDisabledCraftRequestButtons(request, disabledLabel) {
   const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  const datasetScope = normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -210,7 +231,7 @@ function buildDisabledCraftRequestButtons(request, disabledLabel) {
           type: DISCORD_COMPONENT_TYPE_BUTTON,
           style: DISCORD_BUTTON_STYLE_SECONDARY,
           label: disabledLabel,
-          custom_id: buildCraftRequestActionCustomId('status', request.ownerAccountId, request.id, storageScope),
+          custom_id: buildCraftRequestActionCustomId('status', request.ownerAccountId, request.id, storageScope, datasetScope),
           disabled: true,
         },
       ],
@@ -220,6 +241,7 @@ function buildDisabledCraftRequestButtons(request, disabledLabel) {
 
 function buildAcceptedCraftRequestButtons(request) {
   const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  const datasetScope = normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -228,7 +250,7 @@ function buildAcceptedCraftRequestButtons(request) {
           type: DISCORD_COMPONENT_TYPE_BUTTON,
           style: DISCORD_BUTTON_STYLE_SECONDARY,
           label: 'Close request',
-          custom_id: buildCraftRequestActionCustomId('close', request.ownerAccountId, request.id, storageScope),
+          custom_id: buildCraftRequestActionCustomId('close', request.ownerAccountId, request.id, storageScope, datasetScope),
         },
       ],
     },

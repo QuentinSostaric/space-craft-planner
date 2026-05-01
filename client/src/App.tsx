@@ -126,9 +126,16 @@ const LazyComparisonModal = lazy(() =>
   })),
 );
 
-const LazyDatasetChangelog = lazy(() =>
-  import('./components/DatasetChangelog').then(({ DatasetChangelog }) => ({
-    default: DatasetChangelog,
+const LazyDatasetChangelogView = lazy(() =>
+  import('./components/DatasetChangelogPage').then(({ DatasetChangelogPage }) => ({
+    default: function ChangelogView() {
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <DatasetChangelogPage />
+          <Footer />
+        </Box>
+      );
+    },
   })),
 );
 
@@ -139,6 +146,7 @@ type ResolvedMainView =
   | 'resources'
   | 'organizations'
   | 'planner'
+  | 'changelog'
   | 'account';
 
 function BlueprintGridFallback() {
@@ -474,6 +482,38 @@ function AccountFallback() {
   );
 }
 
+function ChangelogFallback() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1 }}>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between">
+            <Box sx={{ flex: 1 }}>
+              <Skeleton width={160} height={20} />
+              <Skeleton width={320} height={42} />
+              <Skeleton width="56%" height={20} />
+            </Box>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ width: { xs: '100%', lg: 640 } }}>
+              <Skeleton variant="rounded" height={56} sx={{ flex: 1 }} />
+              <Skeleton variant="rounded" height={56} sx={{ flex: 1 }} />
+            </Stack>
+          </Stack>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Skeleton variant="rounded" width={120} height={28} />
+            <Skeleton variant="rounded" width={160} height={28} />
+            <Skeleton variant="rounded" width={160} height={28} />
+          </Stack>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, 1fr)' }, gap: 2 }}>
+            <Skeleton variant="rounded" height={420} />
+            <Skeleton variant="rounded" height={420} />
+          </Box>
+        </Stack>
+      </Box>
+      <Footer />
+    </Box>
+  );
+}
+
 function MainContentFallback({ view }: { view: ResolvedMainView }) {
   switch (view) {
     case 'missions':
@@ -486,6 +526,8 @@ function MainContentFallback({ view }: { view: ResolvedMainView }) {
       return <PlannerFallback />;
     case 'account':
       return <AccountFallback />;
+    case 'changelog':
+      return <ChangelogFallback />;
     case 'workspace':
       return <WorkspaceFallback />;
     case 'blueprints':
@@ -514,27 +556,6 @@ function ComparisonModalFallback() {
   );
 }
 
-function DatasetChangelogFallback() {
-  return (
-    <Dialog open fullWidth maxWidth="md" aria-label="Loading changelog">
-      <DialogTitle>
-        <Skeleton width={220} height={28} />
-      </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Skeleton variant="rounded" width={96} height={28} />
-            <Skeleton variant="rounded" width={96} height={28} />
-            <Skeleton variant="rounded" width={96} height={28} />
-          </Stack>
-          <Skeleton variant="rounded" height={200} />
-          <Skeleton variant="rounded" height={200} />
-        </Stack>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function MainContent({ mainView }: { mainView: MainView }) {
   const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
   const ensureMissionRewardsLoadedRef = useRef(ensureMissionRewardsLoaded);
@@ -555,6 +576,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? 'organizations'
       : mainView === 'planner'
         ? 'planner'
+      : mainView === 'changelog'
+        ? 'changelog'
       : mainView === 'account'
         ? 'account'
         : activeBlueprint
@@ -570,6 +593,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? LazyOrganizationsView
       : resolvedView === 'planner'
         ? LazyPlannerView
+      : resolvedView === 'changelog'
+        ? LazyDatasetChangelogView
       : resolvedView === 'account'
         ? LazyAccountView
         : resolvedView === 'workspace'
@@ -594,7 +619,6 @@ function AppShell() {
     datasetError,
     ensureMissionRewardsLoaded,
     comparisonOpen,
-    changelogOpen,
   } = useCraft();
   const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
@@ -653,6 +677,8 @@ function AppShell() {
           ? '/organizations'
         : nextView === 'planner'
             ? '/planner'
+          : nextView === 'changelog'
+            ? '/changelog'
           : nextView === 'account'
             ? '/account'
             : '/';
@@ -830,11 +856,6 @@ function AppShell() {
       {comparisonOpen && (
         <Suspense fallback={<ComparisonModalFallback />}>
           <LazyComparisonModal />
-        </Suspense>
-      )}
-      {changelogOpen && (
-        <Suspense fallback={<DatasetChangelogFallback />}>
-          <LazyDatasetChangelog />
         </Suspense>
       )}
     </Box>

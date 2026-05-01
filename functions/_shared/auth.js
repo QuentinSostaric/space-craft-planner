@@ -17,11 +17,14 @@ import {
 } from '../../shared/discordAuth.mjs';
 import {
   clearRsiAccountLink,
+  copyLiveAccountScopeToPtu,
   createBucketAccountStore,
   deleteAccountRecord,
   getNextAllowedRsiLinkAt,
   isRsiLinkRateLimited,
+  normalizeAccountDatasetScope,
   readAccountRecord,
+  readScopedAccountRecord,
   saveAccountInventoryResources,
   saveAccountOrganizationBlueprintShares,
   saveAccountOrganizationResourceShares,
@@ -76,6 +79,15 @@ function redirectResponse(location, { status = 302, headers = {}, cookies = [] }
 
 function getAccountStore(request, env) {
   return createBucketAccountStore(getGameDataBucket(env, request));
+}
+
+function getAccountDatasetScopeFromRequest(request, payload = null) {
+  const url = new URL(request.url);
+  return normalizeAccountDatasetScope(
+    url.searchParams.get('datasetScope') ??
+      request.headers.get('X-Account-Dataset-Scope') ??
+      payload?.datasetScope,
+  );
 }
 
 function getStarCitizenApiKey(env) {
@@ -149,6 +161,42 @@ async function buildDecoratedAccount(accountStore, account, env) {
   } catch {
     return account;
   }
+}
+
+async function buildScopedDecoratedAccount(accountStore, account, env, datasetScope = 'live') {
+  const normalizedDatasetScope = normalizeAccountDatasetScope(datasetScope);
+  const scopedAccount = await readScopedAccountRecord(
+    accountStore,
+    account.accountId,
+    account.profile,
+    normalizedDatasetScope,
+  );
+  const decoratedAccount = await buildDecoratedAccount(accountStore, scopedAccount ?? account, env);
+  const refreshedScopedAccount = await readScopedAccountRecord(
+    accountStore,
+    decoratedAccount.accountId,
+    decoratedAccount.profile,
+    normalizedDatasetScope,
+  );
+  const scopedState = refreshedScopedAccount ?? scopedAccount ?? {};
+  return {
+    ...decoratedAccount,
+    datasetScope: scopedState.datasetScope ?? normalizedDatasetScope,
+    favoriteBlueprintIds: scopedState.favoriteBlueprintIds ?? decoratedAccount.favoriteBlueprintIds,
+    inventoryBlueprintIds: scopedState.inventoryBlueprintIds ?? decoratedAccount.inventoryBlueprintIds,
+    inventoryResources: scopedState.inventoryResources ?? decoratedAccount.inventoryResources,
+    planner: scopedState.planner ?? decoratedAccount.planner,
+    organizationBlueprintShares:
+      scopedState.organizationBlueprintShares ?? decoratedAccount.organizationBlueprintShares,
+    organizationResourceShares:
+      scopedState.organizationResourceShares ?? decoratedAccount.organizationResourceShares,
+    sharedBlueprintIds: scopedState.sharedBlueprintIds ?? decoratedAccount.sharedBlueprintIds,
+    sharedResourceEntryIds:
+      scopedState.sharedResourceEntryIds ?? decoratedAccount.sharedResourceEntryIds,
+    organizations: decoratedAccount.organizations,
+    incomingCraftRequests: scopedState.incomingCraftRequests ?? decoratedAccount.incomingCraftRequests,
+    outgoingCraftRequests: scopedState.outgoingCraftRequests ?? decoratedAccount.outgoingCraftRequests,
+  };
 }
 
 async function readAccountJsonFromRequest(request) {
@@ -273,8 +321,12 @@ async function withAuthenticatedAccount(request, env, handler) {
 
   const accountStore = getAccountStore(request, env);
   const ensuredAccount = await ensureAccountForSession(accountStore, session);
-  const account = await handler(accountStore, session, ensuredAccount, env);
-  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+  const datasetScope = getAccountDatasetScopeFromRequest(request);
+  const scopedAccount =
+    await readScopedAccountRecord(accountStore, ensuredAccount.accountId, session.user, datasetScope) ??
+    ensuredAccount;
+  const account = await handler(accountStore, session, scopedAccount, env, datasetScope);
+  const decoratedAccount = await buildScopedDecoratedAccount(accountStore, account, env, datasetScope);
   return noStoreJson({ account: decoratedAccount });
 }
 
@@ -297,8 +349,12 @@ async function withAuthenticatedAccountJson(request, env, handler) {
 
   const accountStore = getAccountStore(request, env);
   const ensuredAccount = await ensureAccountForSession(accountStore, session);
-  const account = await handler(accountStore, session, ensuredAccount, payload, env);
-  const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+  const datasetScope = getAccountDatasetScopeFromRequest(request, payload);
+  const scopedAccount =
+    await readScopedAccountRecord(accountStore, ensuredAccount.accountId, session.user, datasetScope) ??
+    ensuredAccount;
+  const account = await handler(accountStore, session, scopedAccount, payload, env, datasetScope);
+  const decoratedAccount = await buildScopedDecoratedAccount(accountStore, account, env, datasetScope);
   return noStoreJson({ account: decoratedAccount });
 }
 
@@ -307,42 +363,65 @@ export async function handleAccountRequest(request, env) {
 }
 
 export async function handleAccountUpdateRequest(request, env) {
-  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
-    return saveAccountState(accountStore, session.accountId, payload, session.user);
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload, _env, datasetScope) => {
+    return saveAccountState(accountStore, session.accountId, payload, session.user, { datasetScope });
   });
 }
 
 export async function handleAccountSharedBlueprintsUpdateRequest(request, env) {
-  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload, _env, datasetScope) => {
     return saveAccountOrganizationBlueprintShares(
       accountStore,
       session.accountId,
       payload?.organizationBlueprintShares,
       session.user,
+      { datasetScope },
     );
   });
 }
 
 export async function handleAccountResourcesUpdateRequest(request, env) {
-  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload, _env, datasetScope) => {
     return saveAccountInventoryResources(
       accountStore,
       session.accountId,
       payload?.inventoryResources,
       session.user,
+      { datasetScope },
     );
   });
 }
 
 export async function handleAccountSharedResourcesUpdateRequest(request, env) {
-  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload, _env, datasetScope) => {
     return saveAccountOrganizationResourceShares(
       accountStore,
       session.accountId,
       payload?.organizationResourceShares,
       session.user,
+      { datasetScope },
     );
   });
+}
+
+export async function handleAccountCopyLiveToPtuRequest(request, env) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  try {
+    const accountStore = getAccountStore(request, env);
+    await ensureAccountForSession(accountStore, session);
+    const account = await copyLiveAccountScopeToPtu(accountStore, session.accountId, session.user);
+    const decoratedAccount = await buildScopedDecoratedAccount(accountStore, account, env, 'ptu');
+    return noStoreJson({ account: decoratedAccount });
+  } catch (error) {
+    return errorResponse(
+      400,
+      error instanceof Error ? error.message : 'Failed to copy LIVE account data to PTU.',
+    );
+  }
 }
 
 export async function handleDeleteAccountRequest(request, env) {
@@ -410,7 +489,12 @@ export async function handleRsiLinkRequest(request, env) {
 
     const verifiedLink = await verifyRsiHandleOwnership(apiKey, handle, code);
     const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
-    const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      account,
+      env,
+      getAccountDatasetScopeFromRequest(request, payload),
+    );
     return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return errorResponse(
@@ -430,7 +514,12 @@ export async function handleRsiUnlinkRequest(request, env) {
     const accountStore = getAccountStore(request, env);
     await ensureAccountForSession(accountStore, session);
     const account = await clearRsiAccountLink(accountStore, session.accountId, session.user);
-    const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      account,
+      env,
+      getAccountDatasetScopeFromRequest(request),
+    );
     return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return errorResponse(
@@ -467,7 +556,13 @@ export async function handleAccountOrganizationsCreateRequest(request, env) {
       apiKey,
       payload?.sid,
     );
-    return noStoreJson({ account: nextAccount });
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      nextAccount,
+      env,
+      getAccountDatasetScopeFromRequest(request, payload),
+    );
+    return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to add the organization.');
   }
@@ -483,7 +578,12 @@ export async function handleAccountOrganizationDeleteRequest(request, env, sid) 
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await removeAccountOrganizationBySid(accountStore, account, sid);
-    const decoratedAccount = await buildDecoratedAccount(accountStore, nextAccount, env);
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      nextAccount,
+      env,
+      getAccountDatasetScopeFromRequest(request),
+    );
     return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to remove the organization.');
@@ -500,7 +600,13 @@ export async function handleOrganizationDeleteRequest(request, env, sid) {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await deleteOwnedOrganizationFromApp(accountStore, account, sid);
-    return noStoreJson({ account: nextAccount });
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      nextAccount,
+      env,
+      getAccountDatasetScopeFromRequest(request),
+    );
+    return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to delete the organization.');
   }
@@ -528,7 +634,13 @@ export async function handleOrganizationSharingUpdateRequest(request, env, sid) 
       sid,
       payload?.enabled,
     );
-    return noStoreJson({ account: nextAccount });
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      nextAccount,
+      env,
+      getAccountDatasetScopeFromRequest(request, payload),
+    );
+    return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to update organization blueprint sharing.');
   }
@@ -565,7 +677,13 @@ export async function handleOrganizationClaimRequest(request, env, sid, executio
         'organization-claim-review-notify',
       );
     }
-    return noStoreJson({ account: nextAccount });
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      nextAccount,
+      env,
+      getAccountDatasetScopeFromRequest(request),
+    );
+    return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to submit the organization claim request.');
   }
@@ -586,7 +704,13 @@ export async function handleOrganizationRefreshRequest(request, env, sid) {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
     const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, apiKey, sid);
-    return noStoreJson({ account: nextAccount });
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      nextAccount,
+      env,
+      getAccountDatasetScopeFromRequest(request),
+    );
+    return noStoreJson({ account: decoratedAccount });
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to refresh organization members.');
   }
@@ -601,8 +725,9 @@ export async function handleOrganizationSharedBlueprintsRequest(request, env, si
   try {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
-    const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
-    const payload = await buildOrganizationSharedBlueprints(accountStore, decoratedAccount, sid);
+    const datasetScope = getAccountDatasetScopeFromRequest(request);
+    const decoratedAccount = await buildScopedDecoratedAccount(accountStore, account, env, datasetScope);
+    const payload = await buildOrganizationSharedBlueprints(accountStore, decoratedAccount, sid, { datasetScope });
     return noStoreJson(payload);
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to load shared organization blueprints.');
@@ -618,8 +743,9 @@ export async function handleOrganizationSharedResourcesRequest(request, env, sid
   try {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
-    const decoratedAccount = await buildDecoratedAccount(accountStore, account, env);
-    const payload = await buildOrganizationSharedResources(accountStore, decoratedAccount, sid);
+    const datasetScope = getAccountDatasetScopeFromRequest(request);
+    const decoratedAccount = await buildScopedDecoratedAccount(accountStore, account, env, datasetScope);
+    const payload = await buildOrganizationSharedResources(accountStore, decoratedAccount, sid, { datasetScope });
     return noStoreJson(payload);
   } catch (error) {
     return organizationErrorResponse(error, 'Failed to load shared organization resources.');
@@ -641,7 +767,11 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
 
   try {
     const accountStore = getAccountStore(request, env);
-    const account = await ensureAccountForSession(accountStore, session);
+    const datasetScope = getAccountDatasetScopeFromRequest(request, payload);
+    const ensuredAccount = await ensureAccountForSession(accountStore, session);
+    const account =
+      await readScopedAccountRecord(accountStore, ensuredAccount.accountId, session.user, datasetScope) ??
+      ensuredAccount;
     const result = await createOrganizationCraftRequest(accountStore, account, {
       organizationSid: sid,
       blueprintId: payload?.blueprintId,
@@ -651,6 +781,7 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
       resourcesOption: payload?.resourcesOption,
       appBaseUrl: resolveAppBaseUrlFromRequest(request, env),
       storageScope: resolveCraftRequestStorageScope(request, env),
+      datasetScope,
     });
     runBackgroundTask(
       executionContext,
@@ -663,7 +794,12 @@ export async function handleOrganizationCraftRequestCreateRequest(request, env, 
         ),
       'craft-request-owner-notify',
     );
-    const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      result.account,
+      env,
+      datasetScope,
+    );
     return noStoreJson({
       account: decoratedAccount,
       request: result.request,
@@ -688,10 +824,14 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId,
 
   try {
     const accountStore = getAccountStore(request, env);
-    const account = await ensureAccountForSession(accountStore, session);
+    const datasetScope = getAccountDatasetScopeFromRequest(request, payload);
+    const ensuredAccount = await ensureAccountForSession(accountStore, session);
+    const account =
+      await readScopedAccountRecord(accountStore, ensuredAccount.accountId, session.user, datasetScope) ??
+      ensuredAccount;
 
     if (payload?.decision === 'deleted') {
-      const result = await deleteCraftRequest(accountStore, account, requestId);
+      const result = await deleteCraftRequest(accountStore, account, requestId, { datasetScope });
       runBackgroundTask(
         executionContext,
         () => syncCraftRequestStatusBestEffort(
@@ -703,7 +843,12 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId,
         ),
         'craft-request-delete-sync',
       );
-      const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
+      const decoratedAccount = await buildScopedDecoratedAccount(
+        accountStore,
+        result.account,
+        env,
+        datasetScope,
+      );
       return noStoreJson({
         account: decoratedAccount,
         requestId,
@@ -716,6 +861,7 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId,
       account,
       requestId,
       payload?.decision,
+      { datasetScope },
     );
     await syncCraftRequestStatusBestEffort(
       env,
@@ -724,7 +870,12 @@ export async function handleCraftRequestDecisionRequest(request, env, requestId,
       result.requesterAccount,
       'craft-request-status-sync',
     );
-    const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      result.account,
+      env,
+      datasetScope,
+    );
     return noStoreJson({
       account: decoratedAccount,
       requestId: result.requestId,
@@ -750,11 +901,16 @@ export async function handleCraftRequestBulkDecisionRequest(request, env, execut
 
   try {
     const accountStore = getAccountStore(request, env);
-    const account = await ensureAccountForSession(accountStore, session);
+    const datasetScope = getAccountDatasetScopeFromRequest(request, payload);
+    const ensuredAccount = await ensureAccountForSession(accountStore, session);
+    const account =
+      await readScopedAccountRecord(accountStore, ensuredAccount.accountId, session.user, datasetScope) ??
+      ensuredAccount;
     const result = await respondToCraftRequestsBulk(
       accountStore,
       account,
       payload?.actions,
+      { datasetScope },
     );
 
     await Promise.all(
@@ -773,7 +929,12 @@ export async function handleCraftRequestBulkDecisionRequest(request, env, execut
       }),
     );
 
-    const decoratedAccount = await buildDecoratedAccount(accountStore, result.account, env);
+    const decoratedAccount = await buildScopedDecoratedAccount(
+      accountStore,
+      result.account,
+      env,
+      datasetScope,
+    );
     return noStoreJson({
       account: decoratedAccount,
       results: result.results.map((entry) => ({
