@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { CategoryBadge } from '../ui/Badge';
 import type { CraftGoal } from '../../types';
 import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 
 interface GoalCardProps {
   goal: CraftGoal;
@@ -20,6 +21,7 @@ interface GoalCardProps {
   onQtyChange: (quantity: number) => void;
   onEdit: () => void;
   onSelect: () => void;
+  href: string;
   isDragging?: boolean;
   isDropTarget?: boolean;
   onDragOver?: DragEventHandler<HTMLElement>;
@@ -42,6 +44,7 @@ export const GoalCard = memo(function GoalCard({
   onQtyChange,
   onEdit,
   onSelect,
+  href,
   isDragging = false,
   isDropTarget = false,
   onDragOver,
@@ -60,6 +63,7 @@ export const GoalCard = memo(function GoalCard({
     <Card
       data-goal-card="true"
       sx={{
+        position: 'relative',
         cursor: isDragging ? 'grabbing' : 'pointer',
         borderColor: isActive ? theme.palette.primary.main : theme.palette.ui.border,
         backgroundColor: isActive ? theme.palette.ui.surface2 : theme.palette.ui.surface1,
@@ -69,19 +73,29 @@ export const GoalCard = memo(function GoalCard({
         boxShadow: isDropTarget ? `0 0 0 1px ${theme.palette.primary.main}` : undefined,
         '&:hover': { borderColor: theme.palette.ui.borderStrong },
       }}
-      onClick={onSelect}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
+    >
+      <Box
+        component="a"
+        href={href}
+        aria-label={`${t('Goal', 'Objectif')}: ${goal.blueprintName}`}
+        onClick={(event) => {
+          if (!shouldHandleInternalLinkClick(event)) return;
           event.preventDefault();
           onSelect();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`${t('Goal', 'Objectif')}: ${goal.blueprintName}`}
-    >
+        }}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          borderRadius: 'inherit',
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: -2,
+          },
+        }}
+      />
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
           {dragHandleProps && (
@@ -92,6 +106,8 @@ export const GoalCard = memo(function GoalCard({
               onMouseDown={handleStopPropagation}
               title={t('Drag to reorder', 'Glisser pour réordonner')}
               sx={{
+                position: 'relative',
+                zIndex: 2,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -112,7 +128,7 @@ export const GoalCard = memo(function GoalCard({
               {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 0.25 }}>
+          <Box sx={{ display: 'flex', gap: 0.25, position: 'relative', zIndex: 2 }}>
             <IconButton
               size="small"
               onClick={(event) => { handleStopPropagation(event); onEdit(); }}
@@ -139,7 +155,7 @@ export const GoalCard = memo(function GoalCard({
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
             aria-label={t('Decrease', 'Réduire')}
-            sx={{ width: 22, height: 22, fontSize: '.7rem' }}
+            sx={{ width: 22, height: 22, fontSize: '.7rem', position: 'relative', zIndex: 2 }}
           >
             −
           </IconButton>
@@ -153,13 +169,13 @@ export const GoalCard = memo(function GoalCard({
               onQtyChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
             }
             slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 32, textAlign: 'center', padding: '2px 4px', fontSize: '.75rem' } } }}
-            sx={{ width: 48 }}
+            sx={{ width: 48, position: 'relative', zIndex: 2 }}
           />
           <IconButton
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.min(99, goal.quantity + 1)); }}
             aria-label={t('Increase', 'Augmenter')}
-            sx={{ width: 22, height: 22, fontSize: '.7rem' }}
+            sx={{ width: 22, height: 22, fontSize: '.7rem', position: 'relative', zIndex: 2 }}
           >
             +
           </IconButton>

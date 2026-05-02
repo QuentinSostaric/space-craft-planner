@@ -57,7 +57,8 @@ import {
   ls,
   STANDING_OPTIONS,
 } from '../utils/crafting';
-import { missionPathFromSlug, missionSlugFromContract, missionSlugFromPathname, navigateToPath } from '../utils/slug';
+import { missionPathFromSlug, missionSlugFromContract, missionSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
+import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 import type {
   Blueprint,
   ItemCategory,
@@ -647,11 +648,13 @@ function ContractCard({
   contract,
   group,
   onBlueprintClick,
+  href,
   onOpen,
 }: {
   contract: MissionContract;
   group: MissionRewardFactionGroup;
   onBlueprintClick: (blueprintId: string) => void;
+  href: string;
   onOpen: () => void;
 }) {
   const { lang, t } = useI18n();
@@ -694,15 +697,14 @@ function ContractCard({
   return (
     <Card
       role="listitem"
-      onClick={onOpen}
       sx={{
+        position: 'relative',
         height: '100%',
         minHeight: { xs: 'auto', md: 334 },
         display: 'flex',
         borderColor: alpha(theme.palette.brand.blueLight, 0.22),
         background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.15)} 0%, ${alpha(theme.palette.background.default, 0.98)} 48%, ${alpha(theme.palette.common.black, 0.28)} 100%)`,
         overflow: 'hidden',
-        cursor: 'pointer',
         transition: 'border-color 150ms, background-color 150ms, box-shadow 150ms, transform 150ms',
         '&:hover': {
           borderColor: alpha(theme.palette.secondary.main, 0.55),
@@ -711,6 +713,26 @@ function ContractCard({
         },
       }}
     >
+      <Box
+        component="a"
+        href={href}
+        aria-label={t('Open mission dossier', 'Ouvrir le dossier mission')}
+        onClick={(event) => {
+          if (!shouldHandleInternalLinkClick(event)) return;
+          event.preventDefault();
+          onOpen();
+        }}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          cursor: 'pointer',
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.secondary.main}`,
+            outlineOffset: -2,
+          },
+        }}
+      />
       <Box
         sx={{
           height: '100%',
@@ -1139,12 +1161,18 @@ function ContractCard({
               </Stack>
               <Button
                 variant="text"
+                component="a"
+                href={href}
                 endIcon={<KeyboardArrowRightIcon />}
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (!shouldHandleInternalLinkClick(event)) return;
+                  event.preventDefault();
                   onOpen();
                 }}
                 sx={{
+                  position: 'relative',
+                  zIndex: 2,
                   mt: 'auto',
                   mx: -0.6,
                   mb: -0.7,
@@ -1185,6 +1213,8 @@ function ContractCard({
               <Box
                 onClick={(event) => event.stopPropagation()}
                 sx={{
+                  position: 'relative',
+                  zIndex: 2,
                   display: 'grid',
                   gridAutoFlow: 'column',
                   gridAutoColumns: { xs: 164, md: 122, xl: 132 },
@@ -1213,8 +1243,12 @@ function ContractCard({
                     startIcon={blueprint.category ? <CategoryBadge category={blueprint.category} iconOnly /> : undefined}
                     size="small"
                     variant="outlined"
+                    component="a"
+                    href={`/item/${toSlug(blueprint.name)}`}
                     onClick={(event) => {
                       event.stopPropagation();
+                      if (!shouldHandleInternalLinkClick(event)) return;
+                      event.preventDefault();
                       onBlueprintClick(blueprint.id);
                     }}
                     sx={{
@@ -2259,6 +2293,7 @@ export function MissionsPanel() {
                       contract={contract}
                       group={group}
                       onBlueprintClick={handleBlueprintClick}
+                      href={missionPathFromSlug(getMissionSlug(contract, group))}
                       onOpen={() => {
                         const missionSlug = getMissionSlug(contract, group);
                         startTransition(() => setSelectedMissionSlug(missionSlug));

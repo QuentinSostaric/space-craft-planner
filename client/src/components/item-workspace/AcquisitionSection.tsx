@@ -24,6 +24,8 @@ import {
 } from '../../utils/crafting';
 import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import { StarCitizenLicensedIcon, getLocationIconName } from '../ui/StarCitizenLicensedIcon';
+import { missionPathFromSlug, missionSlugFromContract } from '../../utils/slug';
+import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 import type {
   AcquisitionContract,
   AcquisitionGraphEntry,
@@ -531,14 +533,21 @@ export function AcquisitionSection({
                                 >
                                   {contract.contractDebugName && onMissionClick ? (
                                     <Link
-                                      component="button"
-                                      type="button"
+                                      href={missionPathFromSlug(
+                                        missionSlugFromContract(
+                                          contract.contractDebugName,
+                                          faction.contractorDisplayName,
+                                        ),
+                                      )}
                                       underline="hover"
-                                      onClick={() =>
+                                      onClick={(event) => {
+                                        if (!shouldHandleInternalLinkClick(event)) return;
+                                        event.preventDefault();
                                         onMissionClick(
                                           contract.contractDebugName,
                                           faction.contractorDisplayName,
-                                        )}
+                                        );
+                                      }}
                                       sx={{
                                         fontWeight: 600,
                                         fontSize: '0.85rem',

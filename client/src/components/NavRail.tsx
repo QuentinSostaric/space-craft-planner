@@ -20,6 +20,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import { FONT_HEADING } from '../theme';
+import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
   | 'blueprints'
@@ -49,13 +50,20 @@ interface NavItemProps {
   collapsed: boolean;
   label: string;
   icon: React.ReactNode;
-  onClick: () => void;
+  href: string;
+  onNavigate: () => void;
 }
 
-function NavItem({ active, collapsed, label, icon, onClick }: NavItemProps) {
+function NavItem({ active, collapsed, label, icon, href, onNavigate }: NavItemProps) {
   const button = (
     <ButtonBase
-      onClick={onClick}
+      component="a"
+      href={href}
+      onClick={(event) => {
+        if (!shouldHandleInternalLinkClick(event)) return;
+        event.preventDefault();
+        onNavigate();
+      }}
       aria-current={active ? 'page' : undefined}
       sx={{
         display: 'flex',
@@ -141,11 +149,18 @@ function MobileNavItem({
   active,
   label,
   icon,
-  onClick,
+  href,
+  onNavigate,
 }: Omit<NavItemProps, 'collapsed'>) {
   return (
     <ButtonBase
-      onClick={onClick}
+      component="a"
+      href={href}
+      onClick={(event) => {
+        if (!shouldHandleInternalLinkClick(event)) return;
+        event.preventDefault();
+        onNavigate();
+      }}
       aria-current={active ? 'page' : undefined}
       sx={{
         minWidth: 0,
@@ -263,28 +278,32 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       active: mainView === 'blueprints',
       label: t('Blueprints', 'Blueprints'),
       icon: <DescriptionOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      onClick: goToBlueprints,
+      href: '/',
+      onNavigate: goToBlueprints,
     },
     {
       key: 'missions',
       active: mainView === 'missions',
       label: t('Missions', 'Missions'),
       icon: <FlagIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      onClick: goToMissions,
+      href: '/missions',
+      onNavigate: goToMissions,
     },
     {
       key: 'resources',
       active: mainView === 'resources',
       label: t('Resources', 'Ressources'),
       icon: <ScienceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      onClick: goToResources,
+      href: '/resources',
+      onNavigate: goToResources,
     },
     {
       key: 'changelog',
       active: mainView === 'changelog',
       label: t('Changelog', 'Changelog'),
       icon: <DifferenceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      onClick: goToChangelog,
+      href: '/changelog',
+      onNavigate: goToChangelog,
     },
     ...(canAccessOrganizations
       ? [{
@@ -292,7 +311,8 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           active: mainView === 'organizations',
           label: t('Organizations', 'Organisations', 'Organisationen'),
           icon: <GroupsOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-          onClick: goToOrganizations,
+          href: '/organizations',
+          onNavigate: goToOrganizations,
         }]
       : []),
     {
@@ -309,14 +329,16 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           <AssignmentIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
         </Badge>
       ),
-      onClick: goToPlanner,
+      href: '/planner',
+      onNavigate: goToPlanner,
     },
     {
       key: 'account',
       active: mainView === 'account',
       label: t('Account', 'Compte', 'Konto'),
       icon: accountIcon(MOBILE_ICON_SIZE),
-      onClick: goToAccount,
+      href: '/account',
+      onNavigate: goToAccount,
     },
   ];
 
@@ -340,7 +362,8 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
               active={item.active}
               label={item.label}
               icon={item.icon}
-              onClick={item.onClick}
+              href={item.href}
+              onNavigate={item.onNavigate}
             />
           ))}
         </Box>
@@ -385,28 +408,32 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           collapsed={collapsed}
           label={t('Blueprints', 'Blueprints')}
           icon={<DescriptionOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-          onClick={goToBlueprints}
+          href="/"
+          onNavigate={goToBlueprints}
         />
         <NavItem
           active={mainView === 'missions'}
           collapsed={collapsed}
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-          onClick={goToMissions}
+          href="/missions"
+          onNavigate={goToMissions}
         />
         <NavItem
           active={mainView === 'resources'}
           collapsed={collapsed}
           label={t('Resources', 'Ressources')}
           icon={<ScienceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-          onClick={goToResources}
+          href="/resources"
+          onNavigate={goToResources}
         />
         <NavItem
           active={mainView === 'changelog'}
           collapsed={collapsed}
           label={t('Changelog', 'Changelog')}
           icon={<DifferenceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-          onClick={goToChangelog}
+          href="/changelog"
+          onNavigate={goToChangelog}
         />
         {canAccessOrganizations && (
           <NavItem
@@ -414,7 +441,8 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
             collapsed={collapsed}
             label={t('Organizations', 'Organisations', 'Organisationen')}
             icon={<GroupsOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-            onClick={goToOrganizations}
+            href="/organizations"
+            onNavigate={goToOrganizations}
           />
         )}
         <Box
@@ -441,14 +469,16 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
                 <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
               </Badge>
             }
-            onClick={goToPlanner}
+            href="/planner"
+            onNavigate={goToPlanner}
           />
           <NavItem
             active={mainView === 'account'}
             collapsed={collapsed}
             label={t('Account', 'Compte', 'Konto')}
             icon={accountIcon(DESKTOP_ICON_SIZE)}
-            onClick={goToAccount}
+            href="/account"
+            onNavigate={goToAccount}
           />
         </Box>
       </Box>

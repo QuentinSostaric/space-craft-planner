@@ -28,6 +28,7 @@ import {
   getMaterialProviders,
 } from '../../utils/crafting';
 import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '../../utils/slug';
+import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 import type { ResourceMethod } from '../../types';
 import { DatasetTooOldNotice } from '../ui/DatasetTooOldNotice';
 import {
@@ -309,7 +310,11 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
         return (
           <ListItem key={contract.contractDebugName ?? `${group.contractorDisplayName}-${index}`} disablePadding>
             <ListItemButton
-              onClick={() => {
+              component="a"
+              href={missionPathFromSlug(missionSlug)}
+              onClick={(event) => {
+                if (!shouldHandleInternalLinkClick(event)) return;
+                event.preventDefault();
                 navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
               }}
               sx={{

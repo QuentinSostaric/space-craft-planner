@@ -752,8 +752,12 @@ export function DatasetChangelogPage() {
     const latestLive = selectableDatasets.find((dataset) => dataset.channel === 'live');
     const activeSummary = selectableDatasets.find((dataset) => dataset.datasetId === activeDataset.datasetId);
     const firstOther = selectableDatasets.find((dataset) => dataset.datasetId !== activeDataset.datasetId);
+    const defaultBaseDataset =
+      latestLive && latestLive.datasetId !== activeSummary?.datasetId
+        ? latestLive
+        : firstOther;
     setTargetDatasetId((current) => current && datasetSummaryById.has(current) ? current : activeSummary?.datasetId ?? selectableDatasets[0].datasetId);
-    setBaseDatasetId((current) => current && datasetSummaryById.has(current) ? current : latestLive?.datasetId ?? firstOther?.datasetId ?? selectableDatasets[0].datasetId);
+    setBaseDatasetId((current) => current && datasetSummaryById.has(current) ? current : defaultBaseDataset?.datasetId ?? selectableDatasets[0].datasetId);
   }, [activeDataset.datasetId, datasetSummaryById, selectableDatasets]);
 
   const loadDataset = useCallback(async (datasetId: string) => {

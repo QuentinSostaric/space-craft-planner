@@ -923,6 +923,7 @@ function OrganizationBlueprintAccordion({
                               mainView: 'resources',
                             })
                           }
+                          href={resourcePathFromSlug(row.resourceId)}
                           title={row.resourceName}
                           owner={{
                             label: row.ownerDisplay || row.ownerHandle,

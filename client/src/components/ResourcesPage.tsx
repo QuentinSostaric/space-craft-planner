@@ -91,6 +91,7 @@ import {
   resourcePathFromSlug,
   resourceSlugFromPathname,
 } from '../utils/slug';
+import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 import { FONT_HEADING } from '../theme';
 
 type ResourceSort = 'name-asc' | 'providers-desc' | 'missions-desc' | 'blueprints-desc';
@@ -111,6 +112,7 @@ function isPlaceholderResource(resource: Resource) {
 interface ResourceCardProps {
   resource: Resource;
   insight: ResourceInsight | null;
+  href: string;
   onOpen: () => void;
   onAddToPlanner: () => void;
   onAddToInventory: () => void;
@@ -414,6 +416,7 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
 function ResourceCard({
   resource,
   insight,
+  href,
   onOpen,
   onAddToPlanner,
   onAddToInventory,
@@ -476,7 +479,13 @@ function ResourceCard({
       }}
     >
       <CardActionArea
-        onClick={onOpen}
+        component="a"
+        href={href}
+        onClick={(event) => {
+          if (!shouldHandleInternalLinkClick(event)) return;
+          event.preventDefault();
+          onOpen();
+        }}
         sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
       >
         <Box
@@ -1333,12 +1342,16 @@ function ResourceMissionSection({
               return (
                 <Card key={`${contract.contractFile ?? 'contract'}-${contract.contractDebugName ?? 'debug'}`}>
                   <CardActionArea
-                    onClick={() =>
+                    component="a"
+                    href={missionPathFromSlug(missionSlug)}
+                    onClick={(event) => {
+                      if (!shouldHandleInternalLinkClick(event)) return;
+                      event.preventDefault();
                       navigateToPath(missionPathFromSlug(missionSlug), {
                         missionSlug,
                         mainView: 'missions',
-                      })
-                    }
+                      });
+                    }}
                     sx={{
                       p: 1.5,
                       display: 'flex',
@@ -2075,6 +2088,7 @@ export function ResourcesPage() {
                   key={resource.id}
                   resource={resource}
                   insight={resourceInsightById.get(resource.id) ?? null}
+                  href={resourcePathFromSlug(resource.id)}
                   onOpen={() => {
                     setSelectedResourceSlug(resource.id);
                     navigateToPath(resourcePathFromSlug(resource.id), {

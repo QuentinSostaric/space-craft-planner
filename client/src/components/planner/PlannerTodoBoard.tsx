@@ -24,6 +24,8 @@ import { useI18n } from '../../i18n/I18nContext';
 import { useCraft } from '../../store/CraftContext';
 import type { PlannerTodoItem, PlannerTodoSource } from '../../types';
 import { FONT_HEADING } from '../../theme';
+import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
+import { toSlug } from '../../utils/slug';
 
 type PlannerTodoFilter = 'all' | 'open' | 'done' | 'manual' | 'mission-blueprint';
 
@@ -577,7 +579,11 @@ export function PlannerTodoBoard() {
                           />
                           {item.relatedBlueprintId && item.relatedBlueprintName && (
                             <ButtonBase
-                              onClick={() => {
+                              component="a"
+                              href={`/item/${toSlug(item.relatedBlueprintName)}`}
+                              onClick={(event) => {
+                                if (!shouldHandleInternalLinkClick(event)) return;
+                                event.preventDefault();
                                 const relatedBlueprint =
                                   blueprints.find((blueprint) => blueprint.id === item.relatedBlueprintId) ??
                                   null;
