@@ -23,12 +23,22 @@ export const LS_KEYS = {
   ORGANIZATIONS_ACCORDIONS: 'sc-craft-organizations-accordions',
 } as const;
 
+export interface GppModifierRange {
+  modifierType: 'multiplier' | 'additive';
+  qualityStart: number;
+  qualityEnd: number;
+  modAtMin: number;
+  modAtMax: number;
+}
+
 export interface GppModifier {
   gppId: string;
+  modifierType?: 'multiplier' | 'additive' | 'mixed';
   modAtMin: number;
   modAtMax: number;
   qualityStart: number;
   qualityEnd: number;
+  ranges?: GppModifierRange[];
   occurrenceCount: number;
 }
 

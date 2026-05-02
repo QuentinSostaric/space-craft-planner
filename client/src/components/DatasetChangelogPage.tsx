@@ -81,13 +81,16 @@ function formatDelta(before: unknown, after: unknown) {
   return `${pct > 0 ? '+' : ''}${Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
 
-function formatModifierValue(value: number) {
+function formatModifierValue(value: number, modifierType: GppModifier['modifierType'] = 'multiplier') {
+  if (modifierType === 'additive') {
+    return `${value > 0 ? '+' : ''}${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}`;
+  }
   const pct = Math.round((value - 1) * 1000) / 10;
   return `${pct > 0 ? '+' : ''}${Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
 
-function modifierRangeText(modifier: Pick<GppModifier, 'modAtMin' | 'modAtMax'>) {
-  return `${formatModifierValue(modifier.modAtMin)} <-> ${formatModifierValue(modifier.modAtMax)}`;
+function modifierRangeText(modifier: Pick<GppModifier, 'modAtMin' | 'modAtMax' | 'modifierType'>) {
+  return `${formatModifierValue(modifier.modAtMin, modifier.modifierType)} <-> ${formatModifierValue(modifier.modAtMax, modifier.modifierType)}`;
 }
 
 function modifierScore(modifier: Pick<GppModifier, 'modAtMin' | 'modAtMax'>) {
@@ -95,7 +98,7 @@ function modifierScore(modifier: Pick<GppModifier, 'modAtMin' | 'modAtMax'>) {
 }
 
 function collectModifierRanges(blueprint: Blueprint, lang: Lang) {
-  const byGpp = new Map<string, { gppId: string; label: string; modAtMin: number; modAtMax: number }>();
+  const byGpp = new Map<string, { gppId: string; label: string; modAtMin: number; modAtMax: number; modifierType: GppModifier['modifierType'] }>();
   for (const slot of blueprint.slots ?? []) {
     for (const modifier of slot.modifiers ?? []) {
       const current = byGpp.get(modifier.gppId);
@@ -105,6 +108,7 @@ function collectModifierRanges(blueprint: Blueprint, lang: Lang) {
           label: gppLabel(modifier.gppId, lang),
           modAtMin: modifier.modAtMin,
           modAtMax: modifier.modAtMax,
+          modifierType: modifier.modifierType,
         });
         continue;
       }
