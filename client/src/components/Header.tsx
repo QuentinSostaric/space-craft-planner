@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { navigateToPath } from '../utils/slug';
+import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 const MONTH_NAMES = {
   en: [
@@ -261,7 +262,13 @@ export function Header() {
           }}
         >
           <ButtonBase
-            onClick={() => navigateToPath('/')}
+            component="a"
+            href="/"
+            onClick={(event) => {
+              if (!shouldHandleInternalLinkClick(event)) return;
+              event.preventDefault();
+              navigateToPath('/');
+            }}
             sx={{
               borderRadius: 1,
               display: 'flex',

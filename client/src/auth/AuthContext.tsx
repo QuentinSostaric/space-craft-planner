@@ -274,7 +274,7 @@ function isAccountDatasetScopeReady(
   account: StoredAccount | null,
   datasetScope: AccountDatasetScope,
 ): account is StoredAccount {
-  return Boolean(account && (!account.datasetScope || account.datasetScope === datasetScope));
+  return Boolean(account && (account.datasetScope ?? 'live') === datasetScope);
 }
 
 function buildScopedMutationStorageKey(
@@ -1161,6 +1161,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const copyLiveDataToPtu = useCallback<AuthState['copyLiveDataToPtu']>(async () => {
     await flushPendingMutationsRef.current();
+    if (pendingMutationsRef.current.length > 0) {
+      throw new Error('Account changes are still pending. Sync them before copying LIVE data to PTU.');
+    }
     const nextAccount = await copyLiveAccountDataToPtu();
     const nextMutationStorageKey = buildScopedMutationStorageKey(
       nextAccount.accountId,

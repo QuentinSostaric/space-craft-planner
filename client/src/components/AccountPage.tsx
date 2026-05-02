@@ -2804,6 +2804,7 @@ export function AccountPage() {
                                   })
                               : null
                           }
+                          href={entry.resource ? resourcePathFromSlug(entry.resourceEntry.resourceId) : null}
                           title={entry.resourceEntry.resourceName}
                           infoChips={[
                             {

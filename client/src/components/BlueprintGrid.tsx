@@ -42,6 +42,8 @@ import type {
 } from '../types';
 import type { GameIconName } from './ui/GameIcon';
 import { FONT_HEADING } from '../theme';
+import { toSlug } from '../utils/slug';
+import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
 
@@ -214,6 +216,8 @@ export const BlueprintCard = memo(function BlueprintCard({
   const { url: thumbUrl, mode: thumbMode } = resolveThumb(blueprint);
   const [imgError, setImgError] = useState(false);
   const showImage = thumbUrl && !imgError;
+  const blueprintHref = `/item/${toSlug(blueprint.name)}`;
+  const cardHref = isActive ? '/' : blueprintHref;
 
   const cardStats = CARD_STATS[blueprint.category] ?? [];
   const categoryMax = statMaxima.get(blueprint.category);
@@ -274,7 +278,13 @@ export const BlueprintCard = memo(function BlueprintCard({
       }}
     >
       <CardActionArea
-        onClick={() => onSelect(isActive ? null : blueprint)}
+        component="a"
+        href={cardHref}
+        onClick={(event) => {
+          if (!shouldHandleInternalLinkClick(event)) return;
+          event.preventDefault();
+          onSelect(isActive ? null : blueprint);
+        }}
         aria-pressed={isActive}
         aria-label={t(
           `${blueprint.rarity ? blueprint.rarity + ' ' : ''}Blueprint ${blueprint.name} by ${blueprint.manufacturer}`,

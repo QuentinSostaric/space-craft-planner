@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -16,6 +16,7 @@ import { ResourceIcon } from '../ui/ResourceIcon';
 import { useI18n } from '../../i18n/I18nContext';
 import type { Resource, ResourceInsight } from '../../types';
 import { FONT_HEADING } from '../../theme';
+import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 
 type ResourceCardChip = {
   label: string;
@@ -87,6 +88,7 @@ export function ResourceAssetCard({
   resource,
   insight,
   onOpen,
+  href,
   title,
   description,
   owner,
@@ -96,6 +98,7 @@ export function ResourceAssetCard({
   resource: Resource | null;
   insight: ResourceInsight | null;
   onOpen?: (() => void) | null;
+  href?: string | null;
   title?: string;
   description?: string | null;
   owner?: ResourceOwnerInfo | null;
@@ -285,7 +288,13 @@ export function ResourceAssetCard({
     >
       {onOpen ? (
         <CardActionArea
-          onClick={onOpen}
+          component={href ? 'a' : 'button'}
+          href={href ?? undefined}
+          onClick={(event: MouseEvent<HTMLElement>) => {
+            if (href && !shouldHandleInternalLinkClick(event)) return;
+            if (href) event.preventDefault();
+            onOpen();
+          }}
           sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
         >
           {content}
