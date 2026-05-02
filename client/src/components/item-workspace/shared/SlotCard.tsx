@@ -11,7 +11,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import CloseIcon from '@mui/icons-material/Close';
 import { useI18n, loc } from '../../../i18n/I18nContext';
-import { gppModifier } from '../../../hooks/useCraftSimulator';
+import { evaluateGppModifier } from '../../../hooks/useCraftSimulator';
 import { ResourceIcon } from '../../ui/ResourceIcon';
 import { GameIcon } from '../../ui/GameIcon';
 import { GPP_LABELS, GPP_LOWER_IS_BETTER } from '../../../types';
@@ -71,11 +71,20 @@ export function SlotCard({
     return slot.modifiers
       .map((modifier) => {
         const label = loc(GPP_LABELS[modifier.gppId] ?? { en: modifier.gppId, fr: modifier.gppId }, lang);
-        const multiplier = gppModifier(modifier.modAtMin, modifier.modAtMax, qualityValue, modifier.qualityStart, modifier.qualityEnd);
-        const pct = (multiplier - 1) * 100;
+        const evaluated = evaluateGppModifier(modifier, qualityValue);
+        const pct = evaluated.modifierType === 'multiplier' ? (evaluated.value - 1) * 100 : evaluated.value;
         const lowerIsBetter = GPP_LOWER_IS_BETTER.has(modifier.gppId);
         const isImproved = lowerIsBetter ? pct < 0 : pct > 0;
-        return { gppId: modifier.gppId, label, pct, isImproved, isNeutral: Math.abs(pct) < 0.005, occurrenceCount: modifier.occurrenceCount };
+        return {
+          gppId: modifier.gppId,
+          label,
+          value: evaluated.value,
+          modifierType: evaluated.modifierType,
+          pct,
+          isImproved,
+          isNeutral: Math.abs(pct) < 0.005,
+          occurrenceCount: modifier.occurrenceCount,
+        };
       })
       .filter(Boolean);
   }, [isAssigned, lang, qualityValue, slot.modifiers]);
@@ -323,7 +332,9 @@ export function SlotCard({
                   color: m.isNeutral ? 'text.secondary' : m.isImproved ? 'success.main' : 'error.main',
                 }}
               >
-                {m.pct > 0 ? '+' : ''}{m.pct.toFixed(1)}%
+                {m.modifierType === 'additive'
+                  ? `${m.value > 0 ? '+' : ''}${m.value.toFixed(0)}`
+                  : `${m.pct > 0 ? '+' : ''}${m.pct.toFixed(1)}%`}
               </Typography>
               {m.occurrenceCount > 1 && (
                 <Box component="span" sx={{ ml: 0.5, fontWeight: 700, opacity: 0.7 }}>

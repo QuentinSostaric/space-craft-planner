@@ -699,8 +699,8 @@ function ContractCard({
       role="listitem"
       sx={{
         position: 'relative',
-        height: { xs: 'auto', md: 334 },
-        minHeight: { xs: 'auto', md: 334 },
+        height: { xs: 'auto', lg: 360, xl: 334 },
+        minHeight: { xs: 'auto', lg: 360, xl: 334 },
         display: 'flex',
         borderColor: alpha(theme.palette.brand.blueLight, 0.22),
         background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.15)} 0%, ${alpha(theme.palette.background.default, 0.98)} 48%, ${alpha(theme.palette.common.black, 0.28)} 100%)`,
@@ -740,22 +740,22 @@ function ContractCard({
           flex: 1,
           minWidth: 0,
           display: 'grid',
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(148px, 35%) minmax(0, 1fr)' },
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(148px, 35%) minmax(0, 1fr)' },
           alignItems: 'stretch',
         }}
       >
         <Box
           sx={{
             position: 'relative',
-            minHeight: { xs: 210, md: 0 },
+            minHeight: { xs: 190, sm: 210, lg: 0 },
             height: '100%',
             background: `
               radial-gradient(circle at 20% 12%, ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.18)}, transparent 24%),
               linear-gradient(135deg, ${alpha(isUnlawful ? theme.palette.error.dark : theme.palette.secondary.dark, 0.32)}, transparent 50%),
               linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.18)} 0%, ${alpha(theme.palette.background.default, 0.96)} 100%)
             `,
-            borderRight: { md: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}` },
-            borderBottom: { xs: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`, md: 0 },
+            borderRight: { lg: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}` },
+            borderBottom: { xs: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`, lg: 0 },
             overflow: 'hidden',
           }}
         >
@@ -957,7 +957,7 @@ function ContractCard({
 
         <Box
           sx={{
-            p: { xs: '16px', md: '16px' },
+            p: { xs: '14px', sm: '16px' },
             display: 'grid',
             gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 116px' },
             gridTemplateRows: { xs: 'auto auto auto minmax(0, 1fr)', lg: 'auto auto minmax(84px, 1fr)' },
@@ -973,7 +973,7 @@ function ContractCard({
               sx={{
                 fontFamily: FONT_HEADING,
                 fontWeight: 800,
-                fontSize: { xs: '1.42rem', md: '1.18rem', xl: '1.24rem' },
+                fontSize: { xs: '1.25rem', sm: '1.42rem', lg: '1.12rem', xl: '1.24rem' },
                 lineHeight: 0.95,
                 color: theme.palette.text.primary,
                 textTransform: 'uppercase',
@@ -1020,7 +1020,7 @@ function ContractCard({
                       sx={{
                         color: theme.palette.text.primary,
                         fontFamily: FONT_HEADING,
-                        fontSize: { xs: '0.98rem', md: '0.76rem' },
+                        fontSize: { xs: '0.86rem', sm: '0.98rem', lg: '0.72rem', xl: '0.76rem' },
                         fontWeight: 700,
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
@@ -1217,13 +1217,13 @@ function ContractCard({
                   zIndex: 2,
                   display: 'grid',
                   gridAutoFlow: 'column',
-                  gridAutoColumns: { xs: 164, md: 122, xl: 132 },
-                  gridTemplateRows: 'repeat(3, minmax(38px, 1fr))',
+                  gridAutoColumns: { xs: 150, sm: 164, lg: 116, xl: 132 },
+                  gridTemplateRows: { xs: 'repeat(2, minmax(38px, 1fr))', sm: 'repeat(3, minmax(38px, 1fr))' },
                   gap: 0.55,
                   overflowX: 'auto',
                   overflowY: 'hidden',
                   flex: 1,
-                  minHeight: 132,
+                  minHeight: { xs: 90, sm: 132 },
                   pb: 0.45,
                   pr: 0.35,
                   minWidth: 0,
@@ -2279,7 +2279,7 @@ export function MissionsPanel() {
                       md: 'repeat(2, minmax(0, 1fr))',
                       xl: 'repeat(3, minmax(0, 1fr))',
                     },
-                    gridAutoRows: { xs: 'auto', md: '334px' },
+                    gridAutoRows: { xs: 'auto', lg: '360px', xl: '334px' },
                     alignItems: 'stretch',
                     width: '100%',
                     gap: { xs: 1.25, md: 1.5 },

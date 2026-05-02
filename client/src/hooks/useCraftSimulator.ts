@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Blueprint, ItemStats, NumericItemStatKey } from '../types';
+import type { Blueprint, GppModifier, GppModifierRange, ItemStats, NumericItemStatKey } from '../types';
 import {
   ARMOR_DAMAGE_RESISTANCE_KEYS,
   DIRECT_GPP_TO_STAT,
@@ -7,11 +7,9 @@ import {
 } from '../types';
 
 /**
- * Compute the GPP modifier multiplier for a given numeric quality value.
+ * Compute one GPP modifier range value for a given numeric quality value.
  * Interpolates linearly between qualityStart and qualityEnd.
  * Values below qualityStart clamp to modAtMin; above qualityEnd clamp to modAtMax.
- * For curves spanning 0-1000, quality 500 remains the neutral point (modifier 1.0).
- * Curves starting at 500 are neutral below 500 and apply a bonus above.
  */
 export function gppModifier(
   modAtMin: number,
@@ -24,6 +22,40 @@ export function gppModifier(
   if (qualityValue >= qualityEnd) return modAtMax;
   const t = (qualityValue - qualityStart) / (qualityEnd - qualityStart);
   return modAtMin + (modAtMax - modAtMin) * t;
+}
+
+function getModifierRanges(modifier: GppModifier): GppModifierRange[] {
+  if (modifier.ranges?.length) return modifier.ranges;
+  return [
+    {
+      modifierType: modifier.modifierType === 'additive' ? 'additive' : 'multiplier',
+      qualityStart: modifier.qualityStart,
+      qualityEnd: modifier.qualityEnd,
+      modAtMin: modifier.modAtMin,
+      modAtMax: modifier.modAtMax,
+    },
+  ];
+}
+
+export function evaluateGppModifier(
+  modifier: GppModifier,
+  qualityValue: number,
+): { modifierType: 'multiplier' | 'additive'; value: number } {
+  const ranges = getModifierRanges(modifier).sort((left, right) => left.qualityStart - right.qualityStart);
+  const activeRange =
+    ranges.find((range) => qualityValue >= range.qualityStart && qualityValue <= range.qualityEnd) ??
+    (qualityValue < ranges[0].qualityStart ? ranges[0] : ranges[ranges.length - 1]);
+
+  return {
+    modifierType: activeRange.modifierType,
+    value: gppModifier(
+      activeRange.modAtMin,
+      activeRange.modAtMax,
+      qualityValue,
+      activeRange.qualityStart,
+      activeRange.qualityEnd,
+    ),
+  };
 }
 
 function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKey[] {
@@ -56,18 +88,20 @@ function calcProjectedStats(
       const targets = getModifierTargets(mod.gppId, result);
       if (targets.length === 0) continue;
 
-      const modifier = gppModifier(
-        mod.modAtMin,
-        mod.modAtMax,
-        qualityValue,
-        mod.qualityStart,
-        mod.qualityEnd,
-      );
-      const appliedModifier = Math.pow(modifier, mod.occurrenceCount ?? 1);
+      const modifier = evaluateGppModifier(mod, qualityValue);
+      const occurrenceCount = mod.occurrenceCount ?? 1;
 
       for (const statKey of targets) {
-        const currentValue = typeof result[statKey] === 'number' ? result[statKey] : 1;
-        result[statKey] = currentValue * appliedModifier;
+        const currentValue =
+          typeof result[statKey] === 'number'
+            ? result[statKey]
+            : modifier.modifierType === 'additive'
+              ? 0
+              : 1;
+        result[statKey] =
+          modifier.modifierType === 'additive'
+            ? currentValue + modifier.value * occurrenceCount
+            : currentValue * Math.pow(modifier.value, occurrenceCount);
       }
     }
   }
