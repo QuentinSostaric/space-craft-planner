@@ -699,7 +699,7 @@ function ContractCard({
       role="listitem"
       sx={{
         position: 'relative',
-        height: '100%',
+        height: { xs: 'auto', md: 334 },
         minHeight: { xs: 'auto', md: 334 },
         display: 'flex',
         borderColor: alpha(theme.palette.brand.blueLight, 0.22),
@@ -747,7 +747,7 @@ function ContractCard({
         <Box
           sx={{
             position: 'relative',
-            minHeight: { xs: 210, md: 334 },
+            minHeight: { xs: 210, md: 0 },
             height: '100%',
             background: `
               radial-gradient(circle at 20% 12%, ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.18)}, transparent 24%),
@@ -2279,7 +2279,7 @@ export function MissionsPanel() {
                       md: 'repeat(2, minmax(0, 1fr))',
                       xl: 'repeat(3, minmax(0, 1fr))',
                     },
-                    gridAutoRows: { xs: 'auto', md: 'minmax(334px, auto)' },
+                    gridAutoRows: { xs: 'auto', md: '334px' },
                     alignItems: 'stretch',
                     width: '100%',
                     gap: { xs: 1.25, md: 1.5 },
