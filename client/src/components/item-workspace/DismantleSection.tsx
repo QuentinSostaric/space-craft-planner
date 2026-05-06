@@ -85,9 +85,10 @@ export function DismantleSection({
 
   return (
     <Box
+      id="blueprint-dismantling"
       component="section"
       aria-label={t('Dismantling', 'Demontage')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, scrollMarginTop: 18 }}
     >
       <Typography variant="overline" sx={{ display: 'block' }}>
         {t('Dismantling', 'Demontage')}
