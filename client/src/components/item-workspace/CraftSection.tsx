@@ -137,13 +137,51 @@ export function CraftSection({
 
   return (
     <Box
+      id="blueprint-craft"
       component="section"
       aria-label={t('Craft simulator', 'Simulateur de craft')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, scrollMarginTop: 18 }}
     >
-      <Typography variant="overline" sx={{ display: 'block' }}>
-        {t('Craft Simulator', 'Simulateur de craft')}
-      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          justifyContent: 'space-between',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 1,
+        }}
+      >
+        <Stack spacing={0.35}>
+          <Typography variant="overline" sx={{ display: 'block' }}>
+            {t('Craft Simulator', 'Simulateur de craft')}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontSize: '0.62rem',
+            }}
+          >
+            {blueprint.slots.length === 1
+              ? t('1 configurable part', '1 composant configurable')
+              : `${blueprint.slots.length} ${t('configurable parts', 'composants configurables')}`}
+          </Typography>
+        </Stack>
+
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+          <Button variant="ghost" size="sm" onClick={() => fillSlots('max')}>
+            {t('Max quality', 'Qualite max')}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => fillSlots('minimum')}>
+            {t('Minimum valid', 'Minimum valide')}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearAssignments}>
+            {t('Clear', 'Effacer')}
+          </Button>
+        </Box>
+      </Box>
 
       <Paper
         sx={{
@@ -363,20 +401,6 @@ export function CraftSection({
           </Box>
         )}
       </Paper>
-
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Button variant="ghost" size="sm" onClick={() => fillSlots('max')}>
-            {t('Max quality', 'Qualite max')}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => fillSlots('minimum')}>
-            {t('Minimum valid', 'Minimum valide')}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={clearAssignments}>
-            {t('Clear', 'Effacer')}
-          </Button>
-        </Box>
-      </Box>
 
       <Box>
         <Typography

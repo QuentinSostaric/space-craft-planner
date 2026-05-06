@@ -166,13 +166,88 @@ export function MaterialSourcesSection({
 
   return (
     <Box
+      id="blueprint-materials"
       component="section"
       aria-label={t('Material sources', 'Sources de materiaux')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, scrollMarginTop: 18 }}
     >
-      <Typography variant="overline" sx={{ display: 'block' }}>
-        {t('Material Sources', 'Sources de materiaux')}
-      </Typography>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' },
+          gap: 1,
+          alignItems: 'end',
+        }}
+      >
+        <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+          <Typography variant="overline" sx={{ display: 'block' }}>
+            {t('Material Sources', 'Sources de materiaux')}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontSize: '0.62rem',
+            }}
+          >
+            {resources.length === 1
+              ? t('1 required resource', '1 ressource requise')
+              : `${resources.length} ${t('required resources', 'ressources requises')}`}
+          </Typography>
+        </Stack>
+
+        <Paper
+          variant="outlined"
+          sx={{
+            px: 1,
+            py: 0.75,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            flexWrap: 'wrap',
+            justifyContent: { xs: 'space-between', md: 'flex-end' },
+            backgroundColor: alpha(theme.palette.background.default, 0.18),
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.68rem' }}>
+              {t('Qty', 'Qte')}
+            </Typography>
+            <TextField
+              type="number"
+              size="small"
+              value={qty}
+              onChange={(event) => setQty(Math.max(1, Math.min(99, Number(event.target.value) || 1)))}
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  max: 99,
+                  'aria-label': t('Quantity', 'Quantite'),
+                  style: {
+                    width: 44,
+                    textAlign: 'center',
+                    padding: '4px 0',
+                    fontSize: '.85rem',
+                  },
+                },
+              }}
+              sx={{
+                width: 56,
+                '& .MuiOutlinedInput-root': {
+                  height: 32,
+                  '& fieldset': { border: 'none' },
+                },
+              }}
+            />
+          </Box>
+
+          <AppButton variant="secondary" size="sm" onClick={onAddGoal}>
+            {t('Add Goal to Planner', 'Ajouter l objectif au planificateur')}
+          </AppButton>
+        </Paper>
+      </Box>
 
       {loading && !materialSources?.resources && <LinearProgress />}
       {!loading && !materialSources?.resources && !hasResourceData && (
@@ -662,64 +737,6 @@ export function MaterialSourcesSection({
         })}
       </Box>
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'auto 1fr' },
-          gap: 0.75,
-          alignItems: 'stretch',
-          justifyContent: 'space-between',
-          mt: 0.25,
-        }}
-      >
-        <Paper
-          variant="outlined"
-          sx={{
-            px: 1.25,
-            py: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            backgroundColor: alpha(theme.palette.background.default, 0.18),
-          }}
-        >
-          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.68rem' }}>
-            {t('Qty', 'Qte')}
-          </Typography>
-          <TextField
-            type="number"
-            size="small"
-            value={qty}
-            onChange={(event) => setQty(Math.max(1, Math.min(99, Number(event.target.value) || 1)))}
-            slotProps={{
-              htmlInput: {
-                min: 1,
-                max: 99,
-                'aria-label': t('Quantity', 'Quantite'),
-                style: {
-                  width: 44,
-                  textAlign: 'center',
-                  padding: '4px 0',
-                  fontSize: '.85rem',
-                },
-              },
-            }}
-            sx={{
-              width: 56,
-              '& .MuiOutlinedInput-root': {
-                height: 32,
-                '& fieldset': { border: 'none' },
-              },
-            }}
-          />
-        </Paper>
-
-        <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', md: 'flex-start' }, alignItems: 'center' }}>
-          <AppButton variant="secondary" size="sm" onClick={onAddGoal}>
-            {t('Add Goal to Planner', 'Ajouter l objectif au planificateur')}
-          </AppButton>
-        </Box>
-      </Box>
     </Box>
   );
 }

@@ -250,7 +250,7 @@ export function ItemIdentity({
             alignItems: 'start',
           }}
         >
-          <Stack spacing={1.2} sx={{ minWidth: 0 }}>
+          <Stack spacing={1.2} sx={{ minWidth: 0, gridColumn: { md: '1' }, gridRow: { md: '1' } }}>
             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
               <CategoryBadge category={blueprint.category} />
               {blueprint.rarity && <RarityBadge rarity={blueprint.rarity} />}
@@ -297,60 +297,12 @@ export function ItemIdentity({
               </Box>
             )}
 
-            <Box sx={{ display: 'flex', gap: 0.75 }}>
-              <ToggleButton
-                value="favorite"
-                selected={isFavorite}
-                onChange={onToggleFavorite}
-                aria-pressed={isFavorite}
-                size="small"
-                sx={{
-                  flex: 1,
-                  gap: 0.5,
-                  textTransform: 'none',
-                  fontSize: '0.8rem',
-                  justifyContent: 'center',
-                  backgroundColor: alpha(theme.palette.background.default, 0.2),
-                  ...(isFavorite && { color: 'warning.main', borderColor: 'warning.main' }),
-                }}
-              >
-                {isFavorite ? (
-                  <StarIcon sx={{ fontSize: '1rem' }} />
-                ) : (
-                  <StarBorderIcon sx={{ fontSize: '1rem' }} />
-                )}
-                {t('Favorite', 'Favori')}
-              </ToggleButton>
-              <ToggleButton
-                value="owned"
-                selected={isLooted}
-                onChange={onToggleInventory}
-                aria-pressed={isLooted}
-                size="small"
-                sx={{
-                  flex: 1,
-                  gap: 0.5,
-                  textTransform: 'none',
-                  fontSize: '0.8rem',
-                  justifyContent: 'center',
-                  backgroundColor: alpha(theme.palette.background.default, 0.2),
-                  ...(isLooted && { color: 'primary.main', borderColor: 'primary.main' }),
-                }}
-              >
-                {isLooted ? (
-                  <CheckCircleIcon sx={{ fontSize: '1rem' }} />
-                ) : (
-                  <Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />
-                )}
-                {isLooted
-                  ? t('Remove from inventory', 'Retirer de l\'inventaire')
-                  : t('Add to inventory', 'Ajouter a l\'inventaire')}
-              </ToggleButton>
-            </Box>
           </Stack>
 
           <Box
             sx={{
+              gridColumn: { md: '2' },
+              gridRow: { md: '1 / span 2' },
               minHeight: 180,
               display: 'flex',
               alignItems: 'center',
@@ -379,6 +331,66 @@ export function ItemIdentity({
             ) : (
               <Inventory2OutlinedIcon sx={{ fontSize: 72, color: 'text.disabled' }} />
             )}
+          </Box>
+
+          <Box
+            sx={{
+              gridColumn: { xs: '1', md: '1' },
+              gridRow: { md: '2' },
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 0.75,
+              alignSelf: 'end',
+            }}
+          >
+            <ToggleButton
+              value="favorite"
+              selected={isFavorite}
+              onChange={onToggleFavorite}
+              aria-pressed={isFavorite}
+              size="small"
+              sx={{
+                minHeight: 42,
+                gap: 0.5,
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                justifyContent: 'center',
+                backgroundColor: alpha(theme.palette.background.default, 0.2),
+                ...(isFavorite && { color: 'warning.main', borderColor: 'warning.main' }),
+              }}
+            >
+              {isFavorite ? (
+                <StarIcon sx={{ fontSize: '1rem' }} />
+              ) : (
+                <StarBorderIcon sx={{ fontSize: '1rem' }} />
+              )}
+              {t('Favorite', 'Favori')}
+            </ToggleButton>
+            <ToggleButton
+              value="owned"
+              selected={isLooted}
+              onChange={onToggleInventory}
+              aria-pressed={isLooted}
+              size="small"
+              sx={{
+                minHeight: 42,
+                gap: 0.5,
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                justifyContent: 'center',
+                backgroundColor: alpha(theme.palette.background.default, 0.2),
+                ...(isLooted && { color: 'primary.main', borderColor: 'primary.main' }),
+              }}
+            >
+              {isLooted ? (
+                <CheckCircleIcon sx={{ fontSize: '1rem' }} />
+              ) : (
+                <Inventory2OutlinedIcon sx={{ fontSize: '1rem' }} />
+              )}
+              {isLooted
+                ? t('Remove from inventory', 'Retirer de l\'inventaire')
+                : t('Add to inventory', 'Ajouter a l\'inventaire')}
+            </ToggleButton>
           </Box>
         </Box>
       </Paper>

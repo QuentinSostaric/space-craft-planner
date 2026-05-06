@@ -11,6 +11,7 @@ import { CraftSection } from './item-workspace/CraftSection';
 import { MaterialSourcesSection } from './item-workspace/MaterialSourcesSection';
 import { AcquisitionSection } from './item-workspace/AcquisitionSection';
 import { DismantleSection } from './item-workspace/DismantleSection';
+import { BlueprintOverview } from './item-workspace/BlueprintOverview';
 import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '../utils/slug';
 
 export function ItemWorkspace() {
@@ -147,6 +148,19 @@ export function ItemWorkspace() {
           gap: { xs: 2, md: 2.5 },
         }}
       >
+        <BlueprintOverview
+          blueprint={activeBlueprint}
+          detailReady={detailReady}
+          qualityScore={qualityScore}
+          projectedStats={projectedStats}
+          acquisitionEntry={acquisitionEntry}
+          acquisitionLoading={missionRewardsLoading}
+          resources={requiredResources}
+          resourceDataLoading={resourceDataLoading}
+          dismantleTimeSecs={dismantleTimeSecs}
+          dismantleEfficiency={dismantleEfficiency}
+        />
+
         {detailReady ? (
           <CraftSection
             blueprint={activeBlueprint}
@@ -165,6 +179,42 @@ export function ItemWorkspace() {
           </Box>
         )}
 
+        {requiredResources.length > 0 && (
+          <>
+            <Divider />
+            <MaterialSourcesSection
+              resources={requiredResources}
+              allResources={activeDataset.resources}
+              materialSources={materialSources}
+              hasResourceData={activeDataset.hasResourceData}
+              loading={resourceDataLoading}
+              qty={qty}
+              setQty={setQty}
+              onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
+              onAddResource={(resourceName, quantity, quantityUnit) => {
+                addPlannerResourceRequirement(
+                  resourceName,
+                  quantity,
+                  quantityUnit === 'count' ? 'count' : 'scu',
+                );
+              }}
+            />
+          </>
+        )}
+
+        {detailReady && (
+          <>
+            <Divider />
+            <DismantleSection
+              blueprint={activeBlueprint}
+              allResources={activeDataset.resources}
+              resources={requiredResources}
+              dismantleTimeSecs={dismantleTimeSecs}
+              efficiency={dismantleEfficiency}
+            />
+          </>
+        )}
+
         <Divider />
 
         <AcquisitionSection
@@ -177,40 +227,13 @@ export function ItemWorkspace() {
             navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
             setActiveBlueprint(null);
           }}
-        />
-
-        <Divider />
-
-        <MaterialSourcesSection
-          resources={requiredResources}
-          allResources={activeDataset.resources}
-          materialSources={materialSources}
-          hasResourceData={activeDataset.hasResourceData}
-          loading={resourceDataLoading}
-          qty={qty}
-          setQty={setQty}
-          onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
-          onAddResource={(resourceName, quantity, quantityUnit) => {
-            addPlannerResourceRequirement(
-              resourceName,
-              quantity,
-              quantityUnit === 'count' ? 'count' : 'scu',
-            );
+          onBlueprintClick={(blueprintId) => {
+            const blueprint = activeDataset.blueprints.find((candidate) => candidate.id === blueprintId);
+            if (blueprint) {
+              setActiveBlueprint(blueprint);
+            }
           }}
         />
-
-        {detailReady && (
-          <>
-          <Divider />
-          <DismantleSection
-            blueprint={activeBlueprint}
-            allResources={activeDataset.resources}
-            resources={requiredResources}
-            dismantleTimeSecs={dismantleTimeSecs}
-            efficiency={dismantleEfficiency}
-          />
-          </>
-        )}
       </Box>
     </Box>
   );
