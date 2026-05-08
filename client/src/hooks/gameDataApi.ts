@@ -15,6 +15,7 @@ export {
   fetchPublishedMissionRewards,
   fetchPublishedMissionRewardsById,
   fetchPublishedBlueprintDetailById,
+  fetchPublishedBlueprintCatalogPageById,
   fetchFactionContracts,
 } from '../services/gameDataService';
-export type { DatasetIndexResponse } from '../services/gameDataService';
+export type { BlueprintCatalogQuery, DatasetIndexResponse } from '../services/gameDataService';
