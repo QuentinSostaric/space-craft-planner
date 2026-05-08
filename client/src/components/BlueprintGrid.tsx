@@ -114,6 +114,7 @@ function getBlueprintSearchHaystack(blueprint: Blueprint): string {
     blueprint.baseStats.ammoFlavor,
     blueprint.baseStats.armorType,
     blueprint.baseStats.armorSlot,
+    ...(blueprint.requiredResourceIds ?? []),
     ...blueprint.slots.map((slot) => slot.requirementName || slot.requiredResource),
   ]
     .filter(Boolean)
@@ -731,6 +732,7 @@ export function BlueprintGrid() {
 
     if (materialFilter) {
       list = list.filter((bp) =>
+        (bp.requiredResourceIds?.includes(materialFilter) ?? false) ||
         bp.slots.some((slot) => isResourceSlot(slot) && slot.requiredResource === materialFilter),
       );
     }
@@ -752,7 +754,7 @@ export function BlueprintGrid() {
     }
 
     if (slotCountFilter !== 'all') {
-      list = list.filter((bp) => String(bp.slots.length) === slotCountFilter);
+      list = list.filter((bp) => String(bp.slotCount ?? bp.slots.length) === slotCountFilter);
     }
 
     if (craftTimeFilter !== 'all') {
@@ -817,7 +819,7 @@ export function BlueprintGrid() {
         case 'craft-time-desc':
           return right.craftTimeSecs - left.craftTimeSecs || compareText(left.name, right.name);
         case 'slot-count-desc':
-          return right.slots.length - left.slots.length || compareText(left.name, right.name);
+          return (right.slotCount ?? right.slots.length) - (left.slotCount ?? left.slots.length) || compareText(left.name, right.name);
         case 'rarity-desc':
           return getRarityRank(right.rarity) - getRarityRank(left.rarity) || compareText(left.name, right.name);
         case 'acquisition-desc':

@@ -74,6 +74,14 @@ export function getBlueprintDetailKey(datasetId, blueprintId) {
   return `datasets/${datasetId}/blueprints/${encodeURIComponent(blueprintId)}.json`;
 }
 
+export function getBlueprintCatalogKey(datasetId) {
+  return `datasets/${datasetId}/blueprint-catalog.json`;
+}
+
+export function getBlueprintCatalogAliasKey(namespace, channel) {
+  return `aliases/${namespace}/${channel}/blueprint-catalog.json`;
+}
+
 export function getFactionContractsKey(datasetId, factionId) {
   return `datasets/${datasetId}/mission-rewards/factions/${encodeURIComponent(factionId)}.json`;
 }
