@@ -1765,14 +1765,6 @@ export function MissionsPanel() {
     void ensureMissionRewardsLoaded();
   }, [ensureMissionRewardsLoaded]);
 
-  // As soon as the slim chunk arrives, load all faction contracts in parallel.
-  useEffect(() => {
-    if (!missionRewards) return;
-    for (const group of missionRewards.factionGroups) {
-      if (group.id) void ensureFactionContractsLoaded(group.id);
-    }
-  }, [missionRewards, ensureFactionContractsLoaded]);
-
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [scaleFilter, setScaleFilter] = useState<string | null>(null);
   const [legalityFilter, setLegalityFilter] = useState('all');
@@ -1791,6 +1783,17 @@ export function MissionsPanel() {
   const [selectedMissionSlug, setSelectedMissionSlug] = useState<string | null>(() =>
     missionSlugFromPathname(window.location.pathname),
   );
+
+  useEffect(() => {
+    if (!missionRewards) return;
+
+    const requestedFactionId =
+      factionFilter ??
+      (selectedMissionSlug ? null : missionRewards.factionGroups[0]?.id ?? null);
+    if (requestedFactionId) {
+      void ensureFactionContractsLoaded(requestedFactionId);
+    }
+  }, [factionFilter, missionRewards, selectedMissionSlug, ensureFactionContractsLoaded]);
 
   const resources = activeDataset.resources;
   const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
@@ -2081,6 +2084,34 @@ export function MissionsPanel() {
       getColumns: missionGetColumns,
       getScrollRoot: getMainContentScrollRoot,
     });
+
+  useEffect(() => {
+    if (!missionRewards || selectedMissionSlug || factionFilter) return;
+    if (factionContractsLoadingIds.size > 0) return;
+
+    const loadedFactionIds = new Set(Object.keys(factionContractsByFactionId));
+    const nextFaction = missionRewards.factionGroups.find(
+      (group) => group.id && !loadedFactionIds.has(group.id),
+    );
+    if (!nextFaction?.id) return;
+
+    const shouldLoadNext =
+      search.trim().length > 0 ||
+      filteredContracts.length <= visibleCount + 6;
+    if (shouldLoadNext) {
+      void ensureFactionContractsLoaded(nextFaction.id);
+    }
+  }, [
+    factionContractsByFactionId,
+    factionContractsLoadingIds.size,
+    factionFilter,
+    filteredContracts.length,
+    missionRewards,
+    search,
+    selectedMissionSlug,
+    visibleCount,
+    ensureFactionContractsLoaded,
+  ]);
 
   useEffect(() => {
     const syncSelectedMissionFromPath = () => {

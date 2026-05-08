@@ -521,6 +521,8 @@ export interface Blueprint {
   craftTimeSecs: number;
   baseStats: ItemStats;
   slots: MaterialSlot[];
+  slotCount?: number;
+  requiredResourceIds?: string[];
   identity?: BlueprintIdentity;
   media?: BlueprintMedia;
   rarity?: 'legendary' | 'rare' | 'common';
@@ -1093,6 +1095,15 @@ export interface DatasetMissionRewardsChunk {
 export interface DatasetBlueprintDetailChunk {
   datasetId: string;
   blueprint: Blueprint | null;
+}
+
+export interface DatasetBlueprintCatalogPage {
+  datasetId: string | null;
+  total: number;
+  limit: number;
+  cursor: string;
+  nextCursor: string | null;
+  blueprints: Blueprint[];
 }
 
 export interface GameDataset {
