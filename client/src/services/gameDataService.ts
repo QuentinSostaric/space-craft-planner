@@ -5,7 +5,11 @@
 
 import type {
   Blueprint,
+  BlueprintSort,
+  CategoryFilter,
+  CraftTimeBucket,
   DatasetBlueprintDetailChunk,
+  DatasetBlueprintCatalogPage,
   DatasetChannel,
   DatasetChangelog,
   DatasetMissionRewardsChunk,
@@ -17,6 +21,8 @@ import type {
   MaterialSlot,
   MissionContract,
   MissionRewardsData,
+  RarityFilter,
+  SlotCountFilter,
 } from '../types';
 
 export interface DatasetIndexResponse {
@@ -224,6 +230,23 @@ function normalizeBlueprintDetail(
   return {
     datasetId: payload.datasetId,
     blueprint: payload.blueprint ? normalizeBlueprint(payload.blueprint, true) : null,
+  };
+}
+
+function normalizeBlueprintCatalogPage(
+  payload: DatasetBlueprintCatalogPage | null | undefined,
+): DatasetBlueprintCatalogPage | null {
+  if (!payload) {
+    return null;
+  }
+
+  return {
+    datasetId: payload.datasetId ?? null,
+    total: payload.total ?? 0,
+    limit: payload.limit ?? 0,
+    cursor: payload.cursor ?? '0',
+    nextCursor: payload.nextCursor ?? null,
+    blueprints: (payload.blueprints ?? []).map((blueprint) => normalizeBlueprint(blueprint, false)),
   };
 }
 
@@ -494,4 +517,83 @@ export async function fetchPublishedBlueprintDetailById(
   );
 
   return payload?.blueprint ?? null;
+}
+
+export interface BlueprintCatalogQuery {
+  category?: CategoryFilter;
+  manufacturer?: string | null;
+  rarity?: RarityFilter;
+  material?: string | null;
+  slotCount?: SlotCountFilter;
+  craftTime?: CraftTimeBucket;
+  weaponType?: string | null;
+  ammoType?: string | null;
+  ammoFlavor?: string | null;
+  armorType?: string | null;
+  armorSlot?: string | null;
+  search?: string | null;
+  sort?: BlueprintSort;
+  cursor?: string | null;
+  limit?: number;
+}
+
+function appendCatalogSearchParams(params: URLSearchParams, query: BlueprintCatalogQuery = {}) {
+  const entries: Array<[string, string | number | null | undefined]> = [
+    ['category', query.category],
+    ['manufacturer', query.manufacturer],
+    ['rarity', query.rarity],
+    ['material', query.material],
+    ['slotCount', query.slotCount],
+    ['craftTime', query.craftTime],
+    ['weaponType', query.weaponType],
+    ['ammoType', query.ammoType],
+    ['ammoFlavor', query.ammoFlavor],
+    ['armorType', query.armorType],
+    ['armorSlot', query.armorSlot],
+    ['search', query.search],
+    ['sort', query.sort],
+    ['cursor', query.cursor],
+    ['limit', query.limit],
+  ];
+
+  for (const [key, value] of entries) {
+    const normalized = String(value ?? '').trim();
+    if (!normalized || normalized === 'all') {
+      continue;
+    }
+    params.set(key, normalized);
+  }
+}
+
+export async function fetchPublishedBlueprintCatalogPageById(
+  datasetId: string,
+  query: BlueprintCatalogQuery = {},
+  channelHint?: DatasetChannel,
+): Promise<DatasetBlueprintCatalogPage | null> {
+  if (channelHint) {
+    try {
+      const params = new URLSearchParams();
+      appendCatalogSearchParams(params, query);
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      const latestPayload = normalizeBlueprintCatalogPage(
+        await apiFetch<DatasetBlueprintCatalogPage | null>(
+          `/api/game-data/public/${channelHint}/blueprints${suffix}`,
+        ),
+      );
+      if (latestPayload?.datasetId === datasetId) {
+        return latestPayload;
+      }
+    } catch {
+      // Fall back to by-id below.
+    }
+  }
+
+  const params = new URLSearchParams();
+  appendCatalogSearchParams(params, query);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return normalizeBlueprintCatalogPage(
+    await apiFetch<DatasetBlueprintCatalogPage | null>(
+      `/api/game-data/public/by-id/${datasetId}/blueprints${suffix}`,
+    ),
+  );
 }

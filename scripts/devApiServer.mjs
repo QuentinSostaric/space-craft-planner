@@ -63,6 +63,7 @@ import {
   syncCraftRequestStatusViaWorker,
 } from '../shared/discordBotRelay.mjs';
 import { verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
+import { buildBlueprintCatalogPage } from '../shared/blueprintCatalog.mjs';
 
 const PORT = 8788;
 const DEV_ALLOWED_ORIGINS = new Set([
@@ -280,6 +281,38 @@ async function getBlueprintDetail(response, datasetId, blueprintId) {
     datasetId,
     blueprint,
   });
+}
+
+async function getBlueprintCatalog(response, requestUrl, datasetId) {
+  const dataset = await readJson(`datasets/${datasetId}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No dataset for id "${datasetId}".`);
+    return;
+  }
+
+  const catalog = await readJson(`datasets/${datasetId}/blueprint-catalog.json`);
+  if (!catalog) {
+    sendError(response, 404, `No blueprint catalog for dataset "${datasetId}".`);
+    return;
+  }
+
+  sendJson(response, 200, buildBlueprintCatalogPage(catalog, requestUrl));
+}
+
+async function getBlueprintCatalogByChannel(response, requestUrl, channel) {
+  const dataset = await readJson(`aliases/all/${channel}/core.json`);
+  if (!dataset) {
+    sendError(response, 404, `No dataset for channel "${channel}".`);
+    return;
+  }
+
+  const catalog = await readJson(`aliases/all/${channel}/blueprint-catalog.json`);
+  if (!catalog) {
+    sendError(response, 404, `No blueprint catalog for channel "${channel}".`);
+    return;
+  }
+
+  sendJson(response, 200, buildBlueprintCatalogPage(catalog, requestUrl));
 }
 
 async function getFactionContractsById(response, datasetId, factionId) {
@@ -1447,6 +1480,18 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    const blueprintCatalogMatch = path.match(
+      /^\/api\/game-data\/public\/by-id\/([^/]+)\/blueprints$/,
+    );
+    if (blueprintCatalogMatch) {
+      await getBlueprintCatalog(
+        response,
+        url.toString(),
+        decodeURIComponent(blueprintCatalogMatch[1]),
+      );
+      return;
+    }
+
     const blueprintDetailMatch = path.match(
       /^\/api\/game-data\/public\/by-id\/([^/]+)\/blueprints\/([^/]+)$/,
     );
@@ -1532,6 +1577,12 @@ const server = http.createServer(async (request, response) => {
         resourceInsights: chunk?.resourceInsights ?? null,
         materialSources: chunk?.materialSources ?? null,
       });
+      return;
+    }
+
+    const blueprintCatalogByChannelMatch = path.match(/^\/api\/game-data\/public\/(live|ptu)\/blueprints$/);
+    if (blueprintCatalogByChannelMatch) {
+      await getBlueprintCatalogByChannel(response, url.toString(), blueprintCatalogByChannelMatch[1]);
       return;
     }
 
