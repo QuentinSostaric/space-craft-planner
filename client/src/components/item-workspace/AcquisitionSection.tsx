@@ -573,14 +573,14 @@ function AcquisitionMissionCard({
           position: 'relative',
           zIndex: 2,
           pointerEvents: 'none',
-          p: { xs: 1.35, md: 1.5 },
+          p: 0,
           display: 'grid',
           gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 128px' },
-          gap: { xs: 1.2, lg: 1.4 },
+          gap: 0,
           minWidth: 0,
         }}
       >
-        <Stack spacing={0.9} sx={{ minWidth: 0 }}>
+        <Stack spacing={0.9} sx={{ minWidth: 0, p: { xs: 1.35, md: 1.5 } }}>
           <Stack spacing={0.35} sx={{ minWidth: 0 }}>
             <Typography
               sx={{
@@ -775,12 +775,15 @@ function AcquisitionMissionCard({
           sx={{
             border: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`,
             background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.16)})`,
-            borderRadius: 1,
+            borderRadius: { xs: 0, lg: '0 0 0 4px' },
             p: 1,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             pointerEvents: 'none',
+            borderTop: { lg: 0 },
+            borderRight: { lg: 0 },
+            borderBottom: { lg: 0 },
           }}
         >
           <Typography
