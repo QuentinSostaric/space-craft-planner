@@ -1,7 +1,5 @@
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import Badge from '@mui/material/Badge';
@@ -15,11 +13,11 @@ import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import DifferenceOutlinedIcon from '@mui/icons-material/DifferenceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useCallback, useMemo } from 'react';
-import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import { FONT_HEADING } from '../theme';
+import { navigateToPath } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
@@ -31,31 +29,27 @@ export type MainView =
   | 'changelog'
   | 'account';
 
-const EXPANDED_WIDTH = 200;
-const COLLAPSED_WIDTH = 64;
+const DESKTOP_WIDTH = 84;
 const DESKTOP_ICON_SIZE = 20;
 const MOBILE_ICON_SIZE = 20;
-const DESKTOP_LABEL_FONT_SIZE = '0.8rem';
+const DESKTOP_LABEL_FONT_SIZE = '0.62rem';
 const MOBILE_LABEL_FONT_SIZE = '0.7rem';
 
 interface NavRailProps {
   mainView: MainView;
   onChangeView: (view: MainView) => void;
-  collapsed: boolean;
-  onToggleCollapsed: () => void;
 }
 
 interface NavItemProps {
   active: boolean;
-  collapsed: boolean;
   label: string;
   icon: React.ReactNode;
   href: string;
   onNavigate: () => void;
 }
 
-function NavItem({ active, collapsed, label, icon, href, onNavigate }: NavItemProps) {
-  const button = (
+function NavItem({ active, label, icon, href, onNavigate }: NavItemProps) {
+  return (
     <ButtonBase
       component="a"
       href={href}
@@ -68,11 +62,13 @@ function NavItem({ active, collapsed, label, icon, href, onNavigate }: NavItemPr
       sx={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'flex-start',
-        gap: 2,
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: 0.55,
         width: '100%',
-        height: 46,
-        px: 2,
+        minHeight: 70,
+        px: 0.5,
+        py: 0.85,
         position: 'relative',
         transition: 'background-color 160ms ease, color 160ms ease',
         color: active ? 'primary.main' : 'text.secondary',
@@ -84,7 +80,7 @@ function NavItem({ active, collapsed, label, icon, href, onNavigate }: NavItemPr
           bottom: '20%',
           width: 3,
           backgroundColor: 'primary.main',
-          borderRadius: '0 4px 4px 0',
+          borderRadius: '0 3px 3px 0',
           transform: active ? 'scaleX(1)' : 'scaleX(0)',
           transformOrigin: 'left',
           transition: 'transform 200ms ease',
@@ -100,32 +96,36 @@ function NavItem({ active, collapsed, label, icon, href, onNavigate }: NavItemPr
       }}
     >
       <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        width: 24, 
-        height: 24,
-        flexShrink: 0,
-        transition: 'transform 180ms ease',
-        transform: `translateX(${collapsed ? '4px' : '0px'}) scale(${active ? 1.1 : 1})`,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          width: 24, 
+          height: 24,
+          flexShrink: 0,
+          transition: 'transform 180ms ease',
+          transform: `scale(${active ? 1.08 : 1})`,
       }}>
         {icon}
       </Box>
       <Typography
-        aria-hidden={collapsed}
         sx={{
           fontFamily: FONT_HEADING,
-          fontWeight: 700,
+          fontWeight: 800,
           fontSize: DESKTOP_LABEL_FONT_SIZE,
+          lineHeight: 0.95,
           textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          whiteSpace: 'nowrap',
+          letterSpacing: '0.03em',
+          textAlign: 'center',
+          whiteSpace: 'normal',
           pointerEvents: 'none',
-          width: collapsed ? 0 : 'auto',
-          maxWidth: collapsed ? 0 : 160,
+          width: '100%',
+          maxWidth: 76,
           overflow: 'hidden',
-          opacity: collapsed ? 0 : 1,
-          transform: `translateX(${collapsed ? '-8px' : '0px'})`,
+          opacity: 1,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          transform: 'translateX(0)',
           transition: 'opacity 160ms ease, transform 180ms ease, max-width 180ms ease',
         }}
       >
@@ -133,16 +133,6 @@ function NavItem({ active, collapsed, label, icon, href, onNavigate }: NavItemPr
       </Typography>
     </ButtonBase>
   );
-
-  if (collapsed) {
-    return (
-      <Tooltip title={label} placement="right" arrow>
-        <Box sx={{ width: '100%' }}>{button}</Box>
-      </Tooltip>
-    );
-  }
-
-  return button;
 }
 
 function MobileNavItem({
@@ -214,7 +204,7 @@ function MobileNavItem({
   );
 }
 
-export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }: NavRailProps) {
+export function NavRail({ mainView, onChangeView }: NavRailProps) {
   const { t } = useI18n();
   const { user, account } = useAuth();
   const { goals, plannerResourceRequirements, plannerTodoItems } = useCraft();
@@ -376,8 +366,8 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       component="nav"
       aria-label={t('Main navigation', 'Navigation principale')}
       sx={{
-        width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
-        minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
+        width: DESKTOP_WIDTH,
+        minWidth: DESKTOP_WIDTH,
         alignSelf: 'stretch',
         minHeight: 'inherit',
         backgroundColor: 'background.paper',
@@ -390,7 +380,32 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         contain: 'layout paint',
       }}
     >
-      {/* Nav items */}
+      <ButtonBase
+        component="a"
+        href="/"
+        onClick={(event) => {
+          if (!shouldHandleInternalLinkClick(event)) return;
+          event.preventDefault();
+          navigateToPath('/', { mainView: 'blueprints' });
+        }}
+        sx={{
+          minHeight: 74,
+          px: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          flexShrink: 0,
+        }}
+      >
+        <Box
+          component="img"
+          src="/brand-mark.svg"
+          alt="Item Fabricator"
+          sx={{ width: 32, height: 40, objectFit: 'contain', display: 'block' }}
+        />
+      </ButtonBase>
+
       <Box
         sx={{
           display: 'flex',
@@ -405,7 +420,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
       >
         <NavItem
           active={mainView === 'blueprints'}
-          collapsed={collapsed}
           label={t('Blueprints', 'Blueprints')}
           icon={<DescriptionOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           href="/"
@@ -413,7 +427,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         />
         <NavItem
           active={mainView === 'missions'}
-          collapsed={collapsed}
           label={t('Missions', 'Missions')}
           icon={<FlagIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           href="/missions"
@@ -421,7 +434,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         />
         <NavItem
           active={mainView === 'resources'}
-          collapsed={collapsed}
           label={t('Resources', 'Ressources')}
           icon={<ScienceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           href="/resources"
@@ -429,7 +441,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         />
         <NavItem
           active={mainView === 'changelog'}
-          collapsed={collapsed}
           label={t('Changelog', 'Changelog')}
           icon={<DifferenceOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           href="/changelog"
@@ -438,7 +449,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         {canAccessOrganizations && (
           <NavItem
             active={mainView === 'organizations'}
-            collapsed={collapsed}
             label={t('Organizations', 'Organisations', 'Organisationen')}
             icon={<GroupsOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
             href="/organizations"
@@ -457,7 +467,6 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
         >
           <NavItem
             active={mainView === 'planner'}
-            collapsed={collapsed}
             label={t('Planner', 'Planificateur')}
             icon={
               <Badge
@@ -474,42 +483,12 @@ export function NavRail({ mainView, onChangeView, collapsed, onToggleCollapsed }
           />
           <NavItem
             active={mainView === 'account'}
-            collapsed={collapsed}
             label={t('Account', 'Compte', 'Konto')}
             icon={accountIcon(DESKTOP_ICON_SIZE)}
             href="/account"
             onNavigate={goToAccount}
           />
         </Box>
-      </Box>
-
-      {/* Toggle button at the bottom */}
-      <Box sx={{
-        p: 1.5,
-        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-        display: 'flex',
-        justifyContent: collapsed ? 'center' : 'flex-end',
-        flexShrink: 0,
-        backgroundColor: 'background.paper',
-      }}>
-        <IconButton
-          onClick={onToggleCollapsed}
-          aria-label={collapsed
-            ? t('Expand navigation', 'Etendre la navigation')
-            : t('Collapse navigation', 'Reduire la navigation')
-          }
-          size="small"
-          sx={{
-            transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
-          }}
-        >
-          <StarCitizenLicensedIcon
-            name="chevron-right"
-            size={16}
-            dimmed
-          />
-        </IconButton>
       </Box>
     </Box>
   );

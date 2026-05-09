@@ -90,7 +90,7 @@ function CompactFact({
         px: 1,
         py: 0.75,
         minWidth: 0,
-        backgroundColor: 'background.paper',
+        backgroundColor: (theme) => alpha(theme.palette.background.default, 0.2),
       }}
     >
       <Typography
@@ -169,7 +169,7 @@ export function MaterialSourcesSection({
       id="blueprint-materials"
       component="section"
       aria-label={t('Material sources', 'Sources de materiaux')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, scrollMarginTop: 18 }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.35, scrollMarginTop: 18 }}
     >
       <Box
         sx={{
@@ -179,10 +179,7 @@ export function MaterialSourcesSection({
           alignItems: 'end',
         }}
       >
-        <Stack spacing={0.35} sx={{ minWidth: 0 }}>
-          <Typography variant="overline" sx={{ display: 'block' }}>
-            {t('Material Sources', 'Sources de materiaux')}
-          </Typography>
+        <Stack spacing={0.35} sx={{ minWidth: 0, alignSelf: 'center' }}>
           <Typography
             variant="caption"
             sx={{
@@ -190,6 +187,7 @@ export function MaterialSourcesSection({
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
               fontSize: '0.62rem',
+              lineHeight: 1.15,
             }}
           >
             {resources.length === 1
@@ -208,7 +206,8 @@ export function MaterialSourcesSection({
             gap: 0.75,
             flexWrap: 'wrap',
             justifyContent: { xs: 'space-between', md: 'flex-end' },
-            backgroundColor: alpha(theme.palette.background.default, 0.18),
+            borderColor: alpha(theme.palette.primary.main, 0.18),
+            backgroundColor: alpha(theme.palette.background.default, 0.24),
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -291,14 +290,14 @@ export function MaterialSourcesSection({
               variant="outlined"
               sx={{
                 overflow: 'hidden',
-                backgroundColor: 'background.paper',
+                background: `linear-gradient(180deg, ${alpha(resource?.color ?? theme.palette.primary.main, 0.055)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 42%)`,
                 borderColor: alpha(resource?.color ?? theme.palette.primary.main, 0.22),
               }}
             >
               <Box
                 sx={{
-                  px: 1.25,
-                  py: 1,
+                  px: 1.3,
+                  py: 1.05,
                   borderBottom: 1,
                   borderColor: 'divider',
                   background: `linear-gradient(180deg, ${alpha(
@@ -310,15 +309,15 @@ export function MaterialSourcesSection({
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '48px minmax(0, 1fr)', md: '48px minmax(0, 1fr) auto' },
+                    gridTemplateColumns: { xs: '52px minmax(0, 1fr)', md: '52px minmax(0, 1fr) auto' },
                     gap: 1,
                     alignItems: 'center',
                   }}
                 >
                   <Box
                     sx={{
-                      width: 48,
-                      height: 48,
+                      width: 52,
+                      height: 52,
                       borderRadius: 1.25,
                       overflow: 'hidden',
                       display: 'flex',
@@ -379,7 +378,8 @@ export function MaterialSourcesSection({
                       py: 0.75,
                       minWidth: { xs: '100%', md: 128 },
                       gridColumn: { xs: '1 / -1', md: 'auto' },
-                      backgroundColor: alpha(theme.palette.background.default, 0.28),
+                      borderColor: alpha(resource?.color ?? theme.palette.primary.main, 0.28),
+                      backgroundColor: alpha(theme.palette.background.default, 0.32),
                     }}
                   >
                     <Typography
@@ -404,7 +404,7 @@ export function MaterialSourcesSection({
                 </Box>
               </Box>
 
-              <CardContent sx={{ p: 1.1, '&:last-child': { pb: 1.1 } }}>
+              <CardContent sx={{ p: 1.2, '&:last-child': { pb: 1.2 } }}>
                 <Stack spacing={0.85}>
                   <Box
                     sx={{

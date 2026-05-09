@@ -24,7 +24,6 @@ import { Header } from './components/Header';
 import { NavRail } from './components/NavRail';
 import { Footer } from './components/Footer';
 import { useCraft } from './store/CraftContext';
-import { LS_KEYS } from './types';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
 import { mainViewFromPathname, navigateToPath } from './utils/slug';
@@ -624,20 +623,9 @@ function AppShell() {
   const { t } = useI18n();
 
   const [mainView, setMainView] = useState<MainView>(() => mainViewFromPathname(window.location.pathname));
-  const [navCollapsed, setNavCollapsed] = useState(() => {
-    try { return localStorage.getItem(LS_KEYS.NAV_COLLAPSED) === 'true'; } catch { return false; }
-  });
   const [isPending, startTransition] = useTransition();
   const ensureMissionRewardsLoadedRef = useRef(ensureMissionRewardsLoaded);
   useEffect(() => { ensureMissionRewardsLoadedRef.current = ensureMissionRewardsLoaded; });
-
-  const toggleNavCollapsed = useCallback(() => {
-    setNavCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem(LS_KEYS.NAV_COLLAPSED, String(next)); } catch { /* noop */ }
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     const syncViewFromPath = () => {
@@ -719,25 +707,23 @@ function AppShell() {
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <Header />
-        <LinearProgress sx={{ height: 2 }} />
+      <Box sx={{ display: 'flex', height: '100dvh', overflow: 'hidden', flexDirection: { xs: 'column', md: 'row' } }}>
+        <NavRail
+          mainView={guardedMainView}
+          onChangeView={handleChangeView}
+        />
         <Box
           sx={{
-            display: 'flex',
             flex: 1,
             minHeight: 0,
-            flexDirection: { xs: 'column', md: 'row' },
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'hidden',
-            alignItems: 'stretch',
           }}
         >
-          <NavRail
-            mainView={guardedMainView}
-            onChangeView={handleChangeView}
-            collapsed={navCollapsed}
-            onToggleCollapsed={toggleNavCollapsed}
-          />
+          <Header />
+          <LinearProgress sx={{ height: 2 }} />
           <Box
             component="main"
             id="main-content"
@@ -813,29 +799,27 @@ function AppShell() {
     <Box
       sx={{
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: { xs: 'column', md: 'row' },
         height: '100dvh',
         overflow: 'hidden',
       }}
     >
-      <Header />
-      {isPending && <LinearProgress sx={{ height: 2 }} />}
+      <NavRail
+        mainView={guardedMainView}
+        onChangeView={handleChangeView}
+      />
       <Box
         sx={{
-          display: 'flex',
           flex: 1,
           minHeight: 0,
-          flexDirection: { xs: 'column', md: 'row' },
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
-          alignItems: 'stretch',
         }}
       >
-        <NavRail
-          mainView={guardedMainView}
-          onChangeView={handleChangeView}
-          collapsed={navCollapsed}
-          onToggleCollapsed={toggleNavCollapsed}
-        />
+        <Header />
+        {isPending && <LinearProgress sx={{ height: 2 }} />}
         <Box
           component="main"
           id="main-content"

@@ -18,7 +18,6 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import StarIcon from '@mui/icons-material/Star';
@@ -68,6 +67,7 @@ const CATEGORY_FILTERS: Array<{ value: CategoryFilter } & LocalizedOption> = [
   { value: 'shield-generator', label: ls('Shields', 'Boucliers', 'Schilde') },
   { value: 'quantum-drive', label: ls('Quantum', 'Quantique', 'Quantum') },
   { value: 'radar', label: ls('Radars', 'Radars', 'Radare') },
+  { value: 'fuel-nozzle', label: ls('Fuel', 'Carburant', 'Kraftstoff') },
   { value: 'ship-weapon', label: ls('Ship guns', 'Armes v.', 'Schiffswaffen') },
   { value: 'mining-laser', label: ls('Mining', 'Minage', 'Bergbau') },
   { value: 'salvage-head', label: ls('Salvage', 'Salvage', 'Bergung') },
@@ -243,7 +243,6 @@ export function BlueprintExplorer() {
   } = useCraft();
   const { lang, t } = useI18n();
   const theme = useTheme();
-  const isCompactMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>();
@@ -420,6 +419,7 @@ export function BlueprintExplorer() {
   );
 
   const hasActiveFilters =
+    categoryFilter !== 'all' ||
     manufacturerFilter !== null ||
     legalityFilter !== 'all' ||
     locationFilter !== null ||
@@ -441,6 +441,14 @@ export function BlueprintExplorer() {
         shipComponentSizeFilter !== null ||
         shipComponentGradeFilter !== null));
 
+  const basicFilterCount = getActiveCount([
+    categoryFilter !== 'all',
+    manufacturerFilter !== null,
+    materialFilter !== null,
+    legalityFilter !== 'all',
+    locationFilter !== null,
+  ]);
+
   const advancedFilterCount = getActiveCount([
     weaponTypeFilter !== null,
     ammoTypeFilter !== null,
@@ -460,6 +468,7 @@ export function BlueprintExplorer() {
   ]);
 
   const clearAllFilters = useCallback(() => {
+    setCategoryFilter('all');
     setManufacturerFilter(null);
     setLegalityFilter('all');
     setLocationFilter(null);
@@ -487,6 +496,7 @@ export function BlueprintExplorer() {
     setAmmoTypeFilter,
     setArmorSlotFilter,
     setArmorTypeFilter,
+    setCategoryFilter,
     setCraftTimeFilter,
     setLegalityFilter,
     setLocationFilter,
@@ -527,17 +537,27 @@ export function BlueprintExplorer() {
       component="section"
       aria-label={t('Blueprint filters', 'Filtres blueprints')}
       sx={{
-        p: { xs: 1.1, sm: 1.25, md: 1.5 },
+        p: { xs: 1, md: 1.15 },
         display: 'flex',
         flexDirection: 'column',
-        gap: 1,
+        gap: 0.75,
       }}
     >
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
-          gap: 1,
+          gap: 0.75,
+          '& .MuiPaper-root': {
+            minHeight: { xs: 46, md: 50 },
+            px: { xs: 1, md: 1.1 },
+            py: { xs: 0.75, md: 0.85 },
+          },
+          '& .MuiTypography-caption': {
+            fontSize: { xs: '0.54rem', md: '0.58rem' },
+            letterSpacing: '0.08em',
+            mb: 0.25,
+          },
         }}
       >
         <PageStatCard
@@ -564,53 +584,20 @@ export function BlueprintExplorer() {
       <Paper
         variant="outlined"
         sx={{
-          p: { xs: 1.25, md: 1.5 },
+          p: { xs: 1, md: 1.15 },
           borderColor: alpha(theme.palette.primary.main, 0.14),
           backgroundColor: alpha(theme.palette.background.default, 0.24),
         }}
       >
-        <Stack spacing={1.25}>
-          <Stack
-            direction={{ xs: 'column', xl: 'row' }}
-            spacing={1}
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', xl: 'center' }}
-          >
-            <Box>
-              <Typography
-                variant="overline"
-                sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
-              >
-                {t('Blueprint filters', 'Filtres blueprints', 'Blueprint-Filter')}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {t(
-                  'Search the library, narrow the category and refine legality, materials or acquisition when needed.',
-                  'Recherche dans la bibliotheque, reduis la categorie puis affine legalite, materiaux ou acquisition seulement quand c est utile.',
-                  'Durchsuche die Bibliothek, begrenze die Kategorie und verfeinere bei Bedarf Legalitat, Materialien oder Erwerb.',
-                )}
-              </Typography>
-            </Box>
-            {hasActiveFilters && (
-              <Button
-                variant="outlined"
-                startIcon={<FilterListOffOutlinedIcon />}
-                onClick={clearAllFilters}
-                sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
-              </Button>
-            )}
-          </Stack>
-
+        <Stack spacing={0.85}>
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: {
                 xs: '1fr',
-                md: 'minmax(260px, 1fr) auto minmax(190px, 220px)',
+                md: 'minmax(260px, 1fr) auto minmax(170px, 220px) auto',
               },
-              gap: 1,
+              gap: 0.75,
               alignItems: 'center',
             }}
           >
@@ -687,7 +674,7 @@ export function BlueprintExplorer() {
             <FormControl
               size="small"
               sx={{
-                minWidth: { xs: '100%', sm: 220 },
+                minWidth: { xs: '100%', sm: 190 },
                 width: '100%',
                 '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
               }}
@@ -705,6 +692,22 @@ export function BlueprintExplorer() {
                 ))}
               </Select>
             </FormControl>
+
+            {hasActiveFilters && (
+              <Button
+                variant="outlined"
+                startIcon={<FilterListOffOutlinedIcon />}
+                onClick={clearAllFilters}
+                sx={{
+                  minHeight: 32,
+                  whiteSpace: 'nowrap',
+                  px: 1.25,
+                  fontSize: '.68rem',
+                }}
+              >
+                {t('Reset', 'Reinitialiser', 'Zurucksetzen')}
+              </Button>
+            )}
 
             {activeBlueprint && (
               <Box
@@ -746,7 +749,7 @@ export function BlueprintExplorer() {
             )}
           </Box>
 
-          {isCompactMobile && (
+          {(
             <Accordion
               disableGutters
               elevation={0}
@@ -764,10 +767,10 @@ export function BlueprintExplorer() {
               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                 {t('Filters', 'Filtres')}
               </Typography>
-              {hasActiveFilters && (
+              {basicFilterCount > 0 && (
                 <Chip
                   size="small"
-                  label={t('Active', 'Actifs')}
+                  label={`${basicFilterCount} ${t('active', 'actifs')}`}
                   color="primary"
                   variant="outlined"
                   sx={{ height: 20, fontSize: '.62rem' }}
@@ -891,47 +894,9 @@ export function BlueprintExplorer() {
         </Accordion>
       )}
 
-      <Box sx={{ display: isCompactMobile ? 'none' : 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Box
-          component="nav"
-          aria-label={t('Category filter', 'Filtre categorie')}
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 0.5,
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {CATEGORY_FILTERS.map(({ value, ...option }) => (
-            <Chip
-              key={value}
-              label={getOptionText(option, lang)}
-              size="small"
-              variant={categoryFilter === value ? 'filled' : 'outlined'}
-              onClick={() => setCategoryFilter(value)}
-              sx={{
-                fontSize: '.65rem',
-                height: 26,
-                maxWidth: { xs: 'calc(50% - 4px)', sm: 'none' },
-                '& .MuiChip-label': {
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                },
-                ...(categoryFilter === value && {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                  color: 'text.primary',
-                  borderColor: 'primary.main',
-                }),
-              }}
-            />
-          ))}
-        </Box>
-      </Box>
-
       <Box
         sx={{
-          display: isCompactMobile ? 'none' : 'grid',
+          display: 'none',
           gridTemplateColumns: {
             xs: '1fr',
             md: 'repeat(2, minmax(0, 1fr))',

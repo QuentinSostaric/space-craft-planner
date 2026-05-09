@@ -365,12 +365,12 @@ function AcquisitionMissionCard({
       variant="outlined"
       sx={{
         position: 'relative',
-        minHeight: { xs: 'auto', md: 218 },
+        minHeight: { xs: 'auto', md: 188 },
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: '132px minmax(0, 1fr)' },
+        gridTemplateColumns: { xs: '1fr', sm: '112px minmax(0, 1fr)' },
         overflow: 'hidden',
         borderColor: alpha(theme.palette.brand.blueLight, 0.22),
-        background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.14)} 0%, ${alpha(theme.palette.background.default, 0.98)} 52%, ${alpha(theme.palette.common.black, 0.22)} 100%)`,
+        background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.1)} 0%, ${alpha(theme.palette.background.default, 0.98)} 52%, ${alpha(theme.palette.common.black, 0.18)} 100%)`,
         transition: 'border-color 150ms, box-shadow 150ms, transform 150ms',
         '&:hover': {
           borderColor: alpha(theme.palette.secondary.main, 0.55),
@@ -405,7 +405,7 @@ function AcquisitionMissionCard({
       <Box
         sx={{
           position: 'relative',
-          minHeight: { xs: 132, sm: 'auto' },
+          minHeight: { xs: 116, sm: 'auto' },
           overflow: 'hidden',
           borderRight: { sm: `1px solid ${alpha(theme.palette.brand.blueLight, 0.16)}` },
           borderBottom: { xs: `1px solid ${alpha(theme.palette.brand.blueLight, 0.16)}`, sm: 0 },
@@ -448,18 +448,18 @@ function AcquisitionMissionCard({
           size="small"
           sx={{
             position: 'absolute',
-            top: 12,
-            left: 12,
-            right: 12,
-            maxWidth: 'calc(100% - 24px)',
-            height: 28,
+            top: 10,
+            left: 10,
+            right: 10,
+            maxWidth: 'calc(100% - 20px)',
+            height: 26,
             borderRadius: 1,
             color: activityTextColor,
             backgroundColor: alpha(theme.palette.background.default, 0.58),
             border: `1px solid ${alpha(activityColor, 0.58)}`,
             '& .MuiChip-label': {
               fontFamily: FONT_HEADING,
-              fontSize: '0.72rem',
+              fontSize: '0.66rem',
               fontWeight: 800,
               textTransform: 'uppercase',
             },
@@ -484,8 +484,8 @@ function AcquisitionMissionCard({
               loading="lazy"
               referrerPolicy="no-referrer"
               sx={{
-                width: 72,
-                height: 72,
+                width: 58,
+                height: 58,
                 objectFit: 'contain',
                 opacity: 0.5,
                 filter: `drop-shadow(0 14px 24px ${alpha(theme.palette.common.black, 0.5)})`,
@@ -494,8 +494,8 @@ function AcquisitionMissionCard({
           ) : (
             <Box
               sx={{
-                width: 72,
-                height: 72,
+                width: 58,
+                height: 58,
                 borderRadius: 1.25,
                 display: 'flex',
                 alignItems: 'center',
@@ -507,7 +507,7 @@ function AcquisitionMissionCard({
               <Typography
                 sx={{
                   fontFamily: FONT_HEADING,
-                  fontSize: '1.3rem',
+                  fontSize: '1.08rem',
                   fontWeight: 800,
                   lineHeight: 1,
                   color: activityTextColor,
@@ -523,9 +523,9 @@ function AcquisitionMissionCard({
           spacing={0.25}
           sx={{
             position: 'absolute',
-            left: 12,
-            right: 12,
-            bottom: 12,
+            left: 10,
+            right: 10,
+            bottom: 10,
             minWidth: 0,
           }}
         >
@@ -533,7 +533,7 @@ function AcquisitionMissionCard({
             noWrap
             sx={{
               fontFamily: FONT_HEADING,
-              fontSize: '0.82rem',
+              fontSize: '0.76rem',
               fontWeight: 800,
               color: 'text.primary',
               textTransform: 'uppercase',
@@ -573,20 +573,20 @@ function AcquisitionMissionCard({
           position: 'relative',
           zIndex: 2,
           pointerEvents: 'none',
-          p: { xs: 1.35, md: 1.5 },
+          p: { xs: 1.2, md: 1.3 },
           display: 'grid',
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 128px' },
-          gap: { xs: 1.2, lg: 1.4 },
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 118px' },
+          gap: { xs: 1.1, lg: 1.2 },
           minWidth: 0,
         }}
       >
-        <Stack spacing={0.9} sx={{ minWidth: 0 }}>
+        <Stack spacing={0.8} sx={{ minWidth: 0 }}>
           <Stack spacing={0.35} sx={{ minWidth: 0 }}>
             <Typography
               sx={{
                 fontFamily: FONT_HEADING,
                 fontWeight: 800,
-                fontSize: { xs: '1.18rem', md: '1.3rem' },
+                fontSize: { xs: '1.08rem', md: '1.18rem' },
                 lineHeight: 0.95,
                 color: 'text.primary',
                 textTransform: 'uppercase',
@@ -776,7 +776,7 @@ function AcquisitionMissionCard({
             border: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`,
             background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.16)})`,
             borderRadius: 1,
-            p: 1,
+            p: 0.9,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
@@ -797,7 +797,7 @@ function AcquisitionMissionCard({
           <Typography
             sx={{
               fontFamily: FONT_HEADING,
-              fontSize: { xs: '2.5rem', lg: '2.05rem' },
+              fontSize: { xs: '2.25rem', lg: '1.86rem' },
               fontWeight: 800,
               lineHeight: 0.85,
               color: focusedChance != null ? theme.palette.secondary.light : theme.palette.text.secondary,
@@ -914,7 +914,7 @@ export function AcquisitionSection({
   );
 
   const panelSx = {
-    p: 2,
+    p: { xs: 1.4, md: 1.6 },
     border: `1px solid ${theme.palette.ui.border}`,
     background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
   };
@@ -926,10 +926,6 @@ export function AcquisitionSection({
       aria-label={t('Acquisition', 'Acquisition')}
       sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, scrollMarginTop: 18 }}
     >
-      <Typography variant="overline" sx={{ display: 'block' }}>
-        {t('Acquisition', 'Acquisition')}
-      </Typography>
-
       {loading && (
         <Paper sx={panelSx}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -958,7 +954,7 @@ export function AcquisitionSection({
           <Paper
             variant="outlined"
             sx={{
-              p: { xs: 1.25, md: 1.5 },
+              p: { xs: 1.25, md: 1.35 },
               border: `1px solid ${theme.palette.ui.border}`,
               background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
             }}
@@ -966,7 +962,7 @@ export function AcquisitionSection({
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 148px' },
+                gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 136px' },
                 gap: { xs: 1.25, md: 1.5 },
                 alignItems: 'stretch',
               }}
@@ -976,7 +972,7 @@ export function AcquisitionSection({
                   <Typography
                     sx={{
                       fontFamily: FONT_HEADING,
-                      fontSize: { xs: '1.55rem', md: '1.85rem' },
+                    fontSize: { xs: '1.45rem', md: '1.65rem' },
                       fontWeight: 800,
                       lineHeight: 0.92,
                       textTransform: 'uppercase',
@@ -1040,7 +1036,7 @@ export function AcquisitionSection({
                 variant="outlined"
                 sx={{
                   p: 1,
-                  minHeight: 118,
+                  minHeight: 104,
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
@@ -1062,7 +1058,7 @@ export function AcquisitionSection({
                 <Typography
                   sx={{
                     fontFamily: FONT_HEADING,
-                    fontSize: { xs: '2.45rem', md: '2.2rem' },
+                    fontSize: { xs: '2.2rem', md: '1.95rem' },
                     fontWeight: 800,
                     lineHeight: 0.85,
                     color: entry.dropScore > 0 ? theme.palette.secondary.light : theme.palette.text.secondary,
