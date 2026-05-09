@@ -33,6 +33,7 @@ import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined';
+import ChevronRightOutlinedIcon from '@mui/icons-material/ChevronRightOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import ViewInArOutlinedIcon from '@mui/icons-material/ViewInArOutlined';
@@ -107,16 +108,6 @@ interface FlatMissionContract {
 function isPlaceholderResource(resource: Resource) {
   if (resource.isPlaceholder || resource.visualStatus === 'placeholder-slot') return true;
   return resource.id === 'case' || resource.id === 'containment-matrix' || resource.id === 'shell';
-}
-
-interface ResourceCardProps {
-  resource: Resource;
-  insight: ResourceInsight | null;
-  href: string;
-  onOpen: () => void;
-  onAddToPlanner: () => void;
-  onAddToInventory: () => void;
-  addToInventoryLabel: string;
 }
 
 interface ResourceInventoryDialogState {
@@ -413,252 +404,598 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ResourceCard({
-  resource,
-  insight,
-  href,
-  onOpen,
-  onAddToPlanner,
-  onAddToInventory,
-  addToInventoryLabel,
-}: ResourceCardProps) {
-  const { t, lang } = useI18n();
-  const theme = useTheme();
+function ResourceThumbnail({ resource, size = 44 }: { resource: Resource; size?: number }) {
   const [imgError, setImgError] = useState(false);
   const imageUrl = resource.visual?.imageUrl ?? null;
   const showImage = Boolean(imageUrl && !imgError);
-  const systems = insight?.systems ?? [];
-  const quickActionBaseSx = {
-    width: '100%',
+
+  return (
+    <Box
+      sx={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        border: 1,
+        borderColor: alpha(resource.color, 0.36),
+        borderRadius: 1,
+        backgroundColor: 'background.default',
+      }}
+    >
+      {showImage ? (
+        <CardMedia
+          component="img"
+          image={imageUrl!}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setImgError(true)}
+          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        <ResourceIcon name={resource.name} size={Math.max(24, size - 12)} shimmer={false} />
+      )}
+    </Box>
+  );
+}
+
+function ResourceFamilyChip({ resource }: { resource: Resource }) {
+  const { lang } = useI18n();
+  const theme = useTheme();
+
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      label={getResourceFamilyLabel((resource.visualKind ?? 'all') as ResourceFamilyFilter, lang)}
+      sx={{
+        height: 24,
+        borderColor: alpha(resource.color, 0.48),
+        color: alpha(theme.palette.text.primary, 0.9),
+        backgroundColor: alpha(resource.color, 0.1),
+        '& .MuiChip-label': {
+          px: 0.9,
+          fontFamily: FONT_HEADING,
+          fontWeight: 700,
+          fontSize: '0.68rem',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        },
+      }}
+    />
+  );
+}
+
+function ResourceSystemsChips({ systems }: { systems: string[] }) {
+  return (
+    <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+      {systems.slice(0, 2).map((system) => {
+        const iconName = getLocationIconName(system);
+        return (
+          <Chip
+            key={system}
+            size="small"
+            icon={iconName ? <StarCitizenLicensedIcon name={iconName} size={13} dimmed /> : undefined}
+            label={system}
+            sx={{ height: 22, maxWidth: 112, '& .MuiChip-label': { px: 0.75 } }}
+          />
+        );
+      })}
+      {systems.length > 2 ? <Chip size="small" label={`+${systems.length - 2}`} sx={{ height: 22 }} /> : null}
+    </Stack>
+  );
+}
+
+function ResourceActionButtons({
+  resource,
+  onOpen,
+  onAddToPlanner,
+  onAddToInventory,
+}: {
+  resource: Resource;
+  onOpen: () => void;
+  onAddToPlanner: () => void;
+  onAddToInventory: () => void;
+}) {
+  const { t } = useI18n();
+  const theme = useTheme();
+  const compactButtonSx = {
     minWidth: 0,
-    minHeight: { xs: 38, sm: 40 },
-    gap: { xs: 0.5, sm: 0.625 },
-    px: { xs: 0.9, sm: 1.05 },
-    py: { xs: 0.65, sm: 0.8 },
-    justifyContent: 'flex-start',
-    textTransform: 'none',
-    fontSize: { xs: '0.72rem', sm: '0.78rem' },
-    fontWeight: 600,
-    lineHeight: 1.15,
+    width: 30,
+    height: 30,
+    p: 0,
     borderColor: 'divider',
-    backgroundColor: alpha(theme.palette.background.default, 0.22),
     color: 'text.secondary',
-    '& .MuiSvgIcon-root': {
-      fontSize: { xs: '0.95rem', sm: '1rem' },
-      flexShrink: 0,
-    },
-    '& .resource-quick-action-label': {
-      minWidth: 0,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    },
+    '& .MuiSvgIcon-root': { fontSize: '1rem' },
     '&:hover': {
+      color: 'text.primary',
       borderColor: 'primary.main',
       backgroundColor: alpha(theme.palette.primary.main, 0.08),
-      color: 'text.primary',
     },
   } as const;
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: 'background.paper',
-        transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          borderColor: 'primary.main',
-          boxShadow:
-            theme.palette.mode === 'dark'
-              ? `0 12px 28px ${alpha('#000', 0.45)}`
-              : `0 12px 28px ${alpha(theme.palette.primary.main, 0.15)}`,
-        },
-      }}
-    >
-      <CardActionArea
-        component="a"
-        href={href}
-        onClick={(event) => {
-          if (!shouldHandleInternalLinkClick(event)) return;
-          event.preventDefault();
-          onOpen();
-        }}
-        sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
-      >
-        <Box
-          sx={{
-            position: 'relative',
-            height: { xs: 148, sm: 164, md: 180 },
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            borderBottom: 1,
-            borderColor: 'divider',
-            background: `linear-gradient(180deg, ${alpha(resource.color, 0.22)} 0%, ${alpha(
-              theme.palette.background.paper,
-              0.1,
-            )} 100%)`,
+    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+      <Tooltip title={t('Add this resource to the planner', 'Ajouter cette ressource au planificateur', 'Diese Ressource zum Planer hinzufugen')}>
+        <ToggleButton
+          value={`${resource.id}-planner`}
+          size="small"
+          aria-label={t('Add resource to planner', 'Ajouter la ressource au planificateur', 'Ressource zum Planer hinzufugen')}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddToPlanner();
           }}
+          sx={compactButtonSx}
         >
-          <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}>
-            <Chip
-              label={getResourceFamilyLabel(
-                (resource.visualKind ?? 'all') as ResourceFamilyFilter,
-                lang,
-              )}
-              size="small"
-              sx={{
-                backgroundColor: alpha(theme.palette.background.default, 0.75),
-                color: 'text.primary',
-                borderColor: alpha(resource.color, 0.5),
-              }}
-            />
-          </Box>
-          <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
-            <Chip
-              size="small"
-              color={insight?.missionObjectiveContractCount ? 'primary' : 'default'}
-              label={
-                insight?.missionObjectiveContractCount
-                  ? t('Mission-linked', 'Liee aux missions')
-                  : t('No missions', 'Sans mission')
-              }
-            />
-          </Box>
-          {showImage ? (
-            <CardMedia
-              component="img"
-              image={imageUrl!}
-              alt=""
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
-              sx={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                height: '100%',
-              }}
-            >
-              <ResourceIcon name={resource.name} size={72} shimmer={false} />
-            </Box>
-          )}
-        </Box>
+          <PlaylistAddOutlinedIcon />
+        </ToggleButton>
+      </Tooltip>
+      <Tooltip title={t('Add a stored inventory entry for this resource', 'Ajouter une entree d inventaire stockee pour cette ressource', 'Einen gespeicherten Inventareintrag fur diese Ressource hinzufugen')}>
+        <ToggleButton
+          value={`${resource.id}-inventory`}
+          size="small"
+          aria-label={t('Add resource to inventory', 'Ajouter la ressource a l inventaire', 'Ressource zum Inventar hinzufugen')}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddToInventory();
+          }}
+          sx={compactButtonSx}
+        >
+          <Inventory2OutlinedIcon />
+        </ToggleButton>
+      </Tooltip>
+      <Tooltip title={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}>
+        <ToggleButton
+          value={`${resource.id}-open`}
+          size="small"
+          aria-label={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+          sx={compactButtonSx}
+        >
+          <ChevronRightOutlinedIcon fontSize="small" />
+        </ToggleButton>
+      </Tooltip>
+    </Stack>
+  );
+}
 
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-          <Box>
-            <Typography
-              sx={{
-                fontFamily: FONT_HEADING,
-                fontWeight: 700,
-                fontSize: '1.15rem',
-                lineHeight: 1,
-                textTransform: 'uppercase',
-              }}
-            >
-              {resource.name}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                mt: 0.75,
-                display: '-webkit-box',
-                overflow: 'hidden',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                minHeight: '2.8em',
-              }}
-            >
-              {resource.description}
-            </Typography>
-          </Box>
+function ResourceDesktopList({
+  resources,
+  resourceInsightById,
+  selectedResourceId,
+  onSelect,
+  onOpen,
+  onAddToPlanner,
+  onAddToInventory,
+}: {
+  resources: Resource[];
+  resourceInsightById: Map<string, ResourceInsight>;
+  selectedResourceId: string | null;
+  onSelect: (resource: Resource) => void;
+  onOpen: (resource: Resource) => void;
+  onAddToPlanner: (resource: Resource) => void;
+  onAddToInventory: (resource: Resource) => void;
+}) {
+  const { t } = useI18n();
+  const theme = useTheme();
+  const headerCellSx = {
+    color: 'text.disabled',
+    fontFamily: FONT_HEADING,
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  } as const;
+  const gridColumns =
+    'minmax(176px, 1.55fr) minmax(82px, 0.55fr) minmax(92px, 0.72fr) repeat(3, minmax(56px, 0.36fr)) minmax(102px, 0.62fr)';
 
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <ResourceFact label={t('Providers', 'Sources')} value={String(insight?.providerCount ?? 0)} />
-            <ResourceFact label={t('Missions', 'Missions')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
-            <ResourceFact label={t('Blueprints', 'Blueprints')} value={String(insight?.blueprintUsageCount ?? 0)} />
-          </Stack>
-
-          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 'auto' }}>
-            {systems.slice(0, 3).map((system) => {
-              const iconName = getLocationIconName(system);
-              return (
-                <Chip
-                  key={system}
-                  size="small"
-                  icon={
-                    iconName ? <StarCitizenLicensedIcon name={iconName} size={14} dimmed /> : undefined
-                  }
-                  label={system}
-                />
-              );
-            })}
-            {systems.length > 3 && <Chip size="small" label={`+${systems.length - 3}`} />}
-          </Stack>
-        </Box>
-      </CardActionArea>
+  return (
+    <Paper variant="outlined" sx={{ overflow: 'hidden', backgroundColor: alpha(theme.palette.background.paper, 0.72) }}>
       <Box
         sx={{
-          px: { xs: 1.15, sm: 1.4 },
-          pb: { xs: 1.15, sm: 1.4 },
-          pt: 0.75,
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
-          gap: 0.75,
-          borderTop: `1px solid ${theme.palette.divider}`,
-          backgroundColor: alpha(theme.palette.background.default, 0.08),
+          gridTemplateColumns: gridColumns,
+          alignItems: 'center',
+          gap: 1,
+          px: 1.25,
+          py: 1.1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          backgroundColor: alpha(theme.palette.background.default, 0.38),
         }}
       >
-        <Tooltip title={t('Add this resource to the planner', 'Ajouter cette ressource au planificateur', 'Diese Ressource zum Planer hinzufügen')}>
-          <ToggleButton
-            value="planner"
-            size="small"
-            aria-label={t('Add resource to planner', 'Ajouter la ressource au planificateur', 'Ressource zum Planer hinzufügen')}
-            onClick={(event) => {
-              event.stopPropagation();
-              onAddToPlanner();
-            }}
-            sx={quickActionBaseSx}
-          >
-            <PlaylistAddOutlinedIcon />
-            <Box component="span" className="resource-quick-action-label">
-              {t('Add to planner', 'Ajouter au planificateur', 'Zum Planer')}
-            </Box>
-          </ToggleButton>
-        </Tooltip>
-        <Tooltip title={t('Add a stored inventory entry for this resource', 'Ajouter une entree d inventaire stockee pour cette ressource', 'Einen gespeicherten Inventareintrag fur diese Ressource hinzufügen')}>
-          <ToggleButton
-            value="inventory"
-            size="small"
-            aria-label={t('Add resource to inventory', 'Ajouter la ressource a l inventaire', 'Ressource zum Inventar hinzufügen')}
-            onClick={(event) => {
-              event.stopPropagation();
-              onAddToInventory();
-            }}
-            sx={quickActionBaseSx}
-          >
-            <Inventory2OutlinedIcon />
-            <Box component="span" className="resource-quick-action-label">
-              {addToInventoryLabel}
-            </Box>
-          </ToggleButton>
-        </Tooltip>
+        <Typography sx={headerCellSx}>{t('Resource', 'Ressource', 'Ressource')}</Typography>
+        <Typography sx={headerCellSx}>{t('Family', 'Famille', 'Familie')}</Typography>
+        <Typography sx={headerCellSx}>{t('Systems', 'Systemes', 'Systeme')}</Typography>
+        <Typography sx={headerCellSx}>{t('Sources', 'Sources', 'Quellen')}</Typography>
+        <Typography sx={headerCellSx}>{t('Missions', 'Missions', 'Missionen')}</Typography>
+        <Typography sx={headerCellSx}>{t('Blueprints', 'Blueprints', 'Blueprints')}</Typography>
+        <Typography sx={{ ...headerCellSx, textAlign: 'right' }}>{t('Actions', 'Actions', 'Aktionen')}</Typography>
       </Box>
-    </Card>
+      <Box role="list">
+        {resources.map((resource) => {
+          const insight = resourceInsightById.get(resource.id) ?? null;
+          const isSelected = selectedResourceId === resource.id;
+
+          return (
+            <Box
+              key={resource.id}
+              role="listitem"
+              onClick={() => onSelect(resource)}
+              sx={{
+                width: '100%',
+                display: 'grid',
+                gridTemplateColumns: gridColumns,
+                alignItems: 'center',
+                gap: 1,
+                px: 1.25,
+                py: 1,
+                border: 0,
+                borderBottom: '1px solid',
+                borderBottomColor: 'divider',
+                borderLeft: '2px solid',
+                borderLeftColor: isSelected ? 'primary.main' : 'transparent',
+                color: 'inherit',
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                transition: 'background-color 150ms ease, border-color 150ms ease',
+                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) },
+                '&:last-of-type': { borderBottom: 0 },
+              }}
+            >
+              <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
+                <ResourceThumbnail resource={resource} />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONT_HEADING,
+                      fontWeight: 700,
+                      fontSize: '0.98rem',
+                      lineHeight: 1,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {resource.name}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      display: 'block',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: 220,
+                      mt: 0.35,
+                    }}
+                  >
+                    {resource.description || t('No description available', 'Aucune description disponible', 'Keine Beschreibung verfugbar')}
+                  </Typography>
+                </Box>
+              </Stack>
+              <ResourceFamilyChip resource={resource} />
+              <ResourceSystemsChips systems={insight?.systems ?? []} />
+              <Typography sx={{ fontWeight: 700 }}>{insight?.providerCount ?? 0}</Typography>
+              <Typography sx={{ fontWeight: 700 }}>{insight?.missionObjectiveContractCount ?? 0}</Typography>
+              <Typography sx={{ fontWeight: 700 }}>{insight?.blueprintUsageCount ?? 0}</Typography>
+              <ResourceActionButtons
+                resource={resource}
+                onOpen={() => onOpen(resource)}
+                onAddToPlanner={() => onAddToPlanner(resource)}
+                onAddToInventory={() => onAddToInventory(resource)}
+              />
+            </Box>
+          );
+        })}
+      </Box>
+    </Paper>
+  );
+}
+
+function ResourceMobileList({
+  resources,
+  resourceInsightById,
+  onOpen,
+  onAddToPlanner,
+  onAddToInventory,
+}: {
+  resources: Resource[];
+  resourceInsightById: Map<string, ResourceInsight>;
+  onOpen: (resource: Resource) => void;
+  onAddToPlanner: (resource: Resource) => void;
+  onAddToInventory: (resource: Resource) => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <Stack role="list" spacing={1}>
+      {resources.map((resource) => {
+        const insight = resourceInsightById.get(resource.id) ?? null;
+        return (
+          <Paper
+            key={resource.id}
+            variant="outlined"
+            role="listitem"
+            sx={{ p: 1, backgroundColor: 'background.paper' }}
+          >
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ResourceThumbnail resource={resource} size={42} />
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONT_HEADING,
+                      fontWeight: 700,
+                      fontSize: '0.98rem',
+                      lineHeight: 1,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {resource.name}
+                  </Typography>
+                  <ResourceSystemsChips systems={insight?.systems ?? []} />
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  aria-label={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}
+                  onClick={() => onOpen(resource)}
+                  sx={{ minWidth: 34, width: 34, p: 0 }}
+                >
+                  <ChevronRightOutlinedIcon fontSize="small" />
+                </Button>
+              </Stack>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0.75 }}>
+                <ResourceFact label={t('Sources', 'Sources')} value={String(insight?.providerCount ?? 0)} />
+                <ResourceFact label={t('Missions', 'Missions')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
+                <ResourceFact label={t('Blueprints', 'Blueprints')} value={String(insight?.blueprintUsageCount ?? 0)} />
+              </Box>
+              <Stack direction="row" spacing={0.75}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PlaylistAddOutlinedIcon />}
+                  onClick={() => onAddToPlanner(resource)}
+                  sx={{ flex: 1, minWidth: 0, fontSize: '0.68rem' }}
+                >
+                  {t('Planner', 'Planifier', 'Planer')}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Inventory2OutlinedIcon />}
+                  onClick={() => onAddToInventory(resource)}
+                  sx={{ flex: 1, minWidth: 0, fontSize: '0.68rem' }}
+                >
+                  {t('Inventory', 'Inventaire', 'Inventar')}
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        );
+      })}
+    </Stack>
+  );
+}
+
+function ResourcePreviewPanel({
+  resource,
+  insight,
+  providers,
+  onOpen,
+  onAddToPlanner,
+  onAddToInventory,
+}: {
+  resource: Resource | null;
+  insight: ResourceInsight | null;
+  providers: MaterialSourceProvider[];
+  onOpen: (resource: Resource) => void;
+  onAddToPlanner: (resource: Resource) => void;
+  onAddToInventory: (resource: Resource) => void;
+}) {
+  const { t, lang } = useI18n();
+  const theme = useTheme();
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [resource?.id]);
+
+  if (!resource) {
+    return null;
+  }
+
+  const showImage = Boolean(resource.visual?.imageUrl && !imgError);
+  const sortedProviders = [...providers]
+    .sort(
+      (left, right) =>
+        (getMaterialProviderProbabilityPct(right) ?? 0) -
+          (getMaterialProviderProbabilityPct(left) ?? 0) ||
+        String(left.providerDisplayName ?? '').localeCompare(String(right.providerDisplayName ?? '')),
+    )
+    .slice(0, 4);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        position: { lg: 'sticky' },
+        top: { lg: 16 },
+        overflow: 'hidden',
+        backgroundColor: alpha(theme.palette.background.paper, 0.9),
+      }}
+    >
+      <Box sx={{ p: 1.75, borderBottom: 1, borderColor: 'divider' }}>
+        <Stack spacing={1.25}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontFamily: FONT_HEADING,
+                  fontWeight: 700,
+                  fontSize: '1.45rem',
+                  lineHeight: 0.95,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {resource.name}
+              </Typography>
+              <Box sx={{ mt: 0.75 }}>
+                <ResourceFamilyChip resource={resource} />
+              </Box>
+            </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              aria-label={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}
+              onClick={() => onOpen(resource)}
+              sx={{ minWidth: 34, width: 34, p: 0, flexShrink: 0 }}
+            >
+              <ChevronRightOutlinedIcon fontSize="small" />
+            </Button>
+          </Stack>
+
+          <Box
+            sx={{
+              height: 150,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+              background: `linear-gradient(180deg, ${alpha(resource.color, 0.24)} 0%, ${alpha(
+                theme.palette.background.default,
+                0.3,
+              )} 100%)`,
+            }}
+          >
+            {showImage ? (
+              <CardMedia
+                component="img"
+                image={resource.visual!.imageUrl!}
+                alt=""
+                referrerPolicy="no-referrer"
+                onError={() => setImgError(true)}
+                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <ResourceIcon name={resource.name} size={88} shimmer={false} />
+            )}
+          </Box>
+
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              display: '-webkit-box',
+              overflow: 'hidden',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {resource.description ||
+              t(
+                'No description available for this resource.',
+                'Aucune description disponible pour cette ressource.',
+                'Keine Beschreibung fur diese Ressource verfugbar.',
+              )}
+          </Typography>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.75 }}>
+            <ResourceFact label={t('Sources', 'Sources')} value={String(insight?.providerCount ?? 0)} />
+            <ResourceFact label={t('Missions', 'Missions')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
+            <ResourceFact label={t('Blueprints', 'Blueprints')} value={String(insight?.blueprintUsageCount ?? 0)} />
+            <ResourceFact label={t('Systems', 'Systemes')} value={String(insight?.systems.length ?? 0)} />
+          </Box>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.75 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<PlaylistAddOutlinedIcon />}
+              onClick={() => onAddToPlanner(resource)}
+              sx={{ minWidth: 0, fontSize: '0.68rem' }}
+            >
+              {t('Planner', 'Planifier', 'Planer')}
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Inventory2OutlinedIcon />}
+              onClick={() => onAddToInventory(resource)}
+              sx={{ minWidth: 0, fontSize: '0.68rem' }}
+            >
+              {t('Inventory', 'Inventaire', 'Inventar')}
+            </Button>
+          </Box>
+        </Stack>
+      </Box>
+
+      <Box sx={{ p: 1.75 }}>
+        <Stack spacing={1.25}>
+          <Typography
+            sx={{
+              fontFamily: FONT_HEADING,
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {t('Best Sources', 'Meilleures sources', 'Beste Quellen')}
+          </Typography>
+          {sortedProviders.length === 0 ? (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {t('No provider data available.', 'Aucune source connue.', 'Keine Quellen verfugbar.')}
+            </Typography>
+          ) : (
+            <Stack spacing={0.75}>
+              {sortedProviders.map((provider) => {
+                const providerProbabilityPct = getMaterialProviderProbabilityPct(provider);
+                return (
+                  <Box
+                    key={`${provider.providerId ?? provider.providerDisplayName}-${provider.system ?? 'unknown'}`}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) auto',
+                      gap: 1,
+                      alignItems: 'center',
+                      py: 0.75,
+                      borderBottom: '1px solid',
+                      borderBottomColor: 'divider',
+                      '&:last-of-type': { borderBottom: 0 },
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                        {provider.providerDisplayName}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'secondary.main' }}>
+                        {provider.system ?? formatMaterialProviderType(provider.providerType, lang)}
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+                      {providerProbabilityPct != null
+                        ? `${providerProbabilityPct}%`
+                        : formatMaterialProviderConfidence(provider.labelConfidence, lang)}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </Stack>
+      </Box>
+    </Paper>
   );
 }
 
@@ -707,6 +1044,18 @@ function ResourcesFilterBar({
     sourceTypeFilter !== 'all' ||
     missionFilter !== 'all' ||
     blueprintCategoryFilter !== null;
+  const activeFilterChips = [
+    search.trim() ? `${t('Search', 'Recherche', 'Suche')}: ${search.trim()}` : null,
+    familyFilter !== 'all' ? getResourceFamilyLabel(familyFilter, lang) : null,
+    systemFilter ? `${t('System', 'Systeme', 'System')}: ${systemFilter}` : null,
+    sourceTypeFilter !== 'all' ? getSourceTypeLabel(sourceTypeFilter, lang) : null,
+    missionFilter !== 'all'
+      ? missionFilter === 'mission-linked'
+        ? t('Mission-linked', 'Liees aux missions', 'Missionsbezogen')
+        : t('No mission', 'Sans mission', 'Keine Mission')
+      : null,
+    blueprintCategoryFilter ? loc(CATEGORY_LABELS[blueprintCategoryFilter], lang) : null,
+  ].filter((label): label is string => Boolean(label));
 
   const resetFilters = () => {
     onSearchChange('');
@@ -719,18 +1068,13 @@ function ResourcesFilterBar({
 
   const content = (
     <Stack spacing={1.25}>
-      <Stack
-        direction={{ xs: 'column', xl: 'row' }}
-        spacing={1}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', xl: 'center' }}
-      >
+      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1} justifyContent="space-between">
         <Box>
           <Typography
             variant="overline"
             sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
           >
-            {t('Resource filters', 'Filtres ressources', 'Ressourcenfilter')}
+            {t('Advanced filters', 'Filtres avances', 'Erweiterte Filter')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {t(
@@ -799,6 +1143,18 @@ function ResourcesFilterBar({
           </Select>
         </FormControl>
       </Box>
+
+      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ minHeight: 24 }}>
+        {activeFilterChips.length > 0 ? (
+          activeFilterChips.map((label) => (
+            <Chip key={label} size="small" variant="outlined" color="primary" label={label} />
+          ))
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+            {t('No active filters', 'Aucun filtre actif', 'Keine aktiven Filter')}
+          </Typography>
+        )}
+      </Stack>
 
       <ToggleButtonGroup
         value={familyFilter}
@@ -938,7 +1294,6 @@ function ResourcesFilterBar({
     >
       <Accordion
         disableGutters
-        defaultExpanded
         sx={{
           backgroundColor: 'transparent',
           '&::before': { display: 'none' },
@@ -1573,6 +1928,7 @@ export function ResourcesPage() {
   const [missionFilter, setMissionFilter] = useState<ResourceMissionFilter>('all');
   const [blueprintCategoryFilter, setBlueprintCategoryFilter] = useState<ItemCategory | null>(null);
   const [sortBy, setSortBy] = useState<ResourceSort>('name-asc');
+  const [previewResourceId, setPreviewResourceId] = useState<string | null>(null);
   const [inventoryDialog, setInventoryDialog] = useState<ResourceInventoryDialogState | null>(null);
   const [inventoryBusy, setInventoryBusy] = useState(false);
   const [inventoryNotice, setInventoryNotice] = useState<string | null>(null);
@@ -1858,6 +2214,48 @@ export function ResourcesPage() {
       getColumns: resourceGetColumns,
       getScrollRoot: getMainContentScrollRoot,
     });
+  const renderedResources = filteredResources.slice(0, visibleCount);
+  const previewResource =
+    renderedResources.find((resource) => resource.id === previewResourceId) ??
+    renderedResources[0] ??
+    null;
+  const previewInsight = previewResource
+    ? resourceInsightById.get(previewResource.id) ?? null
+    : null;
+  const previewProviders = useMemo(
+    () => (previewResource ? getMaterialProviders(materialSources, previewResource.id) : []),
+    [materialSources, previewResource],
+  );
+
+  useEffect(() => {
+    if (!previewResourceId && filteredResources.length > 0) {
+      setPreviewResourceId(filteredResources[0].id);
+      return;
+    }
+    if (
+      previewResourceId &&
+      filteredResources.length > 0 &&
+      !filteredResources.some((resource) => resource.id === previewResourceId)
+    ) {
+      setPreviewResourceId(filteredResources[0].id);
+    }
+  }, [filteredResources, previewResourceId]);
+
+  const openResourceDetail = (resource: Resource) => {
+    setSelectedResourceSlug(resource.id);
+    navigateToPath(resourcePathFromSlug(resource.id), {
+      resourceId: resource.id,
+      mainView: 'resources',
+    });
+  };
+
+  const addResourceToPlanner = (resource: Resource) => {
+    addPlannerResourceRequirement(
+      resource.name,
+      1,
+      resourcePlannerUnitById.get(resource.id) ?? 'scu',
+    );
+  };
 
   const resourceStats = useMemo(() => {
     const systemCount = new Set(visibleResourceInsights.flatMap((insight) => insight.systems)).size;
@@ -2009,7 +2407,7 @@ export function ResourcesPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
+              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
               gap: 1,
             }}
           >
@@ -2071,45 +2469,43 @@ export function ResourcesPage() {
         ) : (
           <>
             <Box
-              role="list"
               sx={{
                 display: 'grid',
-                gridTemplateColumns: {
-                  xs: '1fr',
-                  sm: 'repeat(2, minmax(0, 1fr))',
-                  lg: 'repeat(3, minmax(0, 1fr))',
-                  xl: 'repeat(4, minmax(0, 1fr))',
-                },
-                gap: { xs: 1.25, md: 1.5, xl: 2 },
+                gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 324px' },
+                gap: { xs: 1.25, md: 1.5 },
+                alignItems: 'flex-start',
               }}
             >
-              {filteredResources.slice(0, visibleCount).map((resource) => (
-                <ResourceCard
-                  key={resource.id}
-                  resource={resource}
-                  insight={resourceInsightById.get(resource.id) ?? null}
-                  href={resourcePathFromSlug(resource.id)}
-                  onOpen={() => {
-                    setSelectedResourceSlug(resource.id);
-                    navigateToPath(resourcePathFromSlug(resource.id), {
-                      resourceId: resource.id,
-                      mainView: 'resources',
-                    });
-                  }}
-                  onAddToPlanner={() =>
-                    addPlannerResourceRequirement(
-                      resource.name,
-                      1,
-                      resourcePlannerUnitById.get(resource.id) ?? 'scu',
-                    )}
-                  onAddToInventory={() => {
-                    openInventoryDialog(resource);
-                  }}
-                  addToInventoryLabel={
-                    t('Add to inventory', 'Ajouter a l inventaire')
-                  }
+              <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0 }}>
+                <ResourceDesktopList
+                  resources={renderedResources}
+                  resourceInsightById={resourceInsightById}
+                  selectedResourceId={previewResource?.id ?? null}
+                  onSelect={(resource) => setPreviewResourceId(resource.id)}
+                  onOpen={openResourceDetail}
+                  onAddToPlanner={addResourceToPlanner}
+                  onAddToInventory={openInventoryDialog}
                 />
-              ))}
+              </Box>
+              <Box sx={{ display: { xs: 'block', md: 'none' }, minWidth: 0 }}>
+                <ResourceMobileList
+                  resources={renderedResources}
+                  resourceInsightById={resourceInsightById}
+                  onOpen={openResourceDetail}
+                  onAddToPlanner={addResourceToPlanner}
+                  onAddToInventory={openInventoryDialog}
+                />
+              </Box>
+              <Box sx={{ display: { xs: 'none', lg: 'block' }, minWidth: 0 }}>
+                <ResourcePreviewPanel
+                  resource={previewResource}
+                  insight={previewInsight}
+                  providers={previewProviders}
+                  onOpen={openResourceDetail}
+                  onAddToPlanner={addResourceToPlanner}
+                  onAddToInventory={openInventoryDialog}
+                />
+              </Box>
             </Box>
             {visibleCount < filteredResources.length && (
               <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />

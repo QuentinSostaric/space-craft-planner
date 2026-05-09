@@ -40,6 +40,7 @@ const COMPONENT_METRICS: Partial<Record<Blueprint['category'], NumericItemStatKe
   'shield-generator': ['shieldMaxHealth', 'maxHealth'],
   'quantum-drive': ['quantumSpeed', 'quantumFuelRequirement', 'maxHealth'],
   radar: ['radarMinAimAssistDistance', 'radarMaxAimAssistDistance', 'maxHealth'],
+  'fuel-nozzle': ['flowSpeed', 'maxHealth'],
   'salvage-head': ['hullScrapingEfficiency', 'hullScrapingRadius', 'hullScrapingSpeed', 'maxHealth'],
   'tractor-beam': ['tractorForce', 'tractorFullStrengthDistance', 'tractorMaxDistance', 'tractorMaxVolume'],
   'ship-weapon': ['damage', 'rateOfFire', 'reloadSpeed', 'spread', 'maxHealth'],

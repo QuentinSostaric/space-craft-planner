@@ -23,7 +23,7 @@ import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
-import { CARD_STATS, computeStatMaxima, getStandingBucket, isResourceSlot } from '../utils/crafting';
+import { CARD_STATS, computeStatMaxima, getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
 import {
@@ -59,10 +59,30 @@ const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'shield-generator': 'shields',
   'quantum-drive': 'engines',
   radar:           'radars',
+  'fuel-nozzle':   'utilities',
   'ship-weapon':   'weapons',
   'mining-laser':  'mining-lasers',
   'salvage-head':  'salvage',
   'tractor-beam':  'tractor-beams',
+};
+
+const CAT_LABEL: Record<ItemCategory, ReturnType<typeof ls>> = {
+  'fps-weapon': ls('Weapon', 'Arme', 'Waffe'),
+  'fps-magazine': ls('Magazine', 'Chargeur', 'Magazin'),
+  'fps-armor': ls('Armor', 'Armure', 'Rüstung'),
+  'fps-helmet': ls('Helmet', 'Casque', 'Helm'),
+  'fps-undersuit': ls('Undersuit', 'Combi', 'Unteranzug'),
+  'fps-backpack': ls('Backpack', 'Sac', 'Rucksack'),
+  powerplant: ls('Power', 'Centrale', 'Kraftwerk'),
+  cooler: ls('Cooler', 'Refroid.', 'Kühler'),
+  'shield-generator': ls('Shield', 'Bouclier', 'Schild'),
+  'quantum-drive': ls('Quantum', 'Quantique', 'Quantum'),
+  radar: ls('Radar', 'Radar', 'Radar'),
+  'fuel-nozzle': ls('Fuel nozzle', 'Bec carburant', 'Betankungsduse'),
+  'ship-weapon': ls('Ship gun', 'Arme v.', 'Schiffswaffe'),
+  'mining-laser': ls('Mining', 'Minage', 'Bergbau'),
+  'salvage-head': ls('Salvage', 'Salvage', 'Bergung'),
+  'tractor-beam': ls('Tractor', 'Tracteur', 'Traktor'),
 };
 
 /** Resolves the thumbnail URL and mode from the blueprint media fallback chain. */
@@ -382,7 +402,7 @@ export const BlueprintCard = memo(function BlueprintCard({
                 whiteSpace: 'nowrap',
               }}
             >
-              {blueprint.manufacturer} // {blueprint.category.replace('fps-', '')}
+              {blueprint.manufacturer} // {loc(CAT_LABEL[blueprint.category], lang)}
             </Typography>
           </Box>
 
@@ -970,19 +990,19 @@ export function BlueprintGrid() {
     <Box
       sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}
     >
-      <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
+      <Box sx={{ px: { xs: 1.25, sm: 1.5, md: 2 }, py: { xs: 1, md: 1.25 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
         <Typography
           sx={{
             fontFamily: FONT_HEADING,
             fontWeight: 700,
-            fontSize: { xs: '1.9rem', md: '2.2rem' },
+            fontSize: { xs: '1.65rem', md: '1.95rem' },
             textTransform: 'uppercase',
             lineHeight: 1,
           }}
         >
           {t('Blueprints', 'Blueprints')}
         </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.45, fontWeight: 600 }}>
           {t(
             'Browse craftable items, simulate quality builds and plan your material runs.',
             'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
@@ -996,8 +1016,8 @@ export function BlueprintGrid() {
       {/* Scroll container — IntersectionObserver root. Requires the flex:1/minHeight:0 chain
           from App.tsx's <Box component="main"> to remain intact so this Box — not the parent —
           is the actual scrolling ancestor. If the layout breaks, the sentinel never fires. */}
-      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 } }}>
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+      <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 } }}>
+        <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}
             {!shipComponentFiltersBlocked ? ` • ${filteredShipComponents.length} ${t('ship components', 'composants de vaisseau')}` : ''}
@@ -1015,7 +1035,7 @@ export function BlueprintGrid() {
               <Box>
                 <Typography
                   sx={{
-                    mb: 1.5,
+                    mb: 1,
                     color: 'text.secondary',
                     fontFamily: FONT_HEADING,
                     fontSize: '1.15rem',

@@ -1,11 +1,16 @@
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import LinearProgress from '@mui/material/LinearProgress';
+import Paper from '@mui/material/Paper';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useCraft } from '../store/CraftContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { aggregateBlueprintResources, getAcquisitionEntry } from '../utils/crafting';
+import { useI18n } from '../i18n/I18nContext';
 import { ItemIdentity } from './item-workspace/ItemIdentity';
 import { CraftSection } from './item-workspace/CraftSection';
 import { MaterialSourcesSection } from './item-workspace/MaterialSourcesSection';
@@ -13,6 +18,118 @@ import { AcquisitionSection } from './item-workspace/AcquisitionSection';
 import { DismantleSection } from './item-workspace/DismantleSection';
 import { BlueprintOverview } from './item-workspace/BlueprintOverview';
 import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '../utils/slug';
+
+type WorkspaceTabId = 'craft' | 'materials' | 'missions';
+
+function WorkspaceTabs({
+  activeTab,
+  onChange,
+  hasResources,
+}: {
+  activeTab: WorkspaceTabId;
+  onChange: (tab: WorkspaceTabId) => void;
+  hasResources: boolean;
+}) {
+  const theme = useTheme();
+  const { t } = useI18n();
+  const tabs = [
+    { id: 'craft', label: t('Craft', 'Craft'), disabled: false },
+    { id: 'materials', label: t('Materials', 'Materiaux'), disabled: !hasResources },
+    { id: 'missions', label: t('Missions', 'Missions'), disabled: false },
+  ] satisfies Array<{ id: WorkspaceTabId; label: string; disabled: boolean }>;
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        position: { md: 'sticky' },
+        top: { md: 0 },
+        zIndex: 4,
+        minWidth: 0,
+        overflow: 'hidden',
+        borderColor: theme.palette.ui.border,
+        background: `linear-gradient(180deg, ${alpha(theme.palette.background.paper, 0.98)}, ${alpha(theme.palette.background.default, 0.92)})`,
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      <Tabs
+        value={activeTab}
+        onChange={(_event, nextValue: WorkspaceTabId) => onChange(nextValue)}
+        aria-label={t('Blueprint detail sections', 'Sections du detail blueprint')}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        sx={{
+          minHeight: 46,
+          '& .MuiTabs-flexContainer': {
+            minHeight: 46,
+          },
+          '& .MuiTabs-indicator': {
+            display: 'none',
+          },
+          '& .MuiTab-root': {
+            minHeight: 46,
+            px: { xs: 1.35, md: 2.6 },
+            color: 'text.secondary',
+            borderRight: `1px solid ${theme.palette.ui.border}`,
+            borderBottom: '2px solid transparent',
+            fontSize: { xs: '0.68rem', md: '0.72rem' },
+            letterSpacing: '0.09em',
+            '&:hover': {
+              color: 'text.primary',
+              backgroundColor: alpha(theme.palette.primary.main, 0.055),
+            },
+            '&.Mui-selected': {
+              color: 'primary.light',
+              borderBottomColor: theme.palette.primary.main,
+              background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.11)}, transparent)`,
+            },
+            '&.Mui-disabled': {
+              color: 'text.disabled',
+              opacity: 0.38,
+            },
+          },
+        }}
+      >
+        {tabs.map((tab) => (
+          <Tab
+            key={tab.id}
+            id={`blueprint-tab-${tab.id}`}
+            aria-controls={`blueprint-tabpanel-${tab.id}`}
+            value={tab.id}
+            label={tab.label}
+            disabled={tab.disabled}
+          />
+        ))}
+      </Tabs>
+    </Paper>
+  );
+}
+
+function TabPanel({
+  activeTab,
+  tab,
+  children,
+}: {
+  activeTab: WorkspaceTabId;
+  tab: WorkspaceTabId;
+  children: ReactNode;
+}) {
+  if (activeTab !== tab) {
+    return null;
+  }
+
+  return (
+    <Box
+      id={`blueprint-tabpanel-${tab}`}
+      role="tabpanel"
+      aria-labelledby={`blueprint-tab-${tab}`}
+      sx={{ minWidth: 0 }}
+    >
+      {children}
+    </Box>
+  );
+}
 
 export function ItemWorkspace() {
   const {
@@ -45,9 +162,13 @@ export function ItemWorkspace() {
     slotAssignments,
   );
   const [qty, setQty] = useState(1);
+  const [activeTab, setActiveTab] = useState<WorkspaceTabId>('craft');
 
   // Reset quantity when a different blueprint is selected
-  useEffect(() => { setQty(1); }, [activeBlueprint?.id]);
+  useEffect(() => {
+    setQty(1);
+    setActiveTab('craft');
+  }, [activeBlueprint?.id]);
 
   // Trigger lazy load of blueprint detail
   useEffect(() => {
@@ -77,6 +198,12 @@ export function ItemWorkspace() {
     [activeBlueprint, missionRewards],
   );
 
+  useEffect(() => {
+    if (activeTab === 'materials' && requiredResources.length === 0) {
+      setActiveTab(detailReady ? 'craft' : 'missions');
+    }
+  }, [activeTab, detailReady, requiredResources.length]);
+
   // Load faction contracts for factions referenced by this blueprint's acquisition entry
   useEffect(() => {
     if (!missionRewards || !acquisitionEntry) return;
@@ -103,11 +230,12 @@ export function ItemWorkspace() {
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
-          md: 'minmax(360px, 2.5fr) minmax(0, 5.5fr)',
+          md: 'minmax(300px, 340px) minmax(0, 1fr)',
+          xl: 'minmax(320px, 360px) minmax(0, 1fr)',
         },
         alignItems: 'start',
-        gap: { xs: 1.5, sm: 2, md: 3 },
-        p: { xs: 1, sm: 1.5, md: 2 },
+        gap: { xs: 1.25, sm: 1.5, lg: 1.75 },
+        p: { xs: 1, sm: 1.25, lg: 1.5 },
       }}
     >
       {/* Left column — sticky on desktop */}
@@ -115,8 +243,8 @@ export function ItemWorkspace() {
         sx={{
           minWidth: 0,
           position: { md: 'sticky' },
-          top: { md: 16 },
-          maxHeight: { md: 'calc(100dvh - 32px)' },
+          top: { md: 10 },
+          maxHeight: { md: 'calc(100dvh - 20px)' },
           overflowY: { md: 'auto' },
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
@@ -145,95 +273,96 @@ export function ItemWorkspace() {
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
-          gap: { xs: 2, md: 2.5 },
+          gap: { xs: 1.25, md: 1.5 },
         }}
       >
-        <BlueprintOverview
-          blueprint={activeBlueprint}
-          detailReady={detailReady}
-          qualityScore={qualityScore}
-          projectedStats={projectedStats}
-          acquisitionEntry={acquisitionEntry}
-          acquisitionLoading={missionRewardsLoading}
-          resources={requiredResources}
-          resourceDataLoading={resourceDataLoading}
-          dismantleTimeSecs={dismantleTimeSecs}
-          dismantleEfficiency={dismantleEfficiency}
+        <WorkspaceTabs
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          hasResources={requiredResources.length > 0}
         />
 
-        {detailReady ? (
-          <CraftSection
+        <TabPanel activeTab={activeTab} tab="craft">
+          <BlueprintOverview
             blueprint={activeBlueprint}
-            slotAssignments={slotAssignments}
-            assignQuality={assignQuality}
-            clearAssignments={clearAssignments}
+            detailReady={detailReady}
             qualityScore={qualityScore}
             projectedStats={projectedStats}
+            acquisitionEntry={acquisitionEntry}
+            acquisitionLoading={missionRewardsLoading}
+            resources={requiredResources}
+            resourceDataLoading={resourceDataLoading}
+            dismantleTimeSecs={dismantleTimeSecs}
+            dismantleEfficiency={dismantleEfficiency}
           />
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <LinearProgress />
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Loading blueprint detail...
-            </Typography>
-          </Box>
-        )}
 
-        {requiredResources.length > 0 && (
-          <>
-            <Divider />
-            <MaterialSourcesSection
-              resources={requiredResources}
-              allResources={activeDataset.resources}
-              materialSources={materialSources}
-              hasResourceData={activeDataset.hasResourceData}
-              loading={resourceDataLoading}
-              qty={qty}
-              setQty={setQty}
-              onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
-              onAddResource={(resourceName, quantity, quantityUnit) => {
-                addPlannerResourceRequirement(
-                  resourceName,
-                  quantity,
-                  quantityUnit === 'count' ? 'count' : 'scu',
-                );
-              }}
-            />
-          </>
-        )}
+          {detailReady ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.25, md: 1.5 }, mt: { xs: 1.25, md: 1.5 } }}>
+              <CraftSection
+                blueprint={activeBlueprint}
+                slotAssignments={slotAssignments}
+                assignQuality={assignQuality}
+                clearAssignments={clearAssignments}
+                qualityScore={qualityScore}
+                projectedStats={projectedStats}
+              />
+              <DismantleSection
+                blueprint={activeBlueprint}
+                allResources={activeDataset.resources}
+                resources={requiredResources}
+                dismantleTimeSecs={dismantleTimeSecs}
+                efficiency={dismantleEfficiency}
+              />
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <LinearProgress />
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Loading blueprint detail...
+              </Typography>
+            </Box>
+          )}
+        </TabPanel>
 
-        {detailReady && (
-          <>
-            <Divider />
-            <DismantleSection
-              blueprint={activeBlueprint}
-              allResources={activeDataset.resources}
-              resources={requiredResources}
-              dismantleTimeSecs={dismantleTimeSecs}
-              efficiency={dismantleEfficiency}
-            />
-          </>
-        )}
+        <TabPanel activeTab={activeTab} tab="materials">
+          <MaterialSourcesSection
+            resources={requiredResources}
+            allResources={activeDataset.resources}
+            materialSources={materialSources}
+            hasResourceData={activeDataset.hasResourceData}
+            loading={resourceDataLoading}
+            qty={qty}
+            setQty={setQty}
+            onAddGoal={() => addGoal(qualityScore, projectedStats, qty)}
+            onAddResource={(resourceName, quantity, quantityUnit) => {
+              addPlannerResourceRequirement(
+                resourceName,
+                quantity,
+                quantityUnit === 'count' ? 'count' : 'scu',
+              );
+            }}
+          />
+        </TabPanel>
 
-        <Divider />
-
-        <AcquisitionSection
-          entry={acquisitionEntry}
-          loading={missionRewardsLoading}
-          missionRewards={missionRewards}
-          factionContractsByFactionId={factionContractsByFactionId}
-          onMissionClick={(contractDebugName, contractorDisplayName) => {
-            const missionSlug = missionSlugFromContract(contractDebugName, contractorDisplayName);
-            navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
-            setActiveBlueprint(null);
-          }}
-          onBlueprintClick={(blueprintId) => {
-            const blueprint = activeDataset.blueprints.find((candidate) => candidate.id === blueprintId);
-            if (blueprint) {
-              setActiveBlueprint(blueprint);
-            }
-          }}
-        />
+        <TabPanel activeTab={activeTab} tab="missions">
+          <AcquisitionSection
+            entry={acquisitionEntry}
+            loading={missionRewardsLoading}
+            missionRewards={missionRewards}
+            factionContractsByFactionId={factionContractsByFactionId}
+            onMissionClick={(contractDebugName, contractorDisplayName) => {
+              const missionSlug = missionSlugFromContract(contractDebugName, contractorDisplayName);
+              navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
+              setActiveBlueprint(null);
+            }}
+            onBlueprintClick={(blueprintId) => {
+              const blueprint = activeDataset.blueprints.find((candidate) => candidate.id === blueprintId);
+              if (blueprint) {
+                setActiveBlueprint(blueprint);
+              }
+            }}
+          />
+        </TabPanel>
       </Box>
     </Box>
   );
