@@ -245,17 +245,17 @@ export const BlueprintCard = memo(function BlueprintCard({
   const quickActionBaseSx = {
     width: '100%',
     minWidth: 0,
-    minHeight: { xs: 38, sm: 40 },
+    minHeight: { xs: 34, sm: 36 },
     gap: { xs: 0.5, sm: 0.625 },
     px: { xs: 0.9, sm: 1.05 },
-    py: { xs: 0.65, sm: 0.8 },
+    py: { xs: 0.55, sm: 0.65 },
     justifyContent: 'flex-start',
     textTransform: 'none',
-    fontSize: { xs: '0.72rem', sm: '0.78rem' },
+    fontSize: { xs: '0.68rem', sm: '0.72rem' },
     fontWeight: 600,
     lineHeight: 1.15,
     borderColor: 'divider',
-    backgroundColor: alpha(theme.palette.background.default, 0.22),
+    backgroundColor: alpha(theme.palette.background.default, 0.3),
     color: 'text.secondary',
     '& .MuiSvgIcon-root': {
       fontSize: { xs: '0.95rem', sm: '1rem' },
@@ -286,9 +286,15 @@ export const BlueprintCard = memo(function BlueprintCard({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        borderColor: isActive ? 'primary.main' : (isInInventory ? 'primary.light' : 'divider'),
-        backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.05) : 'background.paper',
+        borderColor: isActive ? 'primary.main' : (isInInventory ? 'primary.light' : alpha(theme.palette.primary.main, 0.13)),
+        background:
+          theme.palette.mode === 'dark'
+            ? `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.42)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`
+            : 'background.paper',
         transition: 'all 200ms ease',
+        overflow: 'hidden',
+        borderRadius: 0.75,
+        boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.035)}`,
         '&:hover': {
           borderColor: 'primary.main',
           transform: 'translateY(-4px)',
@@ -318,8 +324,13 @@ export const BlueprintCard = memo(function BlueprintCard({
         <Box
           sx={{
             position: 'relative',
-            height: { xs: 132, sm: 152, md: 160 },
-            backgroundColor: theme.palette.mode === 'dark' ? alpha('#000', 0.2) : alpha(theme.palette.primary.main, 0.02),
+            height: { xs: 124, sm: 132, md: 142 },
+            backgroundColor: theme.palette.mode === 'dark' ? alpha('#020817', 0.46) : alpha(theme.palette.primary.main, 0.02),
+            backgroundImage:
+              theme.palette.mode === 'dark'
+                ? `linear-gradient(${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px)`
+                : 'none',
+            backgroundSize: '28px 28px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -337,7 +348,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           </Box>
 
           {/* Large Image / Icon */}
-          <Box sx={{ width: '100%', height: '100%', p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ width: '100%', height: '100%', p: { xs: 1.5, md: 1.75 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {showImage ? (
               <CardMedia
                 component="img"
@@ -367,14 +378,14 @@ export const BlueprintCard = memo(function BlueprintCard({
         </Box>
 
         {/* Bottom Section: Content */}
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+        <Box sx={{ p: { xs: 1.5, md: 1.65 }, display: 'flex', flexDirection: 'column', gap: 1.35, flex: 1 }}>
           {/* Name & Manufacturer */}
           <Box>
             <Typography
               sx={{
                 fontFamily: FONT_HEADING,
                 fontWeight: 700,
-                fontSize: '1.1rem',
+                fontSize: { xs: '1rem', md: '1.05rem' },
                 lineHeight: 1.1,
                 color: 'text.primary',
                 textTransform: 'uppercase',
@@ -383,7 +394,7 @@ export const BlueprintCard = memo(function BlueprintCard({
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
-                minHeight: '2.2em',
+                minHeight: '2.1em',
               }}
             >
               {blueprint.name}
@@ -392,7 +403,7 @@ export const BlueprintCard = memo(function BlueprintCard({
               variant="caption"
               sx={{
                 color: 'secondary.main',
-                fontSize: '0.75rem',
+                fontSize: '0.68rem',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 fontWeight: 600,
@@ -409,7 +420,7 @@ export const BlueprintCard = memo(function BlueprintCard({
 
           {/* Stat bars */}
           {cardStats.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
               {cardStats.map(({ key, label }) => {
                 const val = blueprint.baseStats[key];
                 if (typeof val !== 'number') return null;
@@ -442,7 +453,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           )}
 
           {/* Materials */}
-          <Box sx={{ mt: 'auto', pt: 1 }}>
+          <Box sx={{ mt: 'auto', pt: 0.75 }}>
             {blueprint.slots.length > 0 && (
               <MaterialChips slots={blueprint.slots} resources={resources} />
             )}
@@ -452,9 +463,9 @@ export const BlueprintCard = memo(function BlueprintCard({
 
       <Box
         sx={{
-          px: { xs: 1.15, sm: 1.4 },
-          pb: { xs: 1.15, sm: 1.4 },
-          pt: 0.75,
+          px: { xs: 1, sm: 1.15 },
+          pb: { xs: 1, sm: 1.1 },
+          pt: 0.65,
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
           gap: 0.75,
@@ -992,19 +1003,28 @@ export function BlueprintGrid() {
     <Box
       sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}
     >
-      <Box sx={{ px: { xs: 1.25, sm: 1.5, md: 2 }, py: { xs: 1, md: 1.25 }, borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
+      <Box
+        sx={{
+          px: { xs: 1.25, sm: 1.5, md: 2 },
+          py: { xs: 0.9, md: 1.05 },
+          borderBottom: 1,
+          borderColor: 'divider',
+          background: (theme) =>
+            `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.3)} 0%, ${theme.palette.background.paper} 100%)`,
+        }}
+      >
         <Typography
           sx={{
             fontFamily: FONT_HEADING,
             fontWeight: 700,
-            fontSize: { xs: '1.65rem', md: '1.95rem' },
+            fontSize: { xs: '1.45rem', md: '1.7rem' },
             textTransform: 'uppercase',
             lineHeight: 1,
           }}
         >
           {t('Blueprints', 'Blueprints')}
         </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.45, fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35, fontWeight: 600, fontSize: { xs: '0.82rem', md: '0.88rem' } }}>
           {t(
             'Browse craftable items, simulate quality builds and plan your material runs.',
             'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
@@ -1018,7 +1038,16 @@ export function BlueprintGrid() {
       {/* Scroll container — IntersectionObserver root. Requires the flex:1/minHeight:0 chain
           from App.tsx's <Box component="main"> to remain intact so this Box — not the parent —
           is the actual scrolling ancestor. If the layout breaks, the sentinel never fires. */}
-      <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 } }}>
+      <Box
+        sx={{
+          p: { xs: 1.25, sm: 1.5, md: 1.75 },
+          backgroundImage: (theme) =>
+            theme.palette.mode === 'dark'
+              ? `linear-gradient(${alpha(theme.palette.primary.main, 0.025)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.025)} 1px, transparent 1px)`
+              : 'none',
+          backgroundSize: '48px 48px',
+        }}
+      >
         <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             {filteredBlueprints.length} {t('blueprints', 'blueprints')}
@@ -1032,7 +1061,7 @@ export function BlueprintGrid() {
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {hasVisibleBlueprints && (
               <Box>
                 <Typography
@@ -1058,7 +1087,7 @@ export function BlueprintGrid() {
                       lg: 'repeat(4, 1fr)',
                       xl: 'repeat(5, 1fr)',
                     },
-                    gap: { xs: 1.5, sm: 2, lg: 3 },
+                    gap: { xs: 1.25, sm: 1.5, lg: 1.75 },
                   }}
                   role="list"
                   aria-label={t('Blueprint list', 'Liste des blueprints')}

@@ -541,17 +541,38 @@ export function BlueprintExplorer() {
         display: 'flex',
         flexDirection: 'column',
         gap: 0.75,
+        backgroundImage: (theme) =>
+          theme.palette.mode === 'dark'
+            ? `linear-gradient(${alpha(theme.palette.primary.main, 0.035)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.035)} 1px, transparent 1px)`
+            : 'none',
+        backgroundSize: '44px 44px',
       }}
     >
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
           gap: 0.75,
           '& .MuiPaper-root': {
             minHeight: { xs: 46, md: 50 },
             px: { xs: 1, md: 1.1 },
             py: { xs: 0.75, md: 0.85 },
+            borderColor: (theme) => alpha(theme.palette.primary.main, 0.13),
+            background: (theme) =>
+              `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.4)} 0%, ${alpha(theme.palette.background.default, 0.26)} 100%)`,
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: 0.65,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 2,
+              backgroundColor: 'primary.main',
+              opacity: 0.55,
+            },
           },
           '& .MuiTypography-caption': {
             fontSize: { xs: '0.54rem', md: '0.58rem' },
@@ -585,8 +606,11 @@ export function BlueprintExplorer() {
         variant="outlined"
         sx={{
           p: { xs: 1, md: 1.15 },
-          borderColor: alpha(theme.palette.primary.main, 0.14),
-          backgroundColor: alpha(theme.palette.background.default, 0.24),
+          borderColor: alpha(theme.palette.primary.main, 0.18),
+          background: (theme) =>
+            `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.38)} 0%, ${alpha(theme.palette.background.default, 0.24)} 100%)`,
+          borderRadius: 0.75,
+          boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}`,
         }}
       >
         <Stack spacing={0.85}>
@@ -604,7 +628,6 @@ export function BlueprintExplorer() {
             <TextField
               type="search"
               size="small"
-              label={t('Search', 'Recherche', 'Suche')}
               placeholder={t('Search blueprints...', 'Rechercher des blueprints...', 'Blueprints suchen...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -754,17 +777,25 @@ export function BlueprintExplorer() {
               disableGutters
               elevation={0}
               sx={{
-                backgroundColor: 'transparent',
-                border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
+                backgroundColor: alpha(theme.palette.background.default, 0.18),
+                border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+                borderRadius: 0.5,
                 '&::before': { display: 'none' },
               }}
             >
           <AccordionSummary
             expandIcon={<AppGlyph name="caret-up" size={18} />}
-            sx={{ minHeight: 40, ...accordionCaretSummarySx }}
+            sx={{
+              minHeight: 38,
+              '& .MuiAccordionSummary-content': { my: 0.7 },
+              ...accordionCaretSummarySx,
+            }}
           >
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              >
                 {t('Filters', 'Filtres')}
               </Typography>
               {basicFilterCount > 0 && (
@@ -983,23 +1014,27 @@ export function BlueprintExplorer() {
         disableGutters
         elevation={0}
         sx={{
-          backgroundColor: 'transparent',
-          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
+          backgroundColor: alpha(theme.palette.background.default, 0.18),
+          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+          borderRadius: 0.5,
           '&::before': { display: 'none' },
         }}
       >
         <AccordionSummary
           expandIcon={<AppGlyph name="caret-up" size={18} />}
           sx={{
-            minHeight: 42,
+            minHeight: 38,
             '& .MuiAccordionSummary-content': {
-              my: 0.75,
+              my: 0.7,
             },
             ...accordionCaretSummarySx,
           }}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+            >
               {t('Advanced filters', 'Filtres avancés')}
             </Typography>
             {advancedFilterCount > 0 && (
