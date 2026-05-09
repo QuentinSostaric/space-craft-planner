@@ -114,6 +114,7 @@ export interface ItemStats {
   tractorFullStrengthDistance?: number;
   tractorMaxDistance?: number;
   tractorMaxVolume?: number;
+  flowSpeed?: number;
 }
 
 export type NumericItemStatKey = {
@@ -161,6 +162,7 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'tractorFullStrengthDistance',
   'tractorMaxDistance',
   'tractorMaxVolume',
+  'flowSpeed',
 ] as const satisfies readonly NumericItemStatKey[];
 
 export function isNumericItemStatKey(key: keyof ItemStats): key is NumericItemStatKey {
@@ -289,6 +291,7 @@ Object.assign(STAT_LABELS, {
   tractorFullStrengthDistance: { en: 'Full Strength Distance', fr: 'Distance pleine force', de: 'Full Strength Distance' },
   tractorMaxDistance: { en: 'Max Tractor Distance', fr: 'Distance tracteur max', de: 'Max Tractor Distance' },
   tractorMaxVolume: { en: 'Max Tractor Volume', fr: 'Volume tracteur max', de: 'Max Tractor Volume' },
+  flowSpeed: { en: 'Flow Speed', fr: 'Debit', de: 'Durchfluss' },
 } satisfies Partial<Record<keyof ItemStats, LocalizedString>>);
 
 export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
@@ -342,6 +345,7 @@ Object.assign(STAT_UNITS, {
   tractorFullStrengthDistance: 'x',
   tractorMaxDistance: 'x',
   tractorMaxVolume: 'x',
+  flowSpeed: 'SCU/s',
 } satisfies Partial<Record<keyof ItemStats, string>>);
 
 export const STAT_PERCENT_KEYS = new Set<NumericItemStatKey>([
@@ -385,6 +389,7 @@ export type ItemCategory =
   | 'shield-generator'
   | 'quantum-drive'
   | 'radar'
+  | 'fuel-nozzle'
   | 'ship-weapon'
   | 'mining-laser'
   | 'salvage-head'
@@ -452,6 +457,7 @@ export const CATEGORY_LABELS: Record<ItemCategory, LocalizedString> = {
   'shield-generator': { en: 'Shield Generator', fr: 'Generateur de bouclier', de: 'Schildgenerator' },
   'quantum-drive': { en: 'Quantum Drive', fr: 'Moteur quantique', de: 'Quantenantrieb' },
   radar: { en: 'Radar', fr: 'Radar', de: 'Radar' },
+  'fuel-nozzle': { en: 'Fuel Nozzle', fr: 'Bec de ravitaillement', de: 'Betankungsduse' },
   'ship-weapon': { en: 'Ship Weapon', fr: 'Arme de vaisseau', de: 'Schiffswaffe' },
   'mining-laser': { en: 'Mining Laser', fr: 'Laser de minage', de: 'Bergbaulaser' },
   'salvage-head': { en: 'Salvage Head', fr: 'Tete de salvage', de: 'Bergungskopf' },

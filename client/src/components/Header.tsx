@@ -1,20 +1,30 @@
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
-import ButtonBase from '@mui/material/ButtonBase';
 import FormControl from '@mui/material/FormControl';
+import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import SearchIcon from '@mui/icons-material/Search';
 import { alpha } from '@mui/material/styles';
 import { useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { navigateToPath } from '../utils/slug';
-import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
+import { FONT_MONO } from '../theme';
+import {
+  missionPathFromSlug,
+  missionSlugFromContract,
+  navigateToPath,
+  resourcePathFromSlug,
+} from '../utils/slug';
+import { getMissionContractName } from '../utils/crafting';
+import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
 const MONTH_NAMES = {
   en: [
@@ -75,6 +85,17 @@ const MANIFEST_MONTH_INDEX = {
   nov: 10,
   dec: 11,
 } as const;
+
+type GlobalSearchOption =
+  | { kind: 'blueprint'; label: string; description: string; blueprint: Blueprint }
+  | { kind: 'resource'; label: string; description: string; resource: Resource }
+  | {
+      kind: 'mission';
+      label: string;
+      description: string;
+      contract: MissionContract;
+      group: MissionRewardFactionGroup;
+    };
 
 function getDatasetBuildDateParts(
   buildDateStamp: string | null,
@@ -152,10 +173,12 @@ export function Header() {
     activeChannel,
     setActiveDatasetChannel,
     setActiveDatasetId,
+    setActiveBlueprint,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const isHeaderStacked = useMediaQuery('(max-width:430px)');
   const isNarrowHeader = useMediaQuery('(max-width:720px)');
+  const isWideHeader = useMediaQuery('(min-width:1120px)');
 
   const availableChannels = useMemo(
     () => new Set(availableDatasets.map((dataset) => dataset.channel)),
@@ -220,6 +243,61 @@ export function Header() {
     },
     [lang],
   );
+  const globalSearchOptions = useMemo<GlobalSearchOption[]>(() => {
+    const blueprintOptions: GlobalSearchOption[] = activeDataset.blueprints.slice(0, 800).map((blueprint) => ({
+      kind: 'blueprint',
+      label: blueprint.name,
+      description: [blueprint.manufacturer, blueprint.category].filter(Boolean).join(' / '),
+      blueprint,
+    }));
+
+    const resourceOptions: GlobalSearchOption[] = activeDataset.resources.slice(0, 300).map((resource) => ({
+      kind: 'resource',
+      label: resource.name,
+      description: t('Resource', 'Ressource', 'Ressource'),
+      resource,
+    }));
+
+    const missionOptions: GlobalSearchOption[] = [];
+    for (const group of activeDataset.missionRewards?.factionGroups ?? []) {
+      for (const contract of group.contracts ?? []) {
+        missionOptions.push({
+          kind: 'mission',
+          label: getMissionContractName(contract),
+          description: group.contractorDisplayName,
+          contract,
+          group,
+        });
+        if (missionOptions.length >= 300) break;
+      }
+      if (missionOptions.length >= 300) break;
+    }
+
+    return [...blueprintOptions, ...resourceOptions, ...missionOptions];
+  }, [activeDataset.blueprints, activeDataset.missionRewards?.factionGroups, activeDataset.resources, lang, t]);
+
+  const handleSearchSelect = (_event: unknown, option: GlobalSearchOption | null) => {
+    if (!option) return;
+
+    if (option.kind === 'blueprint') {
+      setActiveBlueprint(option.blueprint);
+      return;
+    }
+
+    if (option.kind === 'resource') {
+      navigateToPath(resourcePathFromSlug(option.resource.id), {
+        mainView: 'resources',
+        resourceId: option.resource.id,
+      });
+      return;
+    }
+
+    const missionSlug = missionSlugFromContract(option.contract.contractDebugName, option.group.contractorDisplayName);
+    navigateToPath(missionPathFromSlug(missionSlug), {
+      mainView: 'missions',
+      missionSlug,
+    });
+  };
 
   return (
     <AppBar
@@ -243,8 +321,9 @@ export function Header() {
       <Toolbar
         sx={{
           px: { xs: 1, sm: 2.5, lg: 3 },
-          py: { xs: 0.75, md: 1.25 },
-          gap: { xs: 0.5, md: 2 },
+          py: { xs: 0.75, md: 1 },
+          minHeight: { xs: 64, md: 74 },
+          gap: { xs: 0.75, md: 1.5, lg: 2 },
           flexWrap: isHeaderStacked ? 'wrap' : 'nowrap',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -261,44 +340,104 @@ export function Header() {
             flex: '1 1 auto',
           }}
         >
-          <ButtonBase
-            component="a"
-            href="/"
-            onClick={(event) => {
-              if (!shouldHandleInternalLinkClick(event)) return;
-              event.preventDefault();
-              navigateToPath('/');
-            }}
+          <Box
             sx={{
-              borderRadius: 1,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: 0.25,
-              flexShrink: 0,
+              gap: { xs: 1, md: 2 },
+              minWidth: 0,
+              flex: '1 1 auto',
             }}
           >
             <Box
               component="img"
               src="/logo.svg"
               alt="Item Fabricator"
-              sx={{ height: { xs: 32, md: 44 }, width: 'auto', display: 'block', flexShrink: 0 }}
-            />
-            <Typography
-              variant="caption"
               sx={{
-                fontSize: { xs: '0.54rem', md: '0.6rem' },
-                color: 'text.disabled',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                display: { xs: 'none', md: 'block' },
+                width: { xs: 0, sm: 210, lg: 244 },
+                height: { xs: 0, sm: 38, lg: 42 },
+                display: { xs: 'none', sm: 'block' },
+                objectFit: 'contain',
+                objectPosition: 'left center',
+                flexShrink: 0,
               }}
-            >
-              v{__APP_VERSION__}
-            </Typography>
-          </ButtonBase>
+            />
+
+            <Autocomplete
+              size="small"
+              blurOnSelect
+              clearOnBlur
+              options={globalSearchOptions}
+              getOptionLabel={(option) => option.label}
+              groupBy={(option) =>
+                option.kind === 'blueprint'
+                  ? t('Blueprints', 'Blueprints')
+                  : option.kind === 'resource'
+                    ? t('Resources', 'Ressources')
+                    : t('Missions', 'Missions')
+              }
+              filterOptions={(options, state) => {
+                const query = state.inputValue.trim().toLowerCase();
+                if (!query) return options.slice(0, 12);
+                return options
+                  .filter((option) =>
+                    `${option.label} ${option.description}`.toLowerCase().includes(query),
+                  )
+                  .slice(0, 12);
+              }}
+              onChange={handleSearchSelect}
+              sx={{
+                width: {
+                  xs: '100%',
+                  sm: 'min(48vw, 420px)',
+                  lg: isWideHeader ? 'clamp(360px, 34vw, 560px)' : 'min(38vw, 420px)',
+                },
+                minWidth: { sm: 240 },
+                flex: { xs: '1 1 auto', md: '0 1 auto' },
+                '& .MuiInputBase-root': {
+                  height: 38,
+                  backgroundColor: (theme) => alpha(theme.palette.background.default, 0.22),
+                  borderRadius: 1,
+                },
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={t('Search blueprints, resources, missions...', 'Rechercher blueprints, ressources, missions...')}
+                  inputProps={{
+                    ...params.inputProps,
+                    'aria-label': t('Global search', 'Recherche globale'),
+                  }}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => {
+                const { key, ...optionProps } = props;
+                return (
+                  <Box
+                    key={key}
+                    component="li"
+                    {...optionProps}
+                    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.15 }}>
+                      {option.label}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.15 }}>
+                      {option.description}
+                    </Typography>
+                  </Box>
+                );
+              }}
+            />
+          </Box>
 
           <Box
             sx={{
@@ -310,6 +449,9 @@ export function Header() {
               pl: { xs: 0, lg: 1.5 },
             }}
           >
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_MONO, display: { xs: 'none', xl: 'block' } }}>
+              v{__APP_VERSION__}
+            </Typography>
             <ToggleButtonGroup
               value={lang}
               exclusive
