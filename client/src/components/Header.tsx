@@ -13,7 +13,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import SearchIcon from '@mui/icons-material/Search';
 import { alpha } from '@mui/material/styles';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { FONT_MONO } from '../theme';
@@ -89,10 +89,11 @@ const MANIFEST_MONTH_INDEX = {
 } as const;
 
 type GlobalSearchOption =
-  | { kind: 'blueprint'; label: string; description: string; blueprint: Blueprint }
-  | { kind: 'resource'; label: string; description: string; resource: Resource }
+  | { kind: 'blueprint'; key: string; label: string; description: string; blueprint: Blueprint }
+  | { kind: 'resource'; key: string; label: string; description: string; resource: Resource }
   | {
       kind: 'mission';
+      key: string;
       label: string;
       description: string;
       contract: MissionContract;
@@ -176,6 +177,9 @@ export function Header() {
     setActiveDatasetChannel,
     setActiveDatasetId,
     setActiveBlueprint,
+    ensureMissionRewardsLoaded,
+    ensureFactionContractsLoaded,
+    factionContractsByFactionId,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const isHeaderStacked = useMediaQuery('(max-width:430px)');
@@ -245,16 +249,39 @@ export function Header() {
     },
     [lang],
   );
+  useEffect(() => {
+    if (activeDataset.datasetId) {
+      void ensureMissionRewardsLoaded();
+    }
+  }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
+
+  useEffect(() => {
+    const factionGroups = activeDataset.missionRewards?.factionGroups ?? [];
+    for (const group of factionGroups) {
+      if (
+        !group.id ||
+        (group.contracts?.length ?? 0) > 0 ||
+        Object.prototype.hasOwnProperty.call(factionContractsByFactionId, group.id)
+      ) {
+        continue;
+      }
+
+      void ensureFactionContractsLoaded(group.id);
+    }
+  }, [activeDataset.missionRewards?.factionGroups, ensureFactionContractsLoaded, factionContractsByFactionId]);
+
   const globalSearchOptions = useMemo<GlobalSearchOption[]>(() => {
-    const blueprintOptions: GlobalSearchOption[] = activeDataset.blueprints.slice(0, 800).map((blueprint) => ({
+    const blueprintOptions: GlobalSearchOption[] = activeDataset.blueprints.map((blueprint) => ({
       kind: 'blueprint',
+      key: `blueprint:${blueprint.id}`,
       label: blueprint.name,
       description: [blueprint.manufacturer, blueprint.category].filter(Boolean).join(' / '),
       blueprint,
     }));
 
-    const resourceOptions: GlobalSearchOption[] = activeDataset.resources.slice(0, 300).map((resource) => ({
+    const resourceOptions: GlobalSearchOption[] = activeDataset.resources.map((resource) => ({
       kind: 'resource',
+      key: `resource:${resource.id}`,
       label: resource.name,
       description: t('Resource', 'Ressource', 'Ressource'),
       resource,
@@ -262,21 +289,33 @@ export function Header() {
 
     const missionOptions: GlobalSearchOption[] = [];
     for (const group of activeDataset.missionRewards?.factionGroups ?? []) {
-      for (const contract of group.contracts ?? []) {
+      for (const contract of factionContractsByFactionId[group.id] ?? group.contracts ?? []) {
+        const missionKey = [
+          group.id,
+          contract.contractFile,
+          contract.handlerDebugName,
+          contract.contractDebugName,
+          missionOptions.length,
+        ].filter(Boolean).join(':');
         missionOptions.push({
           kind: 'mission',
+          key: `mission:${missionKey}`,
           label: getMissionContractName(contract),
           description: group.contractorDisplayName,
           contract,
           group,
         });
-        if (missionOptions.length >= 300) break;
       }
-      if (missionOptions.length >= 300) break;
     }
 
     return [...blueprintOptions, ...resourceOptions, ...missionOptions];
-  }, [activeDataset.blueprints, activeDataset.missionRewards?.factionGroups, activeDataset.resources, lang, t]);
+  }, [
+    activeDataset.blueprints,
+    activeDataset.missionRewards?.factionGroups,
+    activeDataset.resources,
+    factionContractsByFactionId,
+    t,
+  ]);
 
   const handleSearchSelect = (_event: unknown, option: GlobalSearchOption | null) => {
     if (!option) return;
@@ -371,6 +410,7 @@ export function Header() {
               clearOnBlur
               options={globalSearchOptions}
               getOptionLabel={(option) => option.label}
+              getOptionKey={(option) => option.key}
               groupBy={(option) =>
                 option.kind === 'blueprint'
                   ? t('Blueprints', 'Blueprints')
@@ -380,12 +420,11 @@ export function Header() {
               }
               filterOptions={(options, state) => {
                 const query = state.inputValue.trim().toLowerCase();
-                if (!query) return options.slice(0, 12);
+                if (!query) return options;
                 return options
                   .filter((option) =>
                     `${option.label} ${option.description}`.toLowerCase().includes(query),
-                  )
-                  .slice(0, 12);
+                  );
               }}
               onChange={handleSearchSelect}
               sx={{
@@ -424,7 +463,7 @@ export function Header() {
                 const { key, ...optionProps } = props;
                 return (
                   <Box
-                    key={key}
+                    key={option.key}
                     component="li"
                     {...optionProps}
                     sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
