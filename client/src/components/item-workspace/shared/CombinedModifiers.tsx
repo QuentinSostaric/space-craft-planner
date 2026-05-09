@@ -4,6 +4,7 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
@@ -36,10 +37,26 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
   return (
     <Box component="section">
       <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_HEADING, mb: 0.5, fontSize: '.85rem' }}>
-        <ElectricBoltIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'text-bottom' }} /> {t('Final Combined Modifiers', 'Modificateurs combines')}
+        <ElectricBoltIcon sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'text-bottom' }} /> {t('Combined Modifiers', 'Modificateurs combines')}
       </Typography>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small" aria-label={t('Stats modifiers', 'Modificateurs de stats')}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontSize: '0.65rem', py: 0.55, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {t('Stat', 'Stat')}
+              </TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.65rem', py: 0.55, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {t('Base', 'Base')}
+              </TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.65rem', py: 0.55, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {t('Final', 'Final')}
+              </TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.65rem', py: 0.55, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {t('Delta', 'Delta')}
+              </TableCell>
+            </TableRow>
+          </TableHead>
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.key}>

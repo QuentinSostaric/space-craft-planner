@@ -567,7 +567,11 @@ export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemSt
     { key: 'temperatureMin', label: { en: 'Temp Min', fr: 'Temp Min' } },
     { key: 'temperatureMax', label: { en: 'Temp Max', fr: 'Temp Max' } },
   ],
-  // fps-backpack: no storage stat exists in ItemStats yet — deferred until data is available
+  'fuel-nozzle': [
+    { key: 'flowSpeed', label: { en: 'Flow', fr: 'Debit', de: 'Durchfluss' } },
+    { key: 'maxHealth', label: { en: 'Health', fr: 'PV', de: 'Health' } },
+  ],
+  // fps-backpack: no storage stat exists in ItemStats yet; deferred until data is available.
 };
 
 /** Compute maximum value per stat key per category across all blueprints, for stat bar normalization. */

@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
@@ -43,7 +42,7 @@ function DismantleFact({
         px: 1.25,
         py: 1,
         minWidth: 0,
-        backgroundColor: 'background.paper',
+        backgroundColor: (theme) => alpha(theme.palette.background.default, 0.2),
       }}
     >
       <Typography
@@ -88,9 +87,9 @@ export function DismantleSection({
       id="blueprint-dismantling"
       component="section"
       aria-label={t('Dismantling', 'Demontage')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, scrollMarginTop: 18 }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1.35, scrollMarginTop: 18 }}
     >
-      <Typography variant="overline" sx={{ display: 'block' }}>
+      <Typography variant="overline" sx={{ display: 'block', color: 'text.secondary' }}>
         {t('Dismantling', 'Demontage')}
       </Typography>
 
@@ -119,14 +118,14 @@ export function DismantleSection({
                 variant="outlined"
                 sx={{
                   overflow: 'hidden',
-                  backgroundColor: 'background.paper',
+                  background: `linear-gradient(180deg, ${alpha(resourceVisual?.color ?? theme.palette.primary.main, 0.055)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 42%)`,
                   borderColor: alpha(resourceVisual?.color ?? theme.palette.primary.main, 0.22),
                 }}
               >
                 <Box
                   sx={{
-                    px: 1.5,
-                    py: 1.25,
+                    px: 1.35,
+                    py: 1.1,
                     borderBottom: 1,
                     borderColor: 'divider',
                     background: `linear-gradient(180deg, ${alpha(
@@ -145,8 +144,8 @@ export function DismantleSection({
                   >
                     <Box
                       sx={{
-                        width: 60,
-                        height: 60,
+                        width: 56,
+                        height: 56,
                         borderRadius: 1.5,
                         overflow: 'hidden',
                         display: 'flex',
@@ -200,6 +199,7 @@ export function DismantleSection({
                         px: 1.25,
                         py: 1,
                         minWidth: { xs: '100%', sm: 146 },
+                        borderColor: alpha(resourceVisual?.color ?? theme.palette.primary.main, 0.28),
                         backgroundColor: alpha(theme.palette.background.default, 0.34),
                       }}
                     >
@@ -252,29 +252,6 @@ export function DismantleSection({
           })}
         </Box>
       )}
-
-      <Paper
-        variant="outlined"
-        sx={{
-          px: 1.5,
-          py: 1.1,
-          backgroundColor: alpha(theme.palette.background.default, 0.18),
-        }}
-      >
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-        >
-          <Typography variant="subtitle2">
-            {t('Recovery overview', 'Vue recuperation')}
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {Math.round(efficiency * 100)}% {t('recovery', 'recuperation')} | {t('same selected quality', 'meme qualite selectionnee')} | {dismantleTimeSecs}s {t('per job', 'par job')}
-          </Typography>
-        </Stack>
-      </Paper>
     </Box>
   );
 }
