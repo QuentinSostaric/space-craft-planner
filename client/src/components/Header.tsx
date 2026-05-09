@@ -26,6 +26,8 @@ import {
 import { getMissionContractName } from '../utils/crafting';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
+const DISPLAY_APP_VERSION = __APP_VERSION__.replace(/\.0$/, '');
+
 const MONTH_NAMES = {
   en: [
     'Jan',
@@ -450,7 +452,7 @@ export function Header() {
             }}
           >
             <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_MONO, display: { xs: 'none', xl: 'block' } }}>
-              v{__APP_VERSION__}
+              v{DISPLAY_APP_VERSION}
             </Typography>
             <ToggleButtonGroup
               value={lang}
