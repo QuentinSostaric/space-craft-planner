@@ -568,7 +568,8 @@ export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemSt
     { key: 'temperatureMax', label: { en: 'Temp Max', fr: 'Temp Max' } },
   ],
   'fuel-nozzle': [
-    { key: 'flowSpeed', label: { en: 'Flow', fr: 'Debit', de: 'Durchfluss' } },
+    { key: 'hydrogenFlowSpeed', label: { en: 'H2 Flow', fr: 'Debit H2', de: 'H2-Fluss' } },
+    { key: 'quantumFlowSpeed', label: { en: 'QT Flow', fr: 'Debit QT', de: 'QT-Fluss' } },
     { key: 'maxHealth', label: { en: 'Health', fr: 'PV', de: 'Health' } },
   ],
   // fps-backpack: no storage stat exists in ItemStats yet; deferred until data is available.
