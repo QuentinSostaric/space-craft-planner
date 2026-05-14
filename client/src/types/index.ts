@@ -115,6 +115,8 @@ export interface ItemStats {
   tractorMaxDistance?: number;
   tractorMaxVolume?: number;
   flowSpeed?: number;
+  hydrogenFlowSpeed?: number;
+  quantumFlowSpeed?: number;
 }
 
 export type NumericItemStatKey = {
@@ -163,6 +165,8 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'tractorMaxDistance',
   'tractorMaxVolume',
   'flowSpeed',
+  'hydrogenFlowSpeed',
+  'quantumFlowSpeed',
 ] as const satisfies readonly NumericItemStatKey[];
 
 export function isNumericItemStatKey(key: keyof ItemStats): key is NumericItemStatKey {
@@ -292,6 +296,8 @@ Object.assign(STAT_LABELS, {
   tractorMaxDistance: { en: 'Max Tractor Distance', fr: 'Distance tracteur max', de: 'Max Tractor Distance' },
   tractorMaxVolume: { en: 'Max Tractor Volume', fr: 'Volume tracteur max', de: 'Max Tractor Volume' },
   flowSpeed: { en: 'Flow Speed', fr: 'Debit', de: 'Durchfluss' },
+  hydrogenFlowSpeed: { en: 'Hydrogen Flow', fr: 'Debit hydrogene', de: 'Wasserstoff-Durchfluss' },
+  quantumFlowSpeed: { en: 'Quantum Flow', fr: 'Debit quantum', de: 'Quantum-Durchfluss' },
 } satisfies Partial<Record<keyof ItemStats, LocalizedString>>);
 
 export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
@@ -346,6 +352,8 @@ Object.assign(STAT_UNITS, {
   tractorMaxDistance: 'x',
   tractorMaxVolume: 'x',
   flowSpeed: 'SCU/s',
+  hydrogenFlowSpeed: 'SCU/s',
+  quantumFlowSpeed: 'SCU/s',
 } satisfies Partial<Record<keyof ItemStats, string>>);
 
 export const STAT_PERCENT_KEYS = new Set<NumericItemStatKey>([
