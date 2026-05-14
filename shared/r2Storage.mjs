@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -76,6 +77,15 @@ export async function putJsonObject(
       Body: JSON.stringify(payload),
       ContentType: 'application/json; charset=utf-8',
       CacheControl: cacheControl ?? undefined,
+    }),
+  );
+}
+
+export async function deleteObject(client, bucketName, key) {
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: key,
     }),
   );
 }
