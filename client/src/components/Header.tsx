@@ -23,7 +23,7 @@ import {
   navigateToPath,
   resourcePathFromSlug,
 } from '../utils/slug';
-import { getMissionContractName } from '../utils/crafting';
+import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
 const DISPLAY_APP_VERSION = __APP_VERSION__.replace(/\.0$/, '');
@@ -279,13 +279,15 @@ export function Header() {
       blueprint,
     }));
 
-    const resourceOptions: GlobalSearchOption[] = activeDataset.resources.map((resource) => ({
-      kind: 'resource',
-      key: `resource:${resource.id}`,
-      label: resource.name,
-      description: t('Resource', 'Ressource', 'Ressource'),
-      resource,
-    }));
+    const resourceOptions: GlobalSearchOption[] = activeDataset.resources
+      .filter((resource) => !isPlaceholderResource(resource))
+      .map((resource) => ({
+        kind: 'resource',
+        key: `resource:${resource.id}`,
+        label: resource.name,
+        description: t('Resource', 'Ressource', 'Ressource'),
+        resource,
+      }));
 
     const missionOptions: GlobalSearchOption[] = [];
     for (const group of activeDataset.missionRewards?.factionGroups ?? []) {

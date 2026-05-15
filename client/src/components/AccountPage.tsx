@@ -54,6 +54,7 @@ import {
   computeStatMaxima,
   formatQualityLabel,
   formatResourceQuantity,
+  isPlaceholderResource,
   isResourceSlot,
 } from '../utils/crafting';
 import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
@@ -349,19 +350,28 @@ export function AccountPage() {
     [blueprints],
   );
   const resourceById = useMemo(
-    () => new Map(activeDataset.resources.map((resource) => [resource.id, resource])),
+    () =>
+      new Map(
+        activeDataset.resources
+          .filter((resource) => !isPlaceholderResource(resource))
+          .map((resource) => [resource.id, resource]),
+      ),
     [activeDataset.resources],
   );
   const sortedResources = useMemo(
     () =>
-      [...activeDataset.resources].sort((left, right) =>
-        left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
-      ),
+      activeDataset.resources
+        .filter((resource) => !isPlaceholderResource(resource))
+        .sort((left, right) =>
+          left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
+        ),
     [activeDataset.resources],
   );
   const resourceQuantityUnitById = useMemo(() => {
     const nextMap = new Map<string, AccountInventoryResourceQuantityUnit>(
-      activeDataset.resources.map((resource) => [resource.id, 'scu']),
+      activeDataset.resources
+        .filter((resource) => !isPlaceholderResource(resource))
+        .map((resource) => [resource.id, 'scu']),
     );
 
     for (const blueprint of blueprints) {
