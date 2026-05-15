@@ -44,7 +44,7 @@ export interface GppModifier {
 
 export type MaterialSlotRequirementType = 'resource' | 'item';
 export type MaterialSlotQuantityUnit = 'scu' | 'count';
-export type ResourceSourceMethod = 'ship-mining' | 'hand-mining';
+export type ResourceSourceMethod = 'ship-mining' | 'vehicle-mining' | 'hand-mining';
 
 export interface MaterialSlot {
   id: string;
