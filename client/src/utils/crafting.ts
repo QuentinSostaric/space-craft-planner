@@ -334,6 +334,7 @@ const MATERIAL_PROVIDER_TYPE_LABELS: Record<string, LocalizedString> = {
 
 const MATERIAL_SOURCE_METHOD_LABELS: Record<ResourceSourceMethod, LocalizedString> = {
   'ship-mining': { en: 'Ship mining', fr: 'Minage vaisseau', de: 'Schiffsbergbau' },
+  'vehicle-mining': { en: 'Vehicle mining', fr: 'Minage vehicule', de: 'Fahrzeugbergbau' },
   'hand-mining': { en: 'Hand mining', fr: 'Minage FPS', de: 'Handbergbau' },
 };
 
