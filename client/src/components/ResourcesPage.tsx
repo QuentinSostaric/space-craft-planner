@@ -43,7 +43,7 @@ import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { ScaleBadge } from './ui/RarityBadge';
 import { PageStatCard } from './ui/PageStatCard';
 import { ResourceIcon } from './ui/ResourceIcon';
-import { isResourceSlot } from '../utils/crafting';
+import { isPlaceholderResource, isResourceSlot } from '../utils/crafting';
 import {
   StarCitizenLicensedIcon,
   getLocationIconName,
@@ -103,11 +103,6 @@ type ResourceMissionFilter = 'all' | 'mission-linked' | 'no-mission';
 interface FlatMissionContract {
   contract: MissionContract;
   group: MissionRewardFactionGroup;
-}
-
-function isPlaceholderResource(resource: Resource) {
-  if (resource.isPlaceholder || resource.visualStatus === 'placeholder-slot') return true;
-  return resource.id === 'case' || resource.id === 'containment-matrix' || resource.id === 'shell';
 }
 
 interface ResourceInventoryDialogState {

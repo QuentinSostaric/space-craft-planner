@@ -16,6 +16,7 @@ import type {
   MissionRewardsData,
   NumericItemStatKey,
   PlannerResourceRequirements,
+  Resource,
   ResourceSourceMethod,
   StandingBucket,
 } from '../types';
@@ -199,13 +200,31 @@ export function isResourceSlot(slot: MaterialSlot): boolean {
   return Boolean(slot.requiredResource?.trim()) && !isPlaceholderResourceSlot(slot);
 }
 
-export function isPlaceholderResourceSlot(slot: MaterialSlot): boolean {
-  if (slot.isPlaceholderResource) return true;
-  const normalized = String(slot.requiredResource ?? slot.requirementName ?? '')
+function normalizeResourceId(value: string | null | undefined): string {
+  return String(value ?? '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return normalized === 'case' || normalized === 'containment-matrix' || normalized === 'shell';
+}
+
+export function isPlaceholderResourceSlot(slot: MaterialSlot): boolean {
+  if (slot.isPlaceholderResource) return true;
+  const normalized = normalizeResourceId(slot.requiredResource ?? slot.requirementName ?? '');
+  const labelId = normalizeResourceId(slot.label?.en ?? slot.label?.fr ?? '');
+  return (
+    normalized === 'case' ||
+    normalized === 'containment-matrix' ||
+    normalized === 'shell' ||
+    (Boolean(normalized) && normalized === labelId)
+  );
+}
+
+export function isPlaceholderResource(
+  resource: Pick<Resource, 'id' | 'isPlaceholder' | 'visualKind' | 'visualStatus'>,
+): boolean {
+  if (resource.isPlaceholder || resource.visualStatus === 'placeholder-slot') return true;
+  if (resource.visualKind === 'crafting-slot') return true;
+  return resource.id === 'case' || resource.id === 'containment-matrix' || resource.id === 'shell';
 }
 
 export function getSlotRequirementName(slot: MaterialSlot): string {
