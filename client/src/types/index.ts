@@ -53,6 +53,7 @@ export interface MaterialSlot {
   requirementName: string;
   requiredResource: string;
   isPlaceholderResource?: boolean;
+  unresolvedResourceGuid?: string;
   requiredItem: string | null;
   requiredItemClass: string | null;
   minQuality: number | null;
