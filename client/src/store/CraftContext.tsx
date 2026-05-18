@@ -339,15 +339,7 @@ function findDatasetById(
 function pickDatasetForChannel(
   channel: DatasetChannel,
   datasets: DatasetSummary[],
-  preferredDatasetId?: string | null,
 ): DatasetSummary | null {
-  const preferredDataset = datasets.find(
-    (dataset) => dataset.channel === channel && dataset.datasetId === preferredDatasetId,
-  );
-  if (preferredDataset) {
-    return preferredDataset;
-  }
-
   const channelDatasets = datasets
     .filter((dataset) => dataset.channel === channel)
     .sort(compareDatasetSummaries);
@@ -359,22 +351,21 @@ function pickDatasetForChannel(
   return channelDatasets[0];
 }
 
-function pickStoredDataset(
+function pickStoredChannelDataset(
   datasets: DatasetSummary[],
   selections: DatasetSelections,
 ): DatasetSummary | null {
   if (selections.activeChannel) {
-    const activeChannelDataset = findDatasetById(
-      datasets,
-      selections.ids[selections.activeChannel],
-    );
+    const activeChannelDataset = pickDatasetForChannel(selections.activeChannel, datasets);
     if (activeChannelDataset) {
       return activeChannelDataset;
     }
   }
 
-  const storedDatasets = Object.values(selections.ids)
-    .map((datasetId) => findDatasetById(datasets, datasetId))
+  const storedDatasets = Object.entries(selections.ids)
+    .map(([channel]) =>
+      isDatasetChannel(channel) ? pickDatasetForChannel(channel, datasets) : null,
+    )
     .filter((dataset): dataset is DatasetSummary => Boolean(dataset))
     .sort(compareDatasetSummaries);
 
@@ -879,9 +870,11 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       }
 
       const sortedDatasets = [...index.datasets].sort(compareDatasetSummaries);
-      const currentDataset = findDatasetById(sortedDatasets, activeDataset.datasetId);
-      const storedDataset = pickStoredDataset(sortedDatasets, datasetSelections);
-      const targetDataset = currentDataset ?? storedDataset ?? pickDefaultDataset(sortedDatasets);
+      const activeChannelDataset = pickDatasetForChannel(activeDataset.channel, sortedDatasets);
+      const storedDataset = pickStoredChannelDataset(sortedDatasets, datasetSelections);
+      const targetDataset = activeDataset.datasetId
+        ? activeChannelDataset ?? storedDataset ?? pickDefaultDataset(sortedDatasets)
+        : storedDataset ?? pickDefaultDataset(sortedDatasets);
 
       if (!targetDataset) {
         throw new Error('No published dataset is available.');
@@ -1203,7 +1196,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const targetDataset = pickDatasetForChannel(
         channel,
         datasets,
-        datasetSelections.ids[channel],
       );
 
       if (!targetDataset) {
@@ -1220,7 +1212,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         setDatasetLoading(false);
       }
     },
-    [activeDataset.channel, availableDatasets, datasetError, datasetSelections.ids, loadDataset],
+    [activeDataset.channel, availableDatasets, datasetError, loadDataset],
   );
 
   const setActiveDatasetId = useCallback(
@@ -1236,7 +1228,10 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       const datasets = availableDatasets.length > 0
         ? [...availableDatasets].sort(compareDatasetSummaries)
         : await fetchPublishedDatasetIndex().then((index) => [...index.datasets].sort(compareDatasetSummaries));
-      const targetDataset = datasets.find((dataset) => dataset.datasetId === datasetId);
+      const requestedDataset = findDatasetById(datasets, datasetId);
+      const targetDataset = requestedDataset
+        ? pickDatasetForChannel(requestedDataset.channel, datasets)
+        : null;
 
       if (!targetDataset) {
         setDatasetError(`Unknown dataset "${datasetId}".`);

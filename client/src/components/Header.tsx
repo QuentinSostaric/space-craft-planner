@@ -2,10 +2,7 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
-import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -175,7 +172,6 @@ export function Header() {
     availableDatasets,
     activeChannel,
     setActiveDatasetChannel,
-    setActiveDatasetId,
     setActiveBlueprint,
     ensureMissionRewardsLoaded,
     ensureFactionContractsLoaded,
@@ -183,59 +179,11 @@ export function Header() {
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const isHeaderStacked = useMediaQuery('(max-width:430px)');
-  const isNarrowHeader = useMediaQuery('(max-width:720px)');
   const isWideHeader = useMediaQuery('(min-width:1120px)');
 
   const availableChannels = useMemo(
     () => new Set(availableDatasets.map((dataset) => dataset.channel)),
     [availableDatasets, activeChannel, activeDataset],
-  );
-  const channelDatasets = useMemo(
-    () =>
-      availableDatasets
-        .filter((dataset) => dataset.channel === activeChannel)
-        .sort((a, b) => {
-          const dateA = Date.parse(a.updatedAt ?? a.importedAt ?? '') || 0;
-          const dateB = Date.parse(b.updatedAt ?? b.importedAt ?? '') || 0;
-          if (dateA !== dateB) return dateB - dateA;
-          const buildA = Number(a.buildNumber ?? 0);
-          const buildB = Number(b.buildNumber ?? 0);
-          if (buildA !== buildB) return buildB - buildA;
-          return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
-        }),
-    [availableDatasets, activeChannel, activeDataset],
-  );
-  const effectiveChannelDatasets = useMemo(
-    () =>
-      channelDatasets.length > 0
-        ? channelDatasets
-        : activeDataset.datasetId && activeDataset.channel === activeChannel
-          ? [
-              {
-                channel: activeDataset.channel,
-                datasetId: activeDataset.datasetId,
-                label: activeDataset.label,
-                version: activeDataset.version,
-                branch: activeDataset.branch,
-                buildNumber: activeDataset.buildNumber,
-                buildDateStamp: activeDataset.buildDateStamp,
-                buildTimeStamp: activeDataset.buildTimeStamp,
-                published: activeDataset.published,
-                blueprintCount: activeDataset.blueprintCount,
-                resourceCount: activeDataset.resourceCount,
-                hasDismantling: activeDataset.hasDismantling,
-                hasMissionRewards: activeDataset.hasMissionRewards,
-                missionRewardContractCount: 0,
-                missionRewardFactionGroupCount: 0,
-                importedAt: activeDataset.importedAt,
-                updatedAt: activeDataset.updatedAt,
-                hasChangelog: activeDataset.hasChangelog,
-                hasResourceData: activeDataset.hasResourceData,
-                hasShipComponents: activeDataset.hasShipComponents,
-              },
-            ]
-          : [],
-    [availableDatasets, activeChannel, activeDataset, channelDatasets],
   );
   const formatDatasetLabel = useMemo(
     () => (dataset: {
@@ -560,61 +508,30 @@ export function Header() {
             </ToggleButton>
           </ToggleButtonGroup>
 
-          <FormControl
-            size="small"
-            disabled={effectiveChannelDatasets.length === 0}
+          <Box
+            aria-label={t('Dataset build', 'Build du dataset')}
             sx={{
               minWidth: 0,
-              width: isHeaderStacked ? 'calc(100% - 96px)' : isNarrowHeader ? 'min(100%, 208px)' : 'clamp(200px, 26vw, 280px)',
+              width: isHeaderStacked ? 'calc(100% - 96px)' : 'clamp(190px, 24vw, 270px)',
               flex: isHeaderStacked ? '1 1 auto' : '0 1 auto',
-              '& .MuiInputBase-root': { height: 32, fontSize: { xs: '0.7rem', md: '0.75rem' } },
+              height: 32,
+              px: 1.25,
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 1,
+              backgroundColor: (theme) => alpha(theme.palette.background.default, 0.2),
+              border: 1,
+              borderColor: (theme) => alpha(theme.palette.divider, 0.72),
             }}
           >
-            <Select
-              value={effectiveChannelDatasets.some((dataset) => dataset.datasetId === activeDataset.datasetId) ? activeDataset.datasetId : ''}
-              displayEmpty
-              inputProps={{ 'aria-label': t('Dataset build', 'Build du dataset') }}
-              MenuProps={{
-                slotProps: {
-                  paper: {
-                    sx: {
-                      zIndex: (theme) => theme.zIndex.modal + 10,
-                    },
-                  },
-                },
-              }}
-              onChange={(event) => {
-                const datasetId = event.target.value;
-                if (datasetId) {
-                  void setActiveDatasetId(datasetId);
-                }
-              }}
-              sx={{
-                backgroundColor: (theme) => alpha(theme.palette.background.default, 0.2),
-              }}
-              renderValue={(selected) => {
-                const dataset = effectiveChannelDatasets.find((entry) => entry.datasetId === selected);
-                if (!dataset) {
-                  return t('Select dataset', 'Selectionner un dataset');
-                }
-
-                return formatDatasetLabel(dataset);
-              }}
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ minWidth: 0, color: 'text.secondary', fontWeight: 700, fontSize: { xs: '0.7rem', md: '0.75rem' } }}
             >
-              {effectiveChannelDatasets.map((dataset) => (
-                <MenuItem key={dataset.datasetId} value={dataset.datasetId}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem', lineHeight: 1.1 }}>
-                      {formatDatasetBuildDate(dataset.buildDateStamp, dataset.importedAt, lang) ?? dataset.label}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.1 }}>
-                      {dataset.version}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              {activeDataset.datasetId ? formatDatasetLabel(activeDataset) : t('Latest dataset', 'Dernier dataset')}
+            </Typography>
+          </Box>
         </Box>
       </Toolbar>
     </AppBar>
