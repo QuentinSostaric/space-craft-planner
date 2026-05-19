@@ -166,6 +166,11 @@ function formatDatasetBuildDate(
   return `${day} ${month} ${year}`;
 }
 
+function formatLiveDatasetVersion(version: string): string {
+  const match = version.match(/^(\d+\.\d+)/);
+  return match?.[1] ?? version;
+}
+
 export function Header() {
   const {
     activeDataset,
@@ -192,10 +197,14 @@ export function Header() {
       buildDateStamp: string | null;
       importedAt: string | null;
     }) => {
+      if (activeChannel === 'live') {
+        return formatLiveDatasetVersion(dataset.version);
+      }
+
       const formattedDate = formatDatasetBuildDate(dataset.buildDateStamp, dataset.importedAt, lang);
       return formattedDate ? `${dataset.version} • ${formattedDate}` : dataset.label;
     },
-    [lang],
+    [activeChannel, lang],
   );
   useEffect(() => {
     if (activeDataset.datasetId) {
@@ -512,7 +521,11 @@ export function Header() {
             aria-label={t('Dataset build', 'Build du dataset')}
             sx={{
               minWidth: 0,
-              width: isHeaderStacked ? 'calc(100% - 96px)' : 'clamp(190px, 24vw, 270px)',
+              width: isHeaderStacked
+                ? 'calc(100% - 96px)'
+                : activeChannel === 'live'
+                  ? 82
+                  : 'clamp(190px, 24vw, 270px)',
               flex: isHeaderStacked ? '1 1 auto' : '0 1 auto',
               height: 32,
               px: 1.25,

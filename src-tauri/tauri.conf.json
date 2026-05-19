@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Item Fabricator",
+  "version": "../package.json",
+  "identifier": "space.itemfab.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../client/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Item Fabricator",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 1100,
+        "minHeight": 720,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "category": "Utility",
+    "shortDescription": "Star Citizen crafting simulator, dismantling calculator and resource planner.",
+    "longDescription": "Item Fabricator is a Star Citizen crafting simulator, dismantling calculator and resource planner.",
+    "targets": ["nsis", "appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "TheSamon",
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": true,
+        "installMode": "perMachine"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMzRjYwNDAxNEIwREUyRDUKUldUVjRnMUxBUVQyTTNsaGloR1RFOE9sbUFybldWZTdMWlpSbG02NHRrMmppSUpQeXJkK2hEai8K",
+      "endpoints": [
+        "https://github.com/QuentinSostaric/space-craft-planner/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

@@ -8,11 +8,14 @@
   ],
   "scripts": {
     "predev": "node scripts/checkDevPorts.mjs",
-    "prebuild": "node scripts/generateAgentArtifacts.mjs",
+    "prebuild": "node scripts/generateAgentArtifacts.mjs && node scripts/generateVersionFile.mjs",
     "dev": "concurrently -k -n vite,api -c blue,yellow \"npm run dev:vite\" \"npm run dev:api\"",
     "dev:vite": "npm run dev --workspace client -- --port 5173 --strictPort",
     "dev:api": "node scripts/devApiServer.mjs",
     "dev:cf": "wrangler pages dev client/dist --port 8788",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
     "discord:bot:dev": "wrangler dev --config workers/discord-bot/wrangler.toml --port 8790",
     "discord:bot:deploy": "wrangler deploy --config workers/discord-bot/wrangler.toml",
     "discord:bot:register:guild": "node workers/discord-bot/scripts/register-commands.mjs guild",
@@ -29,6 +32,7 @@
     "@aws-sdk/client-s3": "^3.908.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
     "concurrently": "^9.1.2",
     "wrangler": "^4.80.0"
   },

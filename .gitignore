@@ -4,6 +4,9 @@ node_modules/
 # Build outputs
 dist/
 client/dist/
+/src-tauri/target/
+/src-tauri/gen/
+/client/public/itemfabricator_version.json
 
 
 # Local environment variables

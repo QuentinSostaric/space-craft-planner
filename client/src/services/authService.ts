@@ -4,6 +4,7 @@ import type {
   PlannerTodoItem,
   ResourceProgress,
 } from '../types';
+import { getApiCredentials, getApiUrl } from './apiBaseUrl';
 
 export interface AuthenticatedUser {
   id: string;
@@ -236,8 +237,8 @@ export class AuthApiError extends Error {
 }
 
 async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    credentials: 'same-origin',
+  const response = await fetch(getApiUrl(path), {
+    credentials: getApiCredentials(),
     ...init,
   });
 
@@ -535,7 +536,7 @@ export function getDiscordLoginUrl(returnTo?: string): string {
   }
 
   const suffix = params.toString();
-  return suffix ? `/api/auth/discord/login?${suffix}` : '/api/auth/discord/login';
+  return getApiUrl(suffix ? `/api/auth/discord/login?${suffix}` : '/api/auth/discord/login');
 }
 
 export function getDiscordBotInviteUrl(): string {

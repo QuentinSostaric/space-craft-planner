@@ -67,6 +67,15 @@ export interface MaterialSlot {
 export interface ItemStats {
   damage?: number;
   rateOfFire?: number;
+  burstDps?: number;
+  sustainedDps?: number;
+  burstShots?: number;
+  burstDuration?: number;
+  capacitorAmmo?: number;
+  capacitorRegenPerSec?: number;
+  capacitorRegenCooldown?: number;
+  ammoCostPerShot?: number;
+  projectilesPerShot?: number;
   magazineSize?: number;
   effectiveRange?: number;
   recoilSmoothness?: number;
@@ -127,6 +136,15 @@ export type NumericItemStatKey = {
 export const NUMERIC_ITEM_STAT_KEYS = [
   'damage',
   'rateOfFire',
+  'burstDps',
+  'sustainedDps',
+  'burstShots',
+  'burstDuration',
+  'capacitorAmmo',
+  'capacitorRegenPerSec',
+  'capacitorRegenCooldown',
+  'ammoCostPerShot',
+  'projectilesPerShot',
   'magazineSize',
   'effectiveRange',
   'recoilSmoothness',
@@ -248,6 +266,15 @@ Object.assign(GPP_LABELS, {
 export const STAT_LABELS: Partial<Record<keyof ItemStats, LocalizedString>> = {
   damage: { en: 'Damage', fr: 'Degats', de: 'Schaden' },
   rateOfFire: { en: 'Rate of Fire', fr: 'Cadence', de: 'Feuerrate' },
+  burstDps: { en: 'Burst DPS', fr: 'DPS burst', de: 'Burst-DPS' },
+  sustainedDps: { en: 'Sustained DPS', fr: 'DPS soutenu', de: 'Dauer-DPS' },
+  burstShots: { en: 'Burst shots', fr: 'Tirs burst', de: 'Burst-Schusse' },
+  burstDuration: { en: 'Burst duration', fr: 'Duree burst', de: 'Burst-Dauer' },
+  capacitorAmmo: { en: 'Capacitor', fr: 'Capacitor', de: 'Kondensator' },
+  capacitorRegenPerSec: { en: 'Capacitor regen', fr: 'Regen capacitor', de: 'Kondensator-Reg.' },
+  capacitorRegenCooldown: { en: 'Regen delay', fr: 'Delai regen', de: 'Regen-Verz.' },
+  ammoCostPerShot: { en: 'Ammo cost', fr: 'Cout tir', de: 'Munitionskosten' },
+  projectilesPerShot: { en: 'Projectiles', fr: 'Projectiles', de: 'Projektile' },
   magazineSize: { en: 'Magazine', fr: 'Chargeur', de: 'Magazin' },
   effectiveRange: { en: 'Range', fr: 'Portee', de: 'Reichweite' },
   recoilSmoothness: { en: 'Recoil Smoothness', fr: 'Fluidite recul', de: 'Rückstoßglätte' },
@@ -304,6 +331,15 @@ Object.assign(STAT_LABELS, {
 export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
   damage: 'dmg',
   rateOfFire: 'rpm',
+  burstDps: 'dps',
+  sustainedDps: 'dps',
+  burstShots: 'shots',
+  burstDuration: 's',
+  capacitorAmmo: 'shots',
+  capacitorRegenPerSec: 'shots/s',
+  capacitorRegenCooldown: 's',
+  ammoCostPerShot: 'shots',
+  projectilesPerShot: 'x',
   magazineSize: 'rds',
   effectiveRange: 'm',
   recoilSmoothness: 'x',

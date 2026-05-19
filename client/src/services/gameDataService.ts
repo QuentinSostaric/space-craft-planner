@@ -24,6 +24,7 @@ import type {
   RarityFilter,
   SlotCountFilter,
 } from '../types';
+import { fetchTauriApiJson, getApiUrl } from './apiBaseUrl';
 
 export interface DatasetIndexResponse {
   datasets: DatasetSummary[];
@@ -251,7 +252,12 @@ function normalizeBlueprintCatalogPage(
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
-  const response = await fetch(path);
+  const tauriPayload = await fetchTauriApiJson<T>(path);
+  if (tauriPayload) {
+    return tauriPayload;
+  }
+
+  const response = await fetch(getApiUrl(path));
 
   let payload: unknown;
   try {
