@@ -63,5 +63,5 @@ jobs:
           releaseBody: 'Desktop release for Item Fabricator.'
           releaseDraft: false
           prerelease: false
-          releaseAssetNamePattern: '[name]-[version]-[platform]-[arch]-[bundle][setup][ext]'
+          assetNamePattern: '[name]-[version]-[platform]-[arch]-[bundle][setup][ext]'
           args: ${{ matrix.args }}
