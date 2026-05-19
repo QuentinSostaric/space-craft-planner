@@ -43,7 +43,7 @@ const COMPONENT_METRICS: Partial<Record<Blueprint['category'], NumericItemStatKe
   'fuel-nozzle': ['hydrogenFlowSpeed', 'quantumFlowSpeed', 'maxHealth'],
   'salvage-head': ['hullScrapingEfficiency', 'hullScrapingRadius', 'hullScrapingSpeed', 'maxHealth'],
   'tractor-beam': ['tractorForce', 'tractorFullStrengthDistance', 'tractorMaxDistance', 'tractorMaxVolume'],
-  'ship-weapon': ['damage', 'rateOfFire', 'reloadSpeed', 'spread', 'maxHealth'],
+  'ship-weapon': ['burstDps', 'sustainedDps', 'rateOfFire', 'effectiveRange', 'maxHealth'],
   'mining-laser': ['powerGeneration', 'coolantGeneration', 'maxHealth'],
 };
 

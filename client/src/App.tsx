@@ -23,6 +23,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { NavRail } from './components/NavRail';
 import { Footer } from './components/Footer';
+import { AppUpdateSnackbar } from './components/AppUpdateSnackbar';
 import { useCraft } from './store/CraftContext';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
@@ -899,6 +900,7 @@ function AppContent() {
           <CraftProvider>
             <AccountStateSync />
             <AppShell />
+            <AppUpdateSnackbar />
           </CraftProvider>
         </AuthProvider>
       </I18nProvider>

@@ -64,6 +64,13 @@ function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKe
     return existingTargets.length > 0 ? existingTargets : [...ARMOR_DAMAGE_RESISTANCE_KEYS];
   }
 
+  if (gppId === 'GPP_Weapon_Damage') {
+    const damageTargets: NumericItemStatKey[] = ['damage'];
+    if (typeof result.burstDps === 'number') damageTargets.push('burstDps');
+    if (typeof result.sustainedDps === 'number') damageTargets.push('sustainedDps');
+    return damageTargets;
+  }
+
   const statKey = DIRECT_GPP_TO_STAT[gppId];
   return statKey ? [statKey] : [];
 }

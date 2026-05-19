@@ -10,16 +10,25 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import { loc, useI18n } from '../../../i18n/I18nContext';
-import { NUMERIC_ITEM_STAT_KEYS, STAT_LABELS, STAT_LOWER_IS_BETTER } from '../../../types';
-import type { ItemStats, NumericItemStatKey } from '../../../types';
+import { NUMERIC_ITEM_STAT_KEYS, STAT_LABELS, STAT_LOWER_IS_BETTER, STAT_UNITS } from '../../../types';
+import type { ItemCategory, ItemStats, NumericItemStatKey } from '../../../types';
 import { FONT_HEADING, FONT_MONO } from '../../../theme';
 
-export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { baseStats: ItemStats }; projectedStats: ItemStats }) {
+export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { baseStats: ItemStats; category?: ItemCategory }; projectedStats: ItemStats }) {
   const { lang, t } = useI18n();
   const theme = useTheme();
   const statKeys = NUMERIC_ITEM_STAT_KEYS.filter(
     (key) => typeof blueprint.baseStats[key] === 'number' || typeof projectedStats[key] === 'number',
-  );
+  ).filter((key) => {
+    if (
+      blueprint.category === 'ship-weapon' &&
+      key === 'damage' &&
+      (typeof blueprint.baseStats.burstDps === 'number' || typeof blueprint.baseStats.sustainedDps === 'number')
+    ) {
+      return false;
+    }
+    return true;
+  });
   const rows = statKeys
     .map((key) => {
       const rawBase = blueprint.baseStats[key];
@@ -34,6 +43,10 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
     .filter(Boolean) as Array<{ key: NumericItemStatKey; label: string; base: number; projected: number; pct: number; isImproved: boolean; isNeutral: boolean }>;
 
   if (rows.length === 0) return null;
+  const formatValue = (key: NumericItemStatKey, value: number) => {
+    const suffix = STAT_UNITS[key];
+    return `${value.toFixed(2)}${suffix ? ` ${suffix}` : ''}`;
+  };
   return (
     <Box component="section">
       <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_HEADING, mb: 0.5, fontSize: '.85rem' }}>
@@ -64,10 +77,10 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
                   {r.label}
                 </TableCell>
                 <TableCell align="right" sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', py: 0.5, color: 'text.secondary' }}>
-                  {r.base.toFixed(2)}
+                  {formatValue(r.key, r.base)}
                 </TableCell>
                 <TableCell align="right" sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', py: 0.5 }}>
-                  {r.projected.toFixed(2)}
+                  {formatValue(r.key, r.projected)}
                 </TableCell>
                 <TableCell
                   align="right"
