@@ -23,38 +23,15 @@ React + TypeScript app for Star Citizen crafting, dismantling analysis, mission 
 
 Production data and account flow are runtime-driven:
 
-1. Game files are copied locally for extraction.
-2. Exporter scripts normalize and chunk datasets.
-3. Chunks are published to Cloudflare R2.
-4. Cloudflare Pages Functions read dataset chunks from the `GAME_DATA` binding.
-5. The browser fetches `/api/game-data/public*`.
-6. `/api/auth/*` handles Discord OAuth, account state, RSI link, organizations, sharing, and craft requests backed by R2 records.
-7. Craft request notifications are relayed to a dedicated Discord bot Worker. Only the bot Worker stores the Discord bot token.
+1. A private exporter pipeline publishes normalized dataset chunks to Cloudflare R2.
+2. Cloudflare Pages Functions read dataset chunks from the `GAME_DATA` binding.
+3. The browser fetches `/api/game-data/public*`.
+4. `/api/auth/*` handles Discord OAuth, account state, RSI link, organizations, sharing, and craft requests backed by R2 records.
+5. Craft request notifications are relayed to a dedicated Discord bot Worker. Only the bot Worker stores the Discord bot token.
+
+Dataset extraction and R2 publication tooling are intentionally kept outside this public repository. The public contract is documented in [docs/dataset-contract.md](./docs/dataset-contract.md).
 
 Production URL: [itemfab.space](https://itemfab.space)
-
-## R2 Layout
-
-```text
-indexes/public.json
-indexes/all.json
-datasets/{datasetId}/core.json
-datasets/{datasetId}/resource-data.json
-datasets/{datasetId}/ship-components.json
-datasets/{datasetId}/mission-rewards.json
-datasets/{datasetId}/mission-rewards/factions/{factionId}.json
-datasets/{datasetId}/changelog.json
-datasets/{datasetId}/blueprints/{id}.json
-aliases/public/{channel}/...
-aliases/all/{channel}/...
-accounts/{accountId}.json
-organizations/{sid}.json
-organization-claim-requests/{sid}/{accountId}.json
-```
-
-Production dataset bucket: `sc-craft-game-data`
-
-Dev / preview dataset bucket: `sc-craft-game-data-dev`
 
 ## Runtime Endpoints
 
@@ -134,8 +111,7 @@ The bot lives in [`workers/discord-bot`](./workers/discord-bot).
 ### Prerequisites
 
 - Node.js 24+
-- Cloudflare R2 credentials
-- Copied Star Citizen game files for extraction if you need to rebuild datasets
+- Cloudflare R2 credentials for account features and local API development
 
 ### Install
 
@@ -143,7 +119,7 @@ The bot lives in [`workers/discord-bot`](./workers/discord-bot).
 npm install
 ```
 
-### Local dev
+### Local Dev
 
 Create a root `.dev.vars` file:
 
@@ -216,10 +192,6 @@ npm run deploy
 | `npm run discord:bot:deploy` | Deploy the Discord bot Worker |
 | `npm run discord:bot:register:guild` | Register slash commands in one Discord guild |
 | `npm run discord:bot:register:global` | Register slash commands globally |
-| `npm run import:ptu` | Import the PTU dataset into the production bucket |
-| `npm run import:live` | Import the LIVE dataset into the production bucket |
-| `npm run import:ptu:dev` | Import the PTU dataset into the dev bucket |
-| `npm run import:live:dev` | Import the LIVE dataset into the dev bucket |
 
 ## Key Files
 
@@ -262,7 +234,7 @@ npm run deploy
 - The dataset currently proves one global dismantle process.
 - Do not invent per-item dismantle yields when extraction does not prove them.
 
-### Mission rewards
+### Mission Rewards
 
 - Grouping, standing requirements, and location scope come from extracted contracts.
 - Current extraction proves blueprint reward contracts.
