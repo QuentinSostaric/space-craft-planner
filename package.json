@@ -22,11 +22,7 @@
     "discord:bot:register:global": "node workers/discord-bot/scripts/register-commands.mjs global",
     "build": "npm run build --workspace client",
     "claims:org": "node scripts/manageOrganizationClaims.mjs",
-    "deploy": "npm run build && wrangler pages deploy client/dist",
-    "import:ptu": "node exporter/importToR2.mjs --channel=ptu",
-    "import:live": "node exporter/importToR2.mjs --channel=live",
-    "import:ptu:dev": "node exporter/importToR2_dev.mjs --channel=ptu",
-    "import:live:dev": "node exporter/importToR2_dev.mjs --channel=live"
+    "deploy": "npm run build && wrangler pages deploy client/dist"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.908.0"
