@@ -286,21 +286,15 @@ export const BlueprintCard = memo(function BlueprintCard({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        borderColor: isActive ? 'primary.main' : (isInInventory ? 'primary.light' : alpha(theme.palette.primary.main, 0.13)),
-        background:
-          theme.palette.mode === 'dark'
-            ? `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.42)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`
-            : 'background.paper',
-        transition: 'all 200ms ease',
+        borderColor: isActive ? 'primary.main' : (isInInventory ? alpha(theme.palette.primary.main, 0.42) : 'ui.border'),
+        backgroundColor: 'ui.surface',
+        transition: 'border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease',
         overflow: 'hidden',
-        borderRadius: 0.75,
-        boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.035)}`,
+        borderRadius: 2,
         '&:hover': {
-          borderColor: 'primary.main',
-          transform: 'translateY(-4px)',
-          boxShadow: theme.palette.mode === 'dark' 
-            ? `0 12px 32px ${alpha('#000', 0.5)}`
-            : `0 12px 32px ${alpha(theme.palette.primary.main, 0.12)}`,
+          borderColor: 'brand.accentBorder',
+          transform: 'translateY(-2px)',
+          boxShadow: `0 6px 18px ${alpha('#000', theme.palette.mode === 'dark' ? 0.35 : 0.08)}`,
         },
       }}
     >

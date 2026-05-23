@@ -21,7 +21,7 @@ import {
   isPlaceholderResourceSlot,
   isResourceSlot,
 } from '../../../utils/crafting';
-import { FONT_HEADING, FONT_MONO } from '../../../theme';
+import { FONT_DISPLAY, FONT_MONO } from '../../../theme';
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon': 'weapons',
@@ -68,13 +68,18 @@ export function SlotCard({
   const deadZoneEnd = slot.modifiers.length > 0
     ? Math.min(...slot.modifiers.map((m) => m.qualityStart))
     : 0;
-  const deadZonePct = (deadZoneEnd / 1000) * 100;
   const optimalStart = Math.round((slot.minQuality ?? deadZoneEnd) / 10);
 
   function nudge(delta: number) {
     const next = clampQualityValue(currentQuality + delta);
     onQualityChange(next);
   }
+
+  // Tone color for the quality indicator (matching design)
+  const tone = currentQuality >= 600 ? theme.palette.success.main
+             : currentQuality >= 400 ? theme.palette.primary.main
+             : currentQuality >= 200 ? theme.palette.warning.main
+             : theme.palette.error.main;
 
   return (
     <Card
@@ -87,12 +92,27 @@ export function SlotCard({
         },
         gap: { xs: 0.85, md: 1 },
         alignItems: 'center',
-        px: { xs: 1, md: 1 },
-        py: { xs: 1, md: 0.78 },
-        minHeight: { md: 64 },
-        background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, isAssigned ? 0.065 : 0.018)} 0%, ${alpha(theme.palette.ui.surface1, 0.98)} 64%)`,
-        borderColor: isAssigned ? alpha(theme.palette.primary.main, 0.52) : theme.palette.ui.border,
+        px: { xs: 1.5, md: 1.5 },
+        py: { xs: 1.25, md: 1 },
+        minHeight: { md: 68 },
+        position: 'relative',
+        backgroundColor: 'background.paper',
+        borderColor: isAssigned ? alpha(tone, 0.45) : 'ui.border',
         transition: 'border-color 150ms, background-color 150ms',
+        // Accent stripe on the left
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          left: 0,
+          top: 12,
+          bottom: 12,
+          width: 2,
+          borderRadius: '0 2px 2px 0',
+          backgroundColor: isAssigned ? tone : 'transparent',
+          opacity: 0.6,
+          transition: 'background-color 150ms',
+        },
+        pl: { xs: 1.5, md: 2 },
       }}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: '42px minmax(0, 1fr)', gap: 0.85, alignItems: 'center', minWidth: 0 }}>
@@ -123,9 +143,9 @@ export function SlotCard({
           <Typography
             variant="body2"
             sx={{
-              fontFamily: FONT_HEADING,
-              fontWeight: 800,
-              fontSize: '0.88rem',
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 600,
+              fontSize: '0.875rem',
               lineHeight: 1.05,
               color: 'text.primary',
               overflow: 'hidden',
@@ -200,21 +220,25 @@ export function SlotCard({
               `Qualite pour ${requirementName}`,
               `Qualitat fur ${requirementName}`,
             )}
-            getAriaValueText={(v) => `${Math.round(v / 10)}%`}
+            getAriaValueText={(v) => `${v} / 1000`}
             size="small"
-            marks={deadZoneEnd > 0 ? [{ value: deadZoneEnd, label: '' }] : undefined}
+            marks={[
+              { value: 500, label: '500' },
+              ...(deadZoneEnd > 0 && deadZoneEnd !== 500 ? [{ value: deadZoneEnd, label: '' }] : []),
+            ]}
             sx={{
               flex: 1,
-              color: isAssigned ? theme.palette.primary.main : alpha(theme.palette.text.secondary, 0.52),
-              ...(deadZonePct > 0 && {
-                '& .MuiSlider-track': {
-                  background: `linear-gradient(to right, rgba(107,114,128,0.45) 0%, rgba(107,114,128,0.45) ${deadZonePct}%, currentColor ${deadZonePct}%)`,
-                },
-              }),
               '& .MuiSlider-thumb': {
-                width: 13,
-                height: 13,
-                border: `2px solid ${theme.palette.background.paper}`,
+                width: 16,
+                height: 16,
+                border: `3px solid ${isAssigned ? tone : theme.palette.text.secondary}`,
+                backgroundColor: theme.palette.background.paper,
+                boxShadow: `0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px ${alpha(isAssigned ? tone : theme.palette.text.secondary, 0.14)}`,
+              },
+              '& .MuiSlider-markLabel': {
+                color: theme.palette.text.disabled,
+                fontFamily: FONT_MONO,
+                fontSize: '0.625rem',
               },
             }}
           />
@@ -230,18 +254,37 @@ export function SlotCard({
         </Box>
       </Box>
 
-      <Typography
+      <Box
         sx={{
-          display: { xs: 'none', md: 'block' },
-          fontFamily: FONT_MONO,
-          fontWeight: 800,
-          color: isAssigned ? 'text.primary' : 'text.disabled',
-          fontSize: '0.86rem',
-          textAlign: 'right',
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 0.25,
+          px: 1,
+          py: 0.5,
+          borderRadius: 1,
+          backgroundColor: isAssigned ? alpha(tone, 0.08) : 'transparent',
+          border: '1px solid',
+          borderColor: isAssigned ? alpha(tone, 0.25) : 'transparent',
+          minWidth: 60,
         }}
       >
-        {isAssigned ? `${qualityPercent}%` : '-'}
-      </Typography>
+        <Typography
+          sx={{
+            fontFamily: FONT_MONO,
+            fontWeight: 700,
+            color: isAssigned ? tone : 'text.disabled',
+            fontSize: '1rem',
+            lineHeight: 1.1,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {isAssigned ? currentQuality : '–'}
+        </Typography>
+        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.625rem', color: 'text.disabled', letterSpacing: '0.04em' }}>
+          {isAssigned ? (currentQuality >= 500 ? `+${qualityPercent - 50}%` : `${qualityPercent - 50}%`) : ''}
+        </Typography>
+      </Box>
 
       <Box
         sx={{
