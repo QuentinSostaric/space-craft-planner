@@ -79,8 +79,20 @@ function roundStatValue(value: number): number {
   return Number.isInteger(value) ? value : Math.round(value * 100) / 100;
 }
 
+function applyModifierValue(
+  currentValue: number,
+  modifier: { modifierType: 'multiplier' | 'additive'; value: number },
+  occurrenceCount: number,
+): number {
+  if (modifier.modifierType === 'additive') {
+    return currentValue + Math.floor(modifier.value) * occurrenceCount;
+  }
+
+  return currentValue * Math.pow(modifier.value, occurrenceCount);
+}
+
 /** Project all base stats through slot GPP modifiers. Only stats present in baseStats are projected. */
-function calcProjectedStats(
+export function calcProjectedStats(
   blueprint: Blueprint,
   assignments: Record<string, number | undefined>,
 ): ItemStats {
@@ -105,10 +117,7 @@ function calcProjectedStats(
             : modifier.modifierType === 'additive'
               ? 0
               : 1;
-        result[statKey] =
-          modifier.modifierType === 'additive'
-            ? currentValue + modifier.value * occurrenceCount
-            : currentValue * Math.pow(modifier.value, occurrenceCount);
+        result[statKey] = applyModifierValue(currentValue, modifier, occurrenceCount);
       }
     }
   }
@@ -129,7 +138,7 @@ function calcProjectedStats(
  * Quality 500 maps to 50 (neutral midpoint), 1000 maps to 100.
  * Penalised by unfilled slot ratio.
  */
-function calcQualityScore(
+export function calcQualityScore(
   blueprint: Blueprint,
   assignments: Record<string, number | undefined>,
 ): number {

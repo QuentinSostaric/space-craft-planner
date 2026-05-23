@@ -619,7 +619,7 @@ export function AccountGuestView({
 
               <Divider />
 
-              <List disablePadding sx={{ display: 'grid', gap: 1.25 }}>
+              <List disablePadding aria-label={t('Bot workflow steps', 'Etapes du workflow bot')} sx={{ display: 'grid', gap: 1.25 }}>
                 {botWorkflowItems.map((item) => (
                   <ListItem
                     key={item.title}

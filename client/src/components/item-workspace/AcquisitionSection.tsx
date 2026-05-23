@@ -459,7 +459,7 @@ function AcquisitionMissionCard({
             border: `1px solid ${alpha(activityColor, 0.58)}`,
             '& .MuiChip-label': {
               fontFamily: FONT_HEADING,
-              fontSize: '0.66rem',
+              fontSize: '0.75rem',
               fontWeight: 800,
               textTransform: 'uppercase',
             },
@@ -556,7 +556,7 @@ function AcquisitionMissionCard({
             <Typography
               noWrap
               sx={{
-                fontSize: '0.62rem',
+                fontSize: '0.75rem',
                 fontWeight: 800,
                 textTransform: 'uppercase',
                 color: 'inherit',
@@ -601,7 +601,7 @@ function AcquisitionMissionCard({
             <Typography
               noWrap
               variant="caption"
-              sx={{ color: alpha(theme.palette.text.primary, 0.68), fontSize: '0.68rem' }}
+              sx={{ color: alpha(theme.palette.text.primary, 0.68), fontSize: '0.75rem' }}
             >
               {factionLabel}
             </Typography>
@@ -630,7 +630,7 @@ function AcquisitionMissionCard({
               <Typography
                 noWrap
                 variant="caption"
-                sx={{ color: alpha(theme.palette.brand.blueLight, 0.72), fontSize: '0.62rem', textTransform: 'uppercase' }}
+                sx={{ color: alpha(theme.palette.brand.blueLight, 0.72), fontSize: '0.75rem', textTransform: 'uppercase' }}
               >
                 {formatScaleLabel(contract.availability.derivedScale, lang)}
               </Typography>
@@ -648,7 +648,7 @@ function AcquisitionMissionCard({
                 color: activityTextColor,
                 borderColor: alpha(activityColor, 0.52),
                 backgroundColor: alpha(activityColor, 0.08),
-                '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase' },
+                '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase' },
               }}
             />
             {detail.reputationActivity && (
@@ -663,7 +663,7 @@ function AcquisitionMissionCard({
                   color: theme.palette.brand.blueLight,
                   borderColor: alpha(theme.palette.brand.blueLight, 0.3),
                   backgroundColor: alpha(theme.palette.brand.blueLight, 0.06),
-                  '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.64rem', fontWeight: 700, textTransform: 'uppercase' },
+                  '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' },
                 }}
               />
             )}
@@ -679,7 +679,7 @@ function AcquisitionMissionCard({
                   color: theme.palette.warning.light,
                   borderColor: alpha(theme.palette.warning.main, 0.36),
                   backgroundColor: alpha(theme.palette.warning.main, 0.08),
-                  '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.64rem', fontWeight: 800, textTransform: 'uppercase' },
+                  '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase' },
                 }}
               />
             )}
@@ -690,7 +690,7 @@ function AcquisitionMissionCard({
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: '0.58rem',
+                  fontSize: '0.75rem',
                   color: alpha(theme.palette.text.primary, 0.58),
                   textTransform: 'uppercase',
                   whiteSpace: 'nowrap',
@@ -746,7 +746,7 @@ function AcquisitionMissionCard({
                           : `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.14)})`,
                         textTransform: 'none',
                         fontFamily: 'inherit',
-                        fontSize: '0.64rem',
+                        fontSize: '0.75rem',
                         fontWeight: 800,
                         lineHeight: 1.05,
                         letterSpacing: 0,
@@ -763,7 +763,7 @@ function AcquisitionMissionCard({
                   );
                 })
               ) : (
-                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   {t('Blueprint pool loading', 'Pool blueprint en cours de chargement')}
                 </Typography>
               )}
@@ -789,7 +789,7 @@ function AcquisitionMissionCard({
               color: alpha(theme.palette.text.primary, 0.62),
               textTransform: 'uppercase',
               display: 'block',
-              fontSize: '0.58rem',
+              fontSize: '0.75rem',
             }}
           >
             {chanceLabel}
@@ -826,7 +826,7 @@ function AcquisitionMissionCard({
                 label={`${t('Drop', 'Drop')}: ${formatProbabilityPercent(dropChance)}`}
                 size="small"
                 variant="outlined"
-                sx={{ height: 22, borderRadius: 1, '& .MuiChip-label': { fontSize: '0.58rem', fontWeight: 700 } }}
+                sx={{ height: 22, borderRadius: 1, '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 700 } }}
               />
             )}
             {contract.expectedRewardShare != null && contract.expectedRewardShare > 0 && (
@@ -834,12 +834,12 @@ function AcquisitionMissionCard({
                 label={`${t('Share', 'Part')}: ${formatProbabilityPercent(contract.expectedRewardShare)}`}
                 size="small"
                 variant="outlined"
-                sx={{ height: 22, borderRadius: 1, '& .MuiChip-label': { fontSize: '0.58rem', fontWeight: 700 } }}
+                sx={{ height: 22, borderRadius: 1, '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 700 } }}
               />
             )}
             <Stack direction="row" spacing={0.7} alignItems="center" sx={{ color: alpha(theme.palette.text.primary, 0.66) }}>
               <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: '0.58rem' }}>
+              <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                 {poolBlueprints.length > 0
                   ? `${poolBlueprints.length} ${t('blueprints', 'blueprints')}`
                   : t('Pool pending', 'Pool en attente')}
@@ -864,7 +864,7 @@ function AcquisitionMissionCard({
               mx: -0.6,
               mb: -0.7,
               pt: 0.8,
-              fontSize: '0.62rem',
+              fontSize: '0.75rem',
               justifyContent: 'space-between',
               color: alpha(theme.palette.text.primary, 0.78),
               borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.13)}`,
@@ -939,7 +939,7 @@ export function AcquisitionSection({
       {!loading && !entry && (
         <Paper sx={panelSx}>
           {missionRewards ? (
-            <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {t('Not obtainable via missions', 'Non obtenable via les missions')}
             </Typography>
           ) : (
@@ -986,7 +986,7 @@ export function AcquisitionSection({
                       color: 'text.secondary',
                       textTransform: 'uppercase',
                       letterSpacing: '0.1em',
-                      fontSize: '0.62rem',
+                      fontSize: '0.75rem',
                     }}
                   >
                     {entry.factionCount} {t('factions', 'factions')} / {entry.localityCount} {t('localities', 'localites')}
@@ -1025,7 +1025,7 @@ export function AcquisitionSection({
                             <StarCitizenLicensedIcon name={getLocationIconName(locality)!} size={13} dimmed />
                           ) : undefined
                         }
-                        sx={{ fontSize: '0.65rem', height: 20 }}
+                        sx={{ fontSize: '0.75rem', height: 20 }}
                       />
                     ))}
                   </Box>
@@ -1050,7 +1050,7 @@ export function AcquisitionSection({
                     color: alpha(theme.palette.text.primary, 0.62),
                     textTransform: 'uppercase',
                     letterSpacing: '0.1em',
-                    fontSize: '0.58rem',
+                    fontSize: '0.75rem',
                   }}
                 >
                   {t('Drop score', 'Score drop')}
@@ -1066,7 +1066,7 @@ export function AcquisitionSection({
                 >
                   {entry.dropScore > 0 ? formatProbabilityPercent(entry.dropScore) : '-'}
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.6rem' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                   {t('Best linked chance', 'Meilleure chance liee')}
                 </Typography>
               </Paper>

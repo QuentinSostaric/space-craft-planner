@@ -1,6 +1,6 @@
 import type { ReactNode, HTMLAttributes } from 'react';
 import Paper from '@mui/material/Paper';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 
 interface PanelProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -22,7 +22,7 @@ export function Panel({ children, variant = 'default', glow = false, noPad = fal
       border: `1px solid ${theme.palette.ui.borderStrong}`,
     },
     sunken: {
-      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(17,24,39,.6)' : 'rgba(0,0,0,.03)',
+      backgroundColor: alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.6 : 0.4),
       border: '1px solid transparent',
     },
   };
@@ -34,7 +34,7 @@ export function Panel({ children, variant = 'default', glow = false, noPad = fal
       sx={{
         ...VARIANT_SX[variant],
         ...(glow && { borderColor: theme.palette.primary.main }),
-        padding: noPad ? 0 : '16px',
+        padding: noPad ? 0 : theme.spacing(2),
         transition: 'all 200ms ease',
       }}
       {...rest}

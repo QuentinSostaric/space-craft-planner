@@ -9,7 +9,7 @@ export function RarityBadge({ rarity }: { rarity: Rarity }) {
   const colors: Record<Rarity, string> = {
     legendary: theme.palette.warning.main,
     rare: theme.palette.primary.main,
-    common: theme.palette.text.disabled,
+    common: theme.palette.text.secondary,
   };
 
   return (
@@ -33,7 +33,7 @@ export function ScaleBadge({ scale, label }: { scale: string; label: string }) {
   return (
     <PillBadge
       label={label}
-      color={colors[scale] ?? theme.palette.text.disabled}
+      color={colors[scale] ?? theme.palette.text.secondary}
     />
   );
 }

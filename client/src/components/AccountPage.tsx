@@ -1708,7 +1708,7 @@ export function AccountPage() {
                   <Stack spacing={1.25}>
                     <Typography
                       variant="caption"
-                      sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.14em' }}
+                      sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.14em' }}
                     >
                       {t('Owned / obtainable blueprints', 'Blueprints possedes / obtenables', 'Besessene / erhältliche Blueprints')}
                     </Typography>
@@ -1723,6 +1723,7 @@ export function AccountPage() {
                     <LinearProgress
                       variant="determinate"
                       value={blueprintProgress}
+                      aria-label={t('Blueprint collection progress', 'Progression de la collection de blueprints', 'Fortschritt der Blueprint-Sammlung')}
                       sx={{
                         height: 10,
                         borderRadius: 999,
@@ -1763,7 +1764,7 @@ export function AccountPage() {
                       borderColor: alpha(theme.palette.primary.main, 0.18),
                     }}
                   >
-                    <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                       {t('Inventory', 'Inventaire', 'Inventar')}
                     </Typography>
                     <Typography variant="h5" sx={{ mt: 0.35 }}>
@@ -1778,7 +1779,7 @@ export function AccountPage() {
                       borderColor: alpha(theme.palette.warning.main, 0.24),
                     }}
                   >
-                    <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                       {t('Favorites', 'Favoris', 'Favoriten')}
                     </Typography>
                     <Typography variant="h5" sx={{ mt: 0.35 }}>
@@ -2135,7 +2136,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.default, 0.3),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                                     {t('Your role', 'Ton role', 'Deine Rolle')}
                                   </Typography>
                                   <Typography variant="body1" sx={{ mt: 0.55, fontWeight: 600 }}>
@@ -2151,7 +2152,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.default, 0.3),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                                     {t('Stars', 'Etoiles', 'Sterne')}
                                   </Typography>
                                   {typeof organization.stars === 'number' ? (
@@ -2187,7 +2188,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.default, 0.3),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                                     {t('Members', 'Membres', 'Mitglieder')}
                                   </Typography>
                                   <Typography variant="body1" sx={{ mt: 0.55, fontWeight: 600 }}>
@@ -2211,7 +2212,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.paper, 0.46),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                                     {t('Member snapshot', 'Snapshot membres', 'Mitgliedersnapshot')}
                                   </Typography>
                                   <Typography variant="body2" sx={{ mt: 0.55, color: 'text.secondary' }}>
@@ -2227,7 +2228,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.paper, 0.46),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                                     {t('Verified role', 'Role verifie', 'Verifizierte Rolle')}
                                   </Typography>
                                   <Typography variant="body2" sx={{ mt: 0.55, color: 'text.secondary' }}>
@@ -2406,7 +2407,7 @@ export function AccountPage() {
                 <Box>
                   <Typography
                     variant="caption"
-                    sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.14em' }}
+                    sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.14em' }}
                   >
                     {t('Account actions', 'Actions du compte', 'Konto-Aktionen')}
                   </Typography>
@@ -2867,7 +2868,7 @@ export function AccountPage() {
                                   py: { xs: 0.65, sm: 0.8 },
                                   justifyContent: 'flex-start',
                                   textTransform: 'none',
-                                  fontSize: { xs: '0.72rem', sm: '0.78rem' },
+                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
                                   fontWeight: 600,
                                   lineHeight: 1.15,
                                   borderColor: 'divider',
@@ -2917,7 +2918,7 @@ export function AccountPage() {
                                   py: { xs: 0.65, sm: 0.8 },
                                   justifyContent: 'flex-start',
                                   textTransform: 'none',
-                                  fontSize: { xs: '0.72rem', sm: '0.78rem' },
+                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
                                   fontWeight: 600,
                                   lineHeight: 1.15,
                                   borderColor: 'divider',
@@ -2993,11 +2994,12 @@ export function AccountPage() {
       {account && (
         <Dialog
           open={importDialogOpen}
-          onClose={importAction.busy ? undefined : () => setImportModalDismissed(true)}
+          onClose={importAction.busy ? () => {} : () => setImportModalDismissed(true)}
           fullWidth
           maxWidth="sm"
+          aria-labelledby="dialog-title-import-inventory"
         >
-          <DialogTitle>
+          <DialogTitle id="dialog-title-import-inventory">
             {t(
               'Import local inventory data?',
               'Importer les donnees locales d inventaire ?',
@@ -3022,7 +3024,7 @@ export function AccountPage() {
                 }}
               >
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                     {t('Inventory to import', 'Inventaire a importer', 'Zu importierendes Inventar')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
@@ -3030,7 +3032,7 @@ export function AccountPage() {
                   </Typography>
                 </Paper>
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                     {t('Favorites to import', 'Favoris a importer', 'Zu importierende Favoriten')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
@@ -3038,7 +3040,7 @@ export function AccountPage() {
                   </Typography>
                 </Paper>
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                     {t('Resources to import', 'Ressources a importer', 'Zu importierende Ressourcen')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
@@ -3088,8 +3090,9 @@ export function AccountPage() {
         onClose={closeShareBlueprintDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-share-blueprint"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-share-blueprint">
           {t(
             'Share blueprint with organizations',
             'Partager le blueprint avec des organisations',
@@ -3212,8 +3215,9 @@ export function AccountPage() {
         onClose={closeShareResourceDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-share-resource"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-share-resource">
           {t(
             'Share resource entry with organizations',
             'Partager l entree ressource avec des organisations',
@@ -3336,8 +3340,9 @@ export function AccountPage() {
         onClose={closeResourceBatchDialog}
         fullWidth
         maxWidth="md"
+        aria-labelledby="dialog-title-batch-add-resources"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-batch-add-resources">
           {t(
             'Add stored resources in batch',
             'Ajouter des ressources stockees en batch',
@@ -3530,8 +3535,9 @@ export function AccountPage() {
         onClose={closeResourceBulkShareDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-share-stored-resources"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-share-stored-resources">
           {t(
             'Share stored resources with an organization',
             'Partager des ressources stockees avec une organisation',
@@ -3686,8 +3692,9 @@ export function AccountPage() {
         onClose={closeClaimOrganizationDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-claim-org"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-claim-org">
           {t(
             'Request organization claim review?',
             'Demander une revue de claim pour cette organisation ?',
@@ -3743,8 +3750,9 @@ export function AccountPage() {
         onClose={closeOrganizationSharingDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-enable-blueprint-share"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-enable-blueprint-share">
           {organizationSharingDialogState?.enabled
             ? t(
               'Enable blueprint sharing?',
@@ -3826,8 +3834,9 @@ export function AccountPage() {
         onClose={closeDeleteOrganizationDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-delete-org"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-delete-org">
           {t(
             'Delete organization from the app?',
             'Supprimer l organisation de l appli ?',
@@ -3880,11 +3889,12 @@ export function AccountPage() {
 
       <Dialog
         open={rsiDialogOpen}
-        onClose={rsiAction.busy ? undefined : () => setRsiDialogOpen(false)}
+        onClose={rsiAction.busy ? () => {} : () => setRsiDialogOpen(false)}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="dialog-title-link-rsi"
       >
-        <DialogTitle>
+        <DialogTitle id="dialog-title-link-rsi">
           {t('Link RSI account', 'Lier le compte RSI', 'RSI-Konto verknupfen')}
         </DialogTitle>
         <DialogContent dividers>
@@ -3916,7 +3926,7 @@ export function AccountPage() {
               }}
             >
               <Stack spacing={1.5}>
-                <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                   {t('Verification code', 'Code de verification', 'Verifizierungscode')}
                 </Typography>
                 <Typography

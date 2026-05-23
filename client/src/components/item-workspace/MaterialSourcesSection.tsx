@@ -97,7 +97,7 @@ function CompactFact({
         variant="caption"
         sx={{
           display: 'block',
-          color: 'text.disabled',
+          color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: '0.12em',
           mb: 0.3,
@@ -186,7 +186,7 @@ export function MaterialSourcesSection({
               color: 'text.secondary',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
-              fontSize: '0.62rem',
+              fontSize: '0.75rem',
               lineHeight: 1.15,
             }}
           >
@@ -386,7 +386,7 @@ export function MaterialSourcesSection({
                       variant="caption"
                       sx={{
                         display: 'block',
-                        color: 'text.disabled',
+                        color: 'text.secondary',
                         textTransform: 'uppercase',
                         letterSpacing: '0.12em',
                         mb: 0.3,
@@ -463,7 +463,7 @@ export function MaterialSourcesSection({
                         <Typography
                           variant="caption"
                           sx={{
-                            color: 'text.disabled',
+                            color: 'text.secondary',
                             textTransform: 'uppercase',
                             letterSpacing: '0.12em',
                           }}
@@ -513,7 +513,7 @@ export function MaterialSourcesSection({
                             },
                           }}
                         />
-                        <Typography variant="caption" sx={{ color: 'text.disabled', whiteSpace: 'nowrap' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                           {resourceEntry.quantityUnit === 'count' ? t('items', 'objets') : 'SCU'}
                         </Typography>
                       </Box>
@@ -545,12 +545,12 @@ export function MaterialSourcesSection({
                     ) : !hasResourceData ? (
                       <DatasetTooOldNotice />
                     ) : (
-                      <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                         {t('No source data available', 'Aucune donnee de source disponible')}
                       </Typography>
                     )
                   ) : providers.length === 0 ? (
-                    <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {t('No source data available', 'Aucune donnee de source disponible')}
                     </Typography>
                   ) : (
@@ -720,7 +720,7 @@ export function MaterialSourcesSection({
                   )}
 
                   {providers.some((provider) => provider.mineableGroupName) && (
-                    <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {providers
                         .map((provider) => provider.mineableGroupName)
                         .filter((groupName, index, list): groupName is string =>

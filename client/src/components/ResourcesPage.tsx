@@ -384,7 +384,7 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
         variant="caption"
         sx={{
           display: 'block',
-          color: 'text.disabled',
+          color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: '0.12em',
           mb: 0.5,
@@ -455,7 +455,7 @@ function ResourceFamilyChip({ resource }: { resource: Resource }) {
           px: 0.9,
           fontFamily: FONT_HEADING,
           fontWeight: 700,
-          fontSize: '0.68rem',
+          fontSize: '0.75rem',
           letterSpacing: '0.04em',
           textTransform: 'uppercase',
         },
@@ -580,9 +580,9 @@ function ResourceDesktopList({
   const { t } = useI18n();
   const theme = useTheme();
   const headerCellSx = {
-    color: 'text.disabled',
+    color: 'text.secondary',
     fontFamily: FONT_HEADING,
-    fontSize: '0.72rem',
+    fontSize: '0.75rem',
     fontWeight: 700,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -758,7 +758,7 @@ function ResourceMobileList({
                   variant="outlined"
                   startIcon={<PlaylistAddOutlinedIcon />}
                   onClick={() => onAddToPlanner(resource)}
-                  sx={{ flex: 1, minWidth: 0, fontSize: '0.68rem' }}
+                  sx={{ flex: 1, minWidth: 0, fontSize: '0.75rem' }}
                 >
                   {t('Planner', 'Planifier', 'Planer')}
                 </Button>
@@ -767,7 +767,7 @@ function ResourceMobileList({
                   variant="outlined"
                   startIcon={<Inventory2OutlinedIcon />}
                   onClick={() => onAddToInventory(resource)}
-                  sx={{ flex: 1, minWidth: 0, fontSize: '0.68rem' }}
+                  sx={{ flex: 1, minWidth: 0, fontSize: '0.75rem' }}
                 >
                   {t('Inventory', 'Inventaire', 'Inventar')}
                 </Button>
@@ -918,7 +918,7 @@ function ResourcePreviewPanel({
               variant="outlined"
               startIcon={<PlaylistAddOutlinedIcon />}
               onClick={() => onAddToPlanner(resource)}
-              sx={{ minWidth: 0, fontSize: '0.68rem' }}
+              sx={{ minWidth: 0, fontSize: '0.75rem' }}
             >
               {t('Planner', 'Planifier', 'Planer')}
             </Button>
@@ -927,7 +927,7 @@ function ResourcePreviewPanel({
               variant="outlined"
               startIcon={<Inventory2OutlinedIcon />}
               onClick={() => onAddToInventory(resource)}
-              sx={{ minWidth: 0, fontSize: '0.68rem' }}
+              sx={{ minWidth: 0, fontSize: '0.75rem' }}
             >
               {t('Inventory', 'Inventaire', 'Inventar')}
             </Button>
@@ -1145,7 +1145,7 @@ function ResourcesFilterBar({
             <Chip key={label} size="small" variant="outlined" color="primary" label={label} />
           ))
         ) : (
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {t('No active filters', 'Aucun filtre actif', 'Keine aktiven Filter')}
           </Typography>
         )}
@@ -1166,7 +1166,7 @@ function ResourcesFilterBar({
             px: { xs: 0.75, sm: 1.25 },
             minHeight: 32,
             minWidth: 0,
-            fontSize: { xs: '.62rem', sm: '.68rem' },
+            fontSize: { xs: '0.75rem', sm: '0.75rem' },
             lineHeight: 1.1,
             whiteSpace: 'normal',
           },
@@ -1211,7 +1211,7 @@ function ResourcesFilterBar({
             '& .MuiToggleButton-root': {
               flex: 1,
               minWidth: 0,
-              fontSize: '.62rem',
+              fontSize: '0.75rem',
               px: 0.75,
               lineHeight: 1.1,
             },
@@ -1234,7 +1234,7 @@ function ResourcesFilterBar({
             '& .MuiToggleButton-root': {
               flex: 1,
               minWidth: 0,
-              fontSize: '.62rem',
+              fontSize: '0.75rem',
               px: 0.75,
               lineHeight: 1.1,
             },
@@ -1468,7 +1468,7 @@ function ResourceIdentityPanel({
           {resource.visualNotes && (
             <>
               <Divider />
-              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {resource.visualNotes}
               </Typography>
             </>

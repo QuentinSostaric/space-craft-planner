@@ -592,6 +592,11 @@ export const CARD_STATS: Partial<Record<ItemCategory, Array<{ key: NumericItemSt
     { key: 'quantumFlowSpeed', label: { en: 'QT Flow', fr: 'Debit QT', de: 'QT-Fluss' } },
     { key: 'maxHealth', label: { en: 'Health', fr: 'PV', de: 'Health' } },
   ],
+  'ship-weapon': [
+    { key: 'burstDps', label: { en: 'Burst DPS', fr: 'DPS burst', de: 'Burst-DPS' } },
+    { key: 'sustainedDps', label: { en: 'Sustained', fr: 'Soutenu', de: 'Dauer-DPS' } },
+    { key: 'effectiveRange', label: { en: 'Range', fr: 'Portee', de: 'Reichweite' } },
+  ],
   // fps-backpack: no storage stat exists in ItemStats yet; deferred until data is available.
 };
 

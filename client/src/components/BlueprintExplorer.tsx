@@ -575,7 +575,7 @@ export function BlueprintExplorer() {
             },
           },
           '& .MuiTypography-caption': {
-            fontSize: { xs: '0.54rem', md: '0.58rem' },
+            fontSize: { xs: '0.75rem', md: '0.75rem' },
             letterSpacing: '0.08em',
             mb: 0.25,
           },
@@ -634,7 +634,7 @@ export function BlueprintExplorer() {
               slotProps={{
                 input: {
                   startAdornment: (
-                    <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
+                    <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
                       <AppGlyph name="search" size={18} />
                     </InputAdornment>
                   ),
@@ -660,7 +660,7 @@ export function BlueprintExplorer() {
                 gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'none' },
                 gridAutoRows: { xs: 'minmax(34px, auto)', sm: 'auto' },
                 '& .MuiToggleButton-root': {
-                  fontSize: { xs: '.58rem', sm: '.65rem' },
+                  fontSize: { xs: '.75rem', sm: '.75rem' },
                   px: { xs: 0.75, sm: 1.25 },
                   minWidth: 0,
                   minHeight: 34,
@@ -681,12 +681,12 @@ export function BlueprintExplorer() {
                     gap: 0.5,
                   }}
                 >
-                  {segment.icon && <segment.icon sx={{ fontSize: '.72rem', flexShrink: 0 }} />}
+                  {segment.icon && <segment.icon sx={{ fontSize: '.75rem', flexShrink: 0 }} />}
                   <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {getOptionText(segment, lang)}
                   </Box>
                   {segment.value === 'inventory' && inventoryIds.length > 0 && (
-                    <Box component="span" sx={{ fontSize: '.52rem', opacity: 0.7, flexShrink: 0 }}>
+                    <Box component="span" sx={{ fontSize: '.75rem', opacity: 0.7, flexShrink: 0 }}>
                       {inventoryIds.length}
                     </Box>
                   )}
@@ -725,7 +725,7 @@ export function BlueprintExplorer() {
                   minHeight: 32,
                   whiteSpace: 'nowrap',
                   px: 1.25,
-                  fontSize: '.68rem',
+                  fontSize: '.75rem',
                 }}
               >
                 {t('Reset', 'Reinitialiser', 'Zurucksetzen')}
@@ -804,7 +804,7 @@ export function BlueprintExplorer() {
                   label={`${basicFilterCount} ${t('active', 'actifs')}`}
                   color="primary"
                   variant="outlined"
-                  sx={{ height: 20, fontSize: '.62rem' }}
+                  sx={{ height: 20, fontSize: '.75rem' }}
                 />
               )}
             </Stack>
@@ -830,7 +830,7 @@ export function BlueprintExplorer() {
                     variant={categoryFilter === value ? 'filled' : 'outlined'}
                     onClick={() => setCategoryFilter(value)}
                     sx={{
-                      fontSize: '.65rem',
+                      fontSize: '.75rem',
                       height: 26,
                       maxWidth: 'calc(50% - 4px)',
                       '& .MuiChip-label': {
@@ -857,6 +857,7 @@ export function BlueprintExplorer() {
                 renderInput={(params) => (
                   <TextField
                     {...params}
+                    label={t('Manufacturer', 'Fabricant')}
                     placeholder={t('Manufacturer', 'Fabricant')}
                     sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
                   />
@@ -873,6 +874,7 @@ export function BlueprintExplorer() {
                 renderInput={(params) => (
                   <TextField
                     {...params}
+                    label={t('Required material', 'Materiau requis')}
                     placeholder={t('Required material', 'Materiau requis')}
                     sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
                   />
@@ -888,11 +890,12 @@ export function BlueprintExplorer() {
                   if (val) setLegalityFilter(val as LegalityFilter);
                 }}
                 size="small"
+                aria-label={t('Legality filter', 'Filtre légalité')}
                 sx={{
                   height: 32,
                   width: '100%',
                   '& .MuiToggleButton-root': {
-                    fontSize: '.56rem',
+                    fontSize: '.75rem',
                     px: 0.5,
                     flex: 1,
                     lineHeight: 1.1,
@@ -912,6 +915,7 @@ export function BlueprintExplorer() {
                 renderInput={(params) => (
                   <TextField
                     {...params}
+                    label={t('Mission location', 'Lieu de mission')}
                     placeholder={t('Mission location', 'Lieu de mission')}
                     sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
                   />
@@ -926,6 +930,7 @@ export function BlueprintExplorer() {
       )}
 
       <Box
+        aria-hidden="true"
         sx={{
           display: 'none',
           gridTemplateColumns: {
@@ -945,6 +950,7 @@ export function BlueprintExplorer() {
           renderInput={(params) => (
             <TextField
               {...params}
+              label={t('Manufacturer', 'Fabricant')}
               placeholder={t('Manufacturer', 'Fabricant')}
               sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
             />
@@ -961,6 +967,7 @@ export function BlueprintExplorer() {
           renderInput={(params) => (
             <TextField
               {...params}
+              label={t('Required material', 'Matériau requis')}
               placeholder={t('Required material', 'Matériau requis')}
               sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
             />
@@ -976,11 +983,12 @@ export function BlueprintExplorer() {
             if (val) setLegalityFilter(val as LegalityFilter);
           }}
           size="small"
+          aria-label={t('Legality filter', 'Filtre légalité')}
           sx={{
             height: 32,
             width: { xs: '100%', md: 'auto' },
             '& .MuiToggleButton-root': {
-              fontSize: { xs: '.56rem', md: '.6rem' },
+              fontSize: { xs: '.75rem', md: '.75rem' },
               px: { xs: 0.5, md: 1 },
               flex: { xs: 1, md: '0 0 auto' },
               lineHeight: 1.1,
@@ -1000,6 +1008,7 @@ export function BlueprintExplorer() {
             renderInput={(params) => (
               <TextField
                 {...params}
+                label={t('Mission location', 'Lieu de mission')}
                 placeholder={t('Mission location', 'Lieu de mission')}
                 sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
               />
@@ -1043,7 +1052,7 @@ export function BlueprintExplorer() {
                 size="small"
                 color="primary"
                 variant="outlined"
-                sx={{ height: 20, fontSize: '.65rem' }}
+                sx={{ height: 20, fontSize: '.75rem' }}
               />
             )}
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1164,7 +1173,7 @@ export function BlueprintExplorer() {
               />
             )}
             <FormControl size="small">
-              <Select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value as RarityFilter)}>
+              <Select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value as RarityFilter)} inputProps={{ 'aria-label': t('Rarity filter', 'Filtre rareté') }}>
                 {RARITY_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {getOptionText(option, lang)}
@@ -1173,7 +1182,7 @@ export function BlueprintExplorer() {
               </Select>
             </FormControl>
             <FormControl size="small">
-              <Select value={slotCountFilter} onChange={(event) => setSlotCountFilter(event.target.value as SlotCountFilter)}>
+              <Select value={slotCountFilter} onChange={(event) => setSlotCountFilter(event.target.value as SlotCountFilter)} inputProps={{ 'aria-label': t('Slot count filter', 'Filtre nombre de slots') }}>
                 {SLOT_COUNT_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {getOptionText(option, lang)}
@@ -1182,7 +1191,7 @@ export function BlueprintExplorer() {
               </Select>
             </FormControl>
             <FormControl size="small">
-              <Select value={craftTimeFilter} onChange={(event) => setCraftTimeFilter(event.target.value as CraftTimeBucket)}>
+              <Select value={craftTimeFilter} onChange={(event) => setCraftTimeFilter(event.target.value as CraftTimeBucket)} inputProps={{ 'aria-label': t('Craft time filter', 'Filtre temps de craft') }}>
                 {CRAFT_TIME_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {getOptionText(option, lang)}
@@ -1211,6 +1220,7 @@ export function BlueprintExplorer() {
               <Select
                 value={acquisitionStandingFilter}
                 onChange={(event) => setAcquisitionStandingFilter(event.target.value as StandingBucket)}
+                inputProps={{ 'aria-label': t('Acquisition standing filter', 'Filtre réputation acquisition') }}
               >
                 {STANDING_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>

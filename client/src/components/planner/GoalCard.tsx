@@ -124,7 +124,7 @@ export const GoalCard = memo(function GoalCard({
             <Typography variant="body2" sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '.85rem', lineHeight: 1.2 }}>
               {goal.blueprintName}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: '.62rem' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: '0.75rem' }}>
               {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
             </Typography>
           </Box>
@@ -141,21 +141,21 @@ export const GoalCard = memo(function GoalCard({
               size="small"
               onClick={(event) => { handleStopPropagation(event); onRemove(); }}
               aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}
-              sx={{ fontSize: '.7rem', color: 'error.main' }}
+              sx={{ fontSize: '0.75rem', color: 'error.main' }}
             >
               ✕
             </IconButton>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '.65rem' }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.75rem' }}>
             {t('Qty', 'Qté')}
           </Typography>
           <IconButton
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
             aria-label={t('Decrease', 'Réduire')}
-            sx={{ width: 22, height: 22, fontSize: '.7rem', position: 'relative', zIndex: 2 }}
+            sx={{ width: 22, height: 22, fontSize: '0.75rem', position: 'relative', zIndex: 2 }}
           >
             −
           </IconButton>
@@ -175,7 +175,7 @@ export const GoalCard = memo(function GoalCard({
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.min(99, goal.quantity + 1)); }}
             aria-label={t('Increase', 'Augmenter')}
-            sx={{ width: 22, height: 22, fontSize: '.7rem', position: 'relative', zIndex: 2 }}
+            sx={{ width: 22, height: 22, fontSize: '0.75rem', position: 'relative', zIndex: 2 }}
           >
             +
           </IconButton>
