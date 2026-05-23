@@ -513,6 +513,8 @@ function OrganizationBlueprintAccordion({
     >
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
+        id={`org-accordion-${organization.sid}-header`}
+        aria-controls={`org-accordion-${organization.sid}-content`}
         sx={{
           px: { xs: 1.25, md: 1.5 },
           py: 0.25,
@@ -601,7 +603,7 @@ function OrganizationBlueprintAccordion({
         </Stack>
       </AccordionSummary>
 
-      <AccordionDetails sx={{ px: { xs: 1.25, md: 1.5 }, pb: 1.5, pt: 0 }}>
+      <AccordionDetails id={`org-accordion-${organization.sid}-content`} sx={{ px: { xs: 1.25, md: 1.5 }, pb: 1.5, pt: 0 }}>
         <Stack spacing={1.25}>
           <Stack
             direction={{ xs: 'column', md: 'row' }}
@@ -636,7 +638,7 @@ function OrganizationBlueprintAccordion({
 
           {loadState.status === 'loading' ? (
             <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress />
+              <CircularProgress aria-label={t('Loading organization data', 'Chargement des donnees de l organisation', 'Organisationsdaten werden geladen')} />
             </Box>
           ) : null}
 
@@ -662,8 +664,11 @@ function OrganizationBlueprintAccordion({
                     onChange={(_event, value: 'blueprints' | 'resources') => setAssetTab(value)}
                     variant="scrollable"
                     allowScrollButtonsMobile
+                    aria-label={t('Organization asset tabs', 'Onglets des actifs de l organisation', 'Organisations-Asset-Tabs')}
                   >
                     <Tab
+                      id="org-tab-blueprints"
+                      aria-controls="org-tabpanel-blueprints"
                       value="blueprints"
                       label={t(
                         `Blueprints (${blueprintRows.length})`,
@@ -672,6 +677,8 @@ function OrganizationBlueprintAccordion({
                       )}
                     />
                     <Tab
+                      id="org-tab-resources"
+                      aria-controls="org-tabpanel-resources"
                       value="resources"
                       label={t(
                         `Resources (${resourceRows.length})`,
@@ -849,57 +856,204 @@ function OrganizationBlueprintAccordion({
                 {t('visible shared entries', 'entrees partagees visibles', 'sichtbare geteilte Eintrage')}
               </Typography>
 
-              {assetTab === 'blueprints' && filteredBlueprintRows.length === 0 ? (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 3,
-                    textAlign: 'center',
-                    color: 'text.secondary',
-                  }}
-                >
-                  <Typography variant="body1" sx={{ mb: 0.75 }}>
-                    {t(
-                      'No shared blueprint matches the current filters.',
-                      'Aucun blueprint partage ne correspond aux filtres actuels.',
-                      'Kein geteilter Blueprint entspricht den aktuellen Filtern.',
+              <Box
+                role="tabpanel"
+                id="org-tabpanel-blueprints"
+                aria-labelledby="org-tab-blueprints"
+                hidden={assetTab !== 'blueprints'}
+              >
+                {filteredBlueprintRows.length === 0 ? (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 3,
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    <Typography variant="body1" sx={{ mb: 0.75 }}>
+                      {t(
+                        'No shared blueprint matches the current filters.',
+                        'Aucun blueprint partage ne correspond aux filtres actuels.',
+                        'Kein geteilter Blueprint entspricht den aktuellen Filtern.',
+                      )}
+                    </Typography>
+                    <Typography variant="body2">
+                      {t(
+                        'Try clearing the owner or manufacturer filter first.',
+                        'Essaie d abord de retirer le filtre proprietaire ou fabricant.',
+                        'Entferne zuerst den Besitzer- oder Herstellerfilter.',
+                      )}
+                    </Typography>
+                  </Paper>
+                ) : (
+                  <Stack spacing={1.5}>
+                    {filteredBlueprintRows.length > 0 && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 1,
+                        }}
+                      >
+                        <Box
+                          role="list"
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: {
+                              xs: '1fr',
+                              sm: 'repeat(2, minmax(0, 1fr))',
+                              md: 'repeat(3, minmax(0, 1fr))',
+                              lg: 'repeat(4, minmax(0, 1fr))',
+                              xl: 'repeat(5, minmax(0, 1fr))',
+                            },
+                            gap: { xs: 1.25, md: 1.5, xl: 2 },
+                          }}
+                        >
+                      {filteredBlueprintRows.slice(0, visibleCount).map((row, index) => {
+                        const pendingRequestKey = `${organization.sid}::${row.blueprint.id}::${normalizeComparableText(row.ownerHandle)}`;
+                        const requestAlreadyPending = pendingRequestKeys.has(pendingRequestKey);
+                        const ownSharedBlueprint =
+                          normalizeComparableText(row.ownerHandle) === currentUserRsiHandle;
+                        const requestBusy = requestBusyKey === row.key;
+
+                        const extraQuickActions: BlueprintCardQuickAction[] = [
+                          {
+                            key: `owner-filter-${row.key}`,
+                            label: row.ownerHandle,
+                            ariaLabel: t(
+                              `Filter this organization grid by ${row.ownerHandle}`,
+                              `Filtrer cette grille d organisation par ${row.ownerHandle}`,
+                              `Dieses Organisationsraster nach ${row.ownerHandle} filtern`,
+                            ),
+                            tooltip: t(
+                              `Show only blueprints shared by ${row.ownerDisplay || row.ownerHandle}.`,
+                              `Afficher seulement les blueprints partages par ${row.ownerDisplay || row.ownerHandle}.`,
+                              `Nur Blueprints anzeigen, die von ${row.ownerDisplay || row.ownerHandle} geteilt werden.`,
+                            ),
+                            selected:
+                              normalizeComparableText(blueprintOwnerFilter) ===
+                              normalizeComparableText(row.ownerHandle),
+                            avatarSrc: row.ownerImage,
+                            avatarAlt: row.ownerHandle,
+                            onClick: () => {
+                              setBlueprintOwnerFilter((currentOwnerFilter) =>
+                                normalizeComparableText(currentOwnerFilter) ===
+                                normalizeComparableText(row.ownerHandle)
+                                  ? null
+                                  : row.ownerHandle,
+                              );
+                            },
+                          },
+                          {
+                            key: `request-craft-${row.key}`,
+                            label: requestAlreadyPending
+                              ? t('Pending', 'En attente', 'Ausstehend')
+                              : ownSharedBlueprint
+                                ? t('Your blueprint', 'Ton blueprint', 'Dein Blueprint')
+                                : t('Request craft', 'Demander craft', 'Craft anfragen'),
+                            ariaLabel: requestAlreadyPending
+                              ? t(
+                                  'Craft request already pending',
+                                  'Demande de craft deja en attente',
+                                  'Craft-Anfrage bereits ausstehend',
+                                )
+                              : ownSharedBlueprint
+                                ? t(
+                                    'This is your own shared blueprint',
+                                    'C est ton propre blueprint partage',
+                                    'Dies ist dein eigener geteilter Blueprint',
+                                  )
+                                : t(
+                                    `Request a craft from ${row.ownerHandle}`,
+                                    `Demander un craft a ${row.ownerHandle}`,
+                                    `Einen Craft von ${row.ownerHandle} anfordern`,
+                                  ),
+                            tooltip: requestAlreadyPending
+                              ? t(
+                                  'A craft request is already pending for this owner and blueprint.',
+                                  'Une demande de craft est deja en attente pour ce proprietaire et ce blueprint.',
+                                  'Für diesen Besitzer und Blueprint ist bereits eine Craft-Anfrage ausstehend.',
+                                )
+                              : ownSharedBlueprint
+                                ? t(
+                                    'You already own and share this blueprint yourself.',
+                                    'Tu possedes et partages deja toi-meme ce blueprint.',
+                                    'Du besitzt und teilst diesen Blueprint bereits selbst.',
+                                  )
+                                : t(
+                                    'Send a craft request to the member who shared this blueprint.',
+                                    'Envoyer une demande de craft au membre qui partage ce blueprint.',
+                                    'Eine Craft-Anfrage an das Mitglied senden, das diesen Blueprint teilt.',
+                                  ),
+                            icon: <HandymanOutlinedIcon fontSize="small" />,
+                            busy: requestBusy,
+                            disabled: requestBusy || requestAlreadyPending || ownSharedBlueprint,
+                            onClick: () => {
+                              openCraftRequestDialog(row);
+                            },
+                          },
+                        ];
+
+                        return (
+                          <BlueprintCard
+                            key={row.key}
+                            blueprint={row.blueprint}
+                            activeBlueprintId={activeBlueprint?.id ?? null}
+                            isFavorite={favoriteIdSet.has(row.blueprint.id)}
+                            isInInventory={inventoryIdSet.has(row.blueprint.id)}
+                            extraQuickActions={extraQuickActions}
+                            statMaxima={statMaxima}
+                            resources={resources}
+                            priority={index < initialCount}
+                            onSelect={setActiveBlueprint}
+                            onToggleFavorite={toggleFavorite}
+                            onToggleInventory={toggleInventory}
+                          />
+                        );
+                      })}
+                        </Box>
+                        {visibleCount < filteredBlueprintRows.length && (
+                          <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+                        )}
+                      </Box>
                     )}
-                  </Typography>
-                  <Typography variant="body2">
-                    {t(
-                      'Try clearing the owner or manufacturer filter first.',
-                      'Essaie d abord de retirer le filtre proprietaire ou fabricant.',
-                      'Entferne zuerst den Besitzer- oder Herstellerfilter.',
-                    )}
-                  </Typography>
-                </Paper>
-              ) : assetTab === 'resources' && filteredResourceRows.length === 0 ? (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 3,
-                    textAlign: 'center',
-                    color: 'text.secondary',
-                  }}
-                >
-                  <Typography variant="body1" sx={{ mb: 0.75 }}>
-                    {t(
-                      'No shared resource matches the current filters.',
-                      'Aucune ressource partagee ne correspond aux filtres actuels.',
-                      'Keine geteilte Ressource entspricht den aktuellen Filtern.',
-                    )}
-                  </Typography>
-                  <Typography variant="body2">
-                    {t(
-                      'Try clearing the owner or quality filter first.',
-                      'Essaie d abord de retirer le filtre proprietaire ou qualite.',
-                      'Entferne zuerst den Besitzer- oder Qualitatsfilter.',
-                    )}
-                  </Typography>
-                </Paper>
-              ) : (
-                <Stack spacing={1.5}>
-                  {assetTab === 'resources' && (
+                  </Stack>
+                )}
+              </Box>
+
+              <Box
+                role="tabpanel"
+                id="org-tabpanel-resources"
+                aria-labelledby="org-tab-resources"
+                hidden={assetTab !== 'resources'}
+              >
+                {filteredResourceRows.length === 0 ? (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 3,
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    <Typography variant="body1" sx={{ mb: 0.75 }}>
+                      {t(
+                        'No shared resource matches the current filters.',
+                        'Aucune ressource partagee ne correspond aux filtres actuels.',
+                        'Keine geteilte Ressource entspricht den aktuellen Filtern.',
+                      )}
+                    </Typography>
+                    <Typography variant="body2">
+                      {t(
+                        'Try clearing the owner or quality filter first.',
+                        'Essaie d abord de retirer le filtre proprietaire ou qualite.',
+                        'Entferne zuerst den Besitzer- oder Qualitatsfilter.',
+                      )}
+                    </Typography>
+                  </Paper>
+                ) : (
+                  <Stack spacing={1.5}>
                     <Box
                       role="list"
                       sx={{
@@ -948,140 +1102,9 @@ function OrganizationBlueprintAccordion({
                         />
                       ))}
                     </Box>
-                  )}
-
-                  {assetTab === 'blueprints' && filteredBlueprintRows.length > 0 && (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 1,
-                      }}
-                    >
-                      <Box
-                        role="list"
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: {
-                            xs: '1fr',
-                            sm: 'repeat(2, minmax(0, 1fr))',
-                            md: 'repeat(3, minmax(0, 1fr))',
-                            lg: 'repeat(4, minmax(0, 1fr))',
-                            xl: 'repeat(5, minmax(0, 1fr))',
-                          },
-                          gap: { xs: 1.25, md: 1.5, xl: 2 },
-                        }}
-                      >
-                    {filteredBlueprintRows.slice(0, visibleCount).map((row, index) => {
-                      const pendingRequestKey = `${organization.sid}::${row.blueprint.id}::${normalizeComparableText(row.ownerHandle)}`;
-                      const requestAlreadyPending = pendingRequestKeys.has(pendingRequestKey);
-                      const ownSharedBlueprint =
-                        normalizeComparableText(row.ownerHandle) === currentUserRsiHandle;
-                      const requestBusy = requestBusyKey === row.key;
-
-                      const extraQuickActions: BlueprintCardQuickAction[] = [
-                        {
-                          key: `owner-filter-${row.key}`,
-                          label: row.ownerHandle,
-                          ariaLabel: t(
-                            `Filter this organization grid by ${row.ownerHandle}`,
-                            `Filtrer cette grille d organisation par ${row.ownerHandle}`,
-                            `Dieses Organisationsraster nach ${row.ownerHandle} filtern`,
-                          ),
-                          tooltip: t(
-                            `Show only blueprints shared by ${row.ownerDisplay || row.ownerHandle}.`,
-                            `Afficher seulement les blueprints partages par ${row.ownerDisplay || row.ownerHandle}.`,
-                            `Nur Blueprints anzeigen, die von ${row.ownerDisplay || row.ownerHandle} geteilt werden.`,
-                          ),
-                          selected:
-                            normalizeComparableText(blueprintOwnerFilter) ===
-                            normalizeComparableText(row.ownerHandle),
-                          avatarSrc: row.ownerImage,
-                          avatarAlt: row.ownerHandle,
-                          onClick: () => {
-                            setBlueprintOwnerFilter((currentOwnerFilter) =>
-                              normalizeComparableText(currentOwnerFilter) ===
-                              normalizeComparableText(row.ownerHandle)
-                                ? null
-                                : row.ownerHandle,
-                            );
-                          },
-                        },
-                        {
-                          key: `request-craft-${row.key}`,
-                          label: requestAlreadyPending
-                            ? t('Pending', 'En attente', 'Ausstehend')
-                            : ownSharedBlueprint
-                              ? t('Your blueprint', 'Ton blueprint', 'Dein Blueprint')
-                              : t('Request craft', 'Demander craft', 'Craft anfragen'),
-                          ariaLabel: requestAlreadyPending
-                            ? t(
-                                'Craft request already pending',
-                                'Demande de craft deja en attente',
-                                'Craft-Anfrage bereits ausstehend',
-                              )
-                            : ownSharedBlueprint
-                              ? t(
-                                  'This is your own shared blueprint',
-                                  'C est ton propre blueprint partage',
-                                  'Dies ist dein eigener geteilter Blueprint',
-                                )
-                              : t(
-                                  `Request a craft from ${row.ownerHandle}`,
-                                  `Demander un craft a ${row.ownerHandle}`,
-                                  `Einen Craft von ${row.ownerHandle} anfordern`,
-                                ),
-                          tooltip: requestAlreadyPending
-                            ? t(
-                                'A craft request is already pending for this owner and blueprint.',
-                                'Une demande de craft est deja en attente pour ce proprietaire et ce blueprint.',
-                                'Für diesen Besitzer und Blueprint ist bereits eine Craft-Anfrage ausstehend.',
-                              )
-                            : ownSharedBlueprint
-                              ? t(
-                                  'You already own and share this blueprint yourself.',
-                                  'Tu possedes et partages deja toi-meme ce blueprint.',
-                                  'Du besitzt und teilst diesen Blueprint bereits selbst.',
-                                )
-                              : t(
-                                  'Send a craft request to the member who shared this blueprint.',
-                                  'Envoyer une demande de craft au membre qui partage ce blueprint.',
-                                  'Eine Craft-Anfrage an das Mitglied senden, das diesen Blueprint teilt.',
-                                ),
-                          icon: <HandymanOutlinedIcon fontSize="small" />,
-                          busy: requestBusy,
-                          disabled: requestBusy || requestAlreadyPending || ownSharedBlueprint,
-                          onClick: () => {
-                            openCraftRequestDialog(row);
-                          },
-                        },
-                      ];
-
-                      return (
-                        <BlueprintCard
-                          key={row.key}
-                          blueprint={row.blueprint}
-                          activeBlueprintId={activeBlueprint?.id ?? null}
-                          isFavorite={favoriteIdSet.has(row.blueprint.id)}
-                          isInInventory={inventoryIdSet.has(row.blueprint.id)}
-                          extraQuickActions={extraQuickActions}
-                          statMaxima={statMaxima}
-                          resources={resources}
-                          priority={index < initialCount}
-                          onSelect={setActiveBlueprint}
-                          onToggleFavorite={toggleFavorite}
-                          onToggleInventory={toggleInventory}
-                        />
-                      );
-                    })}
-                      </Box>
-                      {visibleCount < filteredBlueprintRows.length && (
-                        <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
-                      )}
-                    </Box>
-                  )}
-                </Stack>
-              )}
+                  </Stack>
+                )}
+              </Box>
             </>
           ) : null}
         </Stack>
@@ -1091,8 +1114,9 @@ function OrganizationBlueprintAccordion({
         onClose={closeCraftRequestDialog}
         fullWidth
         maxWidth="sm"
+        aria-labelledby="craft-request-dialog-title"
       >
-        <DialogTitle>
+        <DialogTitle id="craft-request-dialog-title">
           {craftRequestDialog
             ? t(
                 `Request craft from ${craftRequestDialog.row.ownerHandle}`,

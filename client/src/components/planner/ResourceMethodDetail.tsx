@@ -172,7 +172,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
         ) : resourceDataLoading && !materialSources?.resources ? (
           <Skeleton variant="rectangular" height={20} sx={{ borderRadius: 0.5 }} />
         ) : miningProviders.length === 0 ? (
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
             {t(
               'No mining source data available in the current dataset.',
               'Aucune source de minage disponible dans le dataset actuel.',
@@ -268,7 +268,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
 
   if (matchingContracts.length === 0) {
     return (
-      <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
         {t(
           'No contract found with this resource objective in the current dataset.',
           'Aucun contrat trouve avec cet objectif ressource dans le dataset actuel.',
@@ -278,7 +278,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
   }
 
   return (
-    <List dense disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+    <List dense disablePadding aria-label={t('Available mission contracts', 'Contrats de mission disponibles')} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
       {matchingContracts.map(({ contract, group }, index) => {
         const missionName =
           getMissionContractName(contract) || t('Unknown contract', 'Contrat inconnu');
@@ -340,7 +340,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                       label={factionName}
                       size="small"
                       variant="outlined"
-                      sx={{ fontSize: '0.6rem', height: 18 }}
+                      sx={{ fontSize: '0.75rem', height: 18 }}
                     />
                   )}
                   <Chip
@@ -348,14 +348,14 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                     label={activityLabel}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: '0.6rem', height: 18 }}
+                    sx={{ fontSize: '0.75rem', height: 18 }}
                   />
                   <Chip
                     label={formatScaleLabel(contract.availability.derivedScale, lang)}
                     size="small"
                     variant="outlined"
                     color="primary"
-                    sx={{ fontSize: '0.6rem', height: 18 }}
+                    sx={{ fontSize: '0.75rem', height: 18 }}
                   />
                 </Box>
                 {localities.length > 0 && (
@@ -371,7 +371,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                             iconName ? <StarCitizenLicensedIcon name={iconName} size={12} dimmed /> : undefined
                           }
                           label={location}
-                          sx={{ fontSize: '0.6rem', height: 18 }}
+                          sx={{ fontSize: '0.75rem', height: 18 }}
                         />
                       );
                     })}

@@ -194,7 +194,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
               <TableCell key={item.id} align="center">
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                   <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.68rem' }}>{item.blueprintName}</Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>{item.blueprintName}</Typography>
                 </Box>
               </TableCell>
             ))}
@@ -215,7 +215,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                 <TableCell component="th" scope="row">
                       <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.7rem' }}>{loc(STAT_LABELS[key] ?? { en: String(key), fr: String(key) }, lang)}</Typography>
                   {STAT_UNITS[key] && (
-                    <Typography component="span" variant="caption" sx={{ color: 'text.disabled', ml: 0.5, fontSize: '.58rem' }}>
+                    <Typography component="span" variant="caption" sx={{ color: 'text.secondary', ml: 0.5, fontSize: '0.75rem' }}>
                       {STAT_UNITS[key]}
                     </Typography>
                   )}
@@ -236,7 +236,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                         {displayVal}
                       </Typography>
                       {delta !== 0 && (
-                        <Typography variant="caption" sx={{ color: (isLower ? delta < 0 : delta > 0) ? 'success.main' : 'error.main', fontSize: '.58rem' }}>
+                        <Typography variant="caption" sx={{ color: (isLower ? delta < 0 : delta > 0) ? 'success.main' : 'error.main', fontSize: '0.75rem' }}>
                           {displayDelta > 0 ? '+' : ''}{displayDelta}
                         </Typography>
                       )}
@@ -264,7 +264,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                       variant="body2"
                       sx={{ fontFamily: FONT_MONO, fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
                     >
-                      {item.qualityScore}<Typography component="span" sx={{ color: 'text.disabled', fontSize: '.58rem' }}>/100</Typography>
+                      {item.qualityScore}<Typography component="span" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>/100</Typography>
                     </Typography>
                   </TableCell>
                 );
@@ -283,7 +283,7 @@ function ResourceSummary({ item, lang, blueprints }: { item: ComparisonItem; lan
   if (!bp) return null;
 
   const entries = aggregateBlueprintResources(bp.slots, item.slotAssignments);
-  if (entries.length === 0) return <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>;
+  if (entries.length === 0) return <Typography variant="body2" sx={{ color: 'text.secondary' }}>—</Typography>;
 
   return (
     <List
@@ -298,10 +298,10 @@ function ResourceSummary({ item, lang, blueprints }: { item: ComparisonItem; lan
             secondary={summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
             slotProps={{
               primary: { variant: 'body2', sx: { fontSize: '.75rem' } },
-              secondary: { variant: 'caption', sx: { fontSize: '.6rem' } },
+              secondary: { variant: 'caption', sx: { fontSize: '0.75rem' } },
             }}
           />
-          <Typography variant="caption" sx={{ fontFamily: FONT_MONO, fontSize: '.65rem', ml: 1, flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', ml: 1, flexShrink: 0 }}>
             ×{entry.totalScu.toFixed(2)} SCU
           </Typography>
         </ListItem>
@@ -331,7 +331,7 @@ export function ComparisonModal() {
     <Dialog
       open={comparisonOpen}
       onClose={closeComparison}
-      aria-label={t('Item comparison', 'Comparaison d\'items')}
+      aria-labelledby="comparison-dialog-title"
       maxWidth="lg"
       fullWidth
       slotProps={{
@@ -341,6 +341,7 @@ export function ComparisonModal() {
       }}
     >
       <DialogTitle
+        id="comparison-dialog-title"
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -398,7 +399,7 @@ export function ComparisonModal() {
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
                       <CategoryBadge category={item.category} iconOnly />
                       <span>{item.blueprintName}</span>
-                      <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '.62rem', color: 'text.secondary' }}>
+                      <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', color: 'text.secondary' }}>
                         {item.qualityScore}/100
                       </Typography>
                     </Box>

@@ -59,13 +59,11 @@ function WorkspaceTabs({
         variant="scrollable"
         scrollButtons="auto"
         allowScrollButtonsMobile
+        TabIndicatorProps={{ style: { display: 'none' } }}
         sx={{
           minHeight: 46,
           '& .MuiTabs-flexContainer': {
             minHeight: 46,
-          },
-          '& .MuiTabs-indicator': {
-            display: 'none',
           },
           '& .MuiTab-root': {
             minHeight: 46,
@@ -115,15 +113,12 @@ function TabPanel({
   tab: WorkspaceTabId;
   children: ReactNode;
 }) {
-  if (activeTab !== tab) {
-    return null;
-  }
-
   return (
     <Box
       id={`blueprint-tabpanel-${tab}`}
       role="tabpanel"
       aria-labelledby={`blueprint-tab-${tab}`}
+      hidden={activeTab !== tab}
       sx={{ minWidth: 0 }}
     >
       {children}

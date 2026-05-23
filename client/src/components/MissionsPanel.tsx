@@ -1,9 +1,6 @@
 import { startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -30,8 +27,6 @@ import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupported
 import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
@@ -53,7 +48,6 @@ import {
   getMissionContractName,
   formatScaleLabel,
   formatStandingLabel,
-  formatStandingSummary,
   ls,
   STANDING_OPTIONS,
 } from '../utils/crafting';
@@ -61,7 +55,6 @@ import { missionPathFromSlug, missionSlugFromContract, missionSlugFromPathname, 
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 import type {
   Blueprint,
-  ItemCategory,
   MissionContract,
   MissionEmployerRef,
   MissionSort,
@@ -264,7 +257,7 @@ function MissionFact({
         <Typography
           variant="caption"
           sx={{
-            color: 'text.disabled',
+            color: 'text.secondary',
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
             display: 'block',
@@ -286,83 +279,41 @@ function MissionFact({
 
 function MissionsFilterBar({
   locations,
-  scales,
-  contractors,
   employers,
-  factions,
-  reputationActivities,
-  rewardCategories,
-  rewardManufacturers,
   rewardBlueprints,
-  resourceObjectiveResources,
   selectedLocation: locationFilter,
-  selectedScale: scaleFilter,
   selectedLegality: legalityFilter,
-  selectedContractor: contractorFilter,
   selectedEmployer: employerFilter,
-  selectedFaction: factionFilter,
-  selectedReputationActivity: reputationActivityFilter,
   selectedStandingBucket: standingBucketFilter,
-  selectedRewardCategory: rewardCategoryFilter,
-  selectedRewardManufacturer: rewardManufacturerFilter,
   selectedRewardBlueprint: rewardBlueprintFilter,
-  selectedResourceObjectiveResource: resourceObjectiveResourceFilter,
   selectedResourceObjectiveMode: resourceObjectiveMode,
   selectedSort: sortBy,
   search,
   onLocationChange,
-  onScaleChange,
   onLegalityChange,
-  onContractorChange,
   onEmployerChange,
-  onFactionChange,
-  onReputationActivityChange,
   onStandingBucketChange,
-  onRewardCategoryChange,
-  onRewardManufacturerChange,
   onRewardBlueprintChange,
-  onResourceObjectiveResourceChange,
   onResourceObjectiveModeChange,
   onSortChange,
   onSearchChange,
 }: {
   locations: string[];
-  scales: string[];
-  contractors: string[];
   employers: string[];
-  factions: string[];
-  reputationActivities: string[];
-  rewardCategories: ItemCategory[];
-  rewardManufacturers: string[];
   rewardBlueprints: string[];
-  resourceObjectiveResources: string[];
   selectedLocation: string | null;
-  selectedScale: string | null;
   selectedLegality: string;
-  selectedContractor: string | null;
   selectedEmployer: string | null;
-  selectedFaction: string | null;
-  selectedReputationActivity: string | null;
   selectedStandingBucket: StandingBucket;
-  selectedRewardCategory: ItemCategory | 'all';
-  selectedRewardManufacturer: string | null;
   selectedRewardBlueprint: string | null;
-  selectedResourceObjectiveResource: string | null;
   selectedResourceObjectiveMode: 'all' | 'with' | 'without';
   selectedSort: MissionSort;
   search: string;
   onLocationChange: (v: string | null) => void;
-  onScaleChange: (v: string | null) => void;
   onLegalityChange: (v: string) => void;
-  onContractorChange: (v: string | null) => void;
   onEmployerChange: (v: string | null) => void;
-  onFactionChange: (v: string | null) => void;
-  onReputationActivityChange: (v: string | null) => void;
   onStandingBucketChange: (v: StandingBucket) => void;
-  onRewardCategoryChange: (v: ItemCategory | 'all') => void;
-  onRewardManufacturerChange: (v: string | null) => void;
   onRewardBlueprintChange: (v: string | null) => void;
-  onResourceObjectiveResourceChange: (v: string | null) => void;
   onResourceObjectiveModeChange: (v: 'all' | 'with' | 'without') => void;
   onSortChange: (v: MissionSort) => void;
   onSearchChange: (v: string) => void;
@@ -371,28 +322,11 @@ function MissionsFilterBar({
   const theme = useTheme();
   const hasActiveFilters =
     locationFilter !== null ||
-    scaleFilter !== null ||
-    contractorFilter !== null ||
     employerFilter !== null ||
-    factionFilter !== null ||
-    reputationActivityFilter !== null ||
     legalityFilter !== 'all' ||
     standingBucketFilter !== 'all' ||
-    rewardCategoryFilter !== 'all' ||
-    rewardManufacturerFilter !== null ||
     rewardBlueprintFilter !== null ||
-    resourceObjectiveResourceFilter !== null ||
     resourceObjectiveMode !== 'all';
-
-  const advancedFilterCount = [
-    factionFilter !== null,
-    standingBucketFilter !== 'all',
-    rewardCategoryFilter !== 'all',
-    rewardManufacturerFilter !== null,
-    rewardBlueprintFilter !== null,
-    resourceObjectiveResourceFilter !== null,
-    resourceObjectiveMode !== 'all',
-  ].filter(Boolean).length;
 
   return (
     <Paper
@@ -423,9 +357,9 @@ function MissionsFilterBar({
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {t(
-              'Search contract pools first, then tighten rewards, standing, faction and resource objectives only when needed.',
-              'Commence par rechercher les contrats, puis affine recompenses, reputation, faction et objectifs ressource seulement quand c est necessaire.',
-              'Suche zuerst im Vertrags-Pool und verfeinere danach bei Bedarf Belohnungen, Ruf, Fraktion und Ressourcenziele.',
+              'Search across every mission field, then use a few high-value filters for employer, theater, reward, standing and legality.',
+              'Recherche dans tous les champs mission, puis utilise quelques filtres clés pour employeur, théâtre, récompense, réputation et légalité.',
+              'Suche über alle Missionsfelder und nutze wenige starke Filter für Arbeitgeber, Einsatzraum, Belohnung, Ruf und Legalität.',
             )}
           </Typography>
         </Box>
@@ -435,17 +369,10 @@ function MissionsFilterBar({
             startIcon={<FilterListOffOutlinedIcon />}
             onClick={() => {
               onLocationChange(null);
-              onScaleChange(null);
-              onContractorChange(null);
               onEmployerChange(null);
-              onFactionChange(null);
-              onReputationActivityChange(null);
               onLegalityChange('all');
               onStandingBucketChange('all');
-              onRewardCategoryChange('all');
-              onRewardManufacturerChange(null);
               onRewardBlueprintChange(null);
-              onResourceObjectiveResourceChange(null);
               onResourceObjectiveModeChange('all');
             }}
             sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
@@ -465,7 +392,7 @@ function MissionsFilterBar({
           slotProps={{
             input: {
               startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
+                <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
                   <AppGlyph name="search" size={18} />
                 </InputAdornment>
               ),
@@ -477,7 +404,7 @@ function MissionsFilterBar({
           size="small"
           sx={{ minWidth: { xs: '100%', sm: 210 }, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' } }}
         >
-          <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)}>
+          <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)} inputProps={{ 'aria-label': t('Sort missions', 'Trier les missions') }}>
             {MISSION_SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {loc(option.label, lang)}
@@ -502,144 +429,50 @@ function MissionsFilterBar({
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Stack
-          direction={{ xs: 'column', lg: 'row' }}
-          spacing={1}
-          alignItems={{ xs: 'stretch', lg: 'center' }}
-          sx={{ width: { xs: '100%', lg: 'auto' } }}
-        >
-          <Autocomplete
-            size="small"
-            options={contractors}
-            value={contractorFilter}
-            onChange={(_event, value) => onContractorChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Contractor label', 'Label contractant')} sx={{ width: { xs: '100%', md: 180 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
-            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-          />
-          <Autocomplete
-            size="small"
-            options={employers}
-            value={employerFilter}
-            onChange={(_event, value) => onEmployerChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ width: { xs: '100%', md: 180 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
-            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-          />
-          <Autocomplete
-            size="small"
-            options={locations}
-            value={locationFilter}
-            onChange={(_event, value) => onLocationChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
-            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-          />
-          <Autocomplete
-            size="small"
-            options={scales}
-            getOptionLabel={(scale) => formatScaleLabel(scale, lang)}
-            value={scaleFilter}
-            onChange={(_event, value) => onScaleChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Scale', 'Echelle')} sx={{ width: { xs: '100%', md: 150 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
-            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-          />
-          <Autocomplete
-            size="small"
-            options={reputationActivities}
-            value={reputationActivityFilter}
-            onChange={(_event, value) => onReputationActivityChange(value)}
-            renderInput={(params) => <TextField {...params} placeholder={t('Reputation type / Activities', 'Type reputation / activites')} sx={{ width: { xs: '100%', md: 220 }, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 32 } }} />}
-            slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-          />
-        </Stack>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
+        <Autocomplete
+          size="small"
+          options={employers}
+          value={employerFilter}
+          onChange={(_event, value) => onEmployerChange(value)}
+          renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', minHeight: 32 } }} />}
+          slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+        />
+        <Autocomplete
+          size="small"
+          options={locations}
+          value={locationFilter}
+          onChange={(_event, value) => onLocationChange(value)}
+          renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', minHeight: 32 } }} />}
+          slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+        />
+        <Autocomplete
+          size="small"
+          options={rewardBlueprints}
+          value={rewardBlueprintFilter}
+          onChange={(_event, value) => onRewardBlueprintChange(value)}
+          renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint recompense')} sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', minHeight: 32 } }} />}
+          slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+        />
+        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: '0.75rem' } }}>
+          <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)} inputProps={{ 'aria-label': t('Standing requirement', 'Prérequis réputation') }}>
+            {STANDING_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {loc(option.label, lang)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: '0.75rem' } }}>
+          <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')} inputProps={{ 'aria-label': t('Resource objective filter', 'Filtre objectif ressource') }}>
+            {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {loc(option.label, lang)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
-
-      <Accordion
-        disableGutters
-        elevation={0}
-        sx={{
-          backgroundColor: 'transparent',
-          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
-          '&::before': { display: 'none' },
-        }}
-      >
-        <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {t('Advanced mission filters', 'Filtres mission avancés')}
-            </Typography>
-            {advancedFilterCount > 0 && (
-              <Chip label={`${advancedFilterCount} ${t('active', 'actifs')}`} size="small" variant="outlined" color="primary" sx={{ height: 20, fontSize: '.65rem' }} />
-            )}
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {t('Rewards, faction, standing, resources', 'Récompenses, faction, réputation, ressources')}
-            </Typography>
-          </Stack>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
-            <Autocomplete
-              size="small"
-              options={factions}
-              value={factionFilter}
-              onChange={(_event, value) => onFactionChange(value)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Faction / jurisdiction', 'Faction / juridiction')} />}
-              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-            />
-            <FormControl size="small">
-              <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)}>
-                {STANDING_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {loc(option.label, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small">
-              <Select value={rewardCategoryFilter} onChange={(event) => onRewardCategoryChange(event.target.value as ItemCategory | 'all')}>
-                <MenuItem value="all">{t('Any reward category', 'Toute catégorie de récompense')}</MenuItem>
-                {rewardCategories.map((category) => (
-                  <MenuItem key={category} value={category}>
-                    {category}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Autocomplete
-              size="small"
-              options={rewardManufacturers}
-              value={rewardManufacturerFilter}
-              onChange={(_event, value) => onRewardManufacturerChange(value)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Reward manufacturer', 'Fabricant récompensé')} />}
-              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-            />
-            <Autocomplete
-              size="small"
-              options={rewardBlueprints}
-              value={rewardBlueprintFilter}
-              onChange={(_event, value) => onRewardBlueprintChange(value)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint récompensé')} />}
-              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-            />
-            <Autocomplete
-              size="small"
-              options={resourceObjectiveResources}
-              value={resourceObjectiveResourceFilter}
-              onChange={(_event, value) => onResourceObjectiveResourceChange(value)}
-              renderInput={(params) => <TextField {...params} placeholder={t('Resource objective', 'Objectif ressource')} />}
-              slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
-            />
-            <FormControl size="small">
-              <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')}>
-                {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {loc(option.label, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </AccordionDetails>
-      </Accordion>
     </Paper>
   );
 }
@@ -662,7 +495,6 @@ function ContractCard({
   const [imgError, setImgError] = useState(false);
   const factionType = group.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
-  const standingLabel = contract.minimumRequiredStandings.length > 0 ? formatStandingSummary(contract.minimumRequiredStandings, lang) : null;
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
   const blueprintCount = getMissionRewardedBlueprintCount(contract);
   const primaryLocation = getPrimaryMissionLocation(contract);
@@ -671,7 +503,6 @@ function ContractCard({
   const showHeroImage = Boolean(heroAsset) && !imgError;
   const activityKind = getMissionActivityKind(contract);
   const reputationActivity = getMissionReputationActivity(contract);
-  const blueprintChanceValue = Math.max(0, Math.min(100, blueprintDropChance * 100));
   const activityLabel = (() => {
     switch (activityKind) {
       case 'combat':
@@ -697,6 +528,7 @@ function ContractCard({
   return (
     <Card
       role="listitem"
+      aria-label={getMissionContractName(contract)}
       sx={{
         position: 'relative',
         height: { xs: 'auto', lg: 360, xl: 334 },
@@ -948,7 +780,7 @@ function ContractCard({
                   boxShadow: `0 0 0 3px ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.16)}`,
                 }}
               />
-              <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 {factionType === 'unlawful' ? t('Unlawful', 'Illegal') : t('Lawful', 'Legal')}
               </Typography>
             </Stack>
@@ -959,9 +791,8 @@ function ContractCard({
           sx={{
             p: { xs: '14px', sm: '16px' },
             display: 'grid',
-            gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 116px' },
+            gridTemplateColumns: 'minmax(0, 1fr)',
             gridTemplateRows: { xs: 'auto auto auto minmax(0, 1fr)', lg: 'auto auto minmax(84px, 1fr)' },
-            columnGap: { xs: 0, lg: 1.2 },
             rowGap: 1,
             flex: 1,
             minWidth: 0,
@@ -989,7 +820,7 @@ function ContractCard({
               variant="caption"
               sx={{
                 color: alpha(theme.palette.text.primary, 0.72),
-                fontSize: '0.68rem',
+                fontSize: '0.75rem',
                 fontWeight: 600,
               }}
             >
@@ -1033,7 +864,7 @@ function ContractCard({
                       variant="caption"
                       sx={{
                         color: alpha(theme.palette.brand.blueLight, 0.68),
-                        fontSize: '0.62rem',
+                        fontSize: '0.75rem',
                         textTransform: 'uppercase',
                         letterSpacing: '0.08em',
                       }}
@@ -1055,7 +886,7 @@ function ContractCard({
                     color: isUnlawful ? theme.palette.error.light : activityKind === 'recovery' ? theme.palette.success.light : theme.palette.secondary.light,
                     borderColor: alpha(isUnlawful ? theme.palette.error.main : activityKind === 'recovery' ? theme.palette.success.main : theme.palette.secondary.main, 0.55),
                     backgroundColor: alpha(isUnlawful ? theme.palette.error.main : activityKind === 'recovery' ? theme.palette.success.main : theme.palette.secondary.main, 0.08),
-                    '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
+                    '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
                     '& .MuiChip-icon': { ml: '7px', mr: '-2px' },
                   }}
                 />
@@ -1071,135 +902,35 @@ function ContractCard({
                       color: theme.palette.brand.blueLight,
                       borderColor: alpha(theme.palette.brand.blueLight, 0.32),
                       backgroundColor: alpha(theme.palette.brand.blueLight, 0.06),
-                      '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
+                      '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
                     }}
                   />
                 )}
-                {standingLabel && (
-                  <Chip
-                    label={standingLabel}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      height: 27,
-                      borderRadius: 1,
-                      maxWidth: 220,
-                      color: theme.palette.warning.light,
-                      borderColor: alpha(theme.palette.warning.main, 0.38),
-                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
-                      '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
-                    }}
-                  />
-                )}
+                <Chip
+                  label={`${t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}: ${blueprintDropChance > 0 ? formatProbabilityPercent(blueprintDropChance) : '-'} (${blueprintCount})`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    height: 27,
+                    borderRadius: 1,
+                    maxWidth: 260,
+                    color: blueprintDropChance > 0 ? theme.palette.secondary.light : theme.palette.text.secondary,
+                    borderColor: alpha(blueprintDropChance > 0 ? theme.palette.secondary.main : theme.palette.text.secondary, 0.42),
+                    backgroundColor: alpha(blueprintDropChance > 0 ? theme.palette.secondary.main : theme.palette.text.secondary, 0.08),
+                    '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
+                  }}
+                />
               </Box>
             </Stack>
-
-            <Box
-              sx={{
-                border: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`,
-                background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.18)})`,
-                borderRadius: 1,
-                p: { xs: 1.5, lg: 1 },
-                minWidth: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gridColumn: { xs: '1', lg: '2' },
-                gridRow: { lg: '1 / span 3' },
-              }}
-            >
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                <Typography
-                  variant="caption"
-                  sx={{ color: alpha(theme.palette.text.primary, 0.62), textTransform: 'uppercase', letterSpacing: '0.12em', display: 'block', fontSize: { xs: '0.72rem', lg: '0.55rem' } }}
-                >
-                  {t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}
-                </Typography>
-                <Typography aria-hidden="true" sx={{ color: alpha(theme.palette.text.primary, 0.66), fontSize: '0.62rem', lineHeight: 1, border: `1px solid ${alpha(theme.palette.text.primary, 0.38)}`, borderRadius: '50%', width: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  i
-                </Typography>
-              </Stack>
-              <Typography
-                sx={{
-                  fontFamily: FONT_HEADING,
-                  fontSize: { xs: '3rem', lg: '2.28rem' },
-                  fontWeight: 800,
-                  lineHeight: 0.85,
-                  color: blueprintDropChance > 0 ? theme.palette.secondary.light : theme.palette.text.secondary,
-                  mt: 0.7,
-                }}
-              >
-                {blueprintDropChance > 0 ? formatProbabilityPercent(blueprintDropChance) : '-'}
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={blueprintChanceValue}
-                sx={{
-                  mt: 0.9,
-                  height: 6,
-                  borderRadius: 999,
-                  backgroundColor: alpha(theme.palette.common.white, 0.07),
-                  '& .MuiLinearProgress-bar': {
-                    borderRadius: 999,
-                    backgroundColor: theme.palette.secondary.light,
-                  },
-                }}
-              />
-              <Typography variant="caption" sx={{ color: alpha(theme.palette.text.primary, 0.62), display: 'block', mt: 0.8, fontSize: { xs: '0.82rem', lg: '0.58rem' }, letterSpacing: 0 }}>
-                {t('From', 'Depuis')} {blueprintCount}-item blueprint pool
-              </Typography>
-              <Divider sx={{ my: 1, borderColor: alpha(theme.palette.brand.blueLight, 0.14) }} />
-              <Stack direction="row" spacing={0.7} alignItems="center">
-                <Inventory2OutlinedIcon sx={{ color: alpha(theme.palette.text.primary, 0.66), fontSize: { xs: 30, lg: 22 } }} />
-                <Box>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: { xs: '0.68rem', lg: '0.5rem' }, display: 'block' }}>
-                    {t('Potential blueprints', 'Blueprints potentiels')}
-                  </Typography>
-                  <Typography sx={{ color: theme.palette.secondary.light, fontFamily: FONT_HEADING, fontSize: { xs: '1.25rem', lg: '0.95rem' }, fontWeight: 800, lineHeight: 1 }}>
-                    {blueprintCount}
-                  </Typography>
-                </Box>
-              </Stack>
-              <Button
-                variant="text"
-                component="a"
-                href={href}
-                endIcon={<KeyboardArrowRightIcon />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (!shouldHandleInternalLinkClick(event)) return;
-                  event.preventDefault();
-                  onOpen();
-                }}
-                sx={{
-                  position: 'relative',
-                  zIndex: 2,
-                  mt: 'auto',
-                  mx: -0.6,
-                  mb: -0.7,
-                  pt: 0.8,
-                  fontSize: '0.62rem',
-                  justifyContent: 'space-between',
-                  color: alpha(theme.palette.text.primary, 0.78),
-                  borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.13)}`,
-                  borderRadius: 0,
-                  '&:hover': {
-                    color: theme.palette.secondary.light,
-                    backgroundColor: alpha(theme.palette.secondary.main, 0.06),
-                  },
-                }}
-              >
-                {t('Open dossier', 'Ouvrir dossier')}
-              </Button>
-            </Box>
           </Box>
 
           {contract.rewardedBlueprints.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6, minWidth: 0, minHeight: 0, mt: 0.2, gridColumn: { xs: '1', lg: '1' }, gridRow: { lg: '3' } }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6, minWidth: 0, minHeight: 0, mt: 0.2, gridColumn: '1', gridRow: { lg: '3' } }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography
                   variant="caption"
                   sx={{
-                    fontSize: '0.58rem',
+                    fontSize: '0.75rem',
                     color: alpha(theme.palette.text.primary, 0.58),
                     textTransform: 'uppercase',
                     letterSpacing: '0.13em',
@@ -1217,7 +948,7 @@ function ContractCard({
                   zIndex: 2,
                   display: 'grid',
                   gridAutoFlow: 'column',
-                  gridAutoColumns: { xs: 150, sm: 164, lg: 116, xl: 132 },
+                  gridAutoColumns: { xs: 150, sm: 164, lg: 132, xl: 150 },
                   gridTemplateRows: { xs: 'repeat(2, minmax(38px, 1fr))', sm: 'repeat(3, minmax(38px, 1fr))' },
                   gap: 0.55,
                   overflowX: 'auto',
@@ -1263,7 +994,7 @@ function ContractCard({
                       background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.12)}, ${alpha(theme.palette.common.black, 0.18)})`,
                       borderRadius: 1,
                       textTransform: 'none',
-                      fontSize: '0.6rem',
+                      fontSize: '0.75rem',
                       fontWeight: 800,
                       lineHeight: 1.05,
                       letterSpacing: '0.02em',
@@ -1375,10 +1106,10 @@ function MissionHero({
               variant="outlined"
             />
           </Box>
-          <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
             {t('Mission theater', 'Theatre de mission')}
           </Typography>
-          <Typography variant="h3" sx={{ lineHeight: 0.95 }}>
+          <Typography variant="h2" sx={{ lineHeight: 0.95 }}>
             {primaryLocation}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 420 }}>
@@ -1402,7 +1133,7 @@ function MissionHero({
               })}
             </Box>
           <Box>
-              <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 {t('Employer', 'Employeur')}
               </Typography>
               <Typography sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '1.25rem', lineHeight: 1, mt: 0.5 }}>
@@ -1661,7 +1392,7 @@ function MissionDetail({
           }}
         >
           <Stack spacing={1}>
-            <Typography variant="caption" sx={{ color: 'text.disabled', letterSpacing: '0.14em' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: '0.14em' }}>
               {t('Blueprint rewards', 'Recompenses blueprint')}
             </Typography>
             <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
@@ -1766,17 +1497,10 @@ export function MissionsPanel() {
   }, [ensureMissionRewardsLoaded]);
 
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
-  const [scaleFilter, setScaleFilter] = useState<string | null>(null);
   const [legalityFilter, setLegalityFilter] = useState('all');
-  const [contractorFilter, setContractorFilter] = useState<string | null>(null);
   const [employerFilter, setEmployerFilter] = useState<string | null>(null);
-  const [factionFilter, setFactionFilter] = useState<string | null>(null);
-  const [reputationActivityFilter, setReputationActivityFilter] = useState<string | null>(null);
   const [standingBucketFilter, setStandingBucketFilter] = useState<StandingBucket>('all');
-  const [rewardCategoryFilter, setRewardCategoryFilter] = useState<ItemCategory | 'all'>('all');
-  const [rewardManufacturerFilter, setRewardManufacturerFilter] = useState<string | null>(null);
   const [rewardBlueprintFilter, setRewardBlueprintFilter] = useState<string | null>(null);
-  const [resourceObjectiveResourceFilter, setResourceObjectiveResourceFilter] = useState<string | null>(null);
   const [resourceObjectiveMode, setResourceObjectiveMode] = useState<'all' | 'with' | 'without'>('all');
   const [sortBy, setSortBy] = useState<MissionSort>('name-asc');
   const [search, setSearch] = useState('');
@@ -1787,13 +1511,11 @@ export function MissionsPanel() {
   useEffect(() => {
     if (!missionRewards) return;
 
-    const requestedFactionId =
-      factionFilter ??
-      (selectedMissionSlug ? null : missionRewards.factionGroups[0]?.id ?? null);
+    const requestedFactionId = selectedMissionSlug ? null : missionRewards.factionGroups[0]?.id ?? null;
     if (requestedFactionId) {
       void ensureFactionContractsLoaded(requestedFactionId);
     }
-  }, [factionFilter, missionRewards, selectedMissionSlug, ensureFactionContractsLoaded]);
+  }, [missionRewards, selectedMissionSlug, ensureFactionContractsLoaded]);
 
   const resources = activeDataset.resources;
   const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
@@ -1823,27 +1545,6 @@ export function MissionsPanel() {
     }
     return [...set].sort();
   }, [allContracts]);
-
-  const allScales = useMemo(() => {
-    const set = new Set<string>();
-    for (const { contract } of allContracts) {
-      set.add(contract.availability.derivedScale);
-    }
-    return [...set].sort();
-  }, [allContracts]);
-
-  const allContractors = useMemo(() => {
-    const set = new Set<string>();
-    for (const group of missionRewards?.factionGroups ?? []) {
-      if (group.contractorDisplayName) {
-        set.add(group.contractorDisplayName);
-      }
-    }
-    for (const { group } of allContracts) {
-      set.add(group.contractorDisplayName);
-    }
-    return [...set].sort();
-  }, [allContracts, missionRewards]);
 
   const allEmployers = useMemo(() => {
     const set = new Set<string>();
@@ -1876,59 +1577,12 @@ export function MissionsPanel() {
     return [...set].sort();
   }, [allContracts, missionRewards]);
 
-  const allReputationActivities = useMemo(() => {
-    const set = new Set<string>();
-    for (const { contract } of allContracts) {
-      const activity = getMissionReputationActivity(contract);
-      if (activity) {
-        set.add(activity);
-      }
-    }
-    return [...set].sort();
-  }, [allContracts]);
-
-  const allRewardCategories = useMemo(() => {
-    const set = new Set<ItemCategory>();
-    for (const { contract } of allContracts) {
-      for (const blueprint of contract.rewardedBlueprints) {
-        if (blueprint.category) {
-          set.add(blueprint.category);
-        }
-      }
-    }
-    return [...set].sort();
-  }, [allContracts]);
-
-  const allRewardManufacturers = useMemo(() => {
-    const set = new Set<string>();
-    for (const { contract } of allContracts) {
-      for (const blueprint of contract.rewardedBlueprints) {
-        if (blueprint.manufacturer) {
-          set.add(blueprint.manufacturer);
-        }
-      }
-    }
-    return [...set].sort();
-  }, [allContracts]);
-
   const allRewardBlueprints = useMemo(() => {
     const set = new Set<string>();
     for (const { contract } of allContracts) {
       for (const blueprint of contract.rewardedBlueprints) {
         if (blueprint.name) {
           set.add(blueprint.name);
-        }
-      }
-    }
-    return [...set].sort();
-  }, [allContracts]);
-
-  const allResourceObjectiveResources = useMemo(() => {
-    const set = new Set<string>();
-    for (const { contract } of allContracts) {
-      for (const objective of contract.resourceObjectives) {
-        if (objective.displayName) {
-          set.add(objective.displayName);
         }
       }
     }
@@ -1953,37 +1607,13 @@ export function MissionsPanel() {
           return false;
         }
       }
-      if (contractorFilter && group.contractorDisplayName !== contractorFilter) {
-        return false;
-      }
       if (employerFilter && employerName !== employerFilter) {
-        return false;
-      }
-      if (factionFilter && factionName !== factionFilter) {
         return false;
       }
       if (locationFilter && !getMissionLocalities(contract).includes(locationFilter)) {
         return false;
       }
-      if (scaleFilter && contract.availability.derivedScale !== scaleFilter) {
-        return false;
-      }
-      if (reputationActivityFilter && getMissionReputationActivity(contract) !== reputationActivityFilter) {
-        return false;
-      }
       if (standingBucketFilter !== 'all' && getStandingBucket(maxStanding) !== standingBucketFilter) {
-        return false;
-      }
-      if (
-        rewardCategoryFilter !== 'all' &&
-        !contract.rewardedBlueprints.some((rewardedBlueprint) => rewardedBlueprint.category === rewardCategoryFilter)
-      ) {
-        return false;
-      }
-      if (
-        rewardManufacturerFilter &&
-        !contract.rewardedBlueprints.some((rewardedBlueprint) => rewardedBlueprint.manufacturer === rewardManufacturerFilter)
-      ) {
         return false;
       }
       if (
@@ -1991,14 +1621,6 @@ export function MissionsPanel() {
         !contract.rewardedBlueprints.some((rewardedBlueprint) => rewardedBlueprint.name === rewardBlueprintFilter)
       ) {
         return false;
-      }
-      if (resourceObjectiveResourceFilter) {
-        const hasResource = contract.resourceObjectives.some(
-          (objective) => objective.displayName === resourceObjectiveResourceFilter,
-        );
-        if (!hasResource) {
-          return false;
-        }
       }
       if (resourceObjectiveMode === 'with' && contract.resourceObjectives.length === 0) {
         return false;
@@ -2062,18 +1684,11 @@ export function MissionsPanel() {
     });
   }, [
     allContracts,
-    contractorFilter,
     employerFilter,
-    factionFilter,
     legalityFilter,
     locationFilter,
-    reputationActivityFilter,
     resourceObjectiveMode,
-    resourceObjectiveResourceFilter,
     rewardBlueprintFilter,
-    rewardCategoryFilter,
-    rewardManufacturerFilter,
-    scaleFilter,
     searchLower,
     sortBy,
     standingBucketFilter,
@@ -2086,7 +1701,7 @@ export function MissionsPanel() {
     });
 
   useEffect(() => {
-    if (!missionRewards || selectedMissionSlug || factionFilter) return;
+    if (!missionRewards || selectedMissionSlug) return;
     if (factionContractsLoadingIds.size > 0) return;
 
     const loadedFactionIds = new Set(Object.keys(factionContractsByFactionId));
@@ -2104,7 +1719,6 @@ export function MissionsPanel() {
   }, [
     factionContractsByFactionId,
     factionContractsLoadingIds.size,
-    factionFilter,
     filteredContracts.length,
     missionRewards,
     search,
@@ -2160,7 +1774,7 @@ export function MissionsPanel() {
     return (
       <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
         <FlagIcon sx={{ mb: 1, opacity: 0.4, fontSize: '3rem' }} />
-        <Typography variant="h6">{t('No mission data', 'Aucune donnee de mission')}</Typography>
+        <Typography variant="body1" sx={{ fontWeight: 700 }}>{t('No mission data', 'Aucune donnee de mission')}</Typography>
         <DatasetTooOldNotice />
       </Box>
     );
@@ -2230,42 +1844,21 @@ export function MissionsPanel() {
           </Box>
           <MissionsFilterBar
             locations={allLocations}
-            scales={allScales}
-            contractors={allContractors}
             employers={allEmployers}
-            factions={allFactions}
-            reputationActivities={allReputationActivities}
-            rewardCategories={allRewardCategories}
-            rewardManufacturers={allRewardManufacturers}
             rewardBlueprints={allRewardBlueprints}
-            resourceObjectiveResources={allResourceObjectiveResources}
             selectedLocation={locationFilter}
-            selectedScale={scaleFilter}
             selectedLegality={legalityFilter}
-            selectedContractor={contractorFilter}
             selectedEmployer={employerFilter}
-            selectedFaction={factionFilter}
-            selectedReputationActivity={reputationActivityFilter}
             selectedStandingBucket={standingBucketFilter}
-            selectedRewardCategory={rewardCategoryFilter}
-            selectedRewardManufacturer={rewardManufacturerFilter}
             selectedRewardBlueprint={rewardBlueprintFilter}
-            selectedResourceObjectiveResource={resourceObjectiveResourceFilter}
             selectedResourceObjectiveMode={resourceObjectiveMode}
             selectedSort={sortBy}
             search={search}
             onLocationChange={setLocationFilter}
-            onScaleChange={setScaleFilter}
             onLegalityChange={setLegalityFilter}
-            onContractorChange={setContractorFilter}
             onEmployerChange={setEmployerFilter}
-            onFactionChange={setFactionFilter}
-            onReputationActivityChange={setReputationActivityFilter}
             onStandingBucketChange={setStandingBucketFilter}
-            onRewardCategoryChange={setRewardCategoryFilter}
-            onRewardManufacturerChange={setRewardManufacturerFilter}
             onRewardBlueprintChange={setRewardBlueprintFilter}
-            onResourceObjectiveResourceChange={setResourceObjectiveResourceFilter}
             onResourceObjectiveModeChange={setResourceObjectiveMode}
             onSortChange={setSortBy}
             onSearchChange={setSearch}

@@ -504,7 +504,7 @@ function DatasetSelect({
 }) {
   return (
     <FormControl size="small" sx={{ minWidth: 0, flex: 1 }}>
-      <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+      <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
         {label}
       </Typography>
       <Select
@@ -621,8 +621,8 @@ function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
               sx={{
                 display: 'block',
                 mb: 0.45,
-                color: 'text.disabled',
-                fontSize: '.58rem',
+                color: 'text.secondary',
+                fontSize: '0.75rem',
                 fontWeight: 700,
                 letterSpacing: '.1em',
                 textTransform: 'uppercase',
@@ -633,7 +633,7 @@ function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
             <Stack spacing={0.55}>
               {items.slice(0, 8).map((item) => <DetailPill key={item.id} item={item} />)}
               {items.length > 8 && (
-                <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_MONO }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO }}>
                   +{items.length - 8} {lang === 'fr' ? 'changements supplementaires' : 'more changes'}
                 </Typography>
               )}
@@ -665,7 +665,7 @@ function ChangeRows({ rows, lang }: { rows: FlatChangeRow[]; lang: Lang }) {
           }}
         >
           {['Name', 'Type', 'Status', 'Stats / modifiers'].map((label) => (
-            <Typography key={label} variant="caption" sx={{ color: 'text.secondary', fontSize: '.65rem', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+            <Typography key={label} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>
               {label}
             </Typography>
           ))}
@@ -690,7 +690,7 @@ function ChangeRows({ rows, lang }: { rows: FlatChangeRow[]; lang: Lang }) {
               label={row.status}
               size="small"
               variant="outlined"
-              sx={{ width: 'fit-content', height: 22, color: statusColor(row.status), borderColor: statusColor(row.status), fontSize: '.65rem', fontWeight: 700 }}
+              sx={{ width: 'fit-content', height: 22, color: statusColor(row.status), borderColor: statusColor(row.status), fontSize: '0.75rem', fontWeight: 700 }}
             />
             <ChangeDetailsCell row={row} lang={lang} />
           </Box>
@@ -848,7 +848,7 @@ export function DatasetChangelogPage() {
           </Box>
         </Stack>
 
-      {loading && <LinearProgress sx={{ mb: 2 }} />}
+      {loading && <LinearProgress aria-label={t('Loading datasets', 'Chargement des datasets')} sx={{ mb: 2 }} />}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {selectableDatasets.length === 0 && <Alert severity="info">{t('No published dataset is available yet.', 'Aucun dataset publie disponible.')}</Alert>}
 
@@ -899,7 +899,7 @@ export function DatasetChangelogPage() {
                   placeholder={t('Name, type, stat or modifier', 'Nom, type, stat ou modifier')}
                 />
                 <FormControl size="small">
-                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                     Status
                   </Typography>
                   <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
@@ -910,7 +910,7 @@ export function DatasetChangelogPage() {
                   </Select>
                 </FormControl>
                 <FormControl size="small">
-                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                     {t('Domain', 'Domaine')}
                   </Typography>
                   <Select value={domainFilter} onChange={(event) => setDomainFilter(event.target.value as DomainFilter)}>
@@ -923,7 +923,7 @@ export function DatasetChangelogPage() {
                   </Select>
                 </FormControl>
                 <FormControl size="small">
-                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                     Type
                   </Typography>
                   <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
@@ -932,7 +932,7 @@ export function DatasetChangelogPage() {
                   </Select>
                 </FormControl>
                 <FormControl size="small">
-                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                  <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                     Impact
                   </Typography>
                   <Select value={impactFilter} onChange={(event) => setImpactFilter(event.target.value as ImpactFilter)}>

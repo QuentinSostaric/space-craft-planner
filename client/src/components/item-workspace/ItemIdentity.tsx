@@ -191,15 +191,15 @@ function DataRow({
         },
       }}
     >
-      <Box sx={{ color: 'text.disabled', display: 'flex', alignItems: 'center' }}>{icon}</Box>
+      <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>{icon}</Box>
       <Typography
         variant="caption"
         sx={{
-          color: 'text.disabled',
+          color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
           lineHeight: 1.15,
-          fontSize: '0.62rem',
+          fontSize: '0.75rem',
         }}
       >
         {label}
@@ -396,10 +396,10 @@ export function ItemIdentity({
             <Typography
               variant="caption"
               sx={{
-                color: 'text.disabled',
+                color: 'text.secondary',
                 textTransform: 'uppercase',
                 letterSpacing: '0.14em',
-                fontSize: '0.64rem',
+                fontSize: '0.75rem',
               }}
             >
               {shortName ?? t('Blueprint dossier', 'Dossier blueprint')}
@@ -533,10 +533,10 @@ export function ItemIdentity({
               <Typography
                 variant="caption"
                 sx={{
-                  color: 'text.disabled',
+                  color: 'text.secondary',
                   textTransform: 'uppercase',
                   letterSpacing: '0.1em',
-                  fontSize: '0.62rem',
+                  fontSize: '0.75rem',
                 }}
               >
                 {t('Technical Tags', 'Tags techniques')}

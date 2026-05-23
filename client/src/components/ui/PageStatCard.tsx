@@ -28,10 +28,10 @@ export function PageStatCard({
         variant="caption"
         sx={{
           display: 'block',
-          color: 'text.disabled',
+          color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: { xs: '0.1em', md: '0.12em' },
-          fontSize: { xs: '0.58rem', md: '0.68rem' },
+          fontSize: '0.75rem',
           mb: { xs: 0.5, md: 0.75 },
         }}
       >

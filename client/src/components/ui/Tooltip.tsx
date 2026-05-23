@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import MuiTooltip from '@mui/material/Tooltip';
 
@@ -7,10 +8,18 @@ interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
-  return (
-    <MuiTooltip title={content} placement={position}>
-      {children}
-    </MuiTooltip>
-  );
-}
+export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
+  function Tooltip({ content, children, position = 'top' }, ref) {
+    return (
+      <MuiTooltip
+        ref={ref}
+        title={content ?? ''}
+        placement={position}
+        enterDelay={400}
+        enterNextDelay={200}
+      >
+        {children}
+      </MuiTooltip>
+    );
+  },
+);

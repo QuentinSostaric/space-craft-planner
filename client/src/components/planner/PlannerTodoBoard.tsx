@@ -276,6 +276,7 @@ export function PlannerTodoBoard() {
           <ToggleButtonGroup
             exclusive
             value={draftMode}
+            aria-label={t('Task type', 'Type de tâche')}
             onChange={(_event, value: PlannerTodoSource | null) => {
               if (value) {
                 setDraftMode(value);
@@ -404,6 +405,7 @@ export function PlannerTodoBoard() {
           exclusive
           size="small"
           value={filter}
+          aria-label={t('Filter tasks', 'Filtrer les tâches')}
           onChange={(_event, value: PlannerTodoFilter | null) => {
             if (value) {
               setFilter(value);
@@ -433,7 +435,7 @@ export function PlannerTodoBoard() {
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder={t('Search tasks or blueprints', 'Rechercher une tâche ou un blueprint')}
           InputProps={{
-            startAdornment: <SearchOutlinedIcon sx={{ fontSize: 18, color: 'text.disabled', mr: 1 }} />,
+            startAdornment: <SearchOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />,
           }}
         />
 
@@ -625,7 +627,7 @@ export function PlannerTodoBoard() {
                       >
                         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                           {createdLabel && (
-                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                               {t('Created', 'Créé')} {createdLabel}
                             </Typography>
                           )}
@@ -637,12 +639,12 @@ export function PlannerTodoBoard() {
                         </Box>
                         <Box sx={{ display: 'flex', gap: 0.25 }}>
                           <Tooltip title={t('Edit task', 'Modifier la tâche')}>
-                            <IconButton size="small" onClick={() => startEditing(item)}>
+                            <IconButton size="small" onClick={() => startEditing(item)} aria-label={t('Edit item', 'Modifier l\'élément')}>
                               <EditOutlinedIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title={t('Delete task', 'Supprimer la tâche')}>
-                            <IconButton size="small" onClick={() => removePlannerTodoItem(item.id)}>
+                            <IconButton size="small" onClick={() => removePlannerTodoItem(item.id)} aria-label={t('Remove item', 'Supprimer l\'élément')}>
                               <DeleteOutlineOutlinedIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                           </Tooltip>

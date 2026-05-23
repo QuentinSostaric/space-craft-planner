@@ -22,7 +22,7 @@ export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
       aria-label={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
       sx={{
         fontFamily: FONT_MONO,
-        fontSize: size === 'sm' ? '.62rem' : '.65rem',
+        fontSize: '0.75rem',
         height: size === 'sm' ? 20 : 24,
         px: size === 'sm' ? 0.5 : 1,
         borderColor: 'divider',
@@ -46,7 +46,7 @@ export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProp
       aria-label={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
       sx={{
         fontFamily: FONT_MONO,
-        fontSize: size === 'sm' ? '.62rem' : '.65rem',
+        fontSize: '0.75rem',
         height: size === 'sm' ? 20 : 24,
         px: size === 'sm' ? 0.5 : 1,
         borderColor: 'divider',
@@ -157,7 +157,7 @@ export function Badge({ children, variant = 'default' }: BadgeProps) {
         borderColor: current.border,
         backgroundColor: alpha(current.color, 0.03),
         fontWeight: 600,
-        fontSize: '0.65rem',
+        fontSize: '0.75rem',
         height: 22,
       }}
     />

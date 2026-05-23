@@ -7,6 +7,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
+import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCraft } from '../../store/CraftContext';
@@ -77,7 +78,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
             {t('Build index', 'Indice de build')}: <strong>{qualityScore}</strong>/100
           </Typography>
           <IconButton onClick={onClose} aria-label={t('Close', 'Fermer')} size="small">
-            ✕
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
       </DialogTitle>
@@ -85,7 +86,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
       <DialogContent dividers>
         {!blueprint.detailsLoaded ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <LinearProgress />
+            <LinearProgress aria-label={t('Loading blueprint detail', 'Chargement du détail blueprint')} />
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {t('Loading blueprint detail...', 'Chargement du détail blueprint...')}
             </Typography>
@@ -108,7 +109,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
                     {formatSlotQuantity(slot)}
                   </Typography>
                   {slot.minQuality != null && slot.minQuality > 0 && (
-                    <Chip label={`Min ${slot.minQuality}`} size="small" variant="outlined" sx={{ fontSize: '.6rem', height: 20, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
+                    <Chip label={`Min ${slot.minQuality}`} size="small" variant="outlined" sx={{ fontSize: '0.75rem', height: 20, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -123,11 +124,10 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
                         event.target.value === '' ? undefined : Number(event.target.value),
                       )
                     }
-                    slotProps={{ htmlInput: { min: 0, max: 1000, style: { width: 60, textAlign: 'center', padding: '4px 6px' } } }}
-                    aria-label={t(
+                    slotProps={{ htmlInput: { min: 0, max: 1000, 'aria-label': t(
                       `Assigned quality for ${requirementName}`,
                       `Qualité assignée pour ${requirementName}`,
-                    )}
+                    ), style: { width: 60, textAlign: 'center', padding: '4px 6px' } } }}
                     sx={{ width: 80 }}
                   />
                   <Button variant="ghost" size="sm" onClick={() => setSlotQuality(slot.id, slot.minQuality ?? 0)}>

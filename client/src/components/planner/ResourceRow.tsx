@@ -163,7 +163,7 @@ export const ResourceRow = memo(function ResourceRow({
               size="small"
               variant="outlined"
               sx={{
-                fontSize: '0.6rem',
+                fontSize: '0.75rem',
                 height: 18,
                 color: 'warning.main',
                 borderColor: alpha(theme.palette.warning.main, 0.3),
@@ -176,7 +176,7 @@ export const ResourceRow = memo(function ResourceRow({
               size="small"
               variant="outlined"
               onDelete={() => clearPlannerResourceRequirement(resource.resourceName)}
-              sx={{ fontSize: '0.6rem', height: 18 }}
+              sx={{ fontSize: '0.75rem', height: 18 }}
             />
           )}
           <Typography
@@ -218,7 +218,7 @@ export const ResourceRow = memo(function ResourceRow({
           aria-label={t('Collection method', 'Méthode de collecte')}
           sx={{
             '& .MuiToggleButton-root': {
-              fontSize: '0.65rem',
+              fontSize: '0.75rem',
               py: 0.25,
               px: 1,
               textTransform: 'uppercase',
@@ -259,7 +259,7 @@ export const ResourceRow = memo(function ResourceRow({
                   width: 52,
                   textAlign: 'right',
                   padding: '3px 6px',
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   fontFamily: 'monospace',
                 },
               },
@@ -267,7 +267,7 @@ export const ResourceRow = memo(function ResourceRow({
             sx={{ width: 70, flexShrink: 0 }}
             aria-label={t('Collected amount value', 'Valeur collectée')}
           />
-          <Typography variant="caption" sx={{ color: 'text.disabled', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}>
             / {formatQuantityValue(resource.totalScu, resource.quantityUnit)}
           </Typography>
           <Checkbox
@@ -300,7 +300,7 @@ export const ResourceRow = memo(function ResourceRow({
               sx={{
                 fontWeight: 600,
                 color: 'text.secondary',
-                fontSize: '0.65rem',
+                fontSize: '0.75rem',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
               }}

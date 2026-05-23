@@ -142,7 +142,7 @@ export function SlotCard({
               mt: 0.35,
               display: 'block',
               color: 'text.secondary',
-              fontSize: '0.62rem',
+              fontSize: '0.75rem',
               lineHeight: 1.25,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -161,8 +161,8 @@ export function SlotCard({
             sx={{
               display: 'block',
               mt: 0.2,
-              color: 'text.disabled',
-              fontSize: '0.58rem',
+              color: 'text.secondary',
+              fontSize: '0.75rem',
               lineHeight: 1.15,
             }}
           >
@@ -173,7 +173,7 @@ export function SlotCard({
 
       <Box sx={{ minWidth: 0 }}>
         <Box sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'space-between', mb: 0.3 }}>
-          <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.6rem' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.75rem' }}>
             {t('Quality', 'Qualite')}
           </Typography>
           <Typography variant="caption" sx={{ color: isAssigned ? 'primary.light' : 'text.disabled', fontWeight: 800 }}>
@@ -200,6 +200,7 @@ export function SlotCard({
               `Qualite pour ${requirementName}`,
               `Qualitat fur ${requirementName}`,
             )}
+            getAriaValueText={(v) => `${Math.round(v / 10)}%`}
             size="small"
             marks={deadZoneEnd > 0 ? [{ value: deadZoneEnd, label: '' }] : undefined}
             sx={{
@@ -268,7 +269,12 @@ export function SlotCard({
             htmlInput: {
               min: 0,
               max: 1000,
-              style: { width: 50, textAlign: 'center', padding: '2px 4px', fontSize: '0.72rem', fontFamily: FONT_MONO },
+              'aria-label': t(
+                `Quality value for ${requirementName}`,
+                `Valeur qualité pour ${requirementName}`,
+                `Qualitätswert für ${requirementName}`,
+              ),
+              style: { width: 50, textAlign: 'center', padding: '2px 4px', fontSize: '0.75rem', fontFamily: FONT_MONO },
             },
           }}
           sx={{
@@ -279,7 +285,7 @@ export function SlotCard({
             },
           }}
         />
-        <Typography variant="caption" sx={{ fontSize: '0.66rem', color: 'text.disabled', whiteSpace: 'nowrap' }}>
+        <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
           {formatSlotQuantity(slot)}
         </Typography>
         {slot.quantityMultiplier != null && (
@@ -287,7 +293,7 @@ export function SlotCard({
             label={`x${slot.quantityMultiplier}`}
             size="small"
             variant="outlined"
-            sx={{ fontSize: '0.58rem', height: 20 }}
+            sx={{ fontSize: '0.75rem', height: 20 }}
           />
         )}
         {slot.minQuality != null && slot.minQuality > 0 && (
@@ -299,7 +305,7 @@ export function SlotCard({
               height: 20,
               color: 'warning.main',
               borderColor: alpha(theme.palette.warning.main, 0.35),
-              '& .MuiChip-label': { fontSize: '0.56rem', fontWeight: 800 },
+              '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 800 },
             }}
           />
         )}

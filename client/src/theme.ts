@@ -1,4 +1,5 @@
 import { createTheme, alpha } from '@mui/material/styles';
+import type { Shadows } from '@mui/material/styles';
 
 // ─── Module Augmentation ──────────────────────────────────────────────────────
 // On étend le thème pour inclure nos variables spécifiques de Star Citizen
@@ -128,24 +129,28 @@ export const createAppTheme = (mode: ThemeMode) => {
       warning: { main: COLORS.amber },
       success: { main: COLORS.emerald },
       info: { main: COLORS.blue },
+      contrastThreshold: 4.5,
     },
 
     shape: {
       borderRadius: 4,
     },
 
-    shadows: Array(25).fill('none') as any,
+    shadows: [
+      'none',
+      ...Array(24).fill('0px 0px 0px 1px rgba(255,255,255,0.06)'),
+    ] as Shadows,
 
     typography: {
       fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
       fontSize: 14,
-      h1: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
-      h2: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
-      h3: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
-      h4: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
-      h5: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
-      h6: { fontFamily: FONT_HEADING, fontWeight: 700, textTransform: 'uppercase' },
-      button: { fontFamily: FONT_HEADING, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' },
+      h1: { fontFamily: FONT_HEADING, fontWeight: 700 },
+      h2: { fontFamily: FONT_HEADING, fontWeight: 700 },
+      h3: { fontFamily: FONT_HEADING, fontWeight: 700 },
+      h4: { fontFamily: FONT_HEADING, fontWeight: 700 },
+      h5: { fontFamily: FONT_HEADING, fontWeight: 700 },
+      h6: { fontFamily: FONT_HEADING, fontWeight: 700 },
+      button: { fontFamily: FONT_HEADING, fontWeight: 600, letterSpacing: '0.04em' },
       caption: { fontFamily: FONT_MONO, letterSpacing: '0.02em' },
       overline: { fontFamily: FONT_MONO },
     },

@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha, useTheme } from '@mui/material/styles';
 import { RadarChart } from '@mui/x-charts/RadarChart';
 import { loc, useI18n } from '../../../i18n/I18nContext';
@@ -109,6 +110,7 @@ export function StatImpactRadar({
 }) {
   const theme = useTheme();
   const { lang, t } = useI18n();
+  const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
 
   const { metricKeys, baseSeries, buildSeries, metrics, metricStates } = useMemo(() => {
     const keys = getMetricKeys(blueprint, projectedStats).slice(0, 6);
@@ -231,40 +233,49 @@ export function StatImpactRadar({
         flexWrap="wrap"
         sx={{ mb: 1.25 }}
       >
-        {metricStates.map((metric) => (
-          <Chip
-            key={metric.key}
-            size="small"
-            label={metric.label}
-            variant="outlined"
-            sx={{
-              height: 22,
-              fontSize: '.65rem',
-              color: metric.isNeutral
-                ? 'text.secondary'
-                : metric.isImproved
-                  ? theme.palette.success.main
-                  : theme.palette.error.main,
-              borderColor: metric.isNeutral
-                ? alpha(theme.palette.text.secondary, 0.28)
-                : metric.isImproved
-                  ? alpha(theme.palette.success.main, 0.45)
-                  : alpha(theme.palette.error.main, 0.45),
-              backgroundColor: metric.isNeutral
-                ? alpha(theme.palette.text.secondary, 0.04)
-                : metric.isImproved
-                  ? alpha(theme.palette.success.main, 0.08)
-                  : alpha(theme.palette.error.main, 0.08),
-            }}
-          />
-        ))}
+        {metricStates.map((metric) => {
+          const statePrefix = metric.isNeutral ? '' : metric.isImproved ? '↑ ' : '↓ ';
+          const stateLabel = metric.isNeutral
+            ? t('unchanged', 'inchangé', 'unverändert')
+            : metric.isImproved
+              ? t('improved', 'amélioré', 'verbessert')
+              : t('degraded', 'dégradé', 'verschlechtert');
+          return (
+            <Chip
+              key={metric.key}
+              size="small"
+              label={`${statePrefix}${metric.label}`}
+              variant="outlined"
+              aria-label={`${metric.label}: ${stateLabel}`}
+              sx={{
+                height: 22,
+                fontSize: '0.75rem',
+                color: metric.isNeutral
+                  ? 'text.secondary'
+                  : metric.isImproved
+                    ? theme.palette.success.main
+                    : theme.palette.error.main,
+                borderColor: metric.isNeutral
+                  ? alpha(theme.palette.text.secondary, 0.28)
+                  : metric.isImproved
+                    ? alpha(theme.palette.success.main, 0.45)
+                    : alpha(theme.palette.error.main, 0.45),
+                backgroundColor: metric.isNeutral
+                  ? alpha(theme.palette.text.secondary, 0.04)
+                  : metric.isImproved
+                    ? alpha(theme.palette.success.main, 0.08)
+                    : alpha(theme.palette.error.main, 0.08),
+              }}
+            />
+          );
+        })}
       </Stack>
 
       <RadarChart
-        height={260}
+        height={isCompact ? 220 : 260}
         hideLegend
         shape="sharp"
-        margin={{ top: 28, bottom: 18, left: 28, right: 28 }}
+        margin={isCompact ? { top: 20, bottom: 12, left: 18, right: 18 } : { top: 28, bottom: 18, left: 28, right: 28 }}
         series={[
           {
             label: t('Base', 'Base'),
@@ -281,7 +292,7 @@ export function StatImpactRadar({
         radar={{
           metrics,
           startAngle: -90,
-          labelGap: 14,
+          labelGap: isCompact ? 8 : 14,
           labelFormatter: (label) =>
             String(label)
               .replace('Resistance', 'Res.')
@@ -292,7 +303,7 @@ export function StatImpactRadar({
           '& .MuiChartsLegend-root': { display: 'none' },
           '& .MuiChartsAxis-tickLabel, & .MuiRadarMetricLabels-root text': {
             fill: theme.palette.text.secondary,
-            fontSize: 11,
+            fontSize: 12,
             fontFamily: FONT_HEADING,
           },
           '& .MuiRadarGrid-root line, & .MuiRadarGrid-root path, & .MuiRadarGrid-root polygon': {

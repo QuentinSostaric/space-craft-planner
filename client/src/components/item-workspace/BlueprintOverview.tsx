@@ -59,6 +59,14 @@ function getPrimaryStatRatio(blueprint: Blueprint, projectedStats: ItemStats) {
     return baseDps > 0 ? projectedDps / baseDps : 1;
   }
 
+  if (blueprint.category === 'ship-weapon') {
+    const baseDps = blueprint.baseStats.burstDps
+      ?? ((blueprint.baseStats.damage ?? 0) * (blueprint.baseStats.rateOfFire ?? 0)) / 60;
+    const projectedDps = projectedStats.burstDps
+      ?? ((projectedStats.damage ?? blueprint.baseStats.damage ?? 0) * (projectedStats.rateOfFire ?? blueprint.baseStats.rateOfFire ?? 0)) / 60;
+    return baseDps > 0 ? projectedDps / baseDps : 1;
+  }
+
   if (blueprint.category === 'fps-magazine') {
     const baseCapacity = blueprint.baseStats.magazineSize ?? 0;
     const projectedCapacity = projectedStats.magazineSize ?? baseCapacity;
@@ -175,7 +183,7 @@ function OverviewMetric({
             color: 'text.secondary',
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
-            fontSize: '0.62rem',
+            fontSize: '0.75rem',
             lineHeight: 1,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -221,7 +229,7 @@ function OverviewMetric({
           sx={{
             color: alpha(theme.palette.text.primary, 0.62),
             fontFamily: FONT_MONO,
-            fontSize: '0.62rem',
+            fontSize: '0.75rem',
             lineHeight: 1.25,
             whiteSpace: 'nowrap',
             overflow: 'hidden',

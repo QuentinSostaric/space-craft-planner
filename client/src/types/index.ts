@@ -67,6 +67,8 @@ export interface MaterialSlot {
 export interface ItemStats {
   damage?: number;
   rateOfFire?: number;
+  baseFireRate?: number;
+  chargeTime?: number;
   burstDps?: number;
   sustainedDps?: number;
   burstShots?: number;
@@ -74,10 +76,14 @@ export interface ItemStats {
   capacitorAmmo?: number;
   capacitorRegenPerSec?: number;
   capacitorRegenCooldown?: number;
+  capacitorRequestedAmmoLoad?: number;
+  capacitorRegenerationCostPerBullet?: number;
   ammoCostPerShot?: number;
   projectilesPerShot?: number;
+  pelletCount?: number;
   magazineSize?: number;
   effectiveRange?: number;
+  aiMaxFiringRange?: number;
   recoilSmoothness?: number;
   recoilHandling?: number;
   recoilKick?: number;
@@ -96,6 +102,21 @@ export interface ItemStats {
   ammoType?: string;
   ammoFlavor?: string;
   projectileSpeed?: number;
+  ammoLifetime?: number;
+  ammoRange?: number;
+  basePenetrationDistance?: number;
+  penetrationNearRadius?: number;
+  penetrationFarRadius?: number;
+  spreadMin?: number;
+  spreadMax?: number;
+  spreadFirstAttack?: number;
+  spreadAttack?: number;
+  spreadDecay?: number;
+  distortionShutdownTime?: number;
+  distortionRebootTime?: number;
+  selfRepairMaxCount?: number;
+  selfRepairTime?: number;
+  selfRepairHealthRatio?: number;
   idealCombatRange?: number;
   reloadSpeed?: number;
   spread?: number;
@@ -136,6 +157,8 @@ export type NumericItemStatKey = {
 export const NUMERIC_ITEM_STAT_KEYS = [
   'damage',
   'rateOfFire',
+  'baseFireRate',
+  'chargeTime',
   'burstDps',
   'sustainedDps',
   'burstShots',
@@ -143,10 +166,14 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'capacitorAmmo',
   'capacitorRegenPerSec',
   'capacitorRegenCooldown',
+  'capacitorRequestedAmmoLoad',
+  'capacitorRegenerationCostPerBullet',
   'ammoCostPerShot',
   'projectilesPerShot',
+  'pelletCount',
   'magazineSize',
   'effectiveRange',
+  'aiMaxFiringRange',
   'recoilSmoothness',
   'recoilHandling',
   'recoilKick',
@@ -160,6 +187,21 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'temperatureMax',
   'radiationDissipation',
   'projectileSpeed',
+  'ammoLifetime',
+  'ammoRange',
+  'basePenetrationDistance',
+  'penetrationNearRadius',
+  'penetrationFarRadius',
+  'spreadMin',
+  'spreadMax',
+  'spreadFirstAttack',
+  'spreadAttack',
+  'spreadDecay',
+  'distortionShutdownTime',
+  'distortionRebootTime',
+  'selfRepairMaxCount',
+  'selfRepairTime',
+  'selfRepairHealthRatio',
   'idealCombatRange',
   'reloadSpeed',
   'spread',
@@ -266,6 +308,8 @@ Object.assign(GPP_LABELS, {
 export const STAT_LABELS: Partial<Record<keyof ItemStats, LocalizedString>> = {
   damage: { en: 'Damage', fr: 'Degats', de: 'Schaden' },
   rateOfFire: { en: 'Rate of Fire', fr: 'Cadence', de: 'Feuerrate' },
+  baseFireRate: { en: 'Raw Fire Rate', fr: 'Cadence brute', de: 'Roh-Feuerrate' },
+  chargeTime: { en: 'Charge Time', fr: 'Temps de charge', de: 'Ladezeit' },
   burstDps: { en: 'Burst DPS', fr: 'DPS burst', de: 'Burst-DPS' },
   sustainedDps: { en: 'Sustained DPS', fr: 'DPS soutenu', de: 'Dauer-DPS' },
   burstShots: { en: 'Burst shots', fr: 'Tirs burst', de: 'Burst-Schusse' },
@@ -273,10 +317,14 @@ export const STAT_LABELS: Partial<Record<keyof ItemStats, LocalizedString>> = {
   capacitorAmmo: { en: 'Capacitor', fr: 'Capacitor', de: 'Kondensator' },
   capacitorRegenPerSec: { en: 'Capacitor regen', fr: 'Regen capacitor', de: 'Kondensator-Reg.' },
   capacitorRegenCooldown: { en: 'Regen delay', fr: 'Delai regen', de: 'Regen-Verz.' },
+  capacitorRequestedAmmoLoad: { en: 'Requested ammo', fr: 'Munitions demandees', de: 'Angeforderte Munition' },
+  capacitorRegenerationCostPerBullet: { en: 'Regen cost', fr: 'Cout regen', de: 'Reg.-Kosten' },
   ammoCostPerShot: { en: 'Ammo cost', fr: 'Cout tir', de: 'Munitionskosten' },
   projectilesPerShot: { en: 'Projectiles', fr: 'Projectiles', de: 'Projektile' },
+  pelletCount: { en: 'Pellets', fr: 'Projectiles', de: 'Pellets' },
   magazineSize: { en: 'Magazine', fr: 'Chargeur', de: 'Magazin' },
   effectiveRange: { en: 'Range', fr: 'Portee', de: 'Reichweite' },
+  aiMaxFiringRange: { en: 'AI Firing Range', fr: 'Portee IA', de: 'KI-Feuerreichweite' },
   recoilSmoothness: { en: 'Recoil Smoothness', fr: 'Fluidite recul', de: 'Rückstoßglätte' },
   recoilHandling: { en: 'Recoil Handling', fr: 'Gestion recul', de: 'Rückstoßkontrolle' },
   recoilKick: { en: 'Recoil Kick', fr: 'Recul', de: 'Rückstoß' },
@@ -294,6 +342,21 @@ export const STAT_LABELS: Partial<Record<keyof ItemStats, LocalizedString>> = {
   ammoType: { en: 'Ammo Type', fr: 'Type de munition', de: 'Munitionstyp' },
   ammoFlavor: { en: 'Ammo Flavor', fr: 'Saveur munition', de: 'Munitionsart' },
   projectileSpeed: { en: 'Muzzle Velocity', fr: 'Vitesse de sortie', de: 'Mündungsgeschw.' },
+  ammoLifetime: { en: 'Ammo Lifetime', fr: 'Duree munition', de: 'Munitionsdauer' },
+  ammoRange: { en: 'Ammo Range', fr: 'Portee munition', de: 'Munitionsreichweite' },
+  basePenetrationDistance: { en: 'Penetration', fr: 'Penetration', de: 'Durchdringung' },
+  penetrationNearRadius: { en: 'Pen. Near Radius', fr: 'Rayon proche pen.', de: 'Nah-Pen.-Radius' },
+  penetrationFarRadius: { en: 'Pen. Far Radius', fr: 'Rayon loin pen.', de: 'Fern-Pen.-Radius' },
+  spreadMin: { en: 'Spread Min', fr: 'Dispersion min', de: 'Spread Min' },
+  spreadMax: { en: 'Spread Max', fr: 'Dispersion max', de: 'Spread Max' },
+  spreadFirstAttack: { en: 'First-shot spread', fr: 'Dispersion premier tir', de: 'Erstschuss-Spread' },
+  spreadAttack: { en: 'Spread attack', fr: 'Attaque dispersion', de: 'Spread-Anstieg' },
+  spreadDecay: { en: 'Spread decay', fr: 'Retour dispersion', de: 'Spread-Abfall' },
+  distortionShutdownTime: { en: 'Distortion shutdown', fr: 'Arret distortion', de: 'Verzerrungsabschaltung' },
+  distortionRebootTime: { en: 'Distortion reboot', fr: 'Redemarrage distortion', de: 'Verzerrungsneustart' },
+  selfRepairMaxCount: { en: 'Self repair count', fr: 'Reparations auto', de: 'Selbstreparaturen' },
+  selfRepairTime: { en: 'Self repair time', fr: 'Temps auto-reparation', de: 'Selbstreparaturzeit' },
+  selfRepairHealthRatio: { en: 'Self repair health', fr: 'Sante auto-reparation', de: 'Selbstreparatur-HP' },
   idealCombatRange: { en: 'Ideal Range', fr: 'Portee ideale', de: 'Ideale Reichweite' },
 
   armorType: { en: 'Armor Type', fr: 'Type d\'armure', de: 'Rüstungstyp' },
@@ -331,6 +394,8 @@ Object.assign(STAT_LABELS, {
 export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
   damage: 'dmg',
   rateOfFire: 'rpm',
+  baseFireRate: 'rpm',
+  chargeTime: 's',
   burstDps: 'dps',
   sustainedDps: 'dps',
   burstShots: 'shots',
@@ -338,10 +403,14 @@ export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
   capacitorAmmo: 'shots',
   capacitorRegenPerSec: 'shots/s',
   capacitorRegenCooldown: 's',
+  capacitorRequestedAmmoLoad: '',
+  capacitorRegenerationCostPerBullet: '',
   ammoCostPerShot: 'shots',
   projectilesPerShot: 'x',
+  pelletCount: '',
   magazineSize: 'rds',
   effectiveRange: 'm',
+  aiMaxFiringRange: 'm',
   recoilSmoothness: 'x',
   recoilHandling: 'x',
   recoilKick: 'x',
@@ -359,6 +428,21 @@ export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
   ammoType: '',
   ammoFlavor: '',
   projectileSpeed: 'm/s',
+  ammoLifetime: 's',
+  ammoRange: 'm',
+  basePenetrationDistance: 'm',
+  penetrationNearRadius: 'm',
+  penetrationFarRadius: 'm',
+  spreadMin: '',
+  spreadMax: '',
+  spreadFirstAttack: '',
+  spreadAttack: '',
+  spreadDecay: '',
+  distortionShutdownTime: 's',
+  distortionRebootTime: 's',
+  selfRepairMaxCount: '',
+  selfRepairTime: 's',
+  selfRepairHealthRatio: '%',
   idealCombatRange: 'm',
   
   armorType: '',

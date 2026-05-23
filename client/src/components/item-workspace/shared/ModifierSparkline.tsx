@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
+import { alpha, useTheme } from '@mui/material/styles';
 import type { GppModifier } from '../../../types';
 
 interface ModifierSparklineProps {
@@ -13,6 +14,7 @@ export function ModifierSparkline({
   width = 60,
   height = 20,
 }: ModifierSparklineProps) {
+  const theme = useTheme();
   const { qualityStart, qualityEnd, modAtMin, modAtMax } = modifier;
 
   // Normalize to SVG coordinates
@@ -51,7 +53,7 @@ export function ModifierSparkline({
           y1={yNeutral}
           x2={width}
           y2={yNeutral}
-          stroke="rgba(156,163,175,0.3)"
+          stroke={alpha(theme.palette.text.secondary, 0.3)}
           strokeWidth={0.5}
           strokeDasharray="2,2"
         />
@@ -62,7 +64,7 @@ export function ModifierSparkline({
             y1={yStart}
             x2={x1}
             y2={yStart}
-            stroke="rgba(107,114,128,0.5)"
+            stroke={alpha(theme.palette.text.secondary, 0.5)}
             strokeWidth={1}
           />
         )}
@@ -72,7 +74,7 @@ export function ModifierSparkline({
           y1={yStart}
           x2={x2}
           y2={yEnd}
-          stroke={isBonus ? '#34d399' : '#f87171'}
+          stroke={isBonus ? theme.palette.success.main : theme.palette.error.main}
           strokeWidth={1.5}
         />
       </Box>

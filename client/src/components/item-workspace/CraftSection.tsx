@@ -92,7 +92,7 @@ function QualityDial({ score }: { score: number }) {
               color: 'text.secondary',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
-              fontSize: '0.62rem',
+              fontSize: '0.75rem',
             }}
           >
             {t('Final Quality', 'Qualite finale')}
@@ -105,11 +105,11 @@ function QualityDial({ score }: { score: number }) {
           width: '100%',
           display: 'flex',
           justifyContent: 'space-between',
-          color: 'text.disabled',
+          color: 'text.secondary',
         }}
       >
-        <Typography variant="caption" sx={{ fontSize: '0.62rem' }}>0%</Typography>
-        <Typography variant="caption" sx={{ fontSize: '0.62rem' }}>100%</Typography>
+        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>0%</Typography>
+        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>100%</Typography>
       </Box>
     </Box>
   );
@@ -140,10 +140,10 @@ function MiniStat({
         variant="caption"
         sx={{
           display: 'block',
-          color: 'text.disabled',
+          color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
-          fontSize: '0.58rem',
+          fontSize: '0.75rem',
           lineHeight: 1.15,
         }}
       >
@@ -163,7 +163,7 @@ function MiniStat({
       >
         {value}
         {unit && (
-          <Typography component="span" sx={{ ml: 0.35, color: 'text.secondary', fontSize: '0.62rem' }}>
+          <Typography component="span" sx={{ ml: 0.35, color: 'text.secondary', fontSize: '0.75rem' }}>
             {unit}
           </Typography>
         )}
@@ -186,6 +186,15 @@ function getKeyStats(
       { label: 'DPS', value: dps > 0 ? dps : '-' },
       { label: t('Fire Rate', 'Cadence'), value: projectedStats.rateOfFire ?? '-', unit: 'RPM' },
       { label: t('Range', 'Portee'), value: projectedStats.idealCombatRange ?? projectedStats.effectiveRange ?? '-', unit: 'm' },
+    ];
+  }
+
+  if (blueprint.category === 'ship-weapon') {
+    return [
+      { label: 'Burst DPS', value: projectedStats.burstDps != null ? Math.round(projectedStats.burstDps) : '-' },
+      { label: t('Sustained DPS', 'DPS soutenu'), value: projectedStats.sustainedDps != null ? Math.round(projectedStats.sustainedDps) : '-' },
+      { label: t('Fire Rate', 'Cadence'), value: projectedStats.rateOfFire != null ? projectedStats.rateOfFire.toFixed(1) : '-', unit: 'RPM' },
+      { label: t('Range', 'Portee'), value: projectedStats.effectiveRange != null ? Math.round(projectedStats.effectiveRange) : '-', unit: 'm' },
     ];
   }
 
@@ -269,7 +278,7 @@ export function CraftSection({
                 color: 'text.secondary',
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em',
-                fontSize: '0.62rem',
+                fontSize: '0.75rem',
                 lineHeight: 1.15,
               }}
             >
@@ -362,10 +371,10 @@ export function CraftSection({
                 color: 'text.secondary',
               }}
             >
-              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.62rem' }}>
+              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.75rem' }}>
                 {t('Parts', 'Composants')}
               </Typography>
-              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.62rem' }}>
+              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.75rem' }}>
                 {t('Quality', 'Qualite')}
               </Typography>
               <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.62rem', textAlign: 'right' }}>
@@ -404,7 +413,7 @@ export function CraftSection({
               </Typography>
               <Stack direction="row" spacing={0.6} alignItems="center" sx={{ color: allPartsValid ? 'success.main' : 'text.disabled' }}>
                 <CheckCircleOutlineIcon sx={{ fontSize: '0.98rem' }} />
-                <Typography variant="caption" sx={{ fontSize: '0.68rem' }}>
+                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                   {allPartsValid ? t('All parts valid', 'Tous les composants valides') : t('Waiting for valid parts', 'Composants valides attendus')}
                 </Typography>
               </Stack>

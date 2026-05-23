@@ -152,6 +152,7 @@ export function AppUpdateSnackbar() {
     <Snackbar open anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} sx={{ maxWidth: { xs: 'calc(100vw - 24px)', sm: 520 } }}>
       <Alert
         severity={status === 'error' ? 'error' : 'info'}
+        role={status === 'error' ? undefined : 'status'}
         variant="filled"
         action={
           <Button color="inherit" size="small" onClick={handleUpdate} disabled={isDownloading}>
@@ -178,7 +179,7 @@ export function AppUpdateSnackbar() {
           </Typography>
           {isDownloading && (
             <Stack spacing={0.5}>
-              <LinearProgress color="inherit" />
+              <LinearProgress color="inherit" aria-label={t('Update download progress', 'Progression du téléchargement')} />
               {progressLabel && <Typography variant="caption">{progressLabel}</Typography>}
             </Stack>
           )}
