@@ -16,7 +16,7 @@ import { useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { FONT_HEADING } from '../theme';
+import { FONT_BODY } from '../theme';
 import { navigateToPath } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
@@ -32,8 +32,8 @@ export type MainView =
 const DESKTOP_WIDTH = 84;
 const DESKTOP_ICON_SIZE = 20;
 const MOBILE_ICON_SIZE = 20;
-const DESKTOP_LABEL_FONT_SIZE = '0.62rem';
-const MOBILE_LABEL_FONT_SIZE = '0.7rem';
+const DESKTOP_LABEL_FONT_SIZE = '0.6875rem'; // 11px — readable, not tiny
+const MOBILE_LABEL_FONT_SIZE = '0.6875rem';
 
 interface NavRailProps {
   mainView: MainView;
@@ -109,12 +109,12 @@ function NavItem({ active, label, icon, href, onNavigate }: NavItemProps) {
       </Box>
       <Typography
         sx={{
-          fontFamily: FONT_HEADING,
-          fontWeight: 800,
+          fontFamily: FONT_BODY,
+          fontWeight: 600,
           fontSize: DESKTOP_LABEL_FONT_SIZE,
-          lineHeight: 0.95,
-          textTransform: 'uppercase',
-          letterSpacing: '0.03em',
+          lineHeight: 1.2,
+          textTransform: 'none',
+          letterSpacing: '0.01em',
           textAlign: 'center',
           whiteSpace: 'normal',
           pointerEvents: 'none',
@@ -185,12 +185,12 @@ function MobileNavItem({
       </Box>
       <Typography
         sx={{
-          fontFamily: FONT_HEADING,
-          fontWeight: 700,
+          fontFamily: FONT_BODY,
+          fontWeight: 600,
           fontSize: MOBILE_LABEL_FONT_SIZE,
-          lineHeight: 0.9,
-          letterSpacing: '0.03em',
-          textTransform: 'uppercase',
+          lineHeight: 1.1,
+          letterSpacing: '0.01em',
+          textTransform: 'none',
           textAlign: 'center',
           maxWidth: '100%',
           whiteSpace: 'nowrap',

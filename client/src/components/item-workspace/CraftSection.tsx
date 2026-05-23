@@ -12,7 +12,7 @@ import { Button } from '../ui/Button';
 import { SlotCard } from './shared/SlotCard';
 import { CombinedModifiers } from './shared/CombinedModifiers';
 import { StatImpactRadar } from './shared/StatImpactRadar';
-import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO } from '../../theme';
 
 interface CraftSectionProps {
   blueprint: Blueprint;
@@ -74,14 +74,14 @@ function QualityDial({ score }: { score: number }) {
         >
           <Typography
             sx={{
-              fontFamily: FONT_HEADING,
+              fontFamily: FONT_DISPLAY,
               fontSize: { xs: '2.65rem', md: '3rem' },
               fontWeight: 800,
               lineHeight: 0.85,
             }}
           >
             {score}
-            <Typography component="span" sx={{ ml: 0.25, fontFamily: FONT_HEADING, fontSize: '1.2rem', fontWeight: 800 }}>
+            <Typography component="span" sx={{ ml: 0.25, fontFamily: FONT_DISPLAY, fontSize: '1.2rem', fontWeight: 800 }}>
               %
             </Typography>
           </Typography>

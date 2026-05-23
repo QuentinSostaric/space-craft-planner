@@ -14,7 +14,7 @@ export function Panel({ children, variant = 'default', glow = false, noPad = fal
 
   const VARIANT_SX = {
     default: {
-      backgroundColor: theme.palette.ui.surface1,
+      backgroundColor: theme.palette.ui.surface,
       border: `1px solid ${theme.palette.ui.border}`,
     },
     raised: {
