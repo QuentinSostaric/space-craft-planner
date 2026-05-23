@@ -1,7 +1,7 @@
 {
   "$schema": "https://agentskills.io/schemas/agent-skills-index-v0.2.0.json",
   "version": "0.2.0",
-  "generatedAt": "2026-05-23T12:58:39.995Z",
+  "generatedAt": "2026-05-23T13:37:06.843Z",
   "skills": [
     {
       "name": "browse-blueprints",
