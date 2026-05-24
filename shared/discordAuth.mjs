@@ -11,6 +11,9 @@ const SESSION_VERSION = 2;
 const DEFAULT_RETURN_TO = '/';
 const DEFAULT_DISCORD_SCOPES = ['identify'];
 
+// Allowed desktop app origins for cross-origin auth flows
+const DESKTOP_ALLOWED_ORIGINS = ['https://tauri.localhost'];
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const hmacKeyCache = new Map();
@@ -215,6 +218,12 @@ export function sanitizeReturnTo(value) {
   }
 
   const candidate = String(value).trim();
+
+  // Allow desktop app origins as absolute return URLs
+  if (DESKTOP_ALLOWED_ORIGINS.some((origin) => candidate.startsWith(origin))) {
+    return candidate;
+  }
+
   if (!candidate.startsWith('/') || candidate.startsWith('//')) {
     return DEFAULT_RETURN_TO;
   }
@@ -346,6 +355,10 @@ export async function createSessionCookie(requestOrUrl, env, user, accountId) {
   return serializeCookie(SESSION_COOKIE_NAME, signedPayload, {
     maxAge: SESSION_COOKIE_MAX_AGE,
     secure: isSecure,
+    // SameSite=None required so the desktop app (tauri.localhost) can send the
+    // cookie in cross-origin fetch requests. Session is HMAC-signed so CSRF is
+    // not a concern — the payload cannot be forged.
+    sameSite: isSecure ? 'None' : 'Lax',
     path: '/',
   });
 }
