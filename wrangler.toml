@@ -7,6 +7,12 @@ pages_build_output_dir = "client/dist"
 DISCORD_BOT_WORKER_URL = "<discord-bot-worker-url>"
 DISCORD_CLIENT_ID = "<discord-client-id>"
 
+[env.preview.vars]
+DISCORD_BOT_WORKER_URL = "<discord-bot-worker-url>"
+DISCORD_CLIENT_ID = "<discord-client-id>"
+CITIZENID_ORIGIN = "<citizenid-origin>"
+CITIZENID_CLIENT_ID = "<citizenid-client-id>"
+
 [[r2_buckets]]
 binding = "GAME_DATA_PROD"
 bucket_name = "sc-craft-game-data"
