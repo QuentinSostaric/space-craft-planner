@@ -605,7 +605,7 @@ function MainContent({ mainView }: { mainView: MainView }) {
   return (
     <Suspense fallback={<MainContentFallback view={resolvedView} />}>
       <Fade in timeout={resolvedView === 'workspace' ? 200 : 180}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: '100%' }}>
           <SelectedView />
         </Box>
       </Fade>
