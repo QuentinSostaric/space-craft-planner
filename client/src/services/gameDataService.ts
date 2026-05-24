@@ -252,12 +252,16 @@ function normalizeBlueprintCatalogPage(
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
-  const tauriPayload = await fetchTauriApiJson<T>(path);
-  if (tauriPayload) {
-    return tauriPayload;
+  try {
+    const tauriPayload = await fetchTauriApiJson<T>(path);
+    if (tauriPayload) {
+      return tauriPayload;
+    }
+  } catch {
+    // Rust command unavailable or failed — fall through to browser fetch
   }
 
-  const response = await fetch(getApiUrl(path));
+  const response = await fetch(getApiUrl(path), { credentials: 'include' });
 
   let payload: unknown;
   try {

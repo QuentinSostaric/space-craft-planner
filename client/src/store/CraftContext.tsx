@@ -882,7 +882,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
 
       await loadDataset(targetDataset, sortedDatasets);
     } catch (error) {
-      setDatasetError(error instanceof Error ? error.message : 'Failed to load published datasets.');
+      setDatasetError(error instanceof Error ? error.message : String(error));
     } finally {
       setDatasetLoading(false);
       refreshInflightRef.current = false;

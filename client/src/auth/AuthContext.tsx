@@ -1158,11 +1158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accountDatasetScope, enqueueMutation]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
-    // In the desktop app the webview origin is https://tauri.localhost — we
-    // pass the full origin so the server can redirect back to the app after
-    // OAuth instead of landing on the itemfab.space website.
-    const effectiveReturnTo = returnTo
-      ?? (isTauriRuntime() ? `${window.location.origin}/` : getCurrentReturnTo());
+    // In the desktop app, always redirect back to tauri.localhost after OAuth.
+    // A relative path like '/account' would be resolved server-side to
+    // https://itemfab.space/account, landing the WebView2 on the real website
+    // instead of the Tauri app — which blocks IPC and breaks everything.
+    const effectiveReturnTo = isTauriRuntime()
+      ? `${window.location.origin}/`
+      : (returnTo ?? getCurrentReturnTo());
     window.location.assign(getDiscordLoginUrl(effectiveReturnTo));
   }, []);
 
