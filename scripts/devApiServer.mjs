@@ -18,6 +18,16 @@ import {
   appendQueryParam,
 } from '../shared/discordAuth.mjs';
 import {
+  buildCitizenIdAuthorizationUrl,
+  buildCitizenIdCallbackErrorRedirect,
+  buildExpiredCitizenIdStateCookie,
+  createCitizenIdStateCookie,
+  exchangeCitizenIdCode,
+  fetchCitizenIdRsiProfile,
+  isCitizenIdAuthConfigured,
+  readCitizenIdStateFromCookies,
+} from '../shared/citizenIdAuth.mjs';
+import {
   createR2Client,
   getJsonObject,
   getR2Config,
@@ -356,7 +366,10 @@ async function handleAuthSession(request, response) {
   sendJson(
     response,
     200,
-    buildAuthSessionPayload(process.env, session),
+    {
+      ...buildAuthSessionPayload(process.env, session),
+      citizenIdRsiLinkEnabled: isCitizenIdAuthConfigured(process.env),
+    },
     {
       'Cache-Control': 'no-store',
     },
@@ -441,6 +454,80 @@ async function handleDiscordCallback(request, response, url) {
         : 'discord_oauth_failed';
     sendRedirect(response, appendQueryParam(returnTo, 'auth_error', message), {
       'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
+    });
+  }
+}
+
+async function handleCitizenIdLogin(request, response, url) {
+  if (!isCitizenIdAuthConfigured(process.env)) {
+    sendError(response, 503, 'Citizen iD auth is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const returnTo = sanitizeReturnTo(url.searchParams.get('returnTo'));
+  const { state, cookie } = await createCitizenIdStateCookie(url.toString(), process.env, returnTo);
+  const authorizationUrl = buildCitizenIdAuthorizationUrl(url.toString(), process.env, state);
+
+  sendRedirect(response, authorizationUrl, {
+    'Set-Cookie': cookie,
+  });
+}
+
+async function handleCitizenIdCallback(request, response, url) {
+  if (!isCitizenIdAuthConfigured(process.env)) {
+    sendError(response, 503, 'Citizen iD auth is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const oauthState = await readCitizenIdStateFromCookies(request.headers.cookie, process.env);
+  const returnTo = oauthState?.returnTo ?? '/';
+  const expiredStateCookie = buildExpiredCitizenIdStateCookie(url.toString(), process.env);
+
+  if (!code || !state || !oauthState || oauthState.nonce !== state) {
+    sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
+      'Set-Cookie': expiredStateCookie,
+    });
+    return;
+  }
+
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, 'Authentication required.'), {
+      'Set-Cookie': expiredStateCookie,
+    });
+    return;
+  }
+
+  try {
+    const tokenPayload = await exchangeCitizenIdCode(url.toString(), process.env, code);
+    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token);
+    await ensureAccountForSession(session);
+    await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+
+    sendRedirect(response, returnTo, {
+      'Set-Cookie': expiredStateCookie,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'citizenid_oauth_failed';
+    sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, message), {
+      'Set-Cookie': expiredStateCookie,
     });
   }
 }
@@ -1316,6 +1403,16 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === 'GET' && path === '/api/auth/discord/callback') {
       await handleDiscordCallback(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/citizenid/login') {
+      await handleCitizenIdLogin(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/citizenid/callback') {
+      await handleCitizenIdCallback(request, response, url);
       return;
     }
 

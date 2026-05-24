@@ -19,6 +19,7 @@ export interface AuthSessionResponse {
   enabled: boolean;
   provider: 'discord' | null;
   user: AuthenticatedUser | null;
+  citizenIdRsiLinkEnabled?: boolean;
 }
 
 export type AccountDatasetScope = 'live' | 'ptu';
@@ -537,6 +538,16 @@ export function getDiscordLoginUrl(returnTo?: string): string {
 
   const suffix = params.toString();
   return getApiUrl(suffix ? `/api/auth/discord/login?${suffix}` : '/api/auth/discord/login');
+}
+
+export function getCitizenIdRsiLinkUrl(returnTo?: string): string {
+  const params = new URLSearchParams();
+  if (returnTo) {
+    params.set('returnTo', returnTo);
+  }
+
+  const suffix = params.toString();
+  return getApiUrl(suffix ? `/api/auth/citizenid/login?${suffix}` : '/api/auth/citizenid/login');
 }
 
 export function getDiscordBotInviteUrl(): string {

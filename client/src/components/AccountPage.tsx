@@ -192,6 +192,7 @@ export function AccountPage() {
     enabled,
     loading,
     user,
+    citizenIdRsiLinkEnabled,
     account,
     optimisticState,
     syncStatus,
@@ -203,6 +204,7 @@ export function AccountPage() {
     syncAccountState,
     refreshSession,
     linkRsiAccount,
+    linkRsiAccountWithCitizenId,
     unlinkRsiAccount,
     updateInventoryResources,
     updateOrganizationBlueprintShares,
@@ -900,6 +902,12 @@ export function AccountPage() {
     } finally {
       rsiVerifyInFlightRef.current = false;
     }
+  };
+
+  const handleCitizenIdRsiLink = () => {
+    setRsiCopyFeedback(null);
+    rsiAction.clearError();
+    linkRsiAccountWithCitizenId();
   };
 
   const handleUnlinkRsiAccount = async () => {
@@ -4087,6 +4095,45 @@ export function AccountPage() {
                 'Kopiere den Verifizierungscode, füg ihn in die Kurzbiografie deines RSI-Profils ein und gib danach unten deinen RSI-Handle ein.',
               )}
             </Typography>
+
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                borderColor: alpha(theme.palette.primary.main, 0.24),
+              }}
+            >
+              <Stack spacing={1.25}>
+                <Typography sx={{ color: 'text.secondary' }}>
+                  {t(
+                    'You can also link your RSI profile through Citizen iD if your Citizen iD account is already connected to RSI.',
+                    'Tu peux aussi lier ton profil RSI via Citizen iD si ton compte Citizen iD est deja connecte a RSI.',
+                    'Du kannst dein RSI-Profil auch über Citizen iD verknüpfen, wenn dein Citizen iD-Konto bereits mit RSI verbunden ist.',
+                  )}
+                </Typography>
+                <Box>
+                  <Button
+                    variant="secondary"
+                    onClick={handleCitizenIdRsiLink}
+                    disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
+                  >
+                    {t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')}
+                  </Button>
+                </Box>
+                {!citizenIdRsiLinkEnabled && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t(
+                      'Citizen iD linking is not configured yet.',
+                      'La liaison Citizen iD n est pas encore configuree.',
+                      'Citizen iD-Verknupfung ist noch nicht konfiguriert.',
+                    )}
+                  </Typography>
+                )}
+              </Stack>
+            </Paper>
+
+            <Divider />
 
             <Typography sx={{ color: 'text.secondary' }}>
               <Link
