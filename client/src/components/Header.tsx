@@ -13,6 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import SearchIcon from '@mui/icons-material/Search';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import { alpha } from '@mui/material/styles';
@@ -350,6 +351,19 @@ export function Header() {
               })}
             </Select>
           )}
+
+          {/* Desktop app download */}
+          <Tooltip title={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}>
+            <IconButton
+              component="a"
+              href="/api/desktop/latest-installer"
+              size="small"
+              aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
+              sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              <DownloadOutlinedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
 
           {/* Theme toggle */}
           <Tooltip title={themeMode === 'dark' ? t('Light mode', 'Mode clair') : t('Dark mode', 'Mode sombre')}>
