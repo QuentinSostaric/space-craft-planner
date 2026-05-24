@@ -524,7 +524,7 @@ async function handleCitizenIdCallback(request, response, url) {
 
   try {
     const tokenPayload = await exchangeCitizenIdCode(url.toString(), process.env, code);
-    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token);
+    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token, process.env);
     await ensureAccountForSession(session);
     await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
 

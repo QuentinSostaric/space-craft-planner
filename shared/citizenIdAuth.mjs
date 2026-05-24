@@ -7,9 +7,7 @@ import {
 } from './discordAuth.mjs';
 import { normalizeRsiLink } from './rsiLink.mjs';
 
-const CITIZENID_AUTHORIZE_URL = 'https://citizenid.space/connect/authorize';
-const CITIZENID_TOKEN_URL = 'https://citizenid.space/connect/token';
-const CITIZENID_RSI_PROFILE_URL = 'https://citizenid.space/api/v1/profile/@me/rsi/profile';
+const DEFAULT_CITIZENID_ORIGIN = 'https://citizenid.space';
 
 const CITIZENID_STATE_COOKIE_NAME = 'sc_craft_citizenid_oauth_state';
 const CITIZENID_STATE_COOKIE_MAX_AGE = 60 * 10;
@@ -124,6 +122,11 @@ function normalizeBoolean(value) {
   return String(value ?? '')
     .trim()
     .toLowerCase() === 'true';
+}
+
+function getCitizenIdOrigin(env) {
+  const explicitOrigin = String(env?.CITIZENID_ORIGIN ?? '').trim();
+  return (explicitOrigin || DEFAULT_CITIZENID_ORIGIN).replace(/\/+$/g, '');
 }
 
 function parseCookieHeader(cookieHeader) {
@@ -246,7 +249,7 @@ export function buildCitizenIdAuthorizationUrl(requestOrUrl, env, state) {
     redirect_uri: getCitizenIdRedirectUri(requestOrUrl, env),
   });
 
-  return `${CITIZENID_AUTHORIZE_URL}?${params.toString()}`;
+  return `${getCitizenIdOrigin(env)}/connect/authorize?${params.toString()}`;
 }
 
 export async function exchangeCitizenIdCode(requestOrUrl, env, code) {
@@ -254,7 +257,7 @@ export async function exchangeCitizenIdCode(requestOrUrl, env, code) {
     throw new Error('Citizen iD auth is not configured.');
   }
 
-  const response = await fetch(CITIZENID_TOKEN_URL, {
+  const response = await fetch(`${getCitizenIdOrigin(env)}/connect/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${btoa(`${env.CITIZENID_CLIENT_ID}:${env.CITIZENID_CLIENT_SECRET}`)}`,
@@ -287,8 +290,8 @@ export async function exchangeCitizenIdCode(requestOrUrl, env, code) {
   return payload;
 }
 
-export async function fetchCitizenIdRsiProfile(accessToken) {
-  const response = await fetch(CITIZENID_RSI_PROFILE_URL, {
+export async function fetchCitizenIdRsiProfile(accessToken, env = {}) {
+  const response = await fetch(`${getCitizenIdOrigin(env)}/api/v1/profile/@me/rsi/profile`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',

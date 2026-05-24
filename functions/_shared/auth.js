@@ -361,7 +361,7 @@ export async function handleCitizenIdCallbackRequest(request, env) {
 
   try {
     const tokenPayload = await exchangeCitizenIdCode(request, env, code);
-    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token);
+    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token, env);
     const accountStore = getAccountStore(request, env);
     await ensureAccountForSession(accountStore, session);
     await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);

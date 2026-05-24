@@ -25,5 +25,6 @@ STARCITIZEN_API_KEY=<starcitizen-api-key>
 CITIZENID_CLIENT_ID=<citizenid-client-id>
 CITIZENID_CLIENT_SECRET=<citizenid-client-secret>
 # Optional overrides:
+# CITIZENID_ORIGIN=<citizenid-origin>
 # CITIZENID_OAUTH_SCOPES=openid rsi.profile
 # CITIZENID_REDIRECT_URI=http://localhost:5173/api/auth/citizenid/callback
