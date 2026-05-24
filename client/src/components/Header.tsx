@@ -17,10 +17,13 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import { alpha } from '@mui/material/styles';
+import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import { useEffect, useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useThemeMode } from '../hooks/ThemeContext';
+import { useAppUpdate } from '../hooks/useAppUpdate';
+import { isTauriRuntime } from '../services/apiBaseUrl';
 import { FONT_MONO, FONT_BODY, FONT_HEADING } from '../theme';
 import {
   missionPathFromSlug,
@@ -98,6 +101,9 @@ export function Header() {
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const { mode: themeMode, toggle: toggleTheme } = useThemeMode();
+  const { status: updateStatus, triggerUpdate } = useAppUpdate();
+  const isDesktop = isTauriRuntime();
+  const hasUpdate = isDesktop && updateStatus === 'available';
   const isLg = useMediaQuery('(min-width:1120px)');
 
   const availableChannels = useMemo(
@@ -352,18 +358,32 @@ export function Header() {
             </Select>
           )}
 
-          {/* Desktop app download */}
-          <Tooltip title={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}>
-            <IconButton
-              component="a"
-              href="/api/desktop/latest-installer"
-              size="small"
-              aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
-              sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-            >
-              <DownloadOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          {/* Desktop app download — hidden in-app unless update available */}
+          {!isDesktop && (
+            <Tooltip title={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}>
+              <IconButton
+                component="a"
+                href="/api/desktop/latest-installer"
+                size="small"
+                aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
+                sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+              >
+                <DownloadOutlinedIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          {hasUpdate && (
+            <Tooltip title={t('Update available', 'Mise à jour disponible', 'Update verfügbar')}>
+              <IconButton
+                onClick={triggerUpdate}
+                size="small"
+                aria-label={t('Update desktop app', 'Mettre à jour l app desktop', 'Desktop-App aktualisieren')}
+                sx={{ width: 34, height: 34, borderRadius: 1, color: 'warning.main', '&:hover': { color: 'warning.light' } }}
+              >
+                <SystemUpdateAltIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
 
           {/* Theme toggle */}
           <Tooltip title={themeMode === 'dark' ? t('Light mode', 'Mode clair') : t('Dark mode', 'Mode sombre')}>
