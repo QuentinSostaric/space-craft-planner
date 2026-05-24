@@ -10,7 +10,7 @@ Dedicated Discord bot runtime for ItemFab, designed to run on a separate Cloudfl
   - `/open page:<...>`
   - `/dataset channel:<LIVE|PTU>`
   - `/help`
-- Local Wrangler dev config
+- Local Worker dev config
 - Command registration script
 
 ## Why a separate Worker
@@ -39,6 +39,8 @@ Create a Discord application and bot in the Discord developer portal, then colle
 3. Set `APP_BASE_URL=http://localhost:5173` if you want `/dataset` and `/open` to target the local site
 
 ## Commands
+
+The main app no longer installs Wrangler as a project dependency. Worker commands use `npx wrangler` on demand.
 
 ```bash
 npm run discord:bot:dev
