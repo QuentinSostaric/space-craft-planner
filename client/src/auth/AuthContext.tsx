@@ -17,6 +17,7 @@ import {
   deleteOwnedOrganization,
   fetchAuthSession,
   fetchCurrentAccount,
+  getCitizenIdRsiLinkUrl,
   fetchOrganizationSharedBlueprints,
   fetchOrganizationSharedResources,
   getDiscordLoginUrl,
@@ -93,6 +94,7 @@ interface AuthState {
   ) => void;
   deleteAccount: () => Promise<void>;
   linkRsiAccount: (handle: string, code: string) => Promise<void>;
+  linkRsiAccountWithCitizenId: (returnTo?: string) => void;
   unlinkRsiAccount: () => Promise<void>;
   updateInventoryResources: (
     inventoryResources: AccountInventoryResourceEntry[],
@@ -1158,14 +1160,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accountDatasetScope, enqueueMutation]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
-    // In the desktop app, always redirect back to tauri.localhost after OAuth.
-    // A relative path like '/account' would be resolved server-side to
-    // https://itemfab.space/account, landing the WebView2 on the real website
-    // instead of the Tauri app — which blocks IPC and breaks everything.
-    const effectiveReturnTo = isTauriRuntime()
-      ? `${window.location.origin}/`
-      : (returnTo ?? getCurrentReturnTo());
-    window.location.assign(getDiscordLoginUrl(effectiveReturnTo));
+    // Build an absolute returnTo from the current window origin so the server
+    // can redirect back to the right place after OAuth.
+    // Tauri: origin=https://tauri.localhost → whitelisted by server → app reloads.
+    // Web: origin=https://itemfab.space → server validates relative path portion.
+    const absoluteReturnTo = returnTo?.startsWith('http')
+      ? returnTo
+      : `${window.location.origin}${returnTo ?? '/'}`;
+    window.location.assign(getDiscordLoginUrl(absoluteReturnTo));
   }, []);
 
   const logout = useCallback(async () => {
@@ -1230,6 +1232,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const nextAccount = await verifyAndLinkRsiAccount(handle, code);
     setServerAccount(nextAccount);
     setSyncError(null);
+  }, []);
+
+  const linkRsiAccountWithCitizenId = useCallback((returnTo?: string) => {
+    const effectiveReturnTo = isTauriRuntime()
+      ? `${window.location.origin}/`
+      : (returnTo ?? getCurrentReturnTo());
+    window.location.assign(getCitizenIdRsiLinkUrl(effectiveReturnTo));
   }, []);
 
   const unlinkRsiAccountBinding = useCallback(async () => {
@@ -1567,6 +1576,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queueInventoryResourcesUpdate,
       deleteAccount,
       linkRsiAccount,
+      linkRsiAccountWithCitizenId,
       unlinkRsiAccount: unlinkRsiAccountBinding,
       updateOrganizationBlueprintShares,
       queueOrganizationBlueprintSharesUpdate,
@@ -1594,6 +1604,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deleteOrganizationBinding,
       flushPendingMutations,
       linkRsiAccount,
+      linkRsiAccountWithCitizenId,
       loadOrganizationSharedBlueprintsBinding,
       loading,
       loginWithDiscord,
