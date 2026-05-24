@@ -1161,14 +1161,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accountDatasetScope, enqueueMutation]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
-    // Build an absolute returnTo from the current window origin so the server
-    // can redirect back to the right place after OAuth.
-    // Tauri: origin=https://tauri.localhost → whitelisted by server → app reloads.
-    // Web: origin=https://itemfab.space → server validates relative path portion.
-    const absoluteReturnTo = returnTo?.startsWith('http')
-      ? returnTo
-      : `${window.location.origin}${returnTo ?? '/'}`;
-    window.location.assign(getDiscordLoginUrl(absoluteReturnTo));
+    // Tauri needs an absolute return URL; web login must stay relative so the
+    // server accepts the requested page instead of falling back to "/".
+    const effectiveReturnTo = isTauriRuntime()
+      ? `${window.location.origin}${returnTo ?? '/'}`
+      : (returnTo ?? getCurrentReturnTo());
+    window.location.assign(getDiscordLoginUrl(effectiveReturnTo));
   }, []);
 
   const logout = useCallback(async () => {

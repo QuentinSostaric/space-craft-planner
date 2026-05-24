@@ -157,6 +157,7 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
   const { user } = useAuth();
   const sync = useScLogSync();
   const watcher = useScLogWatcher();
+  const [watcherError, setWatcherError] = useState<string | null>(null);
 
   const isLoggedIn = Boolean(user);
   const isSyncing = sync.status === 'scanning' || sync.status === 'syncing';
@@ -168,6 +169,7 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
   const handleDetect = () => { void sync.detectPaths(); };
 
   const handleWatcherToggle = async (enabled: boolean) => {
+    setWatcherError(null);
     if (enabled && livePath) {
       await watcher.start(livePath);
       watcher.setAutoStart(true);
@@ -178,6 +180,7 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
   };
 
   const handleAutoStartupToggle = async (enabled: boolean) => {
+    setWatcherError(null);
     if (enabled) {
       await watcher.enableAutoStartup();
     } else {
@@ -240,8 +243,17 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
             )}
             checked={watcher.running}
             disabled={!isLoggedIn || !livePath}
-            onChange={(v) => { void handleWatcherToggle(v); }}
+            onChange={(v) => {
+              void handleWatcherToggle(v).catch((error: unknown) => {
+                setWatcherError(error instanceof Error ? error.message : 'Failed to update watcher.');
+              });
+            }}
           />
+          {watcherError && (
+            <Typography variant="caption" sx={{ color: 'error.main' }}>
+              {watcherError}
+            </Typography>
+          )}
         </Box>
 
         {/* Auto-startup */}
@@ -254,7 +266,11 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
               'Démarre Item Fabricator automatiquement au démarrage de Windows pour que la surveillance soit toujours active.',
             )}
             checked={watcher.autoStartupEnabled}
-            onChange={(v) => { void handleAutoStartupToggle(v); }}
+            onChange={(v) => {
+              void handleAutoStartupToggle(v).catch((error: unknown) => {
+                setWatcherError(error instanceof Error ? error.message : 'Failed to update startup setting.');
+              });
+            }}
           />
         </Box>
 
@@ -341,9 +357,7 @@ export function ScLogSyncButton() {
     if (autoStartEnabled && !running && installPaths?.live) {
       void start(installPaths.live);
     }
-  // Only run once when paths are first resolved
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [installPaths?.live]);
+  }, [autoStartEnabled, installPaths?.live, running, start]);
 
   return (
     <>

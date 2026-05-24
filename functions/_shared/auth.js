@@ -11,6 +11,7 @@ import {
   getOauthStateCookieName,
   getSessionCookieName,
   isDesktopRequest,
+  isDesktopReturnTo,
   isDiscordAuthConfigured,
   readOauthStateFromCookies,
   readSessionFromCookies,
@@ -292,7 +293,9 @@ export async function handleDiscordCallbackRequest(request, env) {
     const user = await fetchDiscordUserProfile(tokenPayload.access_token);
     const accountStore = getAccountStore(request, env);
     const account = await upsertDiscordAccount(accountStore, user);
-    const sessionCookie = await createSessionCookie(request, env, user, account.accountId);
+    const sessionCookie = await createSessionCookie(request, env, user, account.accountId, {
+      crossSite: isDesktopReturnTo(returnTo),
+    });
 
     return redirectResponse(returnTo, {
       cookies: [sessionCookie, expiredStateCookie],

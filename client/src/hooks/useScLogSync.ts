@@ -3,7 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { useCraft } from '../store/CraftContext';
-import type { AccountDatasetScope } from '../services/authService';
+import {
+  fetchCurrentAccount,
+  saveCurrentAccountState,
+  type AccountDatasetScope,
+} from '../services/authService';
 
 interface ScInstallPaths {
   live: string | null;
@@ -40,7 +44,7 @@ const EMPTY_RESULT: ScLogSyncChannelResult = {
 export function useScLogSync(): ScLogSyncState {
   const available = isTauriRuntime();
   const { blueprints } = useCraft();
-  const { user, queueAccountStateUpdate, setAccountDatasetScope, accountDatasetScope } = useAuth();
+  const { user, refreshSession, setAccountDatasetScope, accountDatasetScope } = useAuth();
 
   const [installPaths, setInstallPaths] = useState<ScInstallPaths | null>(null);
   const [status, setStatus] = useState<ScLogSyncStatus>('idle');
@@ -123,12 +127,14 @@ export function useScLogSync(): ScLogSyncState {
       const previousScope = accountDatasetScope;
 
       const syncScope = async (scope: AccountDatasetScope, matchedIds: string[]) => {
-        setAccountDatasetScope(scope);
-        // Small delay so the scope switch propagates before the update
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        queueAccountStateUpdate(
-          (snapshot) => ({ ...snapshot, inventoryBlueprintIds: matchedIds }),
-          { flushAfterMs: 1000 },
+        const currentAccount = await fetchCurrentAccount(scope);
+        await saveCurrentAccountState(
+          {
+            favoriteBlueprintIds: currentAccount.favoriteBlueprintIds,
+            inventoryBlueprintIds: matchedIds,
+            planner: currentAccount.planner,
+          },
+          scope,
         );
       };
 
@@ -142,6 +148,7 @@ export function useScLogSync(): ScLogSyncState {
 
       // Restore original scope
       setAccountDatasetScope(previousScope);
+      await refreshSession();
 
       setStatus('done');
     } catch (e) {
@@ -152,9 +159,10 @@ export function useScLogSync(): ScLogSyncState {
     available,
     installPaths,
     scanChannel,
+    user,
     accountDatasetScope,
     setAccountDatasetScope,
-    queueAccountStateUpdate,
+    refreshSession,
   ]);
 
   return { available, installPaths, status, error, live, ptu, sync, detectPaths };

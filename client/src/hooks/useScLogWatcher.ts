@@ -70,6 +70,7 @@ export function useScLogWatcher(): ScLogWatcherState {
   useEffect(() => {
     if (!available) return;
     let unlisten: UnlistenFn | undefined;
+    let cancelled = false;
 
     listen<string[]>('sc-log-new-blueprints', (event) => {
       const names = event.payload;
@@ -95,9 +96,18 @@ export function useScLogWatcher(): ScLogWatcherState {
         }),
         { flushAfterMs: 3000 },
       );
-    }).then((fn) => { unlisten = fn; });
+    }).then((fn) => {
+      if (cancelled) {
+        fn();
+        return;
+      }
+      unlisten = fn;
+    });
 
-    return () => { unlisten?.(); };
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, [available, queueAccountStateUpdate]);
 
   const start = useCallback(async (path: string) => {
