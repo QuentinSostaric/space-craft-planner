@@ -1,17 +1,14 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { type ElementType, useCallback, useEffect, useMemo } from 'react';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
+import { type ElementType, useCallback, useEffect, useMemo, useState } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Collapse from '@mui/material/Collapse';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -20,10 +17,13 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
+import TuneIcon from '@mui/icons-material/Tune';
 import StarIcon from '@mui/icons-material/Star';
 import FlagIcon from '@mui/icons-material/Flag';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { AppGlyph } from './ui/AppGlyph';
+import { Panel } from './ui/Panel';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
@@ -130,15 +130,6 @@ function getActiveCount(flags: boolean[]): number {
   return flags.filter(Boolean).length;
 }
 
-const accordionCaretSummarySx = {
-  '& .MuiAccordionSummary-expandIconWrapper': {
-    transform: 'rotate(180deg)',
-  },
-  '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': {
-    transform: 'rotate(0deg)',
-  },
-} as const;
-
 const SHIP_COMPONENT_FAMILY_OPTIONS: Record<string, LocalizedOption> = {
   scanner: { label: ls('Scanners', 'Scanners', 'Scanner') },
   'refueling-nozzle': {
@@ -243,6 +234,8 @@ export function BlueprintExplorer() {
   } = useCraft();
   const { lang, t } = useI18n();
   const theme = useTheme();
+
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>();
@@ -441,14 +434,6 @@ export function BlueprintExplorer() {
         shipComponentSizeFilter !== null ||
         shipComponentGradeFilter !== null));
 
-  const basicFilterCount = getActiveCount([
-    categoryFilter !== 'all',
-    manufacturerFilter !== null,
-    materialFilter !== null,
-    legalityFilter !== 'all',
-    locationFilter !== null,
-  ]);
-
   const advancedFilterCount = getActiveCount([
     weaponTypeFilter !== null,
     ammoTypeFilter !== null,
@@ -532,22 +517,19 @@ export function BlueprintExplorer() {
     }
   }, [activeDataset.hasShipComponents, ensureShipComponentsLoaded]);
 
+  /* ─────────────────────────────────────────────────────────── render ── */
   return (
     <Box
       component="section"
       aria-label={t('Blueprint filters', 'Filtres blueprints')}
       sx={{
-        p: { xs: 1, md: 1.15 },
         display: 'flex',
         flexDirection: 'column',
-        gap: 0.75,
-        backgroundImage: (theme) =>
-          theme.palette.mode === 'dark'
-            ? `linear-gradient(${alpha(theme.palette.primary.main, 0.035)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.035)} 1px, transparent 1px)`
-            : 'none',
-        backgroundSize: '44px 44px',
+        gap: 1,
+        py: 1.5,
       }}
     >
+      {/* ── Page stat cards ── */}
       <Box
         sx={{
           display: 'grid',
@@ -598,291 +580,307 @@ export function BlueprintExplorer() {
           value={String(blueprintStats.materialCount)}
         />
       </Box>
+
       {requiresMissionRewards && !missionRewardsLoading && !missionRewards && !activeDataset.hasMissionRewards && (
         <DatasetTooOldNotice variant="caption" />
       )}
 
-      <Paper
-        variant="outlined"
+      {/* ── Primary toolbar ── */}
+      <Box
         sx={{
-          p: { xs: 1, md: 1.15 },
-          borderColor: alpha(theme.palette.primary.main, 0.18),
-          background: (theme) =>
-            `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.38)} 0%, ${alpha(theme.palette.background.default, 0.24)} 100%)`,
-          borderRadius: 0.75,
-          boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}`,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1,
+          alignItems: 'center',
+          px: 1.5,
+          py: 1,
+          bgcolor: 'ui.surface',
+          border: `1px solid ${theme.palette.ui.border}`,
+          borderRadius: 1,
         }}
       >
-        <Stack spacing={0.85}>
+        {/* Search */}
+        <TextField
+          type="search"
+          size="small"
+          placeholder={t('Search blueprints...', 'Rechercher des blueprints...', 'Blueprints suchen...')}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
+                  <AppGlyph name="search" size={18} />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{
+            flex: '1 1 auto',
+            maxWidth: 360,
+            minWidth: 140,
+            '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
+          }}
+        />
+
+        {/* Library segment toggle */}
+        <ToggleButtonGroup
+          value={librarySegment}
+          exclusive
+          onChange={(_e, val) => {
+            if (val) setLibrarySegment(val as LibrarySegment);
+          }}
+          size="small"
+          aria-label={t('Library filter', 'Filtre bibliotheque')}
+          sx={{
+            flexShrink: 0,
+            '& .MuiToggleButton-root': {
+              fontSize: '.75rem',
+              px: { xs: 0.75, sm: 1.25 },
+              minWidth: 0,
+              minHeight: 32,
+              lineHeight: 1.1,
+            },
+          }}
+        >
+          {SEGMENTS.map((segment) => (
+            <ToggleButton
+              key={segment.value}
+              value={segment.value}
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}
+            >
+              {segment.icon && <segment.icon sx={{ fontSize: '.75rem', flexShrink: 0 }} />}
+              <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {getOptionText(segment, lang)}
+              </Box>
+              {segment.value === 'inventory' && inventoryIds.length > 0 && (
+                <Box component="span" sx={{ fontSize: '.75rem', opacity: 0.7, flexShrink: 0 }}>
+                  {inventoryIds.length}
+                </Box>
+              )}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+
+        {/* Spacer */}
+        <Box sx={{ flex: '1 1 auto' }} />
+
+        {/* Sort select */}
+        <FormControl
+          size="small"
+          sx={{
+            minWidth: 160,
+            flexShrink: 0,
+            '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
+          }}
+        >
+          <Select
+            value={blueprintSort}
+            onChange={(event) => setBlueprintSort(event.target.value as BlueprintSort)}
+            displayEmpty
+            inputProps={{ 'aria-label': t('Sort blueprints', 'Trier les blueprints') }}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {getOptionText(option, lang)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* Filtres avancés toggle */}
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<TuneIcon sx={{ fontSize: '0.9rem !important' }} />}
+          endIcon={
+            <ExpandMoreIcon
+              sx={{
+                fontSize: '0.9rem !important',
+                transition: 'transform 200ms ease',
+                transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              }}
+            />
+          }
+          onClick={() => setAdvancedOpen((o) => !o)}
+          sx={{
+            flexShrink: 0,
+            minHeight: 32,
+            fontSize: '.75rem',
+            px: 1.25,
+            borderColor: advancedFilterCount > 0 ? 'primary.main' : 'divider',
+            color: advancedFilterCount > 0 ? 'primary.main' : 'text.secondary',
+          }}
+        >
+          {t('Advanced filters', 'Filtres avancés')}
+          {advancedFilterCount > 0 && (
+            <Box
+              component="span"
+              sx={{
+                ml: 0.75,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              {advancedFilterCount}
+            </Box>
+          )}
+        </Button>
+
+        {/* Reset all filters */}
+        {hasActiveFilters && (
+          <Button
+            variant="outlined"
+            startIcon={<FilterListOffOutlinedIcon />}
+            onClick={clearAllFilters}
+            size="small"
+            sx={{
+              minHeight: 32,
+              whiteSpace: 'nowrap',
+              px: 1.25,
+              fontSize: '.75rem',
+              flexShrink: 0,
+            }}
+          >
+            {t('Reset', 'Reinitialiser', 'Zurucksetzen')}
+          </Button>
+        )}
+
+        {/* Active blueprint pill */}
+        {activeBlueprint && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1,
+              height: 32,
+              backgroundColor: 'background.paper',
+              border: (theme) => `1px solid ${theme.palette.primary.main}`,
+              borderRadius: 1,
+              minWidth: 0,
+              flexShrink: 1,
+            }}
+          >
+            <CategoryBadge category={activeBlueprint.category} iconOnly />
+            <Typography
+              variant="body2"
+              sx={{
+                maxWidth: 180,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: '.75rem',
+              }}
+            >
+              {activeBlueprint.name}
+            </Typography>
+            <IconButton
+              onClick={() => setActiveBlueprint(null)}
+              aria-label={t('Back to library', 'Retour a la bibliotheque')}
+              size="small"
+              sx={{ p: 0.25 }}
+            >
+              <CloseIcon sx={{ fontSize: '.9rem' }} />
+            </IconButton>
+          </Box>
+        )}
+      </Box>
+
+      {/* ── Category chip strip ── */}
+      <Box
+        component="nav"
+        aria-label={t('Category filter', 'Filtre categorie')}
+        sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+      >
+        {CATEGORY_FILTERS.map(({ value, ...option }) => (
+          <Chip
+            key={value}
+            label={getOptionText(option, lang)}
+            size="small"
+            variant={categoryFilter === value ? 'filled' : 'outlined'}
+            onClick={() => setCategoryFilter(value)}
+            sx={{
+              fontSize: '.75rem',
+              height: 26,
+              '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' },
+              ...(categoryFilter === value && {
+                backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                color: 'text.primary',
+                borderColor: 'primary.main',
+              }),
+            }}
+          />
+        ))}
+      </Box>
+
+      {/* ── Advanced filters panel (collapsible) ── */}
+      <Collapse in={advancedOpen} unmountOnExit>
+        <Panel
+          eyebrow={t('Advanced filters', 'Filtres avancés')}
+          title={t(
+            'Refine by manufacturer, material, rarity, legality…',
+            'Affiner par fabricant, matériau, rareté, légalité…',
+          )}
+          noPad={false}
+          dense
+        >
+          {/* Basic filters row: manufacturer + material + legality + location */}
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: {
                 xs: '1fr',
-                md: 'minmax(260px, 1fr) auto minmax(170px, 220px) auto',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
               },
-              gap: 0.75,
-              alignItems: 'center',
+              gap: 1,
+              mb: 1.5,
             }}
           >
-            <TextField
-              type="search"
+            <Autocomplete
               size="small"
-              placeholder={t('Search blueprints...', 'Rechercher des blueprints...', 'Blueprints suchen...')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
-                      <AppGlyph name="search" size={18} />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-              sx={{
-                minWidth: 0,
-                '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
-              }}
-            />
-
-            <ToggleButtonGroup
-              value={librarySegment}
-              exclusive
-              onChange={(_e, val) => {
-                if (val) setLibrarySegment(val as LibrarySegment);
-              }}
-              size="small"
-              aria-label={t('Library filter', 'Filtre bibliotheque')}
-              sx={{
-                width: { xs: '100%', sm: 'auto' },
-                display: { xs: 'grid', sm: 'inline-flex' },
-                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'none' },
-                gridAutoRows: { xs: 'minmax(34px, auto)', sm: 'auto' },
-                '& .MuiToggleButton-root': {
-                  fontSize: { xs: '.75rem', sm: '.75rem' },
-                  px: { xs: 0.75, sm: 1.25 },
-                  minWidth: 0,
-                  minHeight: 34,
-                  lineHeight: 1.1,
-                  whiteSpace: 'normal',
-                  textAlign: 'center',
-                },
-              }}
-            >
-              {SEGMENTS.map((segment) => (
-                <ToggleButton
-                  key={segment.value}
-                  value={segment.value}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 0.5,
-                  }}
-                >
-                  {segment.icon && <segment.icon sx={{ fontSize: '.75rem', flexShrink: 0 }} />}
-                  <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {getOptionText(segment, lang)}
-                  </Box>
-                  {segment.value === 'inventory' && inventoryIds.length > 0 && (
-                    <Box component="span" sx={{ fontSize: '.75rem', opacity: 0.7, flexShrink: 0 }}>
-                      {inventoryIds.length}
-                    </Box>
-                  )}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: { xs: '100%', sm: 190 },
-                width: '100%',
-                '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
-              }}
-            >
-              <Select
-                value={blueprintSort}
-                onChange={(event) => setBlueprintSort(event.target.value as BlueprintSort)}
-                displayEmpty
-                inputProps={{ 'aria-label': t('Sort blueprints', 'Trier les blueprints') }}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {getOptionText(option, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {hasActiveFilters && (
-              <Button
-                variant="outlined"
-                startIcon={<FilterListOffOutlinedIcon />}
-                onClick={clearAllFilters}
-                sx={{
-                  minHeight: 32,
-                  whiteSpace: 'nowrap',
-                  px: 1.25,
-                  fontSize: '.75rem',
-                }}
-              >
-                {t('Reset', 'Reinitialiser', 'Zurucksetzen')}
-              </Button>
-            )}
-
-            {activeBlueprint && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 1,
-                  height: 32,
-                  backgroundColor: 'background.paper',
-                  border: (theme) => `1px solid ${theme.palette.primary.main}`,
-                  borderRadius: 1,
-                  width: { xs: '100%', md: 'auto' },
-                  minWidth: 0,
-                }}
-              >
-                <CategoryBadge category={activeBlueprint.category} iconOnly />
-                <Typography
-                  variant="body2"
-                  sx={{
-                    maxWidth: 180,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    fontSize: '.75rem',
-                  }}
-                >
-                  {activeBlueprint.name}
-                </Typography>
-                <IconButton
-                  onClick={() => setActiveBlueprint(null)}
-                  aria-label={t('Back to library', 'Retour a la bibliotheque')}
-                  size="small"
-                  sx={{ p: 0.25 }}
-                >
-                  <CloseIcon sx={{ fontSize: '.9rem' }} />
-                </IconButton>
-              </Box>
-            )}
-          </Box>
-
-          {(
-            <Accordion
-              disableGutters
-              elevation={0}
-              sx={{
-                backgroundColor: alpha(theme.palette.background.default, 0.18),
-                border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
-                borderRadius: 0.5,
-                '&::before': { display: 'none' },
-              }}
-            >
-          <AccordionSummary
-            expandIcon={<AppGlyph name="caret-up" size={18} />}
-            sx={{
-              minHeight: 38,
-              '& .MuiAccordionSummary-content': { my: 0.7 },
-              ...accordionCaretSummarySx,
-            }}
-          >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                {t('Filters', 'Filtres')}
-              </Typography>
-              {basicFilterCount > 0 && (
-                <Chip
-                  size="small"
-                  label={`${basicFilterCount} ${t('active', 'actifs')}`}
-                  color="primary"
-                  variant="outlined"
-                  sx={{ height: 20, fontSize: '.75rem' }}
+              options={manufacturers}
+              value={manufacturerFilter}
+              onChange={(_e, val) => setManufacturerFilter(val)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('Manufacturer', 'Fabricant')}
+                  placeholder={t('Manufacturer', 'Fabricant')}
+                  sx={{ '& .MuiInputBase-root': { fontSize: '.75rem' } }}
                 />
               )}
-            </Stack>
-          </AccordionSummary>
-          <AccordionDetails sx={{ pt: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Box
-                component="nav"
-                aria-label={t('Category filter', 'Filtre categorie')}
-                sx={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 0.5,
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                {CATEGORY_FILTERS.map(({ value, ...option }) => (
-                  <Chip
-                    key={value}
-                    label={getOptionText(option, lang)}
-                    size="small"
-                    variant={categoryFilter === value ? 'filled' : 'outlined'}
-                    onClick={() => setCategoryFilter(value)}
-                    sx={{
-                      fontSize: '.75rem',
-                      height: 26,
-                      maxWidth: 'calc(50% - 4px)',
-                      '& .MuiChip-label': {
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      },
-                      ...(categoryFilter === value && {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                        color: 'text.primary',
-                        borderColor: 'primary.main',
-                      }),
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 1, alignItems: 'center' }}>
-              <Autocomplete
-                size="small"
-                options={manufacturers}
-                value={manufacturerFilter}
-                onChange={(_e, val) => setManufacturerFilter(val)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Manufacturer', 'Fabricant')}
-                    placeholder={t('Manufacturer', 'Fabricant')}
-                    sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-                  />
-                )}
-                sx={{ minWidth: 0 }}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
-              />
-
-              <Autocomplete
-                size="small"
-                options={materials}
-                value={materialFilter}
-                onChange={(_e, val) => setMaterialFilter(val)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Required material', 'Materiau requis')}
-                    placeholder={t('Required material', 'Materiau requis')}
-                    sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-                  />
-                )}
-                sx={{ minWidth: 0 }}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
-              />
-
+              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+            />
+            <Autocomplete
+              size="small"
+              options={materials}
+              value={materialFilter}
+              onChange={(_e, val) => setMaterialFilter(val)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('Required material', 'Materiau requis')}
+                  placeholder={t('Required material', 'Materiau requis')}
+                  sx={{ '& .MuiInputBase-root': { fontSize: '.75rem' } }}
+                />
+              )}
+              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', ml: 0.25 }}>
+                {t('Legality', 'Légalité')}
+              </Typography>
               <ToggleButtonGroup
                 value={legalityFilter}
                 exclusive
@@ -892,7 +890,7 @@ export function BlueprintExplorer() {
                 size="small"
                 aria-label={t('Legality filter', 'Filtre légalité')}
                 sx={{
-                  height: 32,
+                  height: 36,
                   width: '100%',
                   '& .MuiToggleButton-root': {
                     fontSize: '.75rem',
@@ -906,162 +904,37 @@ export function BlueprintExplorer() {
                 <ToggleButton value="lawful">{t('Lawful', 'Legal')}</ToggleButton>
                 <ToggleButton value="unlawful">{t('Unlawful', 'Illegal')}</ToggleButton>
               </ToggleButtonGroup>
-
-              <Autocomplete
-                size="small"
-                options={locations}
-                value={locationFilter}
-                onChange={(_e, val) => setLocationFilter(val)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Mission location', 'Lieu de mission')}
-                    placeholder={t('Mission location', 'Lieu de mission')}
-                    sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-                  />
-                )}
-                sx={{ minWidth: 0 }}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
-              />
-
             </Box>
-          </AccordionDetails>
-        </Accordion>
-      )}
-
-      <Box
-        aria-hidden="true"
-        sx={{
-          display: 'none',
-          gridTemplateColumns: {
-            xs: '1fr',
-            md: 'repeat(2, minmax(0, 1fr))',
-            xl: 'repeat(5, minmax(0, 1fr)) auto',
-          },
-          gap: 1,
-          alignItems: 'center',
-        }}
-      >
-        <Autocomplete
-          size="small"
-          options={manufacturers}
-          value={manufacturerFilter}
-          onChange={(_e, val) => setManufacturerFilter(val)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t('Manufacturer', 'Fabricant')}
-              placeholder={t('Manufacturer', 'Fabricant')}
-              sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
+            <Autocomplete
+              size="small"
+              options={locations}
+              value={locationFilter}
+              onChange={(_e, val) => setLocationFilter(val)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('Mission location', 'Lieu de mission')}
+                  placeholder={t('Mission location', 'Lieu de mission')}
+                  sx={{ '& .MuiInputBase-root': { fontSize: '.75rem' } }}
+                />
+              )}
+              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
-          )}
-          sx={{ minWidth: 0 }}
-          slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
-        />
+          </Box>
 
-        <Autocomplete
-          size="small"
-          options={materials}
-          value={materialFilter}
-          onChange={(_e, val) => setMaterialFilter(val)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t('Required material', 'Matériau requis')}
-              placeholder={t('Required material', 'Matériau requis')}
-              sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-            />
-          )}
-          sx={{ minWidth: 0 }}
-          slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
-        />
-
-        <ToggleButtonGroup
-          value={legalityFilter}
-          exclusive
-          onChange={(_e, val) => {
-            if (val) setLegalityFilter(val as LegalityFilter);
-          }}
-          size="small"
-          aria-label={t('Legality filter', 'Filtre légalité')}
-          sx={{
-            height: 32,
-            width: { xs: '100%', md: 'auto' },
-            '& .MuiToggleButton-root': {
-              fontSize: { xs: '.75rem', md: '.75rem' },
-              px: { xs: 0.5, md: 1 },
-              flex: { xs: 1, md: '0 0 auto' },
-              lineHeight: 1.1,
-            },
-          }}
-        >
-          <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
-          <ToggleButton value="lawful">{t('Lawful', 'Légal')}</ToggleButton>
-          <ToggleButton value="unlawful">{t('Unlawful', 'Illégal')}</ToggleButton>
-        </ToggleButtonGroup>
-
-        <Autocomplete
-          size="small"
-          options={locations}
-          value={locationFilter}
-          onChange={(_e, val) => setLocationFilter(val)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={t('Mission location', 'Lieu de mission')}
-                placeholder={t('Mission location', 'Lieu de mission')}
-                sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-              />
-            )}
-          sx={{ minWidth: 0 }}
-          slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
-        />
-
-      </Box>
-
-      <Accordion
-        disableGutters
-        elevation={0}
-        sx={{
-          backgroundColor: alpha(theme.palette.background.default, 0.18),
-          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
-          borderRadius: 0.5,
-          '&::before': { display: 'none' },
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<AppGlyph name="caret-up" size={18} />}
-          sx={{
-            minHeight: 38,
-            '& .MuiAccordionSummary-content': {
-              my: 0.7,
-            },
-            ...accordionCaretSummarySx,
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-            >
-              {t('Advanced filters', 'Filtres avancés')}
-            </Typography>
-            {advancedFilterCount > 0 && (
-              <Chip
-                label={`${advancedFilterCount} ${t('active', 'actifs')}`}
-                size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ height: 20, fontSize: '.75rem' }}
-              />
-            )}
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {t('Weapon, armor, rarity, acquisition', 'Armes, armures, rareté, acquisition')}
-            </Typography>
-          </Stack>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+          {/* Advanced stat filters grid */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+                xl: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: 1,
+            }}
+          >
             <Autocomplete
               size="small"
               options={weaponTypes}
@@ -1173,7 +1046,11 @@ export function BlueprintExplorer() {
               />
             )}
             <FormControl size="small">
-              <Select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value as RarityFilter)} inputProps={{ 'aria-label': t('Rarity filter', 'Filtre rareté') }}>
+              <Select
+                value={rarityFilter}
+                onChange={(event) => setRarityFilter(event.target.value as RarityFilter)}
+                inputProps={{ 'aria-label': t('Rarity filter', 'Filtre rareté') }}
+              >
                 {RARITY_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {getOptionText(option, lang)}
@@ -1182,7 +1059,11 @@ export function BlueprintExplorer() {
               </Select>
             </FormControl>
             <FormControl size="small">
-              <Select value={slotCountFilter} onChange={(event) => setSlotCountFilter(event.target.value as SlotCountFilter)} inputProps={{ 'aria-label': t('Slot count filter', 'Filtre nombre de slots') }}>
+              <Select
+                value={slotCountFilter}
+                onChange={(event) => setSlotCountFilter(event.target.value as SlotCountFilter)}
+                inputProps={{ 'aria-label': t('Slot count filter', 'Filtre nombre de slots') }}
+              >
                 {SLOT_COUNT_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {getOptionText(option, lang)}
@@ -1191,7 +1072,11 @@ export function BlueprintExplorer() {
               </Select>
             </FormControl>
             <FormControl size="small">
-              <Select value={craftTimeFilter} onChange={(event) => setCraftTimeFilter(event.target.value as CraftTimeBucket)} inputProps={{ 'aria-label': t('Craft time filter', 'Filtre temps de craft') }}>
+              <Select
+                value={craftTimeFilter}
+                onChange={(event) => setCraftTimeFilter(event.target.value as CraftTimeBucket)}
+                inputProps={{ 'aria-label': t('Craft time filter', 'Filtre temps de craft') }}
+              >
                 {CRAFT_TIME_OPTIONS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {getOptionText(option, lang)}
@@ -1231,6 +1116,7 @@ export function BlueprintExplorer() {
             </FormControl>
           </Box>
 
+          {/* Active advanced filter chips */}
           {(advancedFilterCount > 0 || rarityFilter !== 'all') && (
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
               {weaponTypeFilter && <Chip label={`${t('Weapon', 'Arme')}: ${weaponTypeFilter}`} size="small" />}
@@ -1270,10 +1156,8 @@ export function BlueprintExplorer() {
               {acquisitionStandingFilter !== 'all' && <Chip label={`${t('Standing', 'Réputation')}: ${getStandingLabel(acquisitionStandingFilter, lang)}`} size="small" />}
             </Stack>
           )}
-        </AccordionDetails>
-      </Accordion>
-        </Stack>
-      </Paper>
+        </Panel>
+      </Collapse>
     </Box>
   );
 }

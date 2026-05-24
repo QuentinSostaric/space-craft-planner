@@ -2,206 +2,496 @@ import { createTheme, alpha } from '@mui/material/styles';
 import type { Shadows } from '@mui/material/styles';
 
 // ─── Module Augmentation ──────────────────────────────────────────────────────
-// On étend le thème pour inclure nos variables spécifiques de Star Citizen
 declare module '@mui/material/styles' {
   interface Palette {
     brand: {
-      violet: string;
-      violetLight: string;
+      accent: string;
+      accentHover: string;
+      accentSoft: string;
+      accentBorder: string;
       blue: string;
       blueLight: string;
     };
     ui: {
       border: string;
       borderStrong: string;
-      surface1: string;
+      borderAccent: string;
+      surface: string;
+      surface1: string; // alias for surface
       surface2: string;
       surface3: string;
+      bgElev: string;
+    };
+    // legacy aliases for components not yet migrated
+    brand_legacy: {
+      violet: string;
+      violetLight: string;
+      blue: string;
+      blueLight: string;
     };
   }
   interface PaletteOptions {
     brand?: {
-      violet?: string;
-      violetLight?: string;
+      accent?: string;
+      accentHover?: string;
+      accentSoft?: string;
+      accentBorder?: string;
       blue?: string;
       blueLight?: string;
     };
     ui?: {
       border?: string;
       borderStrong?: string;
+      borderAccent?: string;
+      surface?: string;
       surface1?: string;
       surface2?: string;
       surface3?: string;
+      bgElev?: string;
+    };
+    brand_legacy?: {
+      violet?: string;
+      violetLight?: string;
+      blue?: string;
+      blueLight?: string;
     };
   }
 }
 
 export type ThemeMode = 'light' | 'dark';
 
-// ─── Font Families ──────────────────────────────────────────────────────────────
-export const FONT_HEADING = "'Khand', sans-serif";
-export const FONT_MONO = "'Share Tech Mono', monospace";
+// ─── Font Families ────────────────────────────────────────────────────────────
+export const FONT_DISPLAY = "'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
+export const FONT_BODY    = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+export const FONT_MONO    = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 
-// ─── Design Tokens ──────────────────────────────────────────────────────────────
+// legacy alias used by unmigrated components
+export const FONT_HEADING = FONT_DISPLAY;
 
-const COLORS = {
-  violet: '#818cf8',
-  violetDark: '#4f46e5',
-  violetLight: '#a5b4fc',
-  blue: '#3b82f6',
-  blueDark: '#2563eb',
-  blueLight: '#60a5fa',
-  emerald: '#10b981',
-  amber: '#f59e0b',
-  rose: '#ef4444',
-};
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+const ACCENT_DARK  = '#818CF8';
+const ACCENT_LIGHT = '#4F46E5';
 
 const PALETTE_DARK = {
-  background: {
-    default: '#0b0f1a',
-    paper: '#1a2235',
-  },
-  text: {
-    primary: '#f1f5f9',
-    secondary: '#94a3b8',
-    disabled: '#64748b',
-  },
-  divider: 'rgba(255, 255, 255, 0.06)',
-  ui: {
-    border: 'rgba(255, 255, 255, 0.06)',
-    borderStrong: COLORS.violet,
-    surface1: '#1a2235',
-    surface2: '#242f4d',
-    surface3: '#2d3a5d',
-  },
-  brand: {
-    violet: COLORS.violet,
-    violetLight: COLORS.violetLight,
-    blue: COLORS.blue,
-    blueLight: COLORS.blueLight,
-  }
+  bg:    '#07121F',
+  bgElev:'#0C1B2E',
+  surface: '#0F2138',
+  surface2:'#16294A',
+  surface3:'#1D365C',
+  border: 'rgba(148, 178, 220, 0.10)',
+  borderStrong: 'rgba(148, 178, 220, 0.22)',
+  borderAccent: 'rgba(129, 140, 248, 0.35)',
+  text:   '#ECF2FA',
+  textSecondary: '#B7C5DA',
+  textTertiary:  '#8A9CB6',
+  accent: ACCENT_DARK,
+  accentHover: '#A5B4FC',
+  accentSoft: 'rgba(129, 140, 248, 0.16)',
+  accentBorder: 'rgba(129, 140, 248, 0.45)',
+  success: '#2FCB8A',
+  warn:    '#F4B740',
+  danger:  '#F87171',
 };
 
 const PALETTE_LIGHT = {
-  background: {
-    default: '#f8fafc',
-    paper: '#ffffff',
-  },
-  text: {
-    primary: '#0f172a',
-    secondary: '#475569',
-    disabled: '#64748b',
-  },
-  divider: 'rgba(0, 0, 0, 0.08)',
-  ui: {
-    border: 'rgba(0, 0, 0, 0.08)',
-    borderStrong: COLORS.violetDark,
-    surface1: '#ffffff',
-    surface2: '#f1f5f9',
-    surface3: '#e2e8f0',
-  },
-  brand: {
-    violet: COLORS.violetDark,
-    violetLight: COLORS.violet,
-    blue: COLORS.blueDark,
-    blueLight: COLORS.blue,
-  }
+  bg:    '#ECEDF6',
+  bgElev:'#F4F4FB',
+  surface: '#FAFAFD',
+  surface2:'#EFF0F8',
+  surface3:'#E3E5EE',
+  border: '#D8DBE9',
+  borderStrong: '#BFC3D7',
+  borderAccent: 'rgba(79, 70, 229, 0.35)',
+  text:   '#14112E',
+  textSecondary: '#3D3F6B',
+  textTertiary:  '#5A5E8B',
+  accent: ACCENT_LIGHT,
+  accentHover: '#4338CA',
+  accentSoft: 'rgba(79, 70, 229, 0.10)',
+  accentBorder: 'rgba(79, 70, 229, 0.35)',
+  success: '#0E9F6E',
+  warn:    '#C77700',
+  danger:  '#C8362E',
 };
 
-// ─── Create Theme ────────────────────────────────────────────────────────────
-
+// ─── Create Theme ─────────────────────────────────────────────────────────────
 export const createAppTheme = (mode: ThemeMode) => {
   const p = mode === 'dark' ? PALETTE_DARK : PALETTE_LIGHT;
+  const isDark = mode === 'dark';
 
   return createTheme({
     palette: {
       mode,
-      ...p,
       primary: {
-        main: p.brand.violet,
-        light: p.brand.violetLight,
+        main: p.accent,
+        light: p.accentHover,
+        dark: isDark ? '#6366F1' : '#4338CA',
+        contrastText: isDark ? '#0B0F1E' : '#FFFFFF',
       },
       secondary: {
-        main: p.brand.blue,
-        light: p.brand.blueLight,
+        main: isDark ? '#6BB6FF' : '#1E6FE3',
+        light: isDark ? '#93C5FD' : '#60A5FA',
       },
-      error: { main: COLORS.rose },
-      warning: { main: COLORS.amber },
-      success: { main: COLORS.emerald },
-      info: { main: COLORS.blue },
+      error:   { main: p.danger },
+      warning: { main: p.warn },
+      success: { main: p.success },
+      background: {
+        default: p.bg,
+        paper:   p.bgElev,
+      },
+      text: {
+        primary:   p.text,
+        secondary: p.textSecondary,
+        disabled:  p.textTertiary,
+      },
+      divider: p.border,
       contrastThreshold: 4.5,
+      brand: {
+        accent:       p.accent,
+        accentHover:  p.accentHover,
+        accentSoft:   p.accentSoft,
+        accentBorder: p.accentBorder,
+        // backwards-compat aliases used by unmigrated components
+        blue:         isDark ? '#6BB6FF' : '#1E6FE3',
+        blueLight:    isDark ? '#93C5FD' : '#60A5FA',
+      },
+      brand_legacy: {
+        violet:       p.accent,
+        violetLight:  p.accentHover,
+        blue:         isDark ? '#6BB6FF' : '#1E6FE3',
+        blueLight:    isDark ? '#93C5FD' : '#60A5FA',
+      },
+      ui: {
+        border:       p.border,
+        borderStrong: p.borderStrong,
+        borderAccent: p.borderAccent,
+        surface:      p.surface,
+        surface1:     p.surface, // backwards-compat alias
+        surface2:     p.surface2,
+        surface3:     p.surface3,
+        bgElev:       p.bgElev,
+      },
     },
 
     shape: {
-      borderRadius: 4,
+      borderRadius: 6,
     },
 
     shadows: [
       'none',
-      ...Array(24).fill('0px 0px 0px 1px rgba(255,255,255,0.06)'),
+      '0 1px 2px rgba(0,0,0,0.25)',
+      '0 2px 4px rgba(0,0,0,0.28)',
+      '0 3px 6px rgba(0,0,0,0.30)',
+      '0 6px 18px rgba(0,0,0,0.35)',
+      '0 10px 28px rgba(0,0,0,0.40)',
+      '0 18px 40px rgba(0,0,0,0.45)',
+      ...Array(18).fill('none'),
     ] as Shadows,
 
     typography: {
-      fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+      fontFamily: FONT_BODY,
       fontSize: 14,
-      h1: { fontFamily: FONT_HEADING, fontWeight: 700 },
-      h2: { fontFamily: FONT_HEADING, fontWeight: 700 },
-      h3: { fontFamily: FONT_HEADING, fontWeight: 700 },
-      h4: { fontFamily: FONT_HEADING, fontWeight: 700 },
-      h5: { fontFamily: FONT_HEADING, fontWeight: 700 },
-      h6: { fontFamily: FONT_HEADING, fontWeight: 700 },
-      button: { fontFamily: FONT_HEADING, fontWeight: 600, letterSpacing: '0.04em' },
-      caption: { fontFamily: FONT_MONO, letterSpacing: '0.02em' },
-      overline: { fontFamily: FONT_MONO },
+      htmlFontSize: 16,
+      h1: { fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: '-0.022em', lineHeight: 1.1 },
+      h2: { fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: '-0.018em', lineHeight: 1.15 },
+      h3: { fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: '-0.012em', lineHeight: 1.2 },
+      h4: { fontFamily: FONT_DISPLAY, fontWeight: 600, letterSpacing: '-0.008em' },
+      h5: { fontFamily: FONT_DISPLAY, fontWeight: 600 },
+      h6: { fontFamily: FONT_DISPLAY, fontWeight: 600 },
+      subtitle1: { fontFamily: FONT_BODY, fontWeight: 500, fontSize: '0.9375rem' },
+      subtitle2: { fontFamily: FONT_BODY, fontWeight: 500, fontSize: '0.875rem' },
+      body1:  { fontFamily: FONT_BODY, fontSize: '0.9063rem', lineHeight: 1.55 },
+      body2:  { fontFamily: FONT_BODY, fontSize: '0.8125rem', lineHeight: 1.5 },
+      button: { fontFamily: FONT_BODY, fontWeight: 600, letterSpacing: '0.01em', textTransform: 'none' },
+      caption: { fontFamily: FONT_MONO, fontSize: '0.75rem', letterSpacing: '0.02em' },
+      overline: { fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' },
     },
 
     components: {
       MuiCssBaseline: {
-        styleOverrides: {
-          body: {
-            backgroundColor: p.background.default,
-            color: p.text.primary,
-            transition: 'background-color 200ms ease, color 200ms ease',
-          },
-        },
+        styleOverrides: `
+          *, *::before, *::after { box-sizing: border-box; }
+          html { scroll-behavior: smooth; }
+          body {
+            margin: 0;
+            background-color: ${p.bg};
+            color: ${p.text};
+            font-family: ${FONT_BODY};
+            font-size: 14.5px;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            transition: background-color 180ms ease, color 180ms ease;
+          }
+          ::selection { background: ${alpha(p.accent, 0.25)}; }
+          :focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px ${p.bg}, 0 0 0 4px ${p.accent};
+            border-radius: 4px;
+          }
+          *::-webkit-scrollbar { width: 10px; height: 10px; }
+          *::-webkit-scrollbar-track { background: transparent; }
+          *::-webkit-scrollbar-thumb {
+            background: ${p.borderStrong};
+            border-radius: 6px;
+            border: 2px solid ${p.bg};
+          }
+          *::-webkit-scrollbar-thumb:hover { background: ${p.accentBorder}; }
+          @keyframes if-fade-in {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes if-slide-right {
+            from { opacity: 0; transform: translateX(8px); }
+            to   { opacity: 1; transform: translateX(0); }
+          }
+          @keyframes if-pulse-ring {
+            0%   { box-shadow: 0 0 0 0 ${alpha(p.accent, 0.4)}; }
+            100% { box-shadow: 0 0 0 6px transparent; }
+          }
+          .if-appear { animation: if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both; }
+        `,
       },
+
       MuiPaper: {
+        defaultProps: { elevation: 0 },
         styleOverrides: {
           root: {
             backgroundImage: 'none',
+            backgroundColor: p.surface,
+            border: `1px solid ${p.border}`,
+          },
+          outlined: {
+            borderColor: p.border,
           },
         },
       },
+
       MuiButton: {
-        defaultProps: { disableElevation: true, disableRipple: true },
+        defaultProps: { disableElevation: true, disableRipple: false },
         styleOverrides: {
           root: {
-            borderRadius: 2,
+            borderRadius: 6,
+            fontWeight: 600,
+            textTransform: 'none',
+            letterSpacing: 0,
+            transition: 'background-color 120ms ease, border-color 120ms ease, transform 120ms ease',
             '&:active': { transform: 'translateY(1px)' },
+          },
+          contained: {
+            backgroundColor: p.accent,
+            color: isDark ? '#0B0F1E' : '#FFFFFF',
+            '&:hover': { backgroundColor: p.accentHover },
+          },
+          outlined: {
+            borderColor: p.borderStrong,
+            color: p.text,
+            '&:hover': { borderColor: p.accentBorder, backgroundColor: p.accentSoft },
+          },
+          text: {
+            color: p.textSecondary,
+            '&:hover': { backgroundColor: p.surface2, color: p.text },
           },
         },
       },
+
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 6,
+            transition: 'background-color 120ms ease, color 120ms ease',
+            color: p.textSecondary,
+            '&:hover': { backgroundColor: p.surface2, color: p.text },
+          },
+        },
+      },
+
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: p.ui.surface1,
-            borderBottom: `1px solid ${p.ui.border}`,
+            backgroundColor: p.bgElev,
+            borderBottom: `1px solid ${p.border}`,
             backgroundImage: 'none',
-            color: p.text.primary,
+            color: p.text,
+            boxShadow: 'none',
           },
         },
       },
+
       MuiToggleButton: {
         styleOverrides: {
           root: {
-            borderColor: p.ui.border,
+            borderColor: p.border,
+            color: p.textSecondary,
+            fontWeight: 600,
+            textTransform: 'none',
+            letterSpacing: 0,
+            transition: 'background-color 120ms ease, color 120ms ease',
+            '&:hover': { backgroundColor: p.surface2, color: p.text },
             '&.Mui-selected': {
-              backgroundColor: alpha(p.brand.violet, 0.1),
-              color: p.brand.violet,
-              '&:hover': {
-                backgroundColor: alpha(p.brand.violet, 0.2),
-              },
+              backgroundColor: p.accentSoft,
+              color: p.accent,
+              borderColor: p.accentBorder,
+              '&:hover': { backgroundColor: alpha(p.accent, 0.22) },
             },
+          },
+        },
+      },
+
+      MuiTabs: {
+        styleOverrides: {
+          root: { minHeight: 46 },
+          indicator: {
+            backgroundColor: p.accent,
+            height: 2,
+          },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            fontFamily: FONT_BODY,
+            fontWeight: 550,
+            fontSize: '0.8438rem',
+            textTransform: 'none',
+            letterSpacing: 0,
+            color: p.textSecondary,
+            minHeight: 46,
+            padding: '12px 16px',
+            transition: 'color 120ms ease',
+            '&:hover': { color: p.text },
+            '&.Mui-selected': { color: p.accent, fontWeight: 600 },
+          },
+        },
+      },
+
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            borderRadius: 4,
+            fontWeight: 600,
+            fontSize: '0.75rem',
+            fontFamily: FONT_BODY,
+          },
+        },
+      },
+
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 6,
+              backgroundColor: p.surface,
+              transition: 'border-color 120ms ease, background-color 120ms ease',
+              '& fieldset': { borderColor: p.border },
+              '&:hover fieldset': { borderColor: p.borderStrong },
+              '&.Mui-focused fieldset': { borderColor: p.accent, borderWidth: 1 },
+            },
+            '& .MuiInputBase-input': {
+              color: p.text,
+              fontSize: '0.875rem',
+              '&::placeholder': { color: p.textTertiary, opacity: 1 },
+            },
+          },
+        },
+      },
+
+      MuiSelect: {
+        styleOverrides: {
+          root: { borderRadius: 6 },
+        },
+      },
+
+      MuiSlider: {
+        styleOverrides: {
+          root: {
+            color: p.accent,
+            height: 6,
+            padding: '12px 0',
+          },
+          rail: {
+            opacity: 1,
+            background: `linear-gradient(to right,
+              rgba(248, 113, 113, 0.4) 0%,
+              rgba(244, 183, 64, 0.4) 35%,
+              ${p.borderStrong} 48%,
+              ${p.borderStrong} 52%,
+              ${alpha(p.accent, 0.35)} 65%,
+              ${p.accent} 100%)`,
+          },
+          track: { display: 'none' },
+          thumb: {
+            width: 20,
+            height: 20,
+            backgroundColor: p.bgElev,
+            border: `3px solid ${p.accent}`,
+            boxShadow: `0 2px 8px rgba(0,0,0,0.35), 0 0 0 6px ${alpha(p.accent, 0.14)}`,
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
+            '&::before': { display: 'none', boxShadow: 'none' },
+            '&::after': { width: 0, height: 0 },
+            '&:hover': { boxShadow: `0 2px 8px rgba(0,0,0,0.35), 0 0 0 6px ${alpha(p.accent, 0.14)}` },
+            '&.Mui-focusVisible': { boxShadow: `0 2px 8px rgba(0,0,0,0.35), 0 0 0 6px ${alpha(p.accent, 0.28)}` },
+          },
+          mark: { display: 'none' },
+          markLabel: { fontSize: '0.6875rem', fontFamily: FONT_MONO, color: p.textTertiary, top: 28 },
+          markLabelActive: { color: p.textSecondary },
+          valueLabel: {
+            backgroundColor: p.surface3,
+            color: p.text,
+            fontSize: '0.75rem',
+            fontFamily: FONT_MONO,
+            fontWeight: 700,
+          },
+        },
+      },
+
+      MuiTooltip: {
+        defaultProps: { arrow: true },
+        styleOverrides: {
+          tooltip: {
+            backgroundColor: p.surface3,
+            color: p.text,
+            border: `1px solid ${p.borderStrong}`,
+            fontSize: '0.75rem',
+            fontFamily: FONT_BODY,
+            borderRadius: 6,
+          },
+          arrow: { color: p.surface3 },
+        },
+      },
+
+      MuiDivider: {
+        styleOverrides: {
+          root: { borderColor: p.border },
+        },
+      },
+
+      MuiCard: {
+        defaultProps: { elevation: 0 },
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+            border: `1px solid ${p.border}`,
+            backgroundColor: p.surface,
+            backgroundImage: 'none',
+            transition: 'border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease',
+            '&:hover': {
+              borderColor: p.accentBorder,
+            },
+          },
+        },
+      },
+
+      MuiAccordion: {
+        defaultProps: { elevation: 0, disableGutters: true },
+        styleOverrides: {
+          root: {
+            backgroundColor: p.surface,
+            border: `1px solid ${p.border}`,
+            borderRadius: '8px !important',
+            '&::before': { display: 'none' },
+            '& + &': { marginTop: 8 },
           },
         },
       },

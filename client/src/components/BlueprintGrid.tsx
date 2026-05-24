@@ -2,28 +2,32 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { memo, startTransition, useMemo, useState, type ReactNode } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import CheckIcon from '@mui/icons-material/Check';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardMedia from '@mui/material/CardMedia';
 import CircularProgress from '@mui/material/CircularProgress';
-import ToggleButton from '@mui/material/ToggleButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupsIcon from '@mui/icons-material/Groups';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import LayersIcon from '@mui/icons-material/Layers';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
-import { StatBar } from './ui/StatBar';
 import { MaterialChips } from './ui/MaterialChips';
-import { CARD_STATS, computeStatMaxima, getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
+import { getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
 import {
@@ -31,12 +35,10 @@ import {
   isDisplayableShipComponent,
 } from '../utils/shipComponents';
 import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
-import { STAT_UNITS } from '../types';
 import type {
   AcquisitionGraphEntry,
   Blueprint,
   ItemCategory,
-  NumericItemStatKey,
   Resource,
   ShipComponentEntry,
 } from '../types';
@@ -91,6 +93,13 @@ function resolveThumb(bp: Blueprint): { url: string | null; mode: 'item' | 'logo
   if (m?.primaryVisual?.imageUrl) return { url: m.primaryVisual.imageUrl, mode: 'item' };
   if (m?.manufacturerLogo?.imageUrl) return { url: m.manufacturerLogo.imageUrl, mode: 'logo' };
   return { url: null, mode: 'item' };
+}
+
+function formatCraftTime(secs: number): string {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 function getCraftTimeBucket(craftTimeSecs: number): string {
@@ -182,6 +191,58 @@ function compareNumberDesc(left: number | null | undefined, right: number | null
   return rightValue - leftValue;
 }
 
+function QuickActionBtn({
+  active,
+  label,
+  icon,
+  onClick,
+  color,
+}: {
+  active?: boolean;
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  color?: string;
+}) {
+  const theme = useTheme();
+  const resolvedColor = color ?? theme.palette.primary.main;
+  return (
+    <Box
+      component="button"
+      onClick={(e: { stopPropagation: () => void }) => { e.stopPropagation(); onClick(); }}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 0.75,
+        border: '1px solid',
+        borderColor: active ? alpha(resolvedColor, 0.6) : 'divider',
+        bgcolor: active ? alpha(resolvedColor, 0.13) : 'transparent',
+        color: active ? resolvedColor : 'text.secondary',
+        borderRadius: 1,
+        px: 1.25,
+        py: 0.75,
+        fontSize: '0.72rem',
+        fontWeight: 600,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        flex: 1,
+        minHeight: 32,
+        transition: 'all 120ms ease',
+        '&:hover': {
+          bgcolor: active ? alpha(resolvedColor, 0.18) : alpha(theme.palette.text.primary, 0.04),
+          color: active ? resolvedColor : 'text.primary',
+          borderColor: active ? alpha(resolvedColor, 0.8) : 'text.secondary',
+        },
+        '& .MuiSvgIcon-root': { fontSize: '14px !important' },
+      }}
+    >
+      {icon}
+      {label}
+    </Box>
+  );
+}
+
 export interface BlueprintCardQuickAction {
   key: string;
   label: string;
@@ -201,19 +262,21 @@ export const BlueprintCard = memo(function BlueprintCard({
   activeBlueprintId,
   isFavorite,
   isInInventory,
+  isObtainable,
   organizationShareAction,
   extraQuickActions,
-  statMaxima,
   resources,
   priority = false,
   onSelect,
   onToggleFavorite,
   onToggleInventory,
+  onAddToPlanner,
 }: {
   blueprint: Blueprint;
   activeBlueprintId: string | null;
   isFavorite: boolean;
   isInInventory: boolean;
+  isObtainable?: boolean;
   organizationShareAction?: {
     selected: boolean;
     busy?: boolean;
@@ -224,12 +287,12 @@ export const BlueprintCard = memo(function BlueprintCard({
     onToggle: (blueprintId: string) => void;
   } | null;
   extraQuickActions?: BlueprintCardQuickAction[];
-  statMaxima: Map<ItemCategory, Map<NumericItemStatKey, number>>;
   resources: Resource[];
   priority?: boolean;
   onSelect: (bp: Blueprint | null) => void;
   onToggleFavorite: (blueprintId: string) => void;
   onToggleInventory: (blueprintId: string) => void;
+  onAddToPlanner?: (blueprintId: string) => void;
 }) {
   const isActive = activeBlueprintId === blueprint.id;
   const { t, lang } = useI18n();
@@ -240,45 +303,6 @@ export const BlueprintCard = memo(function BlueprintCard({
   const blueprintHref = `/item/${toSlug(blueprint.name)}`;
   const cardHref = isActive ? '/' : blueprintHref;
 
-  const cardStats = CARD_STATS[blueprint.category] ?? [];
-  const categoryMax = statMaxima.get(blueprint.category);
-  const quickActionBaseSx = {
-    width: '100%',
-    minWidth: 0,
-    minHeight: { xs: 34, sm: 36 },
-    gap: { xs: 0.5, sm: 0.625 },
-    px: { xs: 0.9, sm: 1.05 },
-    py: { xs: 0.55, sm: 0.65 },
-    justifyContent: 'flex-start',
-    textTransform: 'none',
-    fontSize: { xs: '0.68rem', sm: '0.72rem' },
-    fontWeight: 600,
-    lineHeight: 1.15,
-    borderColor: 'divider',
-    backgroundColor: alpha(theme.palette.background.default, 0.3),
-    color: 'text.secondary',
-    '& .MuiSvgIcon-root': {
-      fontSize: { xs: '0.95rem', sm: '1rem' },
-      flexShrink: 0,
-    },
-    '& .MuiAvatar-root': {
-      width: { xs: 16, sm: 18 },
-      height: { xs: 16, sm: 18 },
-      flexShrink: 0,
-    },
-    '& .quick-action-label': {
-      minWidth: 0,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    },
-    '&:hover': {
-      borderColor: 'primary.main',
-      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-      color: 'text.primary',
-    },
-  } as const;
-
   return (
     <Card
       role="listitem"
@@ -286,21 +310,15 @@ export const BlueprintCard = memo(function BlueprintCard({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        borderColor: isActive ? 'primary.main' : (isInInventory ? 'primary.light' : alpha(theme.palette.primary.main, 0.13)),
-        background:
-          theme.palette.mode === 'dark'
-            ? `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.42)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`
-            : 'background.paper',
-        transition: 'all 200ms ease',
+        borderColor: isActive ? 'primary.main' : (isInInventory ? alpha(theme.palette.primary.main, 0.42) : 'ui.border'),
+        backgroundColor: 'ui.surface',
+        transition: 'border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease',
         overflow: 'hidden',
-        borderRadius: 0.75,
-        boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.035)}`,
+        borderRadius: 2,
         '&:hover': {
-          borderColor: 'primary.main',
-          transform: 'translateY(-4px)',
-          boxShadow: theme.palette.mode === 'dark' 
-            ? `0 12px 32px ${alpha('#000', 0.5)}`
-            : `0 12px 32px ${alpha(theme.palette.primary.main, 0.12)}`,
+          borderColor: 'brand.accentBorder',
+          transform: 'translateY(-2px)',
+          boxShadow: `0 6px 18px ${alpha('#000', theme.palette.mode === 'dark' ? 0.35 : 0.08)}`,
         },
       }}
     >
@@ -418,199 +436,118 @@ export const BlueprintCard = memo(function BlueprintCard({
             </Typography>
           </Box>
 
-          {/* Stat bars */}
-          {cardStats.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-              {cardStats.map(({ key, label }) => {
-                const val = blueprint.baseStats[key];
-                if (typeof val !== 'number') return null;
-
-                const max = categoryMax?.get(key) ?? Math.abs(val);
-                const unit = STAT_UNITS[key] ?? '';
-                const displayVal = unit === '%'
-                  ? `${Math.round(val * 100)}%`
-                  : `${Math.round(val)}${unit ? ` ${unit}` : ''}`;
-
-                let fill = 0;
-                if (key === 'temperatureMin') {
-                  fill = ((val + 100) / 150) * 100;
-                } else if (key === 'temperatureMax') {
-                  fill = (val / 150) * 100;
-                } else {
-                  fill = max > 0 ? (Math.abs(val) / max) * 100 : 0;
-                }
-
-                return (
-                  <StatBar
-                    key={key}
-                    label={loc(label, lang)}
-                    value={displayVal}
-                    fill={fill}
-                  />
-                );
-              })}
-            </Box>
-          )}
+          {/* Footer badges */}
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}>
+            <Chip
+              icon={<AccessTimeIcon />}
+              label={formatCraftTime(blueprint.craftTimeSecs)}
+              size="small"
+              variant="outlined"
+              sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.68rem', px: 0.75 }, '& .MuiChip-icon': { fontSize: '0.75rem', ml: '5px' }, color: 'text.secondary', borderColor: 'ui.border' }}
+            />
+            <Chip
+              icon={<LayersIcon />}
+              label={`${blueprint.slotCount ?? blueprint.slots.length} slots`}
+              size="small"
+              variant="outlined"
+              sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.68rem', px: 0.75 }, '& .MuiChip-icon': { fontSize: '0.75rem', ml: '5px' }, color: 'text.secondary', borderColor: 'ui.border' }}
+            />
+            {isObtainable && (
+              <Chip
+                icon={<TravelExploreIcon />}
+                label="Mission"
+                size="small"
+                color="secondary"
+                variant="outlined"
+                sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.68rem', px: 0.75 }, '& .MuiChip-icon': { fontSize: '0.75rem', ml: '5px' } }}
+              />
+            )}
+          </Box>
 
           {/* Materials */}
           <Box sx={{ mt: 'auto', pt: 0.75 }}>
-            {blueprint.slots.length > 0 && (
-              <MaterialChips slots={blueprint.slots} resources={resources} />
-            )}
+            <MaterialChips
+              slots={blueprint.slots}
+              resources={resources}
+              resourceIds={blueprint.requiredResourceIds}
+            />
           </Box>
         </Box>
       </CardActionArea>
 
       <Box
         sx={{
-          px: { xs: 1, sm: 1.15 },
-          pb: { xs: 1, sm: 1.1 },
-          pt: 0.65,
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+          gridTemplateColumns: `repeat(${3 + (organizationShareAction ? 1 : 0) + (extraQuickActions?.length ?? 0)}, minmax(0, 1fr))`,
           gap: 0.75,
+          px: 1.25,
+          py: 1.125,
           borderTop: `1px solid ${theme.palette.divider}`,
           backgroundColor: alpha(theme.palette.background.default, 0.08),
         }}
       >
-        <Tooltip
-          title={
-            isFavorite
-              ? t('Remove from favorites', 'Retirer des favoris', 'Aus Favoriten entfernen')
-              : t('Add to favorites', 'Ajouter aux favoris', 'Zu Favoriten hinzufugen')
-          }
-        >
-          <ToggleButton
-            value="favorite"
-            size="small"
-            selected={isFavorite}
-            aria-pressed={isFavorite}
-            aria-label={
-              isFavorite
-                ? t('Remove from favorites', 'Retirer des favoris', 'Aus Favoriten entfernen')
-                : t('Add to favorites', 'Ajouter aux favoris', 'Zu Favoriten hinzufugen')
-            }
-            onClick={() => onToggleFavorite(blueprint.id)}
-            sx={{
-              ...quickActionBaseSx,
-              ...(isFavorite && {
-                color: 'warning.main',
-                borderColor: 'warning.main',
-                backgroundColor: alpha(theme.palette.warning.main, 0.12),
-              }),
-            }}
-          >
-            {isFavorite ? <StarIcon /> : <StarBorderIcon />}
-            <Box component="span" className="quick-action-label">
-              {t('Favorite', 'Favori', 'Favorit')}
-            </Box>
-          </ToggleButton>
-        </Tooltip>
-        <Tooltip
-          title={
-            isInInventory
-              ? t('Remove from inventory', 'Retirer de l\'inventaire', 'Aus Inventar entfernen')
-              : t('Add to inventory', 'Ajouter a l\'inventaire', 'Zum Inventar hinzufugen')
-          }
-        >
-          <ToggleButton
-            value="inventory"
-            size="small"
-            selected={isInInventory}
-            aria-pressed={isInInventory}
-            aria-label={
-              isInInventory
-                ? t('Remove from inventory', 'Retirer de l\'inventaire', 'Aus Inventar entfernen')
-                : t('Add to inventory', 'Ajouter a l\'inventaire', 'Zum Inventar hinzufugen')
-            }
-            onClick={() => onToggleInventory(blueprint.id)}
-            sx={{
-              ...quickActionBaseSx,
-              ...(isInInventory && {
-                color: 'primary.main',
-                borderColor: 'primary.main',
-                backgroundColor: alpha(theme.palette.primary.main, 0.12),
-              }),
-            }}
-          >
-            {isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
-            <Box component="span" className="quick-action-label">
-              {t('Inventory', 'Inventaire', 'Inventar')}
-            </Box>
-          </ToggleButton>
-        </Tooltip>
+        <QuickActionBtn
+          active={isFavorite}
+          onClick={() => onToggleFavorite(blueprint.id)}
+          label={t('Favori', 'Favori', 'Favorit')}
+          icon={isFavorite ? <StarIcon /> : <StarBorderIcon />}
+          color={isFavorite ? theme.palette.warning.main : undefined}
+        />
+        <QuickActionBtn
+          active={isInInventory}
+          onClick={() => onToggleInventory(blueprint.id)}
+          label={t('Inventaire', 'Inventaire', 'Inventar')}
+          icon={isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
+        />
+        <QuickActionBtn
+          onClick={() => onAddToPlanner?.(blueprint.id)}
+          label={t('Planner', 'Planner', 'Planner')}
+          icon={<PlaylistAddIcon />}
+        />
         {organizationShareAction && (
           <Tooltip title={organizationShareAction.tooltip}>
-            <span style={{ display: 'flex', width: '100%', minWidth: 0 }}>
-              <ToggleButton
-                value="organization-share"
-                size="small"
-                selected={organizationShareAction.selected}
-                aria-pressed={organizationShareAction.selected}
-                aria-label={organizationShareAction.ariaLabel}
-                disabled={organizationShareAction.disabled || organizationShareAction.busy}
+            <Box sx={{ display: 'flex', flex: 1 }}>
+              <QuickActionBtn
+                active={organizationShareAction.selected}
                 onClick={() => organizationShareAction.onToggle(blueprint.id)}
-                sx={{
-                  ...quickActionBaseSx,
-                  ...(organizationShareAction.selected && {
-                    color: 'primary.main',
-                    borderColor: 'primary.main',
-                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                  }),
-                }}
-              >
-                {organizationShareAction.busy ? (
-                  <CircularProgress size={16} color="inherit" />
-                ) : organizationShareAction.selected ? (
-                  <GroupsIcon />
-                ) : (
-                  <GroupsOutlinedIcon />
-                )}
-                <Box component="span" className="quick-action-label">
-                  {organizationShareAction.label}
-                </Box>
-              </ToggleButton>
-            </span>
+                label={organizationShareAction.label}
+                icon={
+                  organizationShareAction.busy ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : organizationShareAction.selected ? (
+                    <GroupsIcon />
+                  ) : (
+                    <GroupsOutlinedIcon />
+                  )
+                }
+              />
+            </Box>
           </Tooltip>
         )}
         {(extraQuickActions ?? []).map((action) => (
           <Tooltip key={action.key} title={action.tooltip}>
-            <span style={{ display: 'flex', width: '100%', minWidth: 0 }}>
-              <ToggleButton
-                value={action.key}
-                size="small"
-                selected={Boolean(action.selected)}
-                aria-pressed={Boolean(action.selected)}
-                aria-label={action.ariaLabel}
-                disabled={action.disabled || action.busy}
+            <Box sx={{ display: 'flex', flex: 1 }}>
+              <QuickActionBtn
+                active={Boolean(action.selected)}
                 onClick={() => action.onClick(blueprint.id)}
-                sx={{
-                  ...quickActionBaseSx,
-                  ...(action.selected && {
-                    color: 'primary.main',
-                    borderColor: 'primary.main',
-                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                  }),
-                }}
-              >
-                {action.busy ? (
-                  <CircularProgress size={16} color="inherit" />
-                ) : action.avatarSrc ? (
-                  <Avatar
-                    src={action.avatarSrc}
-                    alt={action.avatarAlt ?? action.label}
-                    sx={{ width: { xs: 16, sm: 18 }, height: { xs: 16, sm: 18 } }}
-                  >
-                    {(action.avatarAlt ?? action.label).charAt(0).toUpperCase()}
-                  </Avatar>
-                ) : (
-                  action.icon
-                )}
-                <Box component="span" className="quick-action-label">
-                  {action.label}
-                </Box>
-              </ToggleButton>
-            </span>
+                label={action.label}
+                icon={
+                  action.busy ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : action.avatarSrc ? (
+                    <Avatar
+                      src={action.avatarSrc}
+                      alt={action.avatarAlt ?? action.label}
+                      sx={{ width: 14, height: 14 }}
+                    >
+                      {(action.avatarAlt ?? action.label).charAt(0).toUpperCase()}
+                    </Avatar>
+                  ) : (
+                    action.icon
+                  )
+                }
+              />
+            </Box>
           </Tooltip>
         ))}
       </Box>
@@ -621,6 +558,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   prev.activeBlueprintId === next.activeBlueprintId &&
   prev.isFavorite === next.isFavorite &&
   prev.isInInventory === next.isInInventory &&
+  prev.isObtainable === next.isObtainable &&
   prev.organizationShareAction?.selected === next.organizationShareAction?.selected &&
   prev.organizationShareAction?.busy === next.organizationShareAction?.busy &&
   prev.organizationShareAction?.disabled === next.organizationShareAction?.disabled &&
@@ -628,11 +566,11 @@ export const BlueprintCard = memo(function BlueprintCard({
   prev.organizationShareAction?.ariaLabel === next.organizationShareAction?.ariaLabel &&
   prev.organizationShareAction?.tooltip === next.organizationShareAction?.tooltip &&
   prev.extraQuickActions === next.extraQuickActions &&
-  prev.statMaxima === next.statMaxima &&
   prev.resources === next.resources &&
   prev.priority === next.priority &&
   prev.onToggleFavorite === next.onToggleFavorite &&
-  prev.onToggleInventory === next.onToggleInventory
+  prev.onToggleInventory === next.onToggleInventory &&
+  prev.onAddToPlanner === next.onAddToPlanner
 );
 
 export function BlueprintGrid() {
@@ -675,7 +613,6 @@ export function BlueprintGrid() {
 
   const resources = activeDataset.resources;
   const allShipComponents = activeDataset.shipComponents?.entries ?? [];
-  const statMaxima = useMemo(() => computeStatMaxima(allBlueprints), [allBlueprints]);
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const inventoryIdSet = useMemo(() => new Set(inventoryIds), [inventoryIds]);
 
@@ -999,172 +936,152 @@ export function BlueprintGrid() {
   const hasVisibleShipComponents = filteredShipComponents.length > 0;
   const isCompletelyEmpty = !hasVisibleBlueprints && !hasVisibleShipComponents;
 
-  return (
-    <Box
-      sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}
-    >
-      <Box
-        sx={{
-          px: { xs: 1.25, sm: 1.5, md: 2 },
-          py: { xs: 0.9, md: 1.05 },
-          borderBottom: 1,
-          borderColor: 'divider',
-          background: (theme) =>
-            `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.3)} 0%, ${theme.palette.background.paper} 100%)`,
-        }}
-      >
-        <Typography
-          sx={{
-            fontFamily: FONT_HEADING,
-            fontWeight: 700,
-            fontSize: { xs: '1.45rem', md: '1.7rem' },
-            textTransform: 'uppercase',
-            lineHeight: 1,
-          }}
-        >
-          {t('Blueprints', 'Blueprints')}
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35, fontWeight: 600, fontSize: { xs: '0.82rem', md: '0.88rem' } }}>
-          {t(
-            'Browse craftable items, simulate quality builds and plan your material runs.',
-            'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
-          )}
-        </Typography>
-      </Box>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
-        <BlueprintExplorer />
-      </Box>
+  const GUTTER = { xs: 2, sm: 3, lg: 4 } as const;
+  const MAX_W = 1600;
 
-      {/* Scroll container — IntersectionObserver root. Requires the flex:1/minHeight:0 chain
-          from App.tsx's <Box component="main"> to remain intact so this Box — not the parent —
-          is the actual scrolling ancestor. If the layout breaks, the sentinel never fires. */}
+  return (
+    <Box sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Box
         sx={{
-          p: { xs: 1.25, sm: 1.5, md: 1.75 },
-          backgroundImage: (theme) =>
-            theme.palette.mode === 'dark'
-              ? `linear-gradient(${alpha(theme.palette.primary.main, 0.025)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.025)} 1px, transparent 1px)`
-              : 'none',
-          backgroundSize: '48px 48px',
+          display: 'flex',
+          flexDirection: 'column',
+          maxWidth: MAX_W,
+          mx: 'auto',
+          width: '100%',
+          animation: 'if-fade-in 280ms ease both',
         }}
       >
-        <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+        {/* ── View header ── */}
+        <Box sx={{ px: GUTTER, pt: { xs: 2, sm: 2.5, lg: 3 }, pb: 0 }}>
+          <Typography
+            sx={{
+              fontFamily: FONT_HEADING,
+              fontWeight: 700,
+              fontSize: { xs: '1.45rem', md: '1.7rem' },
+              textTransform: 'uppercase',
+              lineHeight: 1,
+            }}
+          >
+            {t('Blueprints', 'Blueprints')}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', mt: 0.5, fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.875rem' } }}
+          >
+            {t(
+              'Browse craftable items, simulate quality builds and plan your material runs.',
+              'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
+            )}
+          </Typography>
+        </Box>
+
+        {/* ── Explorer (toolbar + filters) — same horizontal gutter ── */}
+        <Box sx={{ px: GUTTER }}>
+          <BlueprintExplorer />
+        </Box>
+
+        {/* ── Result count ── */}
+        <Box sx={{ px: GUTTER, mb: 1.25, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
-            {filteredBlueprints.length} {t('blueprints', 'blueprints')}
+            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{filteredBlueprints.length}</strong>{' '}
+            {t('blueprints', 'blueprints')}
             {!shipComponentFiltersBlocked ? ` • ${filteredShipComponents.length} ${t('ship components', 'composants de vaisseau')}` : ''}
           </Typography>
         </Box>
-        {isCompletelyEmpty ? (
-          <Box sx={{ py: 8, textAlign: 'center' }}>
-            <Typography sx={{ color: 'text.secondary', mb: 1 }} role="status">
-              {emptyMessage}
-            </Typography>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {hasVisibleBlueprints && (
-              <Box>
-                <Typography
-                  sx={{
-                    mb: 1,
-                    color: 'text.secondary',
-                    fontFamily: FONT_HEADING,
-                    fontSize: '1.15rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {t('Blueprints', 'Blueprints')}
-                </Typography>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                      xs: '1fr',
-                      sm: 'repeat(2, 1fr)',
-                      md: 'repeat(3, 1fr)',
-                      lg: 'repeat(4, 1fr)',
-                      xl: 'repeat(5, 1fr)',
-                    },
-                    gap: { xs: 1.25, sm: 1.5, lg: 1.75 },
-                  }}
-                  role="list"
-                  aria-label={t('Blueprint list', 'Liste des blueprints')}
-                >
-                  {filteredBlueprints.slice(0, visibleCount).map((blueprint, index) => (
-                    <BlueprintCard
-                      key={blueprint.id}
-                      blueprint={blueprint}
-                      activeBlueprintId={activeBlueprint?.id ?? null}
-                      isFavorite={favoriteIdSet.has(blueprint.id)}
-                      isInInventory={inventoryIdSet.has(blueprint.id)}
-                      statMaxima={statMaxima}
-                      resources={resources}
-                      priority={index < initialCount}
-                      onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
-                      onToggleFavorite={toggleFavorite}
-                      onToggleInventory={toggleInventory}
-                    />
-                  ))}
-                </Box>
-                {/* Sentinel: triggers next batch when it enters the scroll container */}
-                {visibleCount < filteredBlueprints.length && (
-                  <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
-                )}
-              </Box>
-            )}
 
-            {hasVisibleShipComponents && (
-              <Box>
-                <Typography
-                  sx={{
-                    mb: 0.75,
-                    color: 'text.secondary',
-                    fontFamily: FONT_HEADING,
-                    fontSize: '1.15rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {t('Ship Components', 'Composants de vaisseau')}
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary' }}>
-                  {t(
-                    'Prepared card profiles for future blueprint support. These entries are currently informational.',
-                    'Cartes preparees pour les futurs blueprints. Ces entrees sont actuellement informatives.',
+        {/* ── Grid area — IntersectionObserver root ── */}
+        <Box sx={{ px: GUTTER, pb: 4 }}>
+          {isCompletelyEmpty ? (
+            <Box sx={{ py: 8, textAlign: 'center' }}>
+              <Typography sx={{ color: 'text.secondary', mb: 1 }} role="status">
+                {emptyMessage}
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {hasVisibleBlueprints && (
+                <Box>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                      gap: { xs: 1.25, sm: 1.5, lg: 1.75 },
+                    }}
+                    role="list"
+                    aria-label={t('Blueprint list', 'Liste des blueprints')}
+                  >
+                    {filteredBlueprints.slice(0, visibleCount).map((blueprint, index) => (
+                      <BlueprintCard
+                        key={blueprint.id}
+                        blueprint={blueprint}
+                        activeBlueprintId={activeBlueprint?.id ?? null}
+                        isFavorite={favoriteIdSet.has(blueprint.id)}
+                        isInInventory={inventoryIdSet.has(blueprint.id)}
+                        isObtainable={obtainableIds.has(blueprint.id)}
+                        resources={resources}
+                        priority={index < initialCount}
+                        onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
+                        onToggleFavorite={toggleFavorite}
+                        onToggleInventory={toggleInventory}
+                      />
+                    ))}
+                  </Box>
+                  {/* Sentinel: triggers next batch when it enters the scroll container */}
+                  {visibleCount < filteredBlueprints.length && (
+                    <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
                   )}
-                </Typography>
-                {/* TODO: Ship components do not have infinite scroll yet. When ENABLE_SHIP_COMPONENT_BLUEPRINTS
-                    is enabled, apply the same visibleCount/sentinel pattern used for blueprints above. */}
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                      xs: '1fr',
-                      sm: 'repeat(2, 1fr)',
-                      md: 'repeat(3, 1fr)',
-                      lg: 'repeat(4, 1fr)',
-                      xl: 'repeat(5, 1fr)',
-                    },
-                    gap: { xs: 1.5, sm: 2, lg: 3 },
-                  }}
-                  role="list"
-                  aria-label={t('Ship component list', 'Liste des composants de vaisseau')}
-                >
-                  {filteredShipComponents.map((component, index) => (
-                    <ShipComponentCard
-                      key={component.id}
-                      component={component}
-                      priority={index < 6}
-                    />
-                  ))}
                 </Box>
-              </Box>
-            )}
-          </Box>
-        )}
+              )}
+
+              {hasVisibleShipComponents && (
+                <Box>
+                  <Typography
+                    sx={{
+                      mb: 0.75,
+                      color: 'text.secondary',
+                      fontFamily: FONT_HEADING,
+                      fontSize: '1.15rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {t('Ship Components', 'Composants de vaisseau')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary' }}>
+                    {t(
+                      'Prepared card profiles for future blueprint support. These entries are currently informational.',
+                      'Cartes preparees pour les futurs blueprints. Ces entrees sont actuellement informatives.',
+                    )}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        sm: 'repeat(2, 1fr)',
+                        md: 'repeat(3, 1fr)',
+                        lg: 'repeat(4, 1fr)',
+                        xl: 'repeat(5, 1fr)',
+                      },
+                      gap: { xs: 1.5, sm: 2, lg: 3 },
+                    }}
+                    role="list"
+                    aria-label={t('Ship component list', 'Liste des composants de vaisseau')}
+                  >
+                    {filteredShipComponents.map((component, index) => (
+                      <ShipComponentCard
+                        key={component.id}
+                        component={component}
+                        priority={index < 6}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
       </Box>
     </Box>
   );
