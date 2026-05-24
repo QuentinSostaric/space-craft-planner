@@ -1,18 +1,31 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import Accordion from '@mui/material/Accordion';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
+import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
-import { useI18n } from '../../i18n/I18nContext';
-import type { Blueprint, ItemStats } from '../../types';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { loc, useI18n } from '../../i18n/I18nContext';
+import type { Blueprint, ItemStats, NumericItemStatKey } from '../../types';
+import {
+  CATEGORY_LABELS,
+  NUMERIC_ITEM_STAT_KEYS,
+  STAT_LABELS,
+  STAT_LOWER_IS_BETTER,
+  STAT_UNITS,
+} from '../../types';
 import { Button } from '../ui/Button';
+import { Panel } from '../ui/Panel';
 import { SlotCard } from './shared/SlotCard';
-import { CombinedModifiers } from './shared/CombinedModifiers';
-import { StatImpactRadar } from './shared/StatImpactRadar';
-import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO } from '../../theme';
 
 interface CraftSectionProps {
   blueprint: Blueprint;
@@ -23,202 +36,126 @@ interface CraftSectionProps {
   projectedStats: ItemStats;
 }
 
-function QualityDial({ score }: { score: number }) {
-  const { t } = useI18n();
-  const theme = useTheme();
-  const progress = Math.max(0, Math.min(100, score));
+function formatCraftTime(secs: number): string {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
 
+function formatStatValue(key: NumericItemStatKey, value: number): string {
+  const unit = STAT_UNITS[key];
+  const abs = Math.abs(value);
+  const formatted = abs < 10 ? value.toFixed(2) : abs < 100 ? value.toFixed(1) : String(Math.round(value));
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+interface StatRow {
+  key: NumericItemStatKey;
+  label: string;
+  baseVal: number;
+  finalVal: number;
+  delta: number;
+  deltaPct: number;
+  unit: string;
+  fillBase: number;
+  fillFinal: number;
+  isImproved: boolean;
+  isNeutral: boolean;
+}
+
+function buildStatRows(blueprint: Blueprint, projectedStats: ItemStats, lang: 'en' | 'fr' | 'de'): StatRow[] {
+  const base = blueprint.baseStats;
+  return NUMERIC_ITEM_STAT_KEYS
+    .filter((key) => typeof base[key] === 'number' && base[key] !== 0)
+    .map((key) => {
+      const baseVal = base[key] as number;
+      const finalVal = typeof projectedStats[key] === 'number' ? (projectedStats[key] as number) : baseVal;
+      const delta = finalVal - baseVal;
+      const deltaPct = baseVal !== 0 ? (finalVal / baseVal - 1) * 100 : 0;
+      const lowerIsBetter = STAT_LOWER_IS_BETTER.has(key);
+      const isImproved = lowerIsBetter ? delta < 0 : delta > 0;
+      const isNeutral = Math.abs(deltaPct) < 0.005;
+      const unit = STAT_UNITS[key] ?? '';
+      const maxRef = Math.max(Math.abs(baseVal), Math.abs(finalVal)) * 1.2 || 1;
+      const fillBase = Math.min(100, (Math.abs(baseVal) / maxRef) * 100);
+      const fillFinal = Math.min(100, (Math.abs(finalVal) / maxRef) * 100);
+      const labelObj = STAT_LABELS[key] ?? { en: String(key), fr: String(key) };
+      const label = loc(labelObj, lang);
+      return { key, label, baseVal, finalVal, delta, deltaPct, unit, fillBase, fillFinal, isImproved, isNeutral };
+    })
+    .slice(0, 12);
+}
+
+function getGrade(score: number): { label: string; labelFr: string; color: 'success' | 'primary' | 'default' | 'warning' | 'error' } {
+  if (score >= 80) return { label: 'Excellent', labelFr: 'Excellent', color: 'success' };
+  if (score >= 60) return { label: 'Élevé', labelFr: 'Élevé', color: 'primary' };
+  if (score >= 40) return { label: 'Standard', labelFr: 'Standard', color: 'default' };
+  if (score >= 20) return { label: 'Médiocre', labelFr: 'Médiocre', color: 'warning' };
+  return { label: 'Défectueux', labelFr: 'Défectueux', color: 'error' };
+}
+
+function KVRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-      }}
-    >
-      <Box sx={{ position: 'relative', width: 'min(100%, 230px)', aspectRatio: '230 / 150' }}>
-        <svg viewBox="0 0 230 150" aria-hidden="true" style={{ width: '100%', height: '100%' }}>
-          <defs>
-            <linearGradient id="quality-dial-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={theme.palette.primary.main} />
-              <stop offset="100%" stopColor={theme.palette.primary.light} />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 32 118 A 83 83 0 0 1 198 118"
-            fill="none"
-            stroke={alpha(theme.palette.text.primary, 0.12)}
-            strokeWidth="10"
-            strokeLinecap="butt"
-            pathLength={100}
-          />
-          <path
-            d="M 32 118 A 83 83 0 0 1 198 118"
-            fill="none"
-            stroke="url(#quality-dial-gradient)"
-            strokeWidth="10"
-            strokeLinecap="butt"
-            strokeDasharray={`${progress} 100`}
-            pathLength={100}
-          />
-        </svg>
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: '42px 0 auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <Typography
-            sx={{
-              fontFamily: FONT_HEADING,
-              fontSize: { xs: '2.65rem', md: '3rem' },
-              fontWeight: 800,
-              lineHeight: 0.85,
-            }}
-          >
-            {score}
-            <Typography component="span" sx={{ ml: 0.25, fontFamily: FONT_HEADING, fontSize: '1.2rem', fontWeight: 800 }}>
-              %
-            </Typography>
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              mt: 0.65,
-              color: 'text.secondary',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              fontSize: '0.75rem',
-            }}
-          >
-            {t('Final Quality', 'Qualite finale')}
-          </Typography>
-        </Box>
-      </Box>
-      <Box
-        sx={{
-          mt: -1.2,
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-          color: 'text.secondary',
-        }}
-      >
-        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>0%</Typography>
-        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>100%</Typography>
-      </Box>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1, py: 0.35 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.78rem', flexShrink: 0 }}>
+        {label}
+      </Typography>
+      <Typography variant="caption" sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', color: 'text.primary', textAlign: 'right' }}>
+        {value}
+      </Typography>
     </Box>
   );
 }
 
-function MiniStat({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string | number;
-  unit?: string;
-}) {
-  const theme = useTheme();
+function humanizeToken(value: string | undefined): string | null {
+  if (!value) return null;
+  return value.replace(/[_-]+/g, ' ').trim().split(' ')
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
+}
 
+function formatMicroScu(value: number): string {
+  if (Math.abs(value) >= 1000) {
+    const compact = value / 1000;
+    return `${Number.isInteger(compact) ? compact : compact.toFixed(1)}K`;
+  }
+  return String(value);
+}
+
+function FieldRow({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        px: 0.9,
-        py: 0.75,
-        minWidth: 0,
-        backgroundColor: alpha(theme.palette.background.default, 0.22),
-      }}
-    >
+    <>
       <Typography
         variant="caption"
         sx={{
-          display: 'block',
           color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
-          fontSize: '0.75rem',
-          lineHeight: 1.15,
+          fontSize: '0.72rem',
+          py: 0.65,
+          borderBottom: `1px solid ${theme.palette.ui.border}`,
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
         {label}
       </Typography>
       <Typography
+        variant="body2"
         sx={{
-          mt: 0.4,
-          fontFamily: FONT_MONO,
-          fontWeight: 800,
-          fontSize: '0.88rem',
-          lineHeight: 1,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          fontWeight: 650,
+          color: 'text.primary',
+          py: 0.65,
+          borderBottom: `1px solid ${theme.palette.ui.border}`,
+          overflowWrap: 'anywhere',
         }}
       >
         {value}
-        {unit && (
-          <Typography component="span" sx={{ ml: 0.35, color: 'text.secondary', fontSize: '0.75rem' }}>
-            {unit}
-          </Typography>
-        )}
       </Typography>
-    </Paper>
+    </>
   );
-}
-
-function getKeyStats(
-  blueprint: Blueprint,
-  projectedStats: ItemStats,
-  t: ReturnType<typeof useI18n>['t'],
-) {
-  if (blueprint.category === 'fps-weapon') {
-    const dps =
-      projectedStats.damage && projectedStats.rateOfFire
-        ? Math.round((projectedStats.damage * projectedStats.rateOfFire) / 60)
-        : 0;
-    return [
-      { label: 'DPS', value: dps > 0 ? dps : '-' },
-      { label: t('Fire Rate', 'Cadence'), value: projectedStats.rateOfFire ?? '-', unit: 'RPM' },
-      { label: t('Range', 'Portee'), value: projectedStats.idealCombatRange ?? projectedStats.effectiveRange ?? '-', unit: 'm' },
-    ];
-  }
-
-  if (blueprint.category === 'ship-weapon') {
-    return [
-      { label: 'Burst DPS', value: projectedStats.burstDps != null ? Math.round(projectedStats.burstDps) : '-' },
-      { label: t('Sustained DPS', 'DPS soutenu'), value: projectedStats.sustainedDps != null ? Math.round(projectedStats.sustainedDps) : '-' },
-      { label: t('Fire Rate', 'Cadence'), value: projectedStats.rateOfFire != null ? projectedStats.rateOfFire.toFixed(1) : '-', unit: 'RPM' },
-      { label: t('Range', 'Portee'), value: projectedStats.effectiveRange != null ? Math.round(projectedStats.effectiveRange) : '-', unit: 'm' },
-    ];
-  }
-
-  if (blueprint.category === 'fps-magazine') {
-    return [
-      { label: t('Capacity', 'Capacite'), value: projectedStats.magazineSize ?? '-', unit: 'rds' },
-    ];
-  }
-
-  if (['fps-armor', 'fps-helmet', 'fps-undersuit', 'fps-backpack'].includes(blueprint.category)) {
-    const mobility =
-      typeof projectedStats.wearMovementMultiplier === 'number'
-        ? projectedStats.wearMovementMultiplier.toFixed(2)
-        : '1.00';
-    return [
-      { label: t('Temp. Min', 'Temp. min'), value: projectedStats.temperatureMin ?? '-', unit: 'C' },
-      { label: t('Temp. Max', 'Temp. max'), value: projectedStats.temperatureMax ?? '-', unit: 'C' },
-      { label: blueprint.category === 'fps-backpack' ? t('Radiation', 'Radiation') : t('Mobility', 'Mobilite'), value: blueprint.category === 'fps-backpack' ? projectedStats.radiationDissipation ?? 0 : mobility, unit: blueprint.category === 'fps-backpack' ? 'mRem/s' : 'x' },
-    ];
-  }
-
-  return [
-    { label: t('Build index', 'Indice craft'), value: `${projectedStats.maxHealth ?? '-'}` },
-  ];
 }
 
 export function CraftSection({
@@ -229,245 +166,326 @@ export function CraftSection({
   qualityScore,
   projectedStats,
 }: CraftSectionProps) {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const theme = useTheme();
+  const [techExpanded, setTechExpanded] = useState(false);
 
-  const fillSlots = useCallback((mode: 'max' | 'minimum') => {
-    for (const slot of blueprint.slots) {
-      assignQuality(slot.id, mode === 'max' ? 1000 : (slot.minQuality ?? 0));
-    }
-  }, [blueprint.slots, assignQuality]);
+  const fillSlots = useCallback(
+    (mode: 'max' | 'standard') => {
+      for (const slot of blueprint.slots) {
+        assignQuality(slot.id, mode === 'max' ? 1000 : 500);
+      }
+    },
+    [blueprint.slots, assignQuality],
+  );
 
   const validAssignedCount = blueprint.slots.filter((slot) => {
     const value = slotAssignments[slot.id];
     return value !== undefined && (slot.minQuality == null || value >= slot.minQuality);
   }).length;
   const allPartsValid = validAssignedCount === blueprint.slots.length;
-  const keyStats = getKeyStats(blueprint, projectedStats, t);
+
+  const grade = getGrade(qualityScore);
+  const gradeColor = {
+    success: theme.palette.success.main,
+    primary: theme.palette.primary.main,
+    default: theme.palette.text.secondary,
+    warning: theme.palette.warning.main,
+    error: theme.palette.error.main,
+  }[grade.color];
+
+  const statRows = buildStatRows(blueprint, projectedStats, lang);
+
+  const attachDef = blueprint.identity?.attachDef;
+  const inv = blueprint.identity?.inventoryOccupancy;
+  const itemType = blueprint.baseStats.weaponType || blueprint.baseStats.armorType || null;
+  const sizeVal = attachDef?.size != null ? String(attachDef.size) : null;
+  const volumeVal = inv?.microScu != null ? `${formatMicroScu(inv.microScu)} microSCU` : null;
+  const gridSizeVal = inv?.gridSize?.x && inv?.gridSize?.y ? `${inv.gridSize.x} × ${inv.gridSize.y}` : null;
+  const footprintVal = inv?.dimensions?.x && inv?.dimensions?.y && inv?.dimensions?.z
+    ? `${Math.round(inv.dimensions.x * 1000)} × ${Math.round(inv.dimensions.y * 1000)} × ${Math.round(inv.dimensions.z * 1000)} mm`
+    : null;
+  const attackProfile = [attachDef?.type, attachDef?.subType].filter(Boolean).map(humanizeToken).join(' / ') || null;
+  const ammoType = blueprint.baseStats.ammoType || blueprint.baseStats.ammoFlavor || null;
+  const armorSlot = blueprint.baseStats.armorSlot || null;
+  const blueprintId = blueprint.id;
+  const entityPath = blueprint.identity?.entityPath ?? null;
+  const technicalTags = [
+    attachDef?.size != null ? `Size ${attachDef.size}` : null,
+    attachDef?.grade != null ? `Grade ${attachDef.grade}` : null,
+    ...(attachDef?.tags ?? []).map(humanizeToken),
+    ...(attachDef?.requiredTags ?? []).map(humanizeToken),
+  ].filter(Boolean) as string[];
+  const hasFieldData = !!(itemType || sizeVal || volumeVal || gridSizeVal || footprintVal || attackProfile || ammoType || armorSlot || technicalTags.length > 0);
+
+  const estimatedXp = Math.round(8000 + qualityScore * 80);
+  const craftXp = `~${estimatedXp.toLocaleString()}`;
+  const stationCost = (1200 + blueprint.slots.length * 600 + qualityScore * 4).toLocaleString();
+
+  const gradeChipSx = {
+    height: 22,
+    fontFamily: FONT_MONO,
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    backgroundColor: alpha(gradeColor, 0.14),
+    color: gradeColor,
+    border: `1px solid ${alpha(gradeColor, 0.38)}`,
+    '& .MuiChip-label': { px: 1 },
+  };
 
   return (
     <Box
       id="blueprint-craft"
       component="section"
       aria-label={t('Craft simulator', 'Simulateur de craft')}
-      sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, scrollMarginTop: 66 }}
+      sx={{ scrollMarginTop: 66, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 340px' }, gap: 1.5, alignItems: 'start' }}
     >
-      <Paper
-        sx={{
-          overflow: 'hidden',
-          border: `1px solid ${theme.palette.ui.border}`,
-          background: `linear-gradient(180deg, ${alpha(theme.palette.ui.surface2, 0.72)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
-        }}
-      >
-        <Box
-          sx={{
-            px: { xs: 1.15, md: 1.35 },
-            py: 1,
-            display: 'flex',
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            justifyContent: 'space-between',
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: 1,
-            borderBottom: `1px solid ${theme.palette.ui.border}`,
-          }}
+      {/* ── LEFT: Slots + Field Data ── */}
+      <Stack spacing={1.5}>
+        <Panel
+          eyebrow={t('Slots', 'Slots')}
+          title={t('Materials & quality', 'Matériaux et qualité')}
+          subtitle={t(
+            `Place a material in each slot and adjust its quality. 500 = standard.`,
+            `Place un matériau dans chaque slot, ajuste sa qualité. 500 = standard.`,
+          )}
         >
-          <Stack spacing={0.35}>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'text.secondary',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                fontSize: '0.75rem',
-                lineHeight: 1.15,
-              }}
-            >
-              {blueprint.slots.length === 1
-                ? t('1 configurable part', '1 composant configurable')
-                : `${blueprint.slots.length} ${t('configurable parts', 'composants configurables')}`}
-            </Typography>
+          <Stack spacing={0.65}>
+            {blueprint.slots.map((slot) => (
+              <SlotCard
+                key={slot.id}
+                slot={slot}
+                qualityValue={slotAssignments[slot.id]}
+                onQualityChange={(value) => assignQuality(slot.id, value)}
+                category={blueprint.category}
+              />
+            ))}
           </Stack>
 
-          <Paper
-            variant="outlined"
+          {blueprint.slots.length > 0 && (
+            <>
+              <Divider sx={{ my: 1.5, borderColor: theme.palette.ui.border }} />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+              >
+                <Stack direction="row" spacing={0.6} alignItems="center" sx={{ color: allPartsValid ? 'success.main' : 'text.disabled' }}>
+                  <CheckCircleOutlineIcon sx={{ fontSize: '0.95rem' }} />
+                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                    {validAssignedCount}/{blueprint.slots.length} {t('valid', 'valides')}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.5}>
+                  <Button variant="ghost" size="sm" icon={<RefreshIcon sx={{ fontSize: '0.85rem' }} />} onClick={() => fillSlots('standard')}>
+                    {t('Reset 500', 'Reset 500')}
+                  </Button>
+                  <Button variant="ghost" size="sm" icon={<AutoAwesomeIcon sx={{ fontSize: '0.85rem' }} />} onClick={() => fillSlots('max')}>
+                    {t('Max quality', 'Qualité max')}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={clearAssignments}>
+                    {t('Clear', 'Effacer')}
+                  </Button>
+                </Stack>
+              </Box>
+            </>
+          )}
+        </Panel>
+
+        {/* ── FIELD DATA ── */}
+        {hasFieldData && (
+          <Accordion
+            expanded={techExpanded}
+            onChange={() => setTechExpanded((v) => !v)}
+            disableGutters
+            elevation={0}
             sx={{
-              display: 'flex',
-              gap: 0.45,
-              flexWrap: 'wrap',
-              justifyContent: { xs: 'flex-start', sm: 'flex-end' },
-              p: 0.35,
-              borderColor: alpha(theme.palette.primary.main, 0.18),
-              backgroundColor: alpha(theme.palette.background.default, 0.22),
+              backgroundColor: theme.palette.ui.surface,
+              border: `1px solid ${theme.palette.ui.border}`,
+              '&::before': { display: 'none' },
             }}
           >
-            <Button variant="ghost" size="sm" onClick={() => fillSlots('max')}>
-              {t('Max quality', 'Qualite max')}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => fillSlots('minimum')}>
-              {t('Minimum valid', 'Minimum valide')}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={clearAssignments}>
-              {t('Clear', 'Effacer')}
-            </Button>
-          </Paper>
-        </Box>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />}
+              sx={{
+                minHeight: 0,
+                px: 2,
+                py: 1,
+                '& .MuiAccordionSummary-content': { my: 0 },
+                borderBottom: techExpanded ? `1px solid ${theme.palette.ui.border}` : 'none',
+              }}
+            >
+              <Typography
+                variant="overline"
+                sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'text.secondary', lineHeight: 1 }}
+              >
+                {t('Field Data', 'Données objet')}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 2, pt: 1.25, pb: 1.5 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(100px, 0.5fr) 1fr',
+                  columnGap: 2,
+                  '& > *:last-child, & > *:nth-last-of-type(2)': { borderBottom: 'none' },
+                }}
+              >
+                {itemType && <FieldRow label={t('Item Type', 'Type objet')} value={itemType} />}
+                {sizeVal && <FieldRow label={t('Size', 'Taille')} value={sizeVal} />}
+                {volumeVal && <FieldRow label={t('Volume', 'Volume')} value={volumeVal} />}
+                {gridSizeVal && <FieldRow label={t('Grid Size', 'Taille grille')} value={gridSizeVal} />}
+                {footprintVal && <FieldRow label={t('Footprint', 'Encombrement')} value={footprintVal} />}
+                {attackProfile && <FieldRow label={t('Attack Profile', 'Profil attaque')} value={attackProfile} />}
+                {ammoType && <FieldRow label={t('Ammo Type', 'Type munition')} value={ammoType} />}
+                {armorSlot && <FieldRow label={t('Armor Slot', 'Emplacement')} value={armorSlot} />}
+                <FieldRow label={t('Craft XP', 'XP fabrication')} value={craftXp} />
+                <FieldRow label={t('Blueprint ID', 'ID blueprint')} value={blueprintId} />
+                {entityPath && <FieldRow label={t('Entity Path', 'Chemin entité')} value={entityPath} />}
+              </Box>
 
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: '270px minmax(0, 1fr)' },
-            minWidth: 0,
-          }}
+              {technicalTags.length > 0 && (
+                <Box sx={{ mt: 1.25 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.1em',
+                      fontSize: '0.72rem',
+                      display: 'block',
+                      mb: 0.75,
+                    }}
+                  >
+                    {t('Technical Tags', 'Tags techniques')}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                    {technicalTags.map((tag) => (
+                      <Chip key={tag} label={tag} size="small" variant="outlined" />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </AccordionDetails>
+          </Accordion>
+        )}
+      </Stack>
+
+      {/* ── RIGHT: Preview + Details ── */}
+      <Stack spacing={1.5}>
+        {/* "Résultat prévu" */}
+        <Panel
+          eyebrow={t('Simulation', 'Simulation')}
+          title={t('Expected result', 'Résultat prévu')}
+          subtitle={t('Final stats update live with sliders', 'Les stats finales évoluent en direct avec les sliders')}
+          action={
+            qualityScore > 0 ? (
+              <Chip
+                label={`Q${qualityScore} · ${lang === 'fr' ? grade.labelFr : grade.label}`}
+                size="small"
+                sx={gradeChipSx}
+              />
+            ) : undefined
+          }
         >
-          <Box
-            sx={{
-              p: { xs: 1.25, md: 1.45 },
-              borderRight: { lg: `1px solid ${theme.palette.ui.border}` },
-              borderBottom: { xs: `1px solid ${theme.palette.ui.border}`, lg: 'none' },
-              background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.055)}, ${alpha(theme.palette.background.default, 0.12)})`,
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                color: 'text.secondary',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                mb: 0.8,
-              }}
-            >
-              {t('Quality', 'Qualite')}
-            </Typography>
-            <QualityDial score={qualityScore} />
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                gap: 0.7,
-                mt: 1.2,
-              }}
-            >
-              {keyStats.slice(0, 4).map((stat) => (
-                <MiniStat
-                  key={stat.label}
-                  label={stat.label}
-                  value={stat.value}
-                  unit={stat.unit}
-                />
-              ))}
-            </Box>
-          </Box>
-
-          <Box sx={{ minWidth: 0, p: { xs: 1, md: 1.2 } }}>
-            <Box
-              sx={{
-                display: { xs: 'none', md: 'grid' },
-                gridTemplateColumns: 'minmax(210px, 0.92fr) minmax(220px, 1fr) 74px minmax(92px, 118px) 34px',
-                alignItems: 'center',
-                gap: 1,
-                px: 1,
-                pb: 0.75,
-                color: 'text.secondary',
-              }}
-            >
-              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.75rem' }}>
-                {t('Parts', 'Composants')}
-              </Typography>
-              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.75rem' }}>
-                {t('Quality', 'Qualite')}
-              </Typography>
-              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.62rem', textAlign: 'right' }}>
-                {t('Value', 'Valeur')}
-              </Typography>
-              <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.62rem', textAlign: 'center' }}>
-                {t('Qty', 'Qte')}
-              </Typography>
-              <Box />
-            </Box>
-            <Stack spacing={0.65}>
-              {blueprint.slots.map((slot) => (
-                <SlotCard
-                  key={slot.id}
-                  slot={slot}
-                  qualityValue={slotAssignments[slot.id]}
-                  onQualityChange={(value) => assignQuality(slot.id, value)}
-                  category={blueprint.category}
-                />
-              ))}
+          {statRows.length > 0 ? (
+            <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+              {statRows.map((row) => {
+                const deltaColor = row.isNeutral
+                  ? theme.palette.text.disabled
+                  : row.isImproved
+                    ? theme.palette.success.main
+                    : theme.palette.error.main;
+                const deltaSign = row.delta > 0 ? '+' : '';
+                const deltaStr = `${deltaSign}${Math.abs(row.deltaPct) >= 1 ? row.deltaPct.toFixed(1) : row.deltaPct.toFixed(2)}%`;
+                return (
+                  <Box key={row.key}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 0.5, mb: 0.3 }}>
+                      <Typography sx={{ fontFamily: FONT_DISPLAY, fontSize: '0.78rem', color: 'text.secondary', fontWeight: 600 }}>
+                        {row.label}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', color: 'text.disabled' }}>
+                          {formatStatValue(row.key, row.baseVal)}
+                        </Typography>
+                        <ArrowForwardIcon sx={{ fontSize: '0.6rem', color: 'text.disabled' }} />
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'text.primary' }}>
+                          {formatStatValue(row.key, row.finalVal)}
+                        </Typography>
+                        {!row.isNeutral && (
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', fontWeight: 700, color: deltaColor }}>
+                            {deltaStr}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                    <Box sx={{ position: 'relative', height: 3, backgroundColor: alpha(theme.palette.text.primary, 0.08) }}>
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          height: '100%',
+                          width: `${row.fillBase}%`,
+                          backgroundColor: alpha(theme.palette.text.secondary, 0.3),
+                          transition: 'width 300ms ease',
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          height: '100%',
+                          width: `${row.fillFinal}%`,
+                          backgroundColor: row.isNeutral
+                            ? theme.palette.primary.main
+                            : row.isImproved
+                              ? theme.palette.success.main
+                              : theme.palette.error.main,
+                          opacity: 0.75,
+                          transition: 'width 300ms ease',
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                );
+              })}
             </Stack>
+          ) : (
+            <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 1.5 }}>
+              {t('No modifiable stats', 'Aucune stat modifiable')}
+            </Typography>
+          )}
 
-            <Box
-              sx={{
-                mt: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                flexWrap: 'wrap',
-                color: 'text.secondary',
-              }}
-            >
-              <Typography variant="body2" sx={{ fontSize: '0.78rem' }}>
-                {t('Total parts', 'Total composants')}: <Box component="span" sx={{ color: allPartsValid ? 'success.main' : 'text.primary', fontWeight: 800 }}>{validAssignedCount}</Box> / {blueprint.slots.length}
-              </Typography>
-              <Stack direction="row" spacing={0.6} alignItems="center" sx={{ color: allPartsValid ? 'success.main' : 'text.disabled' }}>
-                <CheckCircleOutlineIcon sx={{ fontSize: '0.98rem' }} />
-                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                  {allPartsValid ? t('All parts valid', 'Tous les composants valides') : t('Waiting for valid parts', 'Composants valides attendus')}
-                </Typography>
-              </Stack>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
+          <Divider sx={{ my: 1.25, borderColor: theme.palette.ui.border }} />
+          <Stack spacing={0.15} sx={{ mb: 1.25 }}>
+            <KVRow label={t('Estimated XP', 'XP estimé')} value={`+${estimatedXp.toLocaleString()}`} />
+            <KVRow label={t('Station cost', 'Coût station')} value={`${stationCost} aUEC`} />
+            <KVRow label={t('Craft time', 'Temps de craft')} value={formatCraftTime(blueprint.craftTimeSecs)} />
+          </Stack>
+        </Panel>
 
-      <Paper
-        component="section"
-        aria-label={t('Advanced impact', 'Impact avance')}
-        sx={{
-          overflow: 'hidden',
-          border: `1px solid ${theme.palette.ui.border}`,
-          background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.035)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
-        }}
-      >
-        <Box
-          sx={{
-            px: { xs: 1.15, md: 1.35 },
-            py: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.6,
-            borderBottom: `1px solid ${theme.palette.ui.border}`,
-          }}
-        >
-          <TuneOutlinedIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
-          <Typography variant="overline" sx={{ lineHeight: 1 }}>
-            {t('Advanced impact', 'Impact avance')}
-          </Typography>
-        </Box>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.05fr) minmax(320px, 0.95fr)' },
-            minWidth: 0,
-          }}
-        >
-          <Box
-            sx={{
-              p: { xs: 1.15, md: 1.35 },
-              borderRight: { lg: `1px solid ${theme.palette.ui.border}` },
-              borderBottom: { xs: `1px solid ${theme.palette.ui.border}`, lg: 'none' },
-            }}
-          >
-            <CombinedModifiers blueprint={blueprint} projectedStats={projectedStats} />
-          </Box>
+        {/* "Détails du blueprint" */}
+        <Panel eyebrow={t('Reference', 'Référence')} title={t('Blueprint details', 'Détails du blueprint')}>
+          <Stack spacing={0.15}>
+            <KVRow label={t('Manufacturer', 'Fabricant')} value={blueprint.manufacturer} />
+            <KVRow
+              label={t('Category', 'Catégorie')}
+              value={loc(CATEGORY_LABELS[blueprint.category], lang)}
+            />
+            {blueprint.rarity && (
+              <KVRow label={t('Rarity', 'Rareté')} value={blueprint.rarity} />
+            )}
+            <KVRow label={t('Slots', 'Slots')} value={`${blueprint.slots.length} ${t('materials', 'matériaux')}`} />
+          </Stack>
+        </Panel>
 
-          <Box sx={{ p: { xs: 1.15, md: 1.35 } }}>
-            <StatImpactRadar blueprint={blueprint} projectedStats={projectedStats} />
-          </Box>
-        </Box>
-      </Paper>
+      </Stack>
     </Box>
   );
 }

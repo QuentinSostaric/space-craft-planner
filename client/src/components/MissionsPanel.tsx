@@ -5,7 +5,6 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardMedia from '@mui/material/CardMedia';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
@@ -26,6 +25,7 @@ import FlagIcon from '@mui/icons-material/Flag';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
@@ -41,7 +41,6 @@ import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLi
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import {
-  computeStatMaxima,
   formatProbabilityPercent,
   getStandingBucket,
   getMissionBlueprintDropChance,
@@ -64,7 +63,9 @@ import type {
   LocalizedString,
   StandingBucket,
 } from '../types';
-import { FONT_HEADING } from '../theme';
+import { FONT_DISPLAY, FONT_MONO } from '../theme';
+
+const FONT_HEADING = FONT_DISPLAY;
 
 const MISSION_SORT_OPTIONS: { value: MissionSort; label: LocalizedString }[] = [
   { value: 'name-asc', label: ls('Mission name', 'Nom de mission', 'Missionsname') },
@@ -477,6 +478,84 @@ function MissionsFilterBar({
   );
 }
 
+function ContractRow({
+  contract,
+  group,
+  onOpen,
+}: {
+  contract: MissionContract;
+  group: MissionRewardFactionGroup;
+  onOpen: () => void;
+}) {
+  const { lang, t } = useI18n();
+  const theme = useTheme();
+  const contractName = getMissionContractName(contract) ?? t('Unnamed contract', 'Contrat sans nom');
+  const employerName = getMissionEmployerName(contract, group);
+  const primaryLocation = getPrimaryMissionLocation(contract);
+  const blueprintCount = getMissionRewardedBlueprintCount(contract);
+  const dropChance = getMissionBlueprintDropChance(contract);
+  const isLawful = (group.faction?.factionType?.toLowerCase() ?? '') !== 'unlawful';
+  const scale = contract.availability.derivedScale;
+
+  return (
+    <Box
+      component="tr"
+      onClick={onOpen}
+      sx={{
+        cursor: 'pointer',
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr auto', sm: 'minmax(0,1fr) minmax(0,0.5fr) minmax(0,0.5fr) 80px' },
+        alignItems: 'center',
+        gap: 1,
+        px: 2,
+        py: 1,
+        borderBottom: `1px solid ${theme.palette.ui.border}`,
+        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.04) },
+        transition: 'background-color 120ms',
+      }}
+    >
+      {/* Name + employer */}
+      <Box component="td" sx={{ minWidth: 0 }}>
+        <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'text.primary' }}>
+          {contractName}
+        </Typography>
+        <Typography noWrap sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
+          {employerName}{primaryLocation ? ` · ${primaryLocation}` : ''}
+        </Typography>
+      </Box>
+
+      {/* Scale + legality — hidden xs */}
+      <Box component="td" sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: 0.25, minWidth: 0 }}>
+        {scale && (
+          <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+            {formatScaleLabel(scale, lang)}
+          </Typography>
+        )}
+        <Typography sx={{ fontSize: '0.72rem', color: isLawful ? 'success.main' : 'warning.main' }}>
+          {isLawful ? t('Lawful', 'Légal') : t('Unlawful', 'Illégal')}
+        </Typography>
+      </Box>
+
+      {/* Pool — hidden xs */}
+      <Box component="td" sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0 }}>
+        <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+          {blueprintCount} bp
+        </Typography>
+      </Box>
+
+      {/* Drop chance */}
+      <Box component="td" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
+        {dropChance > 0 && (
+          <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'primary.main' }}>
+            {formatProbabilityPercent(dropChance)}
+          </Typography>
+        )}
+        <ChevronRightIcon sx={{ fontSize: '0.9rem', color: 'text.disabled' }} />
+      </Box>
+    </Box>
+  );
+}
+
 function ContractCard({
   contract,
   group,
@@ -492,59 +571,45 @@ function ContractCard({
 }) {
   const { lang, t } = useI18n();
   const theme = useTheme();
-  const [imgError, setImgError] = useState(false);
   const factionType = group.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
   const blueprintCount = getMissionRewardedBlueprintCount(contract);
   const primaryLocation = getPrimaryMissionLocation(contract);
   const locationIconName = primaryLocation ? getLocationIconName(primaryLocation) : null;
-  const heroAsset = getMissionHeroAsset(contract, group);
-  const showHeroImage = Boolean(heroAsset) && !imgError;
   const activityKind = getMissionActivityKind(contract);
-  const reputationActivity = getMissionReputationActivity(contract);
-  const activityLabel = (() => {
-    switch (activityKind) {
-      case 'combat':
-        return t('Combat activity', 'Activite de combat');
-      case 'recovery':
-        return t('Recovery activity', 'Activite de recuperation');
-      case 'objective':
-      default:
-        return t('Objective activity', 'Activite d objectif');
-    }
-  })();
-  const activityShortLabel = (() => {
-    switch (activityKind) {
-      case 'combat':
-        return t('Combat', 'Combat');
-      case 'recovery':
-        return t('Recovery', 'Recuperation');
-      case 'objective':
-      default:
-        return t('Objective', 'Objectif');
-    }
-  })();
+  const employerName = getMissionEmployerName(contract, group);
+  const employerLogoUrl = getMissionHeroAsset(contract, group);
+  const initials = getEmployerInitials(employerName);
+  const factionColor = isUnlawful ? theme.palette.warning.main : theme.palette.primary.main;
+  const maxStanding = getMissionMaxStanding(contract);
+  const topStanding = contract.minimumRequiredStandings.length > 0
+    ? [...contract.minimumRequiredStandings].sort((a, b) => (b.minReputation ?? 0) - (a.minReputation ?? 0))[0]
+    : null;
+  const standingLabel = maxStanding > 0 && topStanding
+    ? (topStanding.standingName?.trim() || topStanding.scopeName?.trim() || null)
+    : null;
+
   return (
     <Card
       role="listitem"
       aria-label={getMissionContractName(contract)}
       sx={{
         position: 'relative',
-        height: { xs: 'auto', lg: 360, xl: 334 },
-        minHeight: { xs: 'auto', lg: 360, xl: 334 },
         display: 'flex',
-        borderColor: alpha(theme.palette.brand.blueLight, 0.22),
-        background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.15)} 0%, ${alpha(theme.palette.background.default, 0.98)} 48%, ${alpha(theme.palette.common.black, 0.28)} 100%)`,
+        flexDirection: 'column',
+        borderColor: 'ui.border',
+        bgcolor: 'ui.surface',
         overflow: 'hidden',
-        transition: 'border-color 150ms, background-color 150ms, box-shadow 150ms, transform 150ms',
+        transition: 'border-color 150ms, box-shadow 150ms, transform 150ms',
         '&:hover': {
-          borderColor: alpha(theme.palette.secondary.main, 0.55),
-          boxShadow: `0 20px 44px ${alpha(theme.palette.common.black, 0.32)}`,
+          borderColor: alpha(theme.palette.primary.main, 0.55),
+          boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.28)}`,
           transform: 'translateY(-1px)',
         },
       }}
     >
+      {/* Clickable overlay */}
       <Box
         component="a"
         href={href}
@@ -560,462 +625,336 @@ function ContractCard({
           zIndex: 1,
           cursor: 'pointer',
           '&:focus-visible': {
-            outline: `2px solid ${theme.palette.secondary.main}`,
+            outline: `2px solid ${theme.palette.primary.main}`,
             outlineOffset: -2,
           },
         }}
       />
-      <Box
-        sx={{
-          height: '100%',
-          width: '100%',
-          flex: 1,
-          minWidth: 0,
-          display: 'grid',
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(148px, 35%) minmax(0, 1fr)' },
-          alignItems: 'stretch',
-        }}
-      >
-        <Box
-          sx={{
-            position: 'relative',
-            minHeight: { xs: 190, sm: 210, lg: 0 },
-            height: '100%',
-            background: `
-              radial-gradient(circle at 20% 12%, ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.18)}, transparent 24%),
-              linear-gradient(135deg, ${alpha(isUnlawful ? theme.palette.error.dark : theme.palette.secondary.dark, 0.32)}, transparent 50%),
-              linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.18)} 0%, ${alpha(theme.palette.background.default, 0.96)} 100%)
-            `,
-            borderRight: { lg: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}` },
-            borderBottom: { xs: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`, lg: 0 },
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.24)} 56%, ${alpha(theme.palette.common.black, 0.72)} 100%), linear-gradient(180deg, ${alpha(theme.palette.common.black, 0.08)} 0%, ${alpha(theme.palette.common.black, 0.24)} 52%, ${alpha(theme.palette.common.black, 0.86)} 100%)` }} />
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              opacity: 0.42,
-              backgroundImage: `
-                linear-gradient(${alpha(theme.palette.common.white, 0.035)} 1px, transparent 1px),
-                linear-gradient(90deg, ${alpha(theme.palette.common.white, 0.028)} 1px, transparent 1px),
-                radial-gradient(circle at 72% 38%, ${alpha(theme.palette.secondary.main, 0.12)}, transparent 30%)
-              `,
-              backgroundSize: '42px 42px, 42px 42px, 100% 100%',
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              left: '-10%',
-              right: '12%',
-              bottom: '24%',
-              height: 42,
-              borderRadius: 1,
-              transform: 'skewX(-18deg)',
-              background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.28)} 10%, ${alpha(theme.palette.common.black, 0.72)} 48%, ${alpha(theme.palette.secondary.main, 0.18)} 100%)`,
-              borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.12)}`,
-              borderBottom: `1px solid ${alpha(theme.palette.common.black, 0.5)}`,
-              boxShadow: `0 16px 34px ${alpha(theme.palette.common.black, 0.42)}`,
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              left: '8%',
-              right: '32%',
-              bottom: '36%',
-              height: 10,
-              transform: 'skewX(-18deg)',
-              background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.brand.blueLight, 0.22)}, transparent)`,
-              opacity: 0.65,
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              background: `linear-gradient(90deg, ${alpha(theme.palette.background.default, 0.12)} 0%, transparent 42%, ${alpha(theme.palette.common.black, 0.48)} 100%)`,
-            }}
-          />
 
-          <Box sx={{ position: 'absolute', top: 18, left: 18, right: 18, zIndex: 2, display: 'flex', justifyContent: 'space-between', gap: 1 }}>
-            <Chip
-              label={activityShortLabel}
-              icon={<MissionActivityIcon kind={activityKind} size="0.95rem" />}
-              size="small"
-              title={activityLabel}
-              sx={{
-                height: 34,
-                maxWidth: '72%',
-                color: isUnlawful ? theme.palette.error.light : activityKind === 'recovery' ? theme.palette.success.light : theme.palette.secondary.light,
-                backgroundColor: alpha(theme.palette.background.default, 0.58),
-                backdropFilter: 'blur(12px)',
-                border: `1px solid ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.secondary.main, 0.58)}`,
-                borderRadius: 1,
-                '& .MuiChip-label': { px: 0.9, fontFamily: FONT_HEADING, fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' },
-                '& .MuiChip-icon': { ml: '8px', mr: '-2px', color: 'inherit' },
-              }}
-            />
-          </Box>
+      {/* Colored top stripe */}
+      <Box sx={{ height: 3, bgcolor: isUnlawful ? 'warning.main' : 'primary.main', opacity: 0.85, flexShrink: 0 }} />
 
-          <Box sx={{ width: '100%', height: '100%', p: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {showHeroImage ? (
-              <CardMedia
+      {/* Card head */}
+      <Box sx={{ p: '16px 20px 12px', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        {/* Eyebrow row: faction glyph + name + legal badge */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            {/* Employer logo or initials fallback */}
+            {employerLogoUrl ? (
+              <Box
                 component="img"
-                image={heroAsset!}
-                alt=""
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                onError={() => setImgError(true)}
+                src={employerLogoUrl}
+                alt={employerName}
                 sx={{
-                  maxWidth: '52%',
-                  maxHeight: '48%',
+                  width: 36,
+                  height: 36,
                   objectFit: 'contain',
-                  filter: theme.palette.mode === 'dark'
-                    ? 'drop-shadow(0 22px 30px rgba(0,0,0,0.62)) saturate(0.9)'
-                    : 'drop-shadow(0 18px 28px rgba(0,0,0,0.2)) saturate(0.96)',
-                  opacity: 0.28,
-                  transition: 'transform 240ms ease, opacity 240ms ease',
-                  '.MuiCard-root:hover &': {
-                    transform: 'scale(1.05)',
-                    opacity: 0.38,
-                  },
+                  borderRadius: 0.75,
+                  flexShrink: 0,
+                  filter: `drop-shadow(0 2px 6px ${alpha(theme.palette.common.black, 0.5)})`,
                 }}
               />
             ) : (
               <Box
                 sx={{
-                  width: 92,
-                  height: 92,
-                  borderRadius: 1.5,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1,
+                  bgcolor: alpha(factionColor, 0.14),
+                  color: factionColor,
+                  border: `1px solid ${alpha(factionColor, 0.42)}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: alpha(
-                    isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
-                    0.12,
-                  ),
-                  border: `1px solid ${alpha(
-                    isUnlawful ? theme.palette.error.main : theme.palette.primary.main,
-                    0.26,
-                  )}`,
+                  fontFamily: FONT_DISPLAY,
+                  fontWeight: 700,
+                  fontSize: 12,
                   flexShrink: 0,
+                  userSelect: 'none',
                 }}
               >
-                <Typography
+                {initials}
+              </Box>
+            )}
+            <Typography
+              noWrap
+              sx={{
+                fontFamily: FONT_DISPLAY,
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                color: 'text.secondary',
+                minWidth: 0,
+              }}
+            >
+              {employerName}
+            </Typography>
+          </Box>
+          {/* Legal badge */}
+          <Box
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              px: 0.875,
+              py: 0.25,
+              borderRadius: 0.75,
+              bgcolor: isUnlawful ? alpha(theme.palette.warning.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
+              color: isUnlawful ? 'warning.main' : 'primary.main',
+              fontFamily: FONT_MONO,
+              fontSize: '0.625rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              flexShrink: 0,
+            }}
+          >
+            {isUnlawful ? t('Illégal', 'Illégal') : t('Légal', 'Légal')}
+          </Box>
+        </Box>
+
+        {/* Mission title */}
+        <Typography
+          component="h3"
+          sx={{
+            fontFamily: FONT_DISPLAY,
+            fontWeight: 700,
+            fontSize: '1rem',
+            lineHeight: 1.25,
+            color: 'text.primary',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
+          {getMissionContractName(contract)}
+        </Typography>
+
+        {/* Location row */}
+        {primaryLocation && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, color: 'text.secondary' }}>
+            {locationIconName ? (
+              <StarCitizenLicensedIcon name={locationIconName} size={14} dimmed />
+            ) : (
+              <PlaceOutlinedIcon sx={{ fontSize: 14 }} />
+            )}
+            <Typography noWrap sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+              {primaryLocation}
+              {contract.availability.derivedScale && (
+                <Box component="span" sx={{ ml: 0.75, color: 'text.disabled', fontSize: '0.75rem' }}>
+                  · {formatScaleLabel(contract.availability.derivedScale, lang)}
+                </Box>
+              )}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Facts grid */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          borderTop: '1px solid',
+          borderColor: 'ui.border',
+          bgcolor: 'background.paper',
+        }}
+      >
+        {[
+          {
+            label: t('Pool', 'Pool'),
+            value: `${blueprintCount} bp`,
+          },
+          {
+            label: t('Scale', 'Portée'),
+            value: contract.availability.derivedScale
+              ? formatScaleLabel(contract.availability.derivedScale, lang)
+              : '—',
+          },
+          {
+            label: t('Standing', 'Réputation'),
+            value: standingLabel ?? (maxStanding > 0 ? String(maxStanding) : t('None', 'Aucune')),
+          },
+        ].map((fact, i) => (
+          <Box
+            key={i}
+            sx={{
+              p: '8px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.25,
+              borderRight: i < 2 ? '1px solid' : 'none',
+              borderColor: 'ui.border',
+            }}
+          >
+            <Typography
+              sx={{
+                fontFamily: FONT_MONO,
+                fontSize: '0.625rem',
+                color: 'text.disabled',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {fact.label}
+            </Typography>
+            <Typography
+              noWrap
+              sx={{
+                fontFamily: FONT_DISPLAY,
+                fontWeight: 700,
+                fontSize: '0.8125rem',
+                color: 'text.primary',
+              }}
+            >
+              {fact.value}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      {/* Blueprint pool section */}
+      {contract.rewardedBlueprints.length > 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid', borderColor: 'ui.border', flex: 1, minHeight: 0 }}>
+          {/* Pool header */}
+          <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {t('Pool', 'Pool')} · {blueprintCount} {t('blueprints', 'blueprints')}
+            </Typography>
+            {blueprintDropChance > 0 && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+                <Box
                   sx={{
-                    fontFamily: FONT_HEADING,
-                    fontWeight: 700,
-                    fontSize: '1.45rem',
-                    letterSpacing: '0.04em',
-                    color: isUnlawful ? theme.palette.error.light : theme.palette.primary.light,
-                    lineHeight: 1,
-                    userSelect: 'none',
+                    width: 64,
+                    height: 4,
+                    borderRadius: 99,
+                    bgcolor: alpha(theme.palette.primary.main, 0.18),
+                    overflow: 'hidden',
                   }}
                 >
-                  {getEmployerInitials(getMissionEmployerName(contract, group))}
+                  <Box
+                    sx={{
+                      height: '100%',
+                      width: `${Math.min(blueprintDropChance * 100, 100)}%`,
+                      bgcolor: 'primary.main',
+                      borderRadius: 99,
+                    }}
+                  />
+                </Box>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'primary.main', fontWeight: 600 }}>
+                  {formatProbabilityPercent(blueprintDropChance)}
                 </Typography>
               </Box>
             )}
           </Box>
 
-          <Box sx={{ position: 'absolute', left: 18, right: 18, bottom: 18, zIndex: 2, minWidth: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 1.5 }}>
-            <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
-              {showHeroImage ? (
-                <Box
-                  component="img"
-                  src={heroAsset!}
-                  alt=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  sx={{
-                    width: 38,
-                    height: 38,
-                    objectFit: 'contain',
-                    flexShrink: 0,
-                    filter: `drop-shadow(0 2px 8px ${alpha(theme.palette.common.black, 0.65)})`,
-                  }}
-                />
-              ) : null}
-              <Stack spacing={0.1} sx={{ minWidth: 0 }}>
-                <Typography
-                  noWrap
-                  sx={{
-                    color: theme.palette.text.primary,
-                    fontFamily: FONT_HEADING,
-                    fontSize: '0.95rem',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    lineHeight: 1,
-                    textShadow: `0 1px 8px ${alpha(theme.palette.common.black, 0.65)}`,
-                  }}
-                >
-                  {getMissionEmployerName(contract, group)}
-                </Typography>
-                <Typography
-                  noWrap
-                  sx={{
-                    color: alpha(theme.palette.text.primary, 0.68),
-                    fontFamily: FONT_HEADING,
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  {group.contractorDisplayName}
-                </Typography>
-              </Stack>
-            </Stack>
-            <Stack direction="row" spacing={0.65} alignItems="center" sx={{ color: isUnlawful ? theme.palette.error.light : theme.palette.success.light, flexShrink: 0 }}>
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  backgroundColor: isUnlawful ? theme.palette.error.main : theme.palette.success.main,
-                  boxShadow: `0 0 0 3px ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.16)}`,
-                }}
-              />
-              <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {factionType === 'unlawful' ? t('Unlawful', 'Illegal') : t('Lawful', 'Legal')}
-              </Typography>
-            </Stack>
-          </Box>
-        </Box>
-
-        <Box
-          sx={{
-            p: { xs: '14px', sm: '16px' },
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr)',
-            gridTemplateRows: { xs: 'auto auto auto minmax(0, 1fr)', lg: 'auto auto minmax(84px, 1fr)' },
-            rowGap: 1,
-            flex: 1,
-            minWidth: 0,
-            minHeight: 0,
-          }}
-        >
-          <Stack spacing={0.35} sx={{ gridColumn: { xs: '1', lg: '1' }, minWidth: 0 }}>
-            <Typography
-              sx={{
-                fontFamily: FONT_HEADING,
-                fontWeight: 800,
-                fontSize: { xs: '1.25rem', sm: '1.42rem', lg: '1.12rem', xl: '1.24rem' },
-                lineHeight: 0.95,
-                color: theme.palette.text.primary,
-                textTransform: 'uppercase',
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {getMissionContractName(contract)}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: alpha(theme.palette.text.primary, 0.72),
-                fontSize: '0.75rem',
-                fontWeight: 600,
-              }}
-            >
-              {group.contractorDisplayName}
-            </Typography>
-          </Stack>
-
+          {/* Pool list */}
           <Box
+            onClick={(event) => event.stopPropagation()}
             sx={{
-              display: { xs: 'grid', lg: 'contents' },
-              gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 116px' },
-              gap: { xs: 1.25, lg: 1.2 },
-              alignItems: 'stretch',
+              position: 'relative',
+              zIndex: 2,
+              overflowY: 'auto',
+              maxHeight: 264,
+              scrollbarWidth: 'thin',
+              scrollbarColor: `${alpha(theme.palette.primary.main, 0.28)} transparent`,
+              '&::-webkit-scrollbar': { width: 4 },
+              '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.primary.main, 0.28), borderRadius: 99 },
             }}
           >
-            <Stack spacing={0.85} sx={{ minWidth: 0, gridColumn: { xs: '1', lg: '1' }, gridRow: { lg: '2' } }}>
-              {primaryLocation && (
-                <Stack direction="row" spacing={0.85} alignItems="center" sx={{ minWidth: 0, color: 'text.secondary' }}>
-                  {locationIconName ? (
-                    <StarCitizenLicensedIcon name={locationIconName} size={18} dimmed />
-                  ) : (
-                    <PlaceOutlinedIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
-                  )}
-                  <Stack direction="row" spacing={1.2} alignItems="baseline" sx={{ minWidth: 0 }}>
-                    <Typography
-                      noWrap
-                      variant="body2"
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontFamily: FONT_HEADING,
-                        fontSize: { xs: '0.86rem', sm: '0.98rem', lg: '0.72rem', xl: '0.76rem' },
-                        fontWeight: 700,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {primaryLocation}
-                    </Typography>
-                    <Typography
-                      noWrap
-                      variant="caption"
-                      sx={{
-                        color: alpha(theme.palette.brand.blueLight, 0.68),
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                      }}
-                    >
-                      {formatScaleLabel(contract.availability.derivedScale, lang)}
-                    </Typography>
-                  </Stack>
-                </Stack>
-              )}
-              <Box sx={{ display: 'flex', gap: 0.5, minWidth: 0, overflow: 'hidden', flexWrap: 'wrap' }}>
-                <Chip
-                  label={activityShortLabel}
-                  icon={<MissionActivityIcon kind={activityKind} size="0.88rem" />}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    height: 27,
-                    borderRadius: 1,
-                    color: isUnlawful ? theme.palette.error.light : activityKind === 'recovery' ? theme.palette.success.light : theme.palette.secondary.light,
-                    borderColor: alpha(isUnlawful ? theme.palette.error.main : activityKind === 'recovery' ? theme.palette.success.main : theme.palette.secondary.main, 0.55),
-                    backgroundColor: alpha(isUnlawful ? theme.palette.error.main : activityKind === 'recovery' ? theme.palette.success.main : theme.palette.secondary.main, 0.08),
-                    '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
-                    '& .MuiChip-icon': { ml: '7px', mr: '-2px' },
-                  }}
-                />
-                {reputationActivity && (
-                  <Chip
-                    label={reputationActivity}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      height: 27,
-                      borderRadius: 1,
-                      maxWidth: 210,
-                      color: theme.palette.brand.blueLight,
-                      borderColor: alpha(theme.palette.brand.blueLight, 0.32),
-                      backgroundColor: alpha(theme.palette.brand.blueLight, 0.06),
-                      '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
-                    }}
-                  />
-                )}
-                <Chip
-                  label={`${t('Blueprint chance', 'Chance blueprint', 'Blueprint-Chance')}: ${blueprintDropChance > 0 ? formatProbabilityPercent(blueprintDropChance) : '-'} (${blueprintCount})`}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    height: 27,
-                    borderRadius: 1,
-                    maxWidth: 260,
-                    color: blueprintDropChance > 0 ? theme.palette.secondary.light : theme.palette.text.secondary,
-                    borderColor: alpha(blueprintDropChance > 0 ? theme.palette.secondary.main : theme.palette.text.secondary, 0.42),
-                    backgroundColor: alpha(blueprintDropChance > 0 ? theme.palette.secondary.main : theme.palette.text.secondary, 0.08),
-                    '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
-                  }}
-                />
-              </Box>
-            </Stack>
-          </Box>
+            {contract.rewardedBlueprints.map((blueprint, index) => {
+              const rarityColor = alpha(theme.palette.primary.main, 0.7);
+              const bpChance = blueprintDropChance > 0 && blueprintCount > 0
+                ? blueprintDropChance / blueprintCount
+                : null;
 
-          {contract.rewardedBlueprints.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6, minWidth: 0, minHeight: 0, mt: 0.2, gridColumn: '1', gridRow: { lg: '3' } }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography
-                  variant="caption"
+              return (
+                <Box
+                  key={`${blueprint.id}-${index}`}
+                  component="a"
+                  href={`/item/${toSlug(blueprint.name)}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (!shouldHandleInternalLinkClick(event)) return;
+                    event.preventDefault();
+                    onBlueprintClick(blueprint.id);
+                  }}
                   sx={{
-                    fontSize: '0.75rem',
-                    color: alpha(theme.palette.text.primary, 0.58),
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.13em',
-                    whiteSpace: 'nowrap',
+                    display: 'grid',
+                    gridTemplateColumns: '3px 20px 1fr auto auto 20px',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 1,
+                    py: 0.875,
+                    textDecoration: 'none',
+                    color: 'text.primary',
+                    borderBottom: '1px solid',
+                    borderColor: alpha(theme.palette.divider, 0.5),
+                    '&:last-child': { borderBottom: 'none' },
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.06),
+                    },
                   }}
                 >
-                  {t('Lootable blueprints', 'Blueprints recuperables')}
-                </Typography>
-                <Divider sx={{ flex: 1, borderColor: alpha(theme.palette.brand.blueLight, 0.16) }} />
-              </Stack>
-              <Box
-                onClick={(event) => event.stopPropagation()}
-                sx={{
-                  position: 'relative',
-                  zIndex: 2,
-                  display: 'grid',
-                  gridAutoFlow: 'column',
-                  gridAutoColumns: { xs: 150, sm: 164, lg: 132, xl: 150 },
-                  gridTemplateRows: { xs: 'repeat(2, minmax(38px, 1fr))', sm: 'repeat(3, minmax(38px, 1fr))' },
-                  gap: 0.55,
-                  overflowX: 'auto',
-                  overflowY: 'hidden',
-                  flex: 1,
-                  minHeight: { xs: 90, sm: 132 },
-                  pb: 0.45,
-                  pr: 0.35,
-                  minWidth: 0,
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: `${alpha(theme.palette.brand.blueLight, 0.34)} transparent`,
-                  '&::-webkit-scrollbar': { height: 6 },
-                  '&::-webkit-scrollbar-track': { backgroundColor: alpha(theme.palette.common.white, 0.025) },
-                  '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: alpha(theme.palette.brand.blueLight, 0.34),
-                    borderRadius: 999,
-                  },
-                }}
-              >
-                {contract.rewardedBlueprints.map((blueprint, index) => (
-                  <Button
-                    key={`${blueprint.id}-${index}`}
-                    startIcon={blueprint.category ? <CategoryBadge category={blueprint.category} iconOnly /> : undefined}
-                    size="small"
-                    variant="outlined"
-                    component="a"
-                    href={`/item/${toSlug(blueprint.name)}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!shouldHandleInternalLinkClick(event)) return;
-                      event.preventDefault();
-                      onBlueprintClick(blueprint.id);
-                    }}
+                  {/* Rarity stripe */}
+                  <Box sx={{ width: 3, height: 28, borderRadius: 99, bgcolor: rarityColor, flexShrink: 0 }} />
+                  {/* Category icon */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.disabled' }}>
+                    {blueprint.category ? (
+                      <CategoryBadge category={blueprint.category} iconOnly />
+                    ) : (
+                      <MissionActivityIcon kind={activityKind} size="1rem" />
+                    )}
+                  </Box>
+                  {/* Name */}
+                  <Typography
+                    noWrap
                     sx={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      color: 'text.primary',
                       minWidth: 0,
-                      width: '100%',
-                      minHeight: 38,
-                      height: '100%',
-                      px: 0.75,
-                      justifyContent: 'flex-start',
-                      color: theme.palette.text.primary,
-                      borderColor: alpha(theme.palette.brand.blueLight, 0.2),
-                      background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.12)}, ${alpha(theme.palette.common.black, 0.18)})`,
-                      borderRadius: 1,
-                      textTransform: 'none',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      lineHeight: 1.05,
-                      letterSpacing: '0.02em',
-                      '& .MuiButton-startIcon': { mr: 0.55, ml: 0, color: theme.palette.secondary.light },
-                      '&:hover': {
-                        borderColor: alpha(theme.palette.secondary.main, 0.55),
-                        backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-                      },
                     }}
                   >
-                    <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textAlign: 'left' }}>
-                      {blueprint.name}
-                    </Box>
-                  </Button>
-                ))}
-              </Box>
-            </Box>
-          )}
-
+                    {blueprint.name}
+                  </Typography>
+                  {/* Manufacturer */}
+                  {blueprint.manufacturer && (
+                    <Typography
+                      noWrap
+                      sx={{
+                        fontFamily: FONT_MONO,
+                        fontSize: '0.625rem',
+                        color: 'text.disabled',
+                        flexShrink: 0,
+                        maxWidth: 64,
+                      }}
+                    >
+                      {blueprint.manufacturer}
+                    </Typography>
+                  )}
+                  {/* Chance */}
+                  {bpChance !== null && (
+                    <Typography
+                      sx={{
+                        fontFamily: FONT_MONO,
+                        fontSize: '0.6875rem',
+                        color: 'primary.main',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {formatProbabilityPercent(bpChance)}
+                    </Typography>
+                  )}
+                  {/* Chevron */}
+                  <ChevronRightIcon sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
-      </Box>
+      )}
     </Card>
   );
 }
@@ -1152,7 +1091,6 @@ function MissionDetail({
   favoriteIds,
   inventoryIds,
   resources,
-  statMaxima,
   onBack,
   onBlueprintOpen,
   onToggleFavorite,
@@ -1163,7 +1101,6 @@ function MissionDetail({
   favoriteIds: string[];
   inventoryIds: string[];
   resources: Resource[];
-  statMaxima: ReturnType<typeof computeStatMaxima>;
   onBack: () => void;
   onBlueprintOpen: (blueprintId: string) => void;
   onToggleFavorite: (blueprintId: string) => void;
@@ -1453,7 +1390,6 @@ function MissionDetail({
                 activeBlueprintId={null}
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
-                statMaxima={statMaxima}
                 resources={resources}
                 onSelect={(bp) => { if (bp) onBlueprintOpen(bp.id); }}
                 onToggleFavorite={onToggleFavorite}
@@ -1504,6 +1440,7 @@ export function MissionsPanel() {
   const [resourceObjectiveMode, setResourceObjectiveMode] = useState<'all' | 'with' | 'without'>('all');
   const [sortBy, setSortBy] = useState<MissionSort>('name-asc');
   const [search, setSearch] = useState('');
+  const [missionView, setMissionView] = useState<'cards' | 'rows'>('cards');
   const [selectedMissionSlug, setSelectedMissionSlug] = useState<string | null>(() =>
     missionSlugFromPathname(window.location.pathname),
   );
@@ -1518,8 +1455,6 @@ export function MissionsPanel() {
   }, [missionRewards, selectedMissionSlug, ensureFactionContractsLoaded]);
 
   const resources = activeDataset.resources;
-  const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
-
   const allContracts = useMemo<FlatContract[]>(() => {
     if (!missionRewards) return [];
     const results: FlatContract[] = [];
@@ -1790,58 +1725,86 @@ export function MissionsPanel() {
 
   return (
     <Box
-      sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: '1 0 auto' }}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2.5,
+        p: { xs: 2, sm: 3 },
+        maxWidth: 1600,
+        mx: 'auto',
+        animation: 'if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both',
+      }}
     >
-      {factionsLoading && <LinearProgress sx={{ flexShrink: 0 }} />}
-      {!selectedMission && (
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
-          <Box sx={{ p: { xs: 1.25, sm: 1.5, md: 2 } }}>
-            <Stack spacing={1.25}>
-            <Box>
-              <Typography
-                sx={{
-                  fontFamily: FONT_HEADING,
-                  fontWeight: 700,
-                  fontSize: { xs: '1.9rem', md: '2.2rem' },
-                  textTransform: 'uppercase',
-                  lineHeight: 1,
-                }}
-              >
-                {t('Missions', 'Missions')}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
-                {t(
-                  'Explore contracts, faction employers and blueprint rewards across the published dataset.',
-                  'Explorez les contrats, les employeurs de faction et les recompenses de blueprints du dataset publie.',
-                )}
-              </Typography>
-            </Box>
-            <Box
+      {factionsLoading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />}
+
+      {selectedMission ? (
+        <MissionDetail
+          selection={selectedMission}
+          blueprints={blueprints}
+          favoriteIds={favoriteIds}
+          inventoryIds={inventoryIds}
+          resources={resources}
+          onToggleFavorite={toggleFavorite}
+          onToggleInventory={toggleInventory}
+          onBack={() => {
+            setSelectedMissionSlug(null);
+            navigateToPath('/missions', { mainView: 'missions' });
+          }}
+          onBlueprintOpen={handleBlueprintClick}
+        />
+      ) : (
+        <>
+          {/* View header */}
+          <Box>
+            <Typography
+              component="h1"
               sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
-                gap: 1,
+                fontFamily: FONT_DISPLAY,
+                fontWeight: 700,
+                fontSize: { xs: '1.75rem', md: '2rem' },
+                letterSpacing: '-0.018em',
+                lineHeight: 1.1,
+                color: 'text.primary',
+                mb: 0.5,
               }}
             >
-              <PageStatCard
-                label={t('Contracts', 'Contrats')}
-                value={String(missionPageStats.contractCount)}
-              />
-              <PageStatCard
-                label={t('Employers', 'Employeurs')}
-                value={String(missionPageStats.employerCount)}
-              />
-              <PageStatCard
-                label={t('Factions', 'Factions')}
-                value={String(missionPageStats.factionCount)}
-              />
-              <PageStatCard
-                label={t('Rewarded blueprints', 'Blueprints recompenses')}
-                value={String(missionPageStats.rewardedBlueprintCount)}
-              />
-            </Box>
-            </Stack>
+              {t('Missions', 'Missions')}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: '64ch' }}>
+              {t(
+                'Explore contracts, faction employers and blueprint rewards across the published dataset.',
+                'Explorez les contrats, les employeurs de faction et les récompenses de blueprints du dataset publié.',
+              )}
+            </Typography>
           </Box>
+
+          {/* Stat cards grid */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 1.5,
+            }}
+          >
+            <PageStatCard
+              label={t('Contracts', 'Contrats')}
+              value={String(missionPageStats.contractCount)}
+            />
+            <PageStatCard
+              label={t('Employers', 'Employeurs')}
+              value={String(missionPageStats.employerCount)}
+            />
+            <PageStatCard
+              label={t('Factions', 'Factions')}
+              value={String(missionPageStats.factionCount)}
+            />
+            <PageStatCard
+              label={t('Rewarded blueprints', 'Blueprints récompensés')}
+              value={String(missionPageStats.rewardedBlueprintCount)}
+            />
+          </Box>
+
+          {/* Filter bar */}
           <MissionsFilterBar
             locations={allLocations}
             employers={allEmployers}
@@ -1863,50 +1826,48 @@ export function MissionsPanel() {
             onSortChange={setSortBy}
             onSearchChange={setSearch}
           />
-        </Box>
-      )}
-      <Box sx={{ p: { xs: 1.25, sm: 2, md: 3 } }}>
-        {selectedMission ? (
-          <MissionDetail
-            selection={selectedMission}
-            blueprints={blueprints}
-            favoriteIds={favoriteIds}
-            inventoryIds={inventoryIds}
-            resources={resources}
-            statMaxima={statMaxima}
-            onToggleFavorite={toggleFavorite}
-            onToggleInventory={toggleInventory}
-            onBack={() => {
-              setSelectedMissionSlug(null);
-              navigateToPath('/missions', { mainView: 'missions' });
-            }}
-            onBlueprintOpen={handleBlueprintClick}
-          />
-        ) : (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 0.75 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }} aria-live="polite">
-                {filteredContracts.length} {t('contracts', 'contrats')}
-              </Typography>
-            </Box>
-            {filteredContracts.length === 0 ? (
-              <Typography sx={{ color: 'text.secondary', py: 3, textAlign: 'center' }} role="status">
-                {t('No contracts match your filters.', 'Aucun contrat ne correspond a tes filtres.')}
-              </Typography>
-            ) : (
-              <>
+
+          {/* Results count + view toggle */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Typography
+              variant="caption"
+              sx={{ color: 'text.secondary', fontFamily: FONT_MONO }}
+              aria-live="polite"
+            >
+              {filteredContracts.length} {t('contracts', 'contrats')}
+            </Typography>
+            <ToggleButtonGroup
+              value={missionView}
+              exclusive
+              size="small"
+              onChange={(_e, val) => { if (val) setMissionView(val as 'cards' | 'rows'); }}
+              aria-label={t('View mode', 'Mode vue')}
+              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: '0.72rem', textTransform: 'none' } }}
+            >
+              <ToggleButton value="cards">{t('Cards', 'Cartes')}</ToggleButton>
+              <ToggleButton value="rows">{t('Rows', 'Lignes')}</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Contract grid / rows */}
+          {filteredContracts.length === 0 ? (
+            <Typography sx={{ color: 'text.secondary', py: 4, textAlign: 'center' }} role="status">
+              {t('No contracts match your filters.', 'Aucun contrat ne correspond à tes filtres.')}
+            </Typography>
+          ) : (
+            <>
+              {missionView === 'cards' ? (
                 <Box
                   sx={{
                     display: 'grid',
                     gridTemplateColumns: {
                       xs: 'minmax(0, 1fr)',
-                      md: 'repeat(2, minmax(0, 1fr))',
-                      xl: 'repeat(3, minmax(0, 1fr))',
+                      sm: 'repeat(2, minmax(0, 1fr))',
+                      lg: 'repeat(3, minmax(0, 1fr))',
+                      xl: 'repeat(4, minmax(0, 1fr))',
                     },
-                    gridAutoRows: { xs: 'auto', lg: '360px', xl: '334px' },
-                    alignItems: 'stretch',
-                    width: '100%',
-                    gap: { xs: 1.25, md: 1.5 },
+                    gap: 2,
+                    alignItems: 'start',
                   }}
                   role="list"
                   aria-label={t('Contract list', 'Liste des contrats')}
@@ -1926,14 +1887,36 @@ export function MissionsPanel() {
                     />
                   ))}
                 </Box>
-                {visibleCount < filteredContracts.length && (
-                  <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
-                )}
-              </>
-            )}
-          </Box>
-        )}
-      </Box>
+              ) : (
+                <Box
+                  component="table"
+                  sx={{ width: '100%', borderCollapse: 'collapse' }}
+                  role="list"
+                  aria-label={t('Contract list', 'Liste des contrats')}
+                >
+                  <Box component="tbody">
+                    {filteredContracts.slice(0, visibleCount).map(({ contract, group }) => (
+                      <ContractRow
+                        key={getContractKey(contract)}
+                        contract={contract}
+                        group={group}
+                        onOpen={() => {
+                          const missionSlug = getMissionSlug(contract, group);
+                          startTransition(() => setSelectedMissionSlug(missionSlug));
+                          navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {visibleCount < filteredContracts.length && (
+                <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+              )}
+            </>
+          )}
+        </>
+      )}
     </Box>
   );
 }
