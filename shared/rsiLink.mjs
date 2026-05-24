@@ -122,6 +122,14 @@ function toFriendlyRsiApiErrorMessage(message) {
   ) {
     return 'The daily live RSI verification limit has been reached. Try again tomorrow.';
   }
+  if (
+    lowerCaseMessage.includes("can't process") ||
+    lowerCaseMessage.includes('cannot process') ||
+    lowerCaseMessage.includes('malformed request') ||
+    lowerCaseMessage.includes('request error')
+  ) {
+    return 'Star Citizen API could not process the RSI profile lookup. Check the handle and try again later.';
+  }
 
   return normalizedMessage || 'Star Citizen API request failed.';
 }
@@ -144,6 +152,10 @@ async function fetchRsiApiEndpoint(apiKey, path, { fetchImpl = fetch } = {}) {
   const payload = await parseJsonResponse(response);
   if (!response.ok) {
     const message = payload?.message ?? payload?.error ?? `HTTP ${response.status}`;
+    throw new Error(toFriendlyRsiApiErrorMessage(message));
+  }
+  if (payload?.success === 0) {
+    const message = payload?.message ?? payload?.error ?? 'Star Citizen API request failed.';
     throw new Error(toFriendlyRsiApiErrorMessage(message));
   }
 
