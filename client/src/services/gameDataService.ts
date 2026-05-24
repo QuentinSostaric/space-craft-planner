@@ -24,7 +24,7 @@ import type {
   RarityFilter,
   SlotCountFilter,
 } from '../types';
-import { fetchTauriApiJson, getApiUrl } from './apiBaseUrl';
+import { fetchTauriApiJson, getApiCredentials, getApiUrl } from './apiBaseUrl';
 
 export interface DatasetIndexResponse {
   datasets: DatasetSummary[];
@@ -261,7 +261,7 @@ async function apiFetch<T>(path: string): Promise<T> {
     // Rust command unavailable or failed — fall through to browser fetch
   }
 
-  const response = await fetch(getApiUrl(path), { credentials: 'include' });
+  const response = await fetch(getApiUrl(path), { credentials: getApiCredentials() });
 
   let payload: unknown;
   try {

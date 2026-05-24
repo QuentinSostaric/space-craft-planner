@@ -296,6 +296,9 @@ async fn run_log_watcher(
         .map(|m| m.len())
         .unwrap_or(0);
     let mut last_size: u64 = position;
+    let mut last_modified: Option<std::time::SystemTime> = std::fs::metadata(&log_path)
+        .and_then(|m| m.modified())
+        .ok();
 
     loop {
         tokio::time::sleep(tokio::time::Duration::from_millis(TAIL_POLL_MS)).await;
@@ -304,16 +307,21 @@ async fn run_log_watcher(
             break;
         }
 
-        let current_size = match std::fs::metadata(&log_path) {
-            Ok(m) => m.len(),
+        let metadata = match std::fs::metadata(&log_path) {
+            Ok(m) => m,
             Err(_) => continue,
         };
+        let current_size = metadata.len();
+        let current_modified = metadata.modified().ok();
 
         // Log rotated (new game session) — restart from beginning
-        if current_size < last_size {
+        if current_size < last_size
+            || (current_modified != last_modified && current_size <= position)
+        {
             position = 0;
         }
         last_size = current_size;
+        last_modified = current_modified;
 
         if current_size <= position {
             continue;

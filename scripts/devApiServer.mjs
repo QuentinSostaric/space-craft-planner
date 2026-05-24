@@ -11,6 +11,8 @@ import {
   fetchDiscordUserProfile,
   getOauthStateCookieName,
   getSessionCookieName,
+  isDesktopRequest,
+  isDesktopReturnTo,
   isDiscordAuthConfigured,
   readOauthStateFromCookies,
   readSessionFromCookies,
@@ -438,10 +440,11 @@ async function handleDiscordCallback(request, response, url) {
     const user = await fetchDiscordUserProfile(tokenPayload.access_token);
     const account = await upsertDiscordAccount(accountStore, user);
     const sessionCookie = await createSessionCookie(
-      url.toString(),
+      request,
       process.env,
       user,
       account.accountId,
+      { crossSite: isDesktopReturnTo(returnTo) },
     );
 
     sendRedirect(response, returnTo, {
@@ -459,6 +462,13 @@ async function handleDiscordCallback(request, response, url) {
 }
 
 async function handleCitizenIdLogin(request, response, url) {
+  if (!isDesktopRequest(request)) {
+    sendError(response, 403, 'Citizen iD linking is only available from the desktop app in dev.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
   if (!isCitizenIdAuthConfigured(process.env)) {
     sendError(response, 503, 'Citizen iD auth is not configured.', {
       'Cache-Control': 'no-store',

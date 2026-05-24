@@ -220,6 +220,11 @@ export function isDesktopRequest(request) {
   );
 }
 
+export function isDesktopReturnTo(value) {
+  const candidate = String(value ?? '').trim();
+  return DESKTOP_ALLOWED_ORIGINS.some((origin) => candidate.startsWith(origin));
+}
+
 export function sanitizeReturnTo(value) {
   if (!value) {
     return DEFAULT_RETURN_TO;
@@ -339,7 +344,7 @@ export async function readOauthStateFromCookies(cookieHeader, env) {
   };
 }
 
-export async function createSessionCookie(requestOrUrl, env, user, accountId) {
+export async function createSessionCookie(requestOrUrl, env, user, accountId, options = {}) {
   const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
   if (!sessionSecret) {
     throw new Error('AUTH_SESSION_SECRET is required to create auth sessions.');
@@ -360,13 +365,13 @@ export async function createSessionCookie(requestOrUrl, env, user, accountId) {
   };
   const signedPayload = await encodeSignedPayload(payload, sessionSecret);
 
+  const needsCrossSiteCookie = Boolean(options.crossSite) || isDesktopRequest(requestOrUrl);
+
   return serializeCookie(SESSION_COOKIE_NAME, signedPayload, {
     maxAge: SESSION_COOKIE_MAX_AGE,
     secure: isSecure,
-    // SameSite=None required so the desktop app (tauri.localhost) can send the
-    // cookie in cross-origin fetch requests. Session is HMAC-signed so CSRF is
-    // not a concern — the payload cannot be forged.
-    sameSite: isSecure ? 'None' : 'Lax',
+    // Desktop auth needs cross-site cookies; web sessions should stay Lax.
+    sameSite: isSecure && needsCrossSiteCookie ? 'None' : 'Lax',
     path: '/',
   });
 }
