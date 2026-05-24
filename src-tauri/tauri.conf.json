@@ -26,7 +26,7 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "category": "Utility",
     "shortDescription": "Star Citizen crafting simulator, dismantling calculator and resource planner.",
     "longDescription": "Item Fabricator is a Star Citizen crafting simulator, dismantling calculator and resource planner.",
