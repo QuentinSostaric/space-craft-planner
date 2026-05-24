@@ -13,49 +13,64 @@ import {
 interface MaterialChipsProps {
   slots: MaterialSlot[];
   resources: Resource[];
+  /** Fallback list of resource IDs shown when slots aren't loaded yet (summary blueprints). */
+  resourceIds?: string[];
   maxVisible?: number;
 }
 
-export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChipsProps) {
+type AggregatedItem = {
+  name: string;
+  total: number | null;
+  quantityUnit: MaterialSlot['quantityUnit'] | 'mixed' | null;
+  color: string;
+};
+
+export function MaterialChips({ slots, resources, resourceIds, maxVisible = 3 }: MaterialChipsProps) {
   const theme = useTheme();
   const { t, lang } = useI18n();
 
   const aggregated = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        name: string;
-        total: number;
-        quantityUnit: MaterialSlot['quantityUnit'] | 'mixed';
-        color: string;
-      }
-    >();
-    for (const slot of slots) {
-      if (!isResourceSlot(slot)) {
-        continue;
-      }
+    const map = new Map<string, AggregatedItem>();
 
-      const existing = map.get(slot.requiredResource);
-      const res = resources.find((r) => r.name === slot.requiredResource);
-      if (existing) {
-        existing.total += getSlotQuantityValue(slot);
-        existing.quantityUnit =
-          existing.quantityUnit === slot.quantityUnit ? existing.quantityUnit : 'mixed';
-      } else {
-        map.set(slot.requiredResource, {
-          name: res?.name ?? slot.requiredResource,
-          total: getSlotQuantityValue(slot),
-          quantityUnit: slot.quantityUnit,
+    const resourceSlots = slots.filter(isResourceSlot);
+
+    if (resourceSlots.length > 0) {
+      for (const slot of resourceSlots) {
+        const existing = map.get(slot.requiredResource);
+        const res = resources.find((r) => r.id === slot.requiredResource.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
+        if (existing && existing.total !== null) {
+          existing.total += getSlotQuantityValue(slot);
+          existing.quantityUnit =
+            existing.quantityUnit === slot.quantityUnit ? existing.quantityUnit : 'mixed';
+        } else {
+          map.set(slot.requiredResource, {
+            name: res?.name ?? slot.requiredResource,
+            total: getSlotQuantityValue(slot),
+            quantityUnit: slot.quantityUnit,
+            color: res?.color ?? theme.palette.text.disabled,
+          });
+        }
+      }
+    } else if (resourceIds && resourceIds.length > 0) {
+      for (const id of resourceIds) {
+        const res = resources.find((r) => r.id === id);
+        map.set(id, {
+          name: res?.name ?? id,
+          total: null,
+          quantityUnit: null,
           color: res?.color ?? theme.palette.text.disabled,
         });
       }
     }
+
     return map;
-  }, [slots, resources, theme.palette.text.disabled]);
+  }, [slots, resources, resourceIds, theme.palette.text.disabled]);
 
   const items = [...aggregated.values()];
   const visible = items.slice(0, maxVisible);
   const overflow = Math.max(0, items.length - maxVisible);
+
+  if (items.length === 0) return null;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -106,10 +121,12 @@ export function MaterialChips({ slots, resources, maxVisible = 3 }: MaterialChip
                 letterSpacing: '0.04em',
               }}
             >
-              {mat.name}{' '}
-              <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>
-                ({formatResourceQuantity(mat.total, mat.quantityUnit, lang)})
-              </Box>
+              {mat.name}
+              {mat.total !== null && (
+                <Box component="span" sx={{ opacity: 0.6, fontWeight: 400 }}>
+                  {' '}({formatResourceQuantity(mat.total, mat.quantityUnit ?? 'count', lang)})
+                </Box>
+              )}
             </Typography>
           </Box>
         ))}

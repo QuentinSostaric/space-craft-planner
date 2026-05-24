@@ -1,17 +1,14 @@
 import { useMemo } from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FlagIcon from '@mui/icons-material/Flag';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
@@ -20,7 +17,6 @@ import { useI18n } from '../../i18n/I18nContext';
 import {
   formatProbabilityPercent,
   formatScaleLabel,
-  formatStandingSummary,
   getMissionBlueprintDropChance,
   getMissionContractName,
 } from '../../utils/crafting';
@@ -34,7 +30,7 @@ import type {
   MissionContract,
   MissionRewardsData,
 } from '../../types';
-import { FONT_HEADING } from '../../theme';
+import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 interface AcquisitionSectionProps {
   entry: AcquisitionGraphEntry | null;
@@ -181,10 +177,12 @@ function getMissionEmployerAssetUrl(employer: MissionContract['employer'] | null
   return employer?.logo?.imageUrl ?? employer?.icon?.imageUrl ?? null;
 }
 
-function getEmployerInitials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-  return words.slice(0, 3).map((word) => word[0]).join('').toUpperCase();
+/** Returns just the standing tier name (e.g. "Veteran Contractor") from the hardest requirement. */
+function getTopStandingName(standings: AcquisitionContract['minimumRequiredStandings']): string | null {
+  if (standings.length === 0) return null;
+  const sorted = [...standings].sort((a, b) => (b.minReputation ?? 0) - (a.minReputation ?? 0));
+  const top = sorted[0];
+  return top.standingName?.trim() || top.scopeName?.trim() || null;
 }
 
 function getContractLocations(contract: AcquisitionContract): string[] {
@@ -281,6 +279,11 @@ function buildMissionRows(
   );
 }
 
+function getEmployerInitials(name: string | null): string {
+  if (!name) return '?';
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
 function AcquisitionMissionCard({
   row,
   activeBlueprint,
@@ -297,88 +300,57 @@ function AcquisitionMissionCard({
   const { contract, faction, detail } = row;
   const factionType = faction.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
+  const factionColor = isUnlawful ? theme.palette.warning.main : theme.palette.primary.main;
   const activityKind = detail.activityKind ?? getMissionActivityKind(contract);
-  const activityShortLabel =
-    activityKind === 'combat'
-      ? t('Combat', 'Combat')
-      : activityKind === 'recovery'
-        ? t('Recovery', 'Recuperation')
-        : t('Objective', 'Objectif');
-  const activityColor = isUnlawful
-    ? theme.palette.error.main
-    : activityKind === 'recovery'
-      ? theme.palette.success.main
-      : theme.palette.secondary.main;
-  const activityTextColor = isUnlawful
-    ? theme.palette.error.light
-    : activityKind === 'recovery'
-      ? theme.palette.success.light
-      : theme.palette.secondary.light;
-  const locations = getContractLocations(contract);
-  const primaryLocation = locations[0] ?? null;
-  const locationIconName = primaryLocation ? getLocationIconName(primaryLocation) : null;
-  const missionHref = contract.contractDebugName && onMissionClick
-    ? missionPathFromSlug(missionSlugFromContract(contract.contractDebugName, faction.contractorDisplayName))
-    : null;
+
   const employerName =
     detail.employerDisplayName
     ?? faction.contractorDisplayName
     ?? t('Unknown employer', 'Employeur inconnu');
-  const factionLabel =
-    faction.faction?.displayName
-    ?? faction.contractorDisplayName
-    ?? t('Unknown faction', 'Faction inconnue');
+  const employerLogoUrl = detail.employerAssetUrl;
+  const initials = getEmployerInitials(employerName);
+
+  const locations = getContractLocations(contract);
+  const primaryLocation = locations[0] ?? null;
+  const locationIconName = primaryLocation ? getLocationIconName(primaryLocation) : null;
+
   const dropChance = getMissionBlueprintDropChance(contract);
-  const focusedChance =
-    contract.maxChance != null && contract.maxChance > 0
-      ? contract.maxChance
-      : contract.expectedRewardShare != null && contract.expectedRewardShare > 0
-        ? contract.expectedRewardShare
-        : dropChance > 0
-          ? dropChance
-          : null;
-  const chanceLabel =
-    contract.maxChance != null && contract.maxChance > 0
-      ? t('Max chance', 'Chance max')
-      : contract.expectedRewardShare != null && contract.expectedRewardShare > 0
-        ? t('Expected share', 'Part attendue')
-        : t('Blueprint drop', 'Drop blueprint');
-  const chanceProgress = focusedChance == null
-    ? 0
-    : Math.max(0, Math.min(100, focusedChance * 100));
-  const standingLabel = contract.minimumRequiredStandings.length > 0
-    ? formatStandingSummary(contract.minimumRequiredStandings, lang)
+  const blueprintCount = detail.rewardedBlueprints.length;
+  const bpChance = dropChance > 0 && blueprintCount > 0 ? dropChance / blueprintCount : null;
+
+  const standingLabel = getTopStandingName(contract.minimumRequiredStandings);
+
+  const missionHref = contract.contractDebugName
+    ? missionPathFromSlug(missionSlugFromContract(contract.contractDebugName, faction.contractorDisplayName))
     : null;
-  const poolBlueprints = detail.rewardedBlueprints;
-  const orderedPoolBlueprints = (
-    poolBlueprints.some((blueprint) => blueprint.id === activeBlueprint.id)
-      ? [
-          ...poolBlueprints.filter((blueprint) => blueprint.id === activeBlueprint.id),
-          ...poolBlueprints.filter((blueprint) => blueprint.id !== activeBlueprint.id),
-        ]
-      : poolBlueprints
-  );
+
+  const orderedPoolBlueprints = detail.rewardedBlueprints.some((bp) => bp.id === activeBlueprint.id)
+    ? [
+        ...detail.rewardedBlueprints.filter((bp) => bp.id === activeBlueprint.id),
+        ...detail.rewardedBlueprints.filter((bp) => bp.id !== activeBlueprint.id),
+      ]
+    : detail.rewardedBlueprints;
 
   return (
     <Card
       role="listitem"
-      variant="outlined"
+      aria-label={getMissionContractName(contract)}
       sx={{
         position: 'relative',
-        minHeight: { xs: 'auto', md: 188 },
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: '112px minmax(0, 1fr)' },
+        display: 'flex',
+        flexDirection: 'column',
+        borderColor: 'ui.border',
+        bgcolor: 'ui.surface',
         overflow: 'hidden',
-        borderColor: alpha(theme.palette.brand.blueLight, 0.22),
-        background: `linear-gradient(115deg, ${alpha(theme.palette.brand.blue, 0.1)} 0%, ${alpha(theme.palette.background.default, 0.98)} 52%, ${alpha(theme.palette.common.black, 0.18)} 100%)`,
         transition: 'border-color 150ms, box-shadow 150ms, transform 150ms',
         '&:hover': {
-          borderColor: alpha(theme.palette.secondary.main, 0.55),
-          boxShadow: `0 16px 36px ${alpha(theme.palette.common.black, 0.28)}`,
+          borderColor: alpha(factionColor, 0.55),
+          boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.28)}`,
           transform: 'translateY(-1px)',
         },
       }}
     >
+      {/* Clickable overlay */}
       {missionHref && (
         <Box
           component="a"
@@ -395,490 +367,323 @@ function AcquisitionMissionCard({
             zIndex: 1,
             cursor: 'pointer',
             '&:focus-visible': {
-              outline: `2px solid ${theme.palette.secondary.main}`,
+              outline: `2px solid ${factionColor}`,
               outlineOffset: -2,
             },
           }}
         />
       )}
 
-      <Box
-        sx={{
-          position: 'relative',
-          minHeight: { xs: 116, sm: 'auto' },
-          overflow: 'hidden',
-          borderRight: { sm: `1px solid ${alpha(theme.palette.brand.blueLight, 0.16)}` },
-          borderBottom: { xs: `1px solid ${alpha(theme.palette.brand.blueLight, 0.16)}`, sm: 0 },
-          pointerEvents: 'none',
-          background: `
-            radial-gradient(circle at 28% 18%, ${alpha(activityColor, 0.24)}, transparent 28%),
-            linear-gradient(150deg, ${alpha(activityColor, 0.18)}, transparent 48%),
-            linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.18)} 0%, ${alpha(theme.palette.background.default, 0.94)} 100%)
-          `,
-        }}
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            opacity: 0.42,
-            backgroundImage: `
-              linear-gradient(${alpha(theme.palette.common.white, 0.035)} 1px, transparent 1px),
-              linear-gradient(90deg, ${alpha(theme.palette.common.white, 0.028)} 1px, transparent 1px)
-            `,
-            backgroundSize: '34px 34px',
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            left: '-22%',
-            right: '20%',
-            bottom: '28%',
-            height: 34,
-            transform: 'skewX(-18deg)',
-            background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.48)} 44%, ${alpha(activityColor, 0.22)} 100%)`,
-            borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.14)}`,
-            borderBottom: `1px solid ${alpha(theme.palette.common.black, 0.48)}`,
-          }}
-        />
-        <Chip
-          label={activityShortLabel}
-          icon={<MissionActivityIcon kind={activityKind} size="0.88rem" />}
-          size="small"
-          sx={{
-            position: 'absolute',
-            top: 10,
-            left: 10,
-            right: 10,
-            maxWidth: 'calc(100% - 20px)',
-            height: 26,
-            borderRadius: 1,
-            color: activityTextColor,
-            backgroundColor: alpha(theme.palette.background.default, 0.58),
-            border: `1px solid ${alpha(activityColor, 0.58)}`,
-            '& .MuiChip-label': {
-              fontFamily: FONT_HEADING,
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-            },
-            '& .MuiChip-icon': { ml: '7px', mr: '-2px', color: 'inherit' },
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pt: 2,
-          }}
-        >
-          {detail.employerAssetUrl ? (
-            <Box
-              component="img"
-              src={detail.employerAssetUrl}
-              alt=""
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              sx={{
-                width: 58,
-                height: 58,
-                objectFit: 'contain',
-                opacity: 0.5,
-                filter: `drop-shadow(0 14px 24px ${alpha(theme.palette.common.black, 0.5)})`,
-              }}
-            />
-          ) : (
-            <Box
-              sx={{
-                width: 58,
-                height: 58,
-                borderRadius: 1.25,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: alpha(activityColor, 0.12),
-                border: `1px solid ${alpha(activityColor, 0.32)}`,
-              }}
-            >
-              <Typography
+      {/* Colored top stripe */}
+      <Box sx={{ height: 3, bgcolor: isUnlawful ? 'warning.main' : 'primary.main', opacity: 0.85, flexShrink: 0 }} />
+
+      {/* Card head */}
+      <Box sx={{ p: '16px 20px 12px', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        {/* Eyebrow: employer logo + name + legal badge */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            {employerLogoUrl ? (
+              <Box
+                component="img"
+                src={employerLogoUrl}
+                alt={employerName}
+                loading="lazy"
+                referrerPolicy="no-referrer"
                 sx={{
+                  width: 36,
+                  height: 36,
+                  objectFit: 'contain',
+                  borderRadius: 0.75,
+                  flexShrink: 0,
+                  filter: `drop-shadow(0 2px 6px ${alpha(theme.palette.common.black, 0.5)})`,
+                }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1,
+                  bgcolor: alpha(factionColor, 0.14),
+                  color: factionColor,
+                  border: `1px solid ${alpha(factionColor, 0.42)}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   fontFamily: FONT_HEADING,
-                  fontSize: '1.08rem',
-                  fontWeight: 800,
-                  lineHeight: 1,
-                  color: activityTextColor,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  flexShrink: 0,
                   userSelect: 'none',
                 }}
               >
-                {getEmployerInitials(employerName)}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <Stack
-          spacing={0.25}
-          sx={{
-            position: 'absolute',
-            left: 10,
-            right: 10,
-            bottom: 10,
-            minWidth: 0,
-          }}
-        >
-          <Typography
-            noWrap
-            sx={{
-              fontFamily: FONT_HEADING,
-              fontSize: '0.76rem',
-              fontWeight: 800,
-              color: 'text.primary',
-              textTransform: 'uppercase',
-              textShadow: `0 1px 8px ${alpha(theme.palette.common.black, 0.65)}`,
-            }}
-          >
-            {employerName}
-          </Typography>
-          <Stack direction="row" spacing={0.6} alignItems="center" sx={{ color: isUnlawful ? 'error.light' : 'success.light' }}>
-            <Box
-              sx={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                backgroundColor: isUnlawful ? 'error.main' : 'success.main',
-                boxShadow: `0 0 0 3px ${alpha(isUnlawful ? theme.palette.error.main : theme.palette.success.main, 0.14)}`,
-                flexShrink: 0,
-              }}
-            />
+                {initials}
+              </Box>
+            )}
             <Typography
               noWrap
-              sx={{
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                color: 'inherit',
-              }}
-            >
-              {isUnlawful ? t('Unlawful', 'Illegal') : t('Lawful', 'Legal')}
-            </Typography>
-          </Stack>
-        </Stack>
-      </Box>
-
-      <Box
-        sx={{
-          position: 'relative',
-          zIndex: 2,
-          pointerEvents: 'none',
-          p: { xs: 1.2, md: 1.3 },
-          display: 'grid',
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 118px' },
-          gap: { xs: 1.1, lg: 1.2 },
-          minWidth: 0,
-        }}
-      >
-        <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-          <Stack spacing={0.35} sx={{ minWidth: 0 }}>
-            <Typography
               sx={{
                 fontFamily: FONT_HEADING,
-                fontWeight: 800,
-                fontSize: { xs: '1.08rem', md: '1.18rem' },
-                lineHeight: 0.95,
-                color: 'text.primary',
-                textTransform: 'uppercase',
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {getMissionContractName(contract)}
-            </Typography>
-            <Typography
-              noWrap
-              variant="caption"
-              sx={{ color: alpha(theme.palette.text.primary, 0.68), fontSize: '0.75rem' }}
-            >
-              {factionLabel}
-            </Typography>
-          </Stack>
-
-          {primaryLocation && (
-            <Stack direction="row" spacing={0.85} alignItems="center" sx={{ minWidth: 0, color: 'text.secondary' }}>
-              {locationIconName ? (
-                <StarCitizenLicensedIcon name={locationIconName} size={17} dimmed />
-              ) : (
-                <PlaceOutlinedIcon sx={{ fontSize: 17, color: 'secondary.main' }} />
-              )}
-              <Typography
-                noWrap
-                sx={{
-                  color: 'text.primary',
-                  fontFamily: FONT_HEADING,
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  minWidth: 0,
-                }}
-              >
-                {primaryLocation}
-              </Typography>
-              <Typography
-                noWrap
-                variant="caption"
-                sx={{ color: alpha(theme.palette.brand.blueLight, 0.72), fontSize: '0.75rem', textTransform: 'uppercase' }}
-              >
-                {formatScaleLabel(contract.availability.derivedScale, lang)}
-              </Typography>
-            </Stack>
-          )}
-
-          <Box sx={{ display: 'flex', gap: 0.55, flexWrap: 'wrap', minWidth: 0 }}>
-            <Chip
-              label={getMissionTypeLabel(detail.missionType, lang)}
-              size="small"
-              variant="outlined"
-              sx={{
-                height: 25,
-                borderRadius: 1,
-                color: activityTextColor,
-                borderColor: alpha(activityColor, 0.52),
-                backgroundColor: alpha(activityColor, 0.08),
-                '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase' },
-              }}
-            />
-            {detail.reputationActivity && (
-              <Chip
-                label={detail.reputationActivity}
-                size="small"
-                variant="outlined"
-                sx={{
-                  height: 25,
-                  maxWidth: 210,
-                  borderRadius: 1,
-                  color: theme.palette.brand.blueLight,
-                  borderColor: alpha(theme.palette.brand.blueLight, 0.3),
-                  backgroundColor: alpha(theme.palette.brand.blueLight, 0.06),
-                  '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' },
-                }}
-              />
-            )}
-            {standingLabel && (
-              <Chip
-                label={standingLabel}
-                size="small"
-                variant="outlined"
-                sx={{
-                  height: 25,
-                  maxWidth: 220,
-                  borderRadius: 1,
-                  color: theme.palette.warning.light,
-                  borderColor: alpha(theme.palette.warning.main, 0.36),
-                  backgroundColor: alpha(theme.palette.warning.main, 0.08),
-                  '& .MuiChip-label': { fontFamily: FONT_HEADING, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase' },
-                }}
-              />
-            )}
-          </Box>
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.55, minWidth: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: '0.75rem',
-                  color: alpha(theme.palette.text.primary, 0.58),
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('Blueprint pool', 'Pool blueprint')}
-              </Typography>
-              <Divider sx={{ flex: 1, borderColor: alpha(theme.palette.brand.blueLight, 0.16) }} />
-            </Stack>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: 'minmax(0, 1fr)',
-                  sm: 'repeat(auto-fit, minmax(142px, 1fr))',
-                },
-                gap: 0.55,
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                color: 'text.secondary',
                 minWidth: 0,
               }}
             >
-              {orderedPoolBlueprints.length > 0 ? (
-                orderedPoolBlueprints.map((blueprint) => {
-                  const isActive = blueprint.id === activeBlueprint.id;
-                  return (
-                    <Button
-                      key={blueprint.id}
-                      size="small"
-                      variant="outlined"
-                      component="a"
-                      href={`/item/${toSlug(blueprint.name)}`}
-                      aria-current={isActive ? 'page' : undefined}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (!shouldHandleInternalLinkClick(event)) return;
-                        if (!onBlueprintClick) return;
-                        event.preventDefault();
-                        onBlueprintClick(blueprint.id);
-                      }}
-                      sx={{
-                        pointerEvents: 'auto',
-                        minWidth: 0,
-                        minHeight: 28,
-                        height: '100%',
-                        justifyContent: 'flex-start',
-                        px: 0.8,
-                        borderRadius: 1,
-                        color: isActive ? theme.palette.common.white : theme.palette.text.primary,
-                        borderColor: isActive
-                          ? alpha(theme.palette.primary.light, 0.86)
-                          : alpha(theme.palette.brand.blueLight, 0.25),
-                        background: isActive
-                          ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.88)}, ${alpha(theme.palette.primary.dark, 0.72)})`
-                          : `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.14)})`,
-                        textTransform: 'none',
-                        fontFamily: 'inherit',
-                        fontSize: '0.75rem',
-                        fontWeight: 800,
-                        lineHeight: 1.05,
-                        letterSpacing: 0,
-                        '&:hover': {
-                          borderColor: alpha(theme.palette.secondary.main, 0.6),
-                          backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-                        },
-                      }}
-                    >
-                      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textAlign: 'left' }}>
-                        {blueprint.name}
-                      </Box>
-                    </Button>
-                  );
-                })
-              ) : (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {t('Blueprint pool loading', 'Pool blueprint en cours de chargement')}
-                </Typography>
-              )}
-            </Box>
+              {employerName}
+            </Typography>
           </Box>
-        </Stack>
+          <Box
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              px: 0.875,
+              py: 0.25,
+              borderRadius: 0.75,
+              bgcolor: isUnlawful ? alpha(theme.palette.warning.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
+              color: isUnlawful ? 'warning.main' : 'primary.main',
+              fontFamily: FONT_MONO,
+              fontSize: '0.625rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              flexShrink: 0,
+            }}
+          >
+            {isUnlawful ? t('Illégal', 'Illégal') : t('Légal', 'Légal')}
+          </Box>
+        </Box>
 
-        <Box
+        {/* Mission title */}
+        <Typography
+          component="h3"
           sx={{
-            border: `1px solid ${alpha(theme.palette.brand.blueLight, 0.18)}`,
-            background: `linear-gradient(180deg, ${alpha(theme.palette.brand.blue, 0.1)}, ${alpha(theme.palette.common.black, 0.16)})`,
-            borderRadius: 1,
-            p: 0.9,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            pointerEvents: 'none',
+            fontFamily: FONT_HEADING,
+            fontWeight: 700,
+            fontSize: '1rem',
+            lineHeight: 1.25,
+            color: 'text.primary',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
           }}
         >
-          <Typography
-            variant="caption"
-            sx={{
-              color: alpha(theme.palette.text.primary, 0.62),
-              textTransform: 'uppercase',
-              display: 'block',
-              fontSize: '0.75rem',
-            }}
-          >
-            {chanceLabel}
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONT_HEADING,
-              fontSize: { xs: '2.25rem', lg: '1.86rem' },
-              fontWeight: 800,
-              lineHeight: 0.85,
-              color: focusedChance != null ? theme.palette.secondary.light : theme.palette.text.secondary,
-              mt: 0.7,
-            }}
-          >
-            {focusedChance != null ? formatProbabilityPercent(focusedChance) : '-'}
-          </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={chanceProgress}
-            sx={{
-              mt: 0.85,
-              height: 6,
-              borderRadius: 999,
-              backgroundColor: alpha(theme.palette.common.white, 0.07),
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 999,
-                backgroundColor: theme.palette.secondary.light,
-              },
-            }}
-          />
-          <Stack spacing={0.6} sx={{ mt: 1 }}>
-            {dropChance > 0 && (
-              <Chip
-                label={`${t('Drop', 'Drop')}: ${formatProbabilityPercent(dropChance)}`}
-                size="small"
-                variant="outlined"
-                sx={{ height: 22, borderRadius: 1, '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 700 } }}
-              />
-            )}
-            {contract.expectedRewardShare != null && contract.expectedRewardShare > 0 && (
-              <Chip
-                label={`${t('Share', 'Part')}: ${formatProbabilityPercent(contract.expectedRewardShare)}`}
-                size="small"
-                variant="outlined"
-                sx={{ height: 22, borderRadius: 1, '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 700 } }}
-              />
-            )}
-            <Stack direction="row" spacing={0.7} alignItems="center" sx={{ color: alpha(theme.palette.text.primary, 0.66) }}>
-              <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                {poolBlueprints.length > 0
-                  ? `${poolBlueprints.length} ${t('blueprints', 'blueprints')}`
-                  : t('Pool pending', 'Pool en attente')}
+          {getMissionContractName(contract)}
+        </Typography>
+
+        {/* Scale + location row */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+          {contract.availability.derivedScale && (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                px: 0.75,
+                py: 0.2,
+                borderRadius: 0.75,
+                bgcolor: alpha(factionColor, 0.1),
+                border: `1px solid ${alpha(factionColor, 0.3)}`,
+                fontFamily: FONT_MONO,
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: factionColor,
+                flexShrink: 0,
+              }}
+            >
+              {formatScaleLabel(contract.availability.derivedScale, lang)}
+            </Box>
+          )}
+          {primaryLocation && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+              {locationIconName ? (
+                <StarCitizenLicensedIcon name={locationIconName} size={13} dimmed />
+              ) : (
+                <PlaceOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+              )}
+              <Typography noWrap sx={{ fontSize: '0.8125rem', color: 'text.secondary', minWidth: 0 }}>
+                {primaryLocation}
               </Typography>
-            </Stack>
-          </Stack>
-          <Button
-            variant="text"
-            component="a"
-            href={missionHref ?? undefined}
-            disabled={!missionHref}
-            endIcon={<KeyboardArrowRightIcon />}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (!missionHref || !shouldHandleInternalLinkClick(event)) return;
-              event.preventDefault();
-              onMissionClick?.(contract.contractDebugName, faction.contractorDisplayName);
-            }}
-            sx={{
-              pointerEvents: 'auto',
-              mt: 'auto',
-              mx: -0.6,
-              mb: -0.7,
-              pt: 0.8,
-              fontSize: '0.75rem',
-              justifyContent: 'space-between',
-              color: alpha(theme.palette.text.primary, 0.78),
-              borderTop: `1px solid ${alpha(theme.palette.brand.blueLight, 0.13)}`,
-              borderRadius: 0,
-              '&:hover': {
-                color: theme.palette.secondary.light,
-                backgroundColor: alpha(theme.palette.secondary.main, 0.06),
-              },
-            }}
-          >
-            {t('Open dossier', 'Ouvrir dossier')}
-          </Button>
+            </Box>
+          )}
         </Box>
       </Box>
+
+      {/* Facts grid */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          borderTop: '1px solid',
+          borderColor: 'ui.border',
+          bgcolor: 'background.paper',
+        }}
+      >
+        {[
+          { label: t('Pool', 'Pool'), value: `${blueprintCount} bp` },
+          {
+            label: t('Location', 'Lieu'),
+            value: primaryLocation ?? '—',
+          },
+          {
+            label: t('Standing', 'Réputation'),
+            value: standingLabel ?? t('None', 'Aucune'),
+          },
+        ].map((fact, i) => (
+          <Box
+            key={i}
+            sx={{
+              p: '8px 12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.25,
+              borderRight: i < 2 ? '1px solid' : 'none',
+              borderColor: 'ui.border',
+            }}
+          >
+            <Typography
+              sx={{
+                fontFamily: FONT_MONO,
+                fontSize: '0.625rem',
+                color: 'text.disabled',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {fact.label}
+            </Typography>
+            <Typography
+              noWrap
+              sx={{
+                fontFamily: FONT_HEADING,
+                fontWeight: 700,
+                fontSize: '0.8125rem',
+                color: 'text.primary',
+              }}
+            >
+              {fact.value}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      {/* Blueprint pool */}
+      {orderedPoolBlueprints.length > 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid', borderColor: 'ui.border', flex: 1, minHeight: 0 }}>
+          {/* Pool header */}
+          <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {t('Pool', 'Pool')} · {blueprintCount} {t('blueprints', 'blueprints')}
+            </Typography>
+            {dropChance > 0 && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+                <Box
+                  sx={{
+                    width: 64,
+                    height: 4,
+                    borderRadius: 99,
+                    bgcolor: alpha(theme.palette.primary.main, 0.18),
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      height: '100%',
+                      width: `${Math.min(dropChance * 100, 100)}%`,
+                      bgcolor: 'primary.main',
+                      borderRadius: 99,
+                    }}
+                  />
+                </Box>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'primary.main', fontWeight: 600 }}>
+                  {formatProbabilityPercent(dropChance)}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Pool list */}
+          <Box
+            onClick={(event) => event.stopPropagation()}
+            sx={{
+              position: 'relative',
+              zIndex: 2,
+              overflowY: 'auto',
+              maxHeight: 264,
+              scrollbarWidth: 'thin',
+              scrollbarColor: `${alpha(theme.palette.primary.main, 0.28)} transparent`,
+              '&::-webkit-scrollbar': { width: 4 },
+              '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.primary.main, 0.28), borderRadius: 99 },
+            }}
+          >
+            {orderedPoolBlueprints.map((blueprint, index) => {
+              const isActive = blueprint.id === activeBlueprint.id;
+              return (
+                <Box
+                  key={`${blueprint.id}-${index}`}
+                  component="a"
+                  href={`/item/${toSlug(blueprint.name)}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (!shouldHandleInternalLinkClick(event)) return;
+                    event.preventDefault();
+                    onBlueprintClick?.(blueprint.id);
+                  }}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '3px 20px 1fr auto 20px',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 1,
+                    py: 0.875,
+                    textDecoration: 'none',
+                    color: 'text.primary',
+                    borderBottom: '1px solid',
+                    borderColor: alpha(theme.palette.divider, 0.5),
+                    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                    '&:last-child': { borderBottom: 'none' },
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
+                  }}
+                >
+                  <Box sx={{ width: 3, height: 28, borderRadius: 99, bgcolor: isActive ? 'primary.main' : alpha(theme.palette.primary.main, 0.3), flexShrink: 0 }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.disabled' }}>
+                    <MissionActivityIcon kind={activityKind} size="1rem" />
+                  </Box>
+                  <Typography
+                    noWrap
+                    sx={{
+                      fontSize: '0.8125rem',
+                      fontWeight: isActive ? 700 : 500,
+                      color: isActive ? 'primary.light' : 'text.primary',
+                      minWidth: 0,
+                    }}
+                  >
+                    {blueprint.name}
+                  </Typography>
+                  {bpChance !== null && (
+                    <Typography
+                      sx={{
+                        fontFamily: FONT_MONO,
+                        fontSize: '0.6875rem',
+                        color: 'primary.main',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {formatProbabilityPercent(bpChance)}
+                    </Typography>
+                  )}
+                  <ChevronRightIcon sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      )}
     </Card>
   );
 }
@@ -1077,7 +882,7 @@ export function AcquisitionSection({
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' },
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
               gap: 1.25,
             }}
             role="list"

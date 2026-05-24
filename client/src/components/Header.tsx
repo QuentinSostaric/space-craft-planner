@@ -2,18 +2,25 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import SearchIcon from '@mui/icons-material/Search';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import { alpha } from '@mui/material/styles';
 import { useEffect, useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
-import { FONT_MONO, FONT_BODY } from '../theme';
+import { useThemeMode } from '../hooks/ThemeContext';
+import { FONT_MONO, FONT_BODY, FONT_HEADING } from '../theme';
 import {
   missionPathFromSlug,
   missionSlugFromContract,
@@ -22,8 +29,6 @@ import {
 } from '../utils/slug';
 import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
-
-const DISPLAY_APP_VERSION = __APP_VERSION__.replace(/\.0$/, '');
 
 const MONTH_NAMES = {
   en: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
@@ -75,7 +80,7 @@ function formatDatasetBuildDate(
 }
 
 function formatLiveDatasetVersion(version: string): string {
-  return version.match(/^(\d+\.\d+)/)?.[1] ?? version;
+  return version.match(/^(\d+\.\d+(?:\.\d+)?)/)?.[1] ?? version;
 }
 
 export function Header() {
@@ -84,13 +89,14 @@ export function Header() {
     availableDatasets,
     activeChannel,
     setActiveDatasetChannel,
+    setActiveDatasetId,
     setActiveBlueprint,
     ensureMissionRewardsLoaded,
     ensureFactionContractsLoaded,
     factionContractsByFactionId,
   } = useCraft();
   const { lang, setLang, t } = useI18n();
-  const isMd = useMediaQuery('(min-width:768px)');
+  const { mode: themeMode, toggle: toggleTheme } = useThemeMode();
   const isLg = useMediaQuery('(min-width:1120px)');
 
   const availableChannels = useMemo(
@@ -98,13 +104,9 @@ export function Header() {
     [availableDatasets],
   );
 
-  const formatDatasetLabel = useMemo(
-    () => (dataset: { version: string; label: string; buildDateStamp: string | null; importedAt: string | null }) => {
-      if (activeChannel === 'live') return formatLiveDatasetVersion(dataset.version);
-      const d = formatDatasetBuildDate(dataset.buildDateStamp, dataset.importedAt, lang);
-      return d ? `${dataset.version} · ${d}` : dataset.label;
-    },
-    [activeChannel, lang],
+  const ptuDatasets = useMemo(
+    () => availableDatasets.filter((d) => d.channel === 'ptu'),
+    [availableDatasets],
   );
 
   useEffect(() => {
@@ -148,6 +150,11 @@ export function Header() {
     navigateToPath(missionPathFromSlug(slug), { mainView: 'missions', missionSlug: slug });
   };
 
+  const liveVersion = activeDataset.datasetId ? formatLiveDatasetVersion(activeDataset.version) : null;
+  const liveDate = activeDataset.datasetId
+    ? formatDatasetBuildDate(activeDataset.buildDateStamp, activeDataset.importedAt, lang)
+    : null;
+
   return (
     <AppBar position="relative" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
       <Toolbar
@@ -159,49 +166,51 @@ export function Header() {
           alignItems: 'center',
         }}
       >
-        {/* Brand mark — visible on desktop only (NavRail has it on mobile) */}
-        {isMd && (
+        {/* Brand */}
+        <Box
+          component="a"
+          href="/"
+          onClick={(e) => { e.preventDefault(); navigateToPath('/', { mainView: 'blueprints' }); }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            textDecoration: 'none',
+            flexShrink: 0,
+            borderRadius: 1,
+            px: 0.75,
+            py: 0.5,
+            mx: -0.75,
+            transition: 'background-color 120ms ease',
+            '&:hover': { backgroundColor: 'ui.surface2' },
+          }}
+        >
           <Box
-            component="a"
-            href="/"
-            onClick={(e) => { e.preventDefault(); navigateToPath('/', { mainView: 'blueprints' }); }}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              textDecoration: 'none',
-              color: 'text.primary',
-              flexShrink: 0,
-              borderRadius: 1.5,
-              px: 0.75,
-              py: 0.5,
-              mx: -0.75,
-              transition: 'background-color 120ms ease',
-              '&:hover': { backgroundColor: 'ui.surface2' },
-            }}
-          >
-            <Box
-              component="img"
-              src="/brand-mark.svg"
-              alt="Item Fabricator"
-              sx={{ width: 26, height: 32, objectFit: 'contain', display: 'block', flexShrink: 0 }}
-            />
-            {isLg && (
-              <Typography
-                sx={{
-                  fontFamily: FONT_BODY,
-                  fontWeight: 700,
-                  fontSize: '0.9375rem',
-                  letterSpacing: '-0.01em',
-                  color: 'text.primary',
-                  '& em': { fontStyle: 'normal', fontWeight: 500, color: 'text.secondary' },
-                }}
-              >
-                Item<em>Fab</em>
-              </Typography>
-            )}
-          </Box>
-        )}
+            component="img"
+            src="/brand-mark.svg"
+            alt="Item Fabricator"
+            sx={{ width: 26, height: 32, objectFit: 'contain', display: 'block', flexShrink: 0 }}
+          />
+          {isLg && (
+            <Typography
+              sx={{
+                fontFamily: FONT_HEADING,
+                fontWeight: 700,
+                fontSize: '0.9375rem',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+                color: 'text.primary',
+                userSelect: 'none',
+              }}
+            >
+              ITEM{' '}
+              <Box component="span" sx={{ color: 'primary.main' }}>
+                FABRICATOR
+              </Box>
+            </Typography>
+          )}
+        </Box>
 
         {/* Global search — fills center */}
         <Autocomplete
@@ -241,33 +250,6 @@ export function Header() {
                     <SearchIcon sx={{ fontSize: 17, color: 'text.disabled' }} />
                   </InputAdornment>
                 ),
-                endAdornment: (
-                  <>
-                    {params.InputProps.endAdornment}
-                    {isLg && (
-                      <Box
-                        component="kbd"
-                        sx={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          height: 20,
-                          px: '6px',
-                          borderRadius: '4px',
-                          backgroundColor: 'background.default',
-                          border: '1px solid',
-                          borderColor: 'ui.borderStrong',
-                          fontFamily: FONT_MONO,
-                          fontSize: '10.5px',
-                          color: 'text.disabled',
-                          flexShrink: 0,
-                          mr: 0.5,
-                        }}
-                      >
-                        ⌘ K
-                      </Box>
-                    )}
-                  </>
-                ),
               }}
             />
           )}
@@ -284,8 +266,9 @@ export function Header() {
 
         {/* Right-side tools */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, md: 1 }, flexShrink: 0 }}>
-          {/* Channel toggle */}
-          {isMd && (
+
+          {/* Channel toggle — visible on md+ */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
             <ToggleButtonGroup
               value={activeChannel}
               exclusive
@@ -306,13 +289,13 @@ export function Header() {
                 PTU
               </ToggleButton>
             </ToggleButtonGroup>
-          )}
+          </Box>
 
-          {/* Dataset build pill */}
-          {isMd && (
+          {/* LIVE: build version + date pill */}
+          {activeChannel === 'live' && (
             <Box
               sx={{
-                display: 'flex',
+                display: { xs: 'none', md: 'flex' },
                 alignItems: 'center',
                 gap: 0.75,
                 height: 34,
@@ -321,25 +304,64 @@ export function Header() {
                 backgroundColor: 'ui.surface2',
                 border: '1px solid',
                 borderColor: 'ui.border',
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                fontFamily: FONT_BODY,
                 flexShrink: 0,
-                maxWidth: activeChannel === 'live' ? 90 : 200,
-                overflow: 'hidden',
               }}
             >
-              <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.625rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+              <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
                 Build
               </Typography>
-              <Typography component="span" noWrap sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.75rem', color: 'text.primary' }}>
-                {activeDataset.datasetId ? formatDatasetLabel(activeDataset) : t('Latest', 'Dernier')}
+              <Typography component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.78rem', color: 'text.primary', whiteSpace: 'nowrap' }}>
+                {liveVersion ?? t('Latest', 'Dernier')}
               </Typography>
-              <Typography component="span" sx={{ display: { xs: 'none', xl: 'block' }, fontFamily: FONT_MONO, fontSize: '0.625rem', color: 'text.disabled', flexShrink: 0 }}>
-                v{DISPLAY_APP_VERSION}
-              </Typography>
+              {liveDate && (
+                <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', color: 'primary.light', whiteSpace: 'nowrap', opacity: 0.85 }}>
+                  · {liveDate}
+                </Typography>
+              )}
             </Box>
           )}
+
+          {/* PTU: dataset selector */}
+          {activeChannel === 'ptu' && ptuDatasets.length > 0 && (
+            <Select
+              size="small"
+              value={activeDataset.datasetId || (ptuDatasets[0]?.datasetId ?? '')}
+              onChange={(e) => void setActiveDatasetId(e.target.value)}
+              displayEmpty
+              aria-label={t('PTU dataset', 'Dataset PTU')}
+              sx={{
+                display: { xs: 'none', md: 'flex' },
+                height: 34,
+                minWidth: 180,
+                maxWidth: 240,
+                fontSize: '0.75rem',
+                fontFamily: FONT_MONO,
+                backgroundColor: 'ui.surface2',
+                '& .MuiSelect-select': { py: '6px', px: 1.25 },
+              }}
+            >
+              {ptuDatasets.map((ds) => {
+                const date = formatDatasetBuildDate(ds.buildDateStamp, ds.importedAt, lang);
+                return (
+                  <MenuItem key={ds.datasetId} value={ds.datasetId} sx={{ fontSize: '0.75rem', fontFamily: FONT_MONO }}>
+                    {ds.version}{date ? ` · ${date}` : ''}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          )}
+
+          {/* Theme toggle */}
+          <Tooltip title={themeMode === 'dark' ? t('Light mode', 'Mode clair') : t('Dark mode', 'Mode sombre')}>
+            <IconButton
+              onClick={toggleTheme}
+              size="small"
+              aria-label={themeMode === 'dark' ? t('Switch to light mode', 'Passer en mode clair') : t('Switch to dark mode', 'Passer en mode sombre')}
+              sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              {themeMode === 'dark' ? <LightModeOutlinedIcon sx={{ fontSize: 18 }} /> : <DarkModeOutlinedIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Tooltip>
 
           {/* Language toggle */}
           <ToggleButtonGroup

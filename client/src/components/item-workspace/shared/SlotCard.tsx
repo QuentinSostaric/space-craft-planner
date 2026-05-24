@@ -2,6 +2,8 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Slider from '@mui/material/Slider';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -9,6 +11,7 @@ import { useTheme, alpha } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import CloseIcon from '@mui/icons-material/Close';
+import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
 import { useI18n, loc } from '../../../i18n/I18nContext';
 import { ResourceIcon } from '../../ui/ResourceIcon';
 import { GameIcon } from '../../ui/GameIcon';
@@ -44,21 +47,29 @@ const CAT_ICON: Record<ItemCategory, GameIconName> = {
 
 const QUALITY_STEP = 50;
 
+export interface InventoryLot {
+  id: string;
+  qty: number;
+  quality: number;
+}
+
 export function SlotCard({
   slot,
   qualityValue,
   onQualityChange,
   category,
+  inventoryLots,
 }: {
   slot: MaterialSlot;
   qualityValue: number | undefined;
   onQualityChange: (value: number | undefined) => void;
   category?: ItemCategory;
+  inventoryLots?: InventoryLot[];
 }) {
   const { lang, t } = useI18n();
   const theme = useTheme();
 
-  const currentQuality = qualityValue ?? 0;
+  const currentQuality = qualityValue ?? 500;
   const qualityPercent = Math.round(currentQuality / 10);
   const isAssigned = qualityValue !== undefined;
   const requirementName = getSlotRequirementName(slot);
@@ -131,27 +142,43 @@ export function SlotCard({
             color: isAssigned ? 'primary.light' : 'text.secondary',
           }}
         >
-          {category ? (
+          {isResourceRequirement ? (
+            <ResourceIcon name={slot.requiredResource} size={24} />
+          ) : category ? (
             <GameIcon name={CAT_ICON[category]} size={21} />
-          ) : isResourceRequirement ? (
-            <ResourceIcon name={slot.requiredResource} size={21} />
           ) : (
             <GameIcon name="utilities" size={21} />
           )}
         </Box>
         <Box sx={{ minWidth: 0 }}>
+          {/* Material name is the primary label */}
           <Typography
             variant="body2"
             sx={{
               fontFamily: FONT_DISPLAY,
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: '0.875rem',
               lineHeight: 1.05,
               color: 'text.primary',
               overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isPlaceholderResource ? t('System slot', 'Slot systeme') : requirementName}
+          </Typography>
+          {/* Slot label as secondary */}
+          <Typography
+            variant="caption"
+            sx={{
+              mt: 0.25,
+              display: 'block',
+              color: 'text.secondary',
+              fontSize: '0.72rem',
+              lineHeight: 1.2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {loc(slot.label, lang)}
@@ -159,39 +186,19 @@ export function SlotCard({
           <Typography
             variant="caption"
             sx={{
-              mt: 0.35,
               display: 'block',
-              color: 'text.secondary',
-              fontSize: '0.75rem',
-              lineHeight: 1.25,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {isPlaceholderResource
-              ? t('System slot', 'Slot systeme')
-              : isResourceRequirement
-                ? t('Resource', 'Ressource')
-                : t('Item', 'Objet')}{' '}
-            {requirementName}
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              mt: 0.2,
-              color: 'text.secondary',
-              fontSize: '0.75rem',
+              mt: 0.15,
+              color: 'text.disabled',
+              fontSize: '0.7rem',
               lineHeight: 1.15,
             }}
           >
-            {t('Optimal range', 'Plage optimale')}: {optimalStart}% - 100%
+            {t('Optimal', 'Optimal')}: {optimalStart}% – 100%
           </Typography>
         </Box>
       </Box>
 
-      <Box sx={{ minWidth: 0 }}>
+      <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
         <Box sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'space-between', mb: 0.3 }}>
           <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.75rem' }}>
             {t('Quality', 'Qualite')}
@@ -200,7 +207,7 @@ export function SlotCard({
             {isAssigned ? `${qualityPercent}%` : '-'}
           </Typography>
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '24px minmax(0, 1fr) 24px', gap: 0.45, alignItems: 'center' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '24px 1fr 24px', gap: 0.45, alignItems: 'center', overflow: 'hidden' }}>
           <IconButton
             onClick={() => nudge(-QUALITY_STEP)}
             size="small"
@@ -222,23 +229,21 @@ export function SlotCard({
             )}
             getAriaValueText={(v) => `${v} / 1000`}
             size="small"
+            valueLabelDisplay="off"
             marks={[
-              { value: 500, label: '500' },
-              ...(deadZoneEnd > 0 && deadZoneEnd !== 500 ? [{ value: deadZoneEnd, label: '' }] : []),
+              { value: 500 },
+              ...(deadZoneEnd > 0 && deadZoneEnd !== 500 ? [{ value: deadZoneEnd }] : []),
             ]}
             sx={{
-              flex: 1,
+              width: '100%',
+              mx: 0.5,
               '& .MuiSlider-thumb': {
                 width: 16,
                 height: 16,
                 border: `3px solid ${isAssigned ? tone : theme.palette.text.secondary}`,
                 backgroundColor: theme.palette.background.paper,
                 boxShadow: `0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px ${alpha(isAssigned ? tone : theme.palette.text.secondary, 0.14)}`,
-              },
-              '& .MuiSlider-markLabel': {
-                color: theme.palette.text.disabled,
-                fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
+                '&:hover': { boxShadow: `0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px ${alpha(isAssigned ? tone : theme.palette.text.secondary, 0.14)}` },
               },
             }}
           />
@@ -363,6 +368,55 @@ export function SlotCard({
       >
         <CloseIcon sx={{ fontSize: '0.9rem' }} />
       </IconButton>
+
+      {inventoryLots != null && (
+        <Box
+          sx={{
+            gridColumn: { xs: '1 / -1', md: '1 / -1' },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            pt: 0.75,
+            mt: 0.25,
+            borderTop: `1px solid ${alpha(theme.palette.ui.border, 0.6)}`,
+          }}
+        >
+          <InventoryIcon sx={{ fontSize: '0.85rem', color: 'text.disabled', flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.72rem', flexShrink: 0 }}>
+            {t('Inventory lot', 'Lot d\'inventaire')}
+          </Typography>
+          <Select
+            size="small"
+            displayEmpty
+            value=""
+            onChange={(e) => {
+              const id = e.target.value as string;
+              if (!id) return;
+              const found = inventoryLots.find((l) => l.id === id);
+              if (found) onQualityChange(found.quality);
+            }}
+            sx={{
+              ml: 'auto',
+              minWidth: 140,
+              height: 24,
+              fontSize: '0.72rem',
+              fontFamily: FONT_MONO,
+              '& .MuiSelect-select': { py: '2px', px: 1 },
+              backgroundColor: alpha(theme.palette.background.default, 0.3),
+            }}
+            aria-label={t('Select inventory lot', 'Sélectionner un lot d\'inventaire')}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.72rem', fontStyle: 'italic', color: 'text.disabled' }}>
+              — {t('Manual', 'Manuel')} —
+            </MenuItem>
+            {inventoryLots.map((lot) => (
+              <MenuItem key={lot.id} value={lot.id} sx={{ fontSize: '0.72rem', fontFamily: FONT_MONO }}>
+                {lot.qty}× Q{lot.quality}
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
+      )}
     </Card>
   );
 }

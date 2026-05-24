@@ -17,7 +17,6 @@ import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
 import { FONT_BODY } from '../theme';
-import { navigateToPath } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
@@ -380,32 +379,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
         contain: 'layout paint',
       }}
     >
-      <ButtonBase
-        component="a"
-        href="/"
-        onClick={(event) => {
-          if (!shouldHandleInternalLinkClick(event)) return;
-          event.preventDefault();
-          navigateToPath('/', { mainView: 'blueprints' });
-        }}
-        sx={{
-          minHeight: 74,
-          px: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-          flexShrink: 0,
-        }}
-      >
-        <Box
-          component="img"
-          src="/brand-mark.svg"
-          alt="Item Fabricator"
-          sx={{ width: 32, height: 40, objectFit: 'contain', display: 'block' }}
-        />
-      </ButtonBase>
-
       <Box
         sx={{
           display: 'flex',
