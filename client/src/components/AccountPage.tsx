@@ -38,7 +38,7 @@ import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
-import { startTransition, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import discordSymbol from '../assets/discord-symbol.svg';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
@@ -240,6 +240,7 @@ export function AccountPage() {
   const [rsiCode, setRsiCode] = useState('');
   const [rsiHandleInput, setRsiHandleInput] = useState('');
   const rsiAction = useAsyncAction();
+  const rsiVerifyInFlightRef = useRef(false);
   const [rsiCopyFeedback, setRsiCopyFeedback] = useState<string | null>(null);
   const rsiUnlinkAction = useAsyncAction();
   const [blueprintCollectionError, setBlueprintCollectionError] = useState<string | null>(null);
@@ -881,15 +882,24 @@ export function AccountPage() {
   };
 
   const handleVerifyRsiLink = async () => {
+    if (rsiVerifyInFlightRef.current) {
+      return;
+    }
+
     setRsiCopyFeedback(null);
-    await rsiAction.run(async () => {
-      await linkRsiAccount(rsiHandleInput, rsiCode);
-      setRsiDialogOpen(false);
-    }, t(
-      'Failed to verify the RSI account.',
-      'La verification du compte RSI a echoue.',
-      'Die Verifizierung des RSI-Kontos ist fehlgeschlagen.',
-    ));
+    rsiVerifyInFlightRef.current = true;
+    try {
+      await rsiAction.run(async () => {
+        await linkRsiAccount(rsiHandleInput.trim(), rsiCode);
+        setRsiDialogOpen(false);
+      }, t(
+        'Failed to verify the RSI account.',
+        'La verification du compte RSI a echoue.',
+        'Die Verifizierung des RSI-Kontos ist fehlgeschlagen.',
+      ));
+    } finally {
+      rsiVerifyInFlightRef.current = false;
+    }
   };
 
   const handleUnlinkRsiAccount = async () => {
