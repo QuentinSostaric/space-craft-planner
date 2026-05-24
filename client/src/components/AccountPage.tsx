@@ -1,5 +1,6 @@
 ﻿import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
+import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
@@ -7,6 +8,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -15,12 +17,14 @@ import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Rating from '@mui/material/Rating';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -30,6 +34,8 @@ import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined
 import GroupsIcon from '@mui/icons-material/Groups';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { startTransition, useEffect, useMemo, useState } from 'react';
@@ -51,7 +57,6 @@ import {
 import { useCraft } from '../store/CraftContext';
 import {
   clampQualityValue,
-  computeStatMaxima,
   formatQualityLabel,
   formatResourceQuantity,
   isPlaceholderResource,
@@ -63,7 +68,7 @@ import { CraftRequestsPanel } from './account/CraftRequestsPanel';
 import { BlueprintCard } from './BlueprintGrid';
 import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { Button } from './ui/Button';
-import { FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_MONO } from '../theme';
 
 function readAuthError(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -196,6 +201,7 @@ export function AccountPage() {
     logout,
     deleteAccount,
     syncAccountState,
+    refreshSession,
     linkRsiAccount,
     unlinkRsiAccount,
     updateInventoryResources,
@@ -278,6 +284,8 @@ export function AccountPage() {
     readLocalAccountCollections(),
   );
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'requests' | 'orgs' | 'settings'>('overview');
+
   const favoriteSnapshotIds = account?.favoriteBlueprintIds ?? favoriteIds;
   const inventorySnapshotIds = account?.inventoryBlueprintIds ?? inventoryIds;
   const organizationBlueprintShares = account?.organizationBlueprintShares ?? {};
@@ -342,9 +350,14 @@ export function AccountPage() {
     ? (Math.min(ownedBlueprintCount, totalObtainableBlueprintCount) / totalObtainableBlueprintCount) * 100
     : 0;
 
+  const pendingCraftRequestCount = useMemo(() => {
+    return (account?.incomingCraftRequests ?? []).filter(
+      (req) => req.status === 'pending',
+    ).length;
+  }, [account?.incomingCraftRequests]);
+
   const favoriteIdSet = useMemo(() => new Set(favoriteSnapshotIds), [favoriteSnapshotIds]);
   const inventoryIdSet = useMemo(() => new Set(inventorySnapshotIds), [inventorySnapshotIds]);
-  const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
   const blueprintById = useMemo(
     () => new Map(blueprints.map((blueprint) => [blueprint.id, blueprint])),
     [blueprints],
@@ -1609,26 +1622,7 @@ export function AccountPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 2, md: 3 },
-          background: `linear-gradient(160deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.96)} 100%)`,
-        }}
-      >
-        <Stack spacing={1.25}>
-          <Typography
-            variant="overline"
-            sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
-          >
-            {t('Account Center', 'Centre de compte', 'Kontobereich')}
-          </Typography>
-          <Typography variant="h3" sx={{ lineHeight: 0.92 }}>
-            {t('Account', 'Compte', 'Konto')}
-          </Typography>
-        </Stack>
-      </Paper>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
 
       {authError && (
         <Alert severity="error" variant="outlined">
@@ -1637,80 +1631,162 @@ export function AccountPage() {
       )}
 
       {user ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 1fr) minmax(0, 3.5fr)' },
-            gap: { xs: 2, md: 3 },
-            alignItems: 'start',
-          }}
-        >
-          <Stack spacing={2}>
-            <Paper
-              variant="outlined"
+        <>
+          {/* ── Hero Panel ── */}
+          <Paper variant="outlined" sx={{ p: 0, overflow: 'hidden' }}>
+            {/* Hero section */}
+            <Box
               sx={{
-                overflow: 'hidden',
-                background: `linear-gradient(150deg, ${alpha(theme.palette.secondary.main, 0.16)} 0%, ${alpha(theme.palette.primary.main, 0.11)} 42%, ${alpha(theme.palette.background.paper, 0.96)} 100%)`,
-                borderColor: alpha(theme.palette.primary.main, 0.3),
+                p: { xs: 2.5, md: 3 },
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: { xs: 2, md: 2.5 },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                background: `linear-gradient(150deg, ${alpha(theme.palette.secondary.main, 0.12)} 0%, ${alpha(theme.palette.primary.main, 0.08)} 42%, transparent 100%)`,
               }}
             >
-              <Box
+              {/* Avatar */}
+              <Avatar
+                src={user.avatarUrl ?? undefined}
+                alt={user.displayName}
                 sx={{
-                  p: { xs: 2, md: 2.5 },
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  backgroundImage: `radial-gradient(circle at top right, ${alpha(theme.palette.primary.main, 0.18)}, transparent 42%)`,
+                  width: 80,
+                  height: 80,
+                  fontSize: '2rem',
+                  fontFamily: FONT_DISPLAY,
+                  fontWeight: 700,
+                  border: `2px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                  boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.3)}`,
+                  flexShrink: 0,
                 }}
               >
-                <Stack spacing={1.25}>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'secondary.main', letterSpacing: '0.16em' }}
-                  >
-                    {t('Account identity', 'Identite compte', 'Konto-Identität')}
-                  </Typography>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Avatar
-                      src={user.avatarUrl ?? undefined}
-                      alt={user.displayName}
-                      sx={{
-                        width: 80,
-                        height: 80,
-                        fontSize: '1.8rem',
-                        border: `1px solid ${alpha(theme.palette.common.white, 0.22)}`,
-                        boxShadow: `0 16px 32px ${alpha(theme.palette.common.black, 0.25)}`,
-                      }}
-                    >
-                      {user.displayName.charAt(0).toUpperCase()}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="h4" sx={{ lineHeight: 0.92 }}>
-                        {user.displayName}
-                      </Typography>
-                      <Typography sx={{ color: 'text.secondary', mt: 0.6 }}>
-                        @{user.username}
-                        {user.discriminator && user.discriminator !== '0' ? `#${user.discriminator}` : ''}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Stack>
+                {user.displayName.charAt(0).toUpperCase()}
+              </Avatar>
 
-                <Paper
-                  variant="outlined"
+              {/* Identity */}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
                   sx={{
-                    p: 2,
-                    backgroundColor: alpha(theme.palette.background.paper, 0.72),
-                    borderColor: alpha(theme.palette.primary.main, 0.28),
-                    backdropFilter: 'blur(10px)',
+                    fontFamily: FONT_DISPLAY,
+                    fontWeight: 700,
+                    fontSize: '1.75rem',
+                    letterSpacing: '-0.018em',
+                    lineHeight: 1.15,
                   }}
                 >
-                  <Stack spacing={1.25}>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.14em' }}
-                    >
-                      {t('Owned / obtainable blueprints', 'Blueprints possedes / obtenables', 'Besessene / erhältliche Blueprints')}
+                  {user.displayName}
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  alignItems="center"
+                  sx={{ mt: 0.75 }}
+                >
+                  {account?.rsi?.handle && (
+                    <Chip
+                      label={`RSI — ${account.rsi.handle}`}
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                      sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem' }}
+                    />
+                  )}
+                  <Chip
+                    label={t('Discord linked', 'Discord lié', 'Discord verknüpft')}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem' }}
+                  />
+                  {account?.createdAt && (
+                    <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_MONO }}>
+                      {t('Member since', 'Membre depuis', 'Mitglied seit')}{' '}
+                      {new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(new Date(account.createdAt))}
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+
+              {/* Actions */}
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<RefreshOutlinedIcon fontSize="small" />}
+                  onClick={() => { void refreshSession(); }}
+                  disabled={syncStatus === 'syncing'}
+                >
+                  {syncStatus === 'syncing'
+                    ? t('Syncing…', 'Synchro…', 'Synchronisiere…')
+                    : t('Re-sync', 'Re-sync', 'Re-sync')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<LogoutOutlinedIcon fontSize="small" />}
+                  onClick={() => { void logout(); }}
+                >
+                  {t('Sign out', 'Déconnexion', 'Abmelden')}
+                </Button>
+              </Stack>
+            </Box>
+
+            {/* Tabs */}
+            <Divider />
+            <Tabs
+              value={activeTab}
+              onChange={(_event, value: typeof activeTab) => setActiveTab(value)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                px: { xs: 1, md: 2 },
+                minHeight: 46,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <Tab value="overview" label={t('Overview', 'Aperçu', 'Übersicht')} />
+              <Tab value="inventory" label={t('Inventory', 'Inventaire', 'Inventar')} />
+              <Tab
+                value="requests"
+                label={
+                  <Badge
+                    badgeContent={pendingCraftRequestCount}
+                    color="error"
+                    max={99}
+                    sx={{ '& .MuiBadge-badge': { right: -10, top: 0 } }}
+                  >
+                    {t('Craft requests', 'Craft requests', 'Craft-Anfragen')}
+                  </Badge>
+                }
+              />
+              <Tab value="orgs" label={t('My orgs', 'Mes orgs', 'Meine Orgs')} />
+              <Tab value="settings" label={t('Settings', 'Paramètres', 'Einstellungen')} />
+            </Tabs>
+          </Paper>
+
+          {syncError && (
+            <Alert severity="error" variant="outlined">
+              {syncError}
+            </Alert>
+          )}
+
+          {/* ── Overview Tab ── */}
+          {activeTab === 'overview' && (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 1fr) minmax(0, 2fr)' },
+                gap: 2.5,
+                alignItems: 'start',
+              }}
+            >
+              {/* Left: blueprint progress + stats */}
+              <Stack spacing={2}>
+                <Paper variant="outlined" sx={{ p: 2.5 }}>
+                  <Stack spacing={1.5}>
+                    <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
+                      {t('Blueprint collection', 'Collection blueprints', 'Blueprint-Sammlung')}
                     </Typography>
                     <Stack direction="row" spacing={0.75} alignItems="baseline">
                       <Typography variant="h2" sx={{ lineHeight: 0.9 }}>
@@ -1725,12 +1801,10 @@ export function AccountPage() {
                       value={blueprintProgress}
                       aria-label={t('Blueprint collection progress', 'Progression de la collection de blueprints', 'Fortschritt der Blueprint-Sammlung')}
                       sx={{
-                        height: 10,
+                        height: 8,
                         borderRadius: 999,
                         backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 999,
-                        },
+                        '& .MuiLinearProgress-bar': { borderRadius: 999 },
                       }}
                     />
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -1753,49 +1827,569 @@ export function AccountPage() {
                   sx={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                    gap: 1,
+                    gap: 1.5,
                   }}
                 >
                   <Paper
                     variant="outlined"
                     sx={{
-                      p: 1.5,
-                      backgroundColor: alpha(theme.palette.background.paper, 0.68),
-                      borderColor: alpha(theme.palette.primary.main, 0.18),
+                      p: 2,
+                      borderColor: alpha(theme.palette.primary.main, 0.22),
                     }}
                   >
-                    <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>
                       {t('Inventory', 'Inventaire', 'Inventar')}
                     </Typography>
-                    <Typography variant="h5" sx={{ mt: 0.35 }}>
-                      {inventoryCount}
-                    </Typography>
+                    <Typography variant="h4">{inventoryCount}</Typography>
                   </Paper>
                   <Paper
                     variant="outlined"
                     sx={{
-                      p: 1.5,
-                      backgroundColor: alpha(theme.palette.background.paper, 0.68),
-                      borderColor: alpha(theme.palette.warning.main, 0.24),
+                      p: 2,
+                      borderColor: alpha(theme.palette.warning.main, 0.28),
                     }}
                   >
-                    <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>
                       {t('Favorites', 'Favoris', 'Favoriten')}
                     </Typography>
-                    <Typography variant="h5" sx={{ mt: 0.35 }}>
-                      {favoriteCount}
-                    </Typography>
+                    <Typography variant="h4">{favoriteCount}</Typography>
                   </Paper>
                 </Box>
-              </Box>
+              </Stack>
+
+              {/* Right: external account links */}
+              <Paper variant="outlined" sx={{ p: 2.5 }}>
+                <Stack spacing={2}>
+                  <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
+                    {t('External accounts', 'Comptes externes', 'Externe Konten')}
+                  </Typography>
+
+                  <Stack spacing={1.5}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 1.5,
+                        display: 'grid',
+                        gridTemplateColumns: '32px 1fr auto',
+                        gap: 1.5,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src={discordSymbol}
+                        alt="Discord"
+                        aria-hidden="true"
+                        sx={{ width: 28, height: 28 }}
+                      />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Discord</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          @{user.username}
+                          {user.discriminator && user.discriminator !== '0' ? `#${user.discriminator}` : ''}
+                        </Typography>
+                      </Box>
+                      <Chip label={t('Linked', 'Lié', 'Verknüpft')} size="small" color="success" variant="outlined" />
+                    </Paper>
+
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 1.5,
+                        display: 'grid',
+                        gridTemplateColumns: '32px 1fr auto',
+                        gap: 1.5,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src={rsiLogoOfficial}
+                        alt="RSI"
+                        sx={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 0.5 }}
+                      />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>RSI</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {account?.rsi?.handle
+                            ? `${account.rsi.handle} · ${t('verified', 'vérifié', 'verifiziert')}`
+                            : t('Not linked', 'Non lié', 'Nicht verknüpft')}
+                        </Typography>
+                      </Box>
+                      {account?.rsi?.handle ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { void handleUnlinkRsiAccount(); }}
+                          disabled={rsiUnlinkAction.busy}
+                        >
+                          {rsiUnlinkAction.busy ? t('…', '…', '…') : t('Unlink', 'Délier', 'Entknüpfen')}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={openRsiDialog}
+                        >
+                          {t('Link', 'Lier', 'Verknüpfen')}
+                        </Button>
+                      )}
+                    </Paper>
+                  </Stack>
+
+                  {rsiUnlinkAction.error && (
+                    <Alert severity="error" variant="outlined">
+                      {rsiUnlinkAction.error}
+                    </Alert>
+                  )}
+                </Stack>
+              </Paper>
+            </Box>
+          )}
+
+          {/* ── Inventory Tab ── */}
+          {activeTab === 'inventory' && (
+            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
+              <Stack spacing={2}>
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  spacing={1.5}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', md: 'center' }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="overline"
+                      sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}
+                    >
+                      {t('Assets', 'Actifs', 'Assets')}
+                    </Typography>
+                    <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
+                      {t('Blueprints and resources', 'Blueprints et ressources', 'Blueprints und Ressourcen')}
+                    </Typography>
+                    <Typography sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 760 }}>
+                      {t(
+                        'Manage blueprint favorites, inventory snapshots, stored resources and organization sharing from one searchable account library.',
+                        'Gere les favoris blueprint, les snapshots d inventaire, les ressources stockees et le partage avec les organisations dans une seule bibliotheque de compte.',
+                        'Verwalte Blueprint-Favoriten, Inventar-Snapshots, gespeicherte Ressourcen und Organisationsfreigaben in einer durchsuchbaren Kontobibliothek.',
+                      )}
+                    </Typography>
+                  </Box>
+
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{ width: { xs: '100%', md: 'auto' }, alignSelf: { xs: 'stretch', md: 'center' } }}
+                  >
+                    <TextField
+                      size="small"
+                      label={t('Search assets', 'Rechercher des actifs', 'Assets suchen')}
+                      value={assetSearch}
+                      onChange={(event) => setAssetSearch(event.target.value)}
+                      sx={{ minWidth: { xs: '100%', sm: 240 } }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchOutlinedIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    <TextField
+                      select
+                      size="small"
+                      label={t('Filter', 'Filtre', 'Filter')}
+                      value={assetFilter}
+                      onChange={(event) => setAssetFilter(event.target.value as AccountAssetFilter)}
+                      sx={{ minWidth: { xs: '100%', sm: 220 } }}
+                    >
+                      <MenuItem value="all">
+                        {t('All assets', 'Tous les actifs', 'Alle Assets')}
+                      </MenuItem>
+                      <MenuItem value="inventory-blueprints">
+                        {t('Inventory blueprints', 'Blueprints inventaire', 'Inventar-Blueprints')}
+                      </MenuItem>
+                      <MenuItem value="favorite-blueprints">
+                        {t('Favorite blueprints', 'Blueprints favoris', 'Favoriten-Blueprints')}
+                      </MenuItem>
+                      <MenuItem value="resources">
+                        {t('Stored resources', 'Ressources stockees', 'Gespeicherte Ressourcen')}
+                      </MenuItem>
+                    </TextField>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={<GroupsOutlinedIcon fontSize="small" />}
+                      onClick={openResourceBulkShareDialog}
+                      disabled={linkedOrganizations.length === 0 || inventoryResources.length === 0}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      {t('Share batch', 'Partager en lot', 'Batch teilen')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<AddCircleOutlineOutlinedIcon fontSize="small" />}
+                      onClick={openResourceBatchDialog}
+                      disabled={sortedResources.length === 0}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      {t('Add resources', 'Ajouter des ressources', 'Ressourcen hinzufügen')}
+                    </Button>
+                  </Stack>
+                </Stack>
+
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                  <Chip
+                    label={t(
+                      `${filteredAssetEntries.length} visible entries`,
+                      `${filteredAssetEntries.length} entrees visibles`,
+                      `${filteredAssetEntries.length} sichtbare Eintrage`,
+                    )}
+                    size="small"
+                  />
+                  <Chip
+                    label={t(
+                      `${filteredBlueprintEntryCount} blueprints`,
+                      `${filteredBlueprintEntryCount} blueprints`,
+                      `${filteredBlueprintEntryCount} Blueprints`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={t(
+                      `${filteredResourceEntryCount} resources`,
+                      `${filteredResourceEntryCount} ressources`,
+                      `${filteredResourceEntryCount} Ressourcen`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={t(
+                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} shared entries`,
+                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} entrees partagees`,
+                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} geteilte Eintrage`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {hiddenBlueprintCount > 0 && (
+                    <Chip
+                      label={t(
+                        `${hiddenBlueprintCount} unavailable blueprints`,
+                        `${hiddenBlueprintCount} blueprints indisponibles`,
+                        `${hiddenBlueprintCount} nicht verfugbare Blueprints`,
+                      )}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+
+                {(blueprintCollectionError || sharedBlueprintError || resourceCollectionError) && (
+                  <Alert severity="error" variant="outlined">
+                    {blueprintCollectionError ?? sharedBlueprintError ?? resourceCollectionError}
+                  </Alert>
+                )}
+
+                {resourceCollectionNotice && (
+                  <Alert severity="success" variant="outlined">
+                    {resourceCollectionNotice}
+                  </Alert>
+                )}
+
+                {filteredAssetEntries.length === 0 ? (
+                  <Box
+                    sx={{
+                      py: { xs: 5, md: 8 },
+                      px: 2,
+                      textAlign: 'center',
+                      borderRadius: 2,
+                      border: `1px dashed ${theme.palette.divider}`,
+                      backgroundColor: alpha(theme.palette.background.default, 0.35),
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ mb: 0.75 }}>
+                      {assetFilter === 'resources'
+                        ? t('No stored resources yet', 'Aucune ressource stockee pour le moment', 'Noch keine Ressourcen gespeichert')
+                        : assetFilter === 'favorite-blueprints'
+                          ? t('No favorite blueprints yet', 'Aucun blueprint favori pour le moment', 'Noch keine Favoriten-Blueprints')
+                          : assetFilter === 'inventory-blueprints'
+                            ? t('No inventory blueprints yet', 'Aucun blueprint d inventaire pour le moment', 'Noch keine Inventar-Blueprints')
+                            : t('No saved assets yet', 'Aucun actif sauvegarde pour le moment', 'Noch keine gespeicherten Assets')}
+                    </Typography>
+                    <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
+                      {assetFilter === 'resources'
+                        ? t(
+                            'Use Add resources to open the batch table, then capture as many stored resource entries as you need before choosing which linked organizations can access each one.',
+                            'Utilise Ajouter des ressources pour ouvrir la table batch, puis enregistre autant d entrees ressource que necessaire avant de choisir quelles organisations liees peuvent acceder a chacune.',
+                            'Nutze Ressourcen hinzufügen, um die Batch-Tabelle zu öffnen und so viele gespeicherte Ressourceneintrage wie nötig zu erfassen, bevor du auswählst, welche verknüpften Organisationen auf jeden Eintrag zugreifen konnen.',
+                          )
+                        : t(
+                            'Save blueprints or resources to your account, then narrow the view with the search bar or the asset filter above.',
+                            'Sauvegarde des blueprints ou des ressources sur ton compte, puis affine la vue avec la recherche ou le filtre d actif ci-dessus.',
+                            'Speichere Blueprints oder Ressourcen in deinem Konto und verfeinere die Ansicht danach mit Suche oder Asset-Filter oben.',
+                          )}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        md: 'repeat(2, minmax(0, 1fr))',
+                        xl: 'repeat(3, minmax(0, 1fr))',
+                      },
+                      gap: { xs: 1.25, sm: 1.5, md: 2 },
+                    }}
+                    role="list"
+                    aria-label={t('Saved account assets', 'Actifs sauvegardes du compte', 'Gespeicherte Konto-Assets')}
+                  >
+                    {visibleAssetEntries.map((entry, index) => {
+                      if (entry.kind === 'blueprint') {
+                        return (
+                          <BlueprintCard
+                            key={entry.key}
+                            blueprint={entry.blueprint}
+                            activeBlueprintId={activeBlueprint?.id ?? null}
+                            isFavorite={entry.isFavorite}
+                            isInInventory={entry.isInInventory}
+                            organizationShareAction={entry.isInInventory
+                              ? {
+                                  selected: entry.isShared,
+                                  busy: sharedBlueprintBusyId === entry.blueprint.id,
+                                  label: entry.isShared
+                                    ? t('Org sharing', 'Partage org', 'Org-Freigabe')
+                                    : t('Share', 'Partage', 'Teilen'),
+                                  ariaLabel: t(
+                                    'Choose which linked organizations can access this blueprint',
+                                    'Choisir quelles organisations liees peuvent acceder a ce blueprint',
+                                    'Auswahlen, welche verknupften Organisationen auf diesen Blueprint zugreifen konnen',
+                                  ),
+                                  disabled: linkedOrganizations.length === 0,
+                                  tooltip: linkedOrganizations.length === 0
+                                    ? t(
+                                        'Link an organization on this account first.',
+                                        'Lie d abord une organisation a ce compte.',
+                                        'Verknupfe zuerst eine Organisation mit diesem Konto.',
+                                      )
+                                    : entry.isShared
+                                      ? t(
+                                          `Shared with ${entry.sharedOrganizationIds.length} linked organization${entry.sharedOrganizationIds.length > 1 ? 's' : ''}. Click to choose the organizations.`,
+                                          `Partage avec ${entry.sharedOrganizationIds.length} organisation${entry.sharedOrganizationIds.length > 1 ? 's' : ''} liee${entry.sharedOrganizationIds.length > 1 ? 's' : ''}. Clique pour choisir les organisations.`,
+                                          `Mit ${entry.sharedOrganizationIds.length} verknupften Organisation${entry.sharedOrganizationIds.length > 1 ? 'en' : ''} geteilt. Klicke, um die Organisationen zu wahlen.`,
+                                        )
+                                      : t(
+                                          'Private to this account until you select one or more linked organizations.',
+                                          'Prive pour ce compte tant que tu ne selectionnes pas une ou plusieurs organisations liees.',
+                                          'Privat fur dieses Konto, bis du eine oder mehrere verknupfte Organisationen auswahlen.',
+                                        ),
+                                  onToggle: (blueprintId) => { openShareBlueprintDialog(blueprintId); },
+                                }
+                              : undefined}
+                            resources={activeDataset.resources}
+                            priority={index < 8}
+                            onSelect={(blueprint) => startTransition(() => setActiveBlueprint(blueprint))}
+                            onToggleFavorite={handleToggleFavoriteBlueprint}
+                            onToggleInventory={handleToggleInventoryBlueprint}
+                          />
+                        );
+                      }
+
+                      const qualityLabel = entry.resourceEntry.quality == null
+                        ? t('No quality', 'Sans qualite', 'Ohne Qualitat')
+                        : formatQualityLabel(entry.resourceEntry.quality, lang);
+
+                      return (
+                        <ResourceAssetCard
+                          key={entry.key}
+                          resource={entry.resource}
+                          insight={resourceInsightById.get(entry.resourceEntry.resourceId) ?? null}
+                          onOpen={
+                            entry.resource
+                              ? () =>
+                                  navigateToPath(resourcePathFromSlug(entry.resourceEntry.resourceId), {
+                                    resourceId: entry.resourceEntry.resourceId,
+                                    mainView: 'resources',
+                                  })
+                              : null
+                          }
+                          href={entry.resource ? resourcePathFromSlug(entry.resourceEntry.resourceId) : null}
+                          title={entry.resourceEntry.resourceName}
+                          infoChips={[
+                            {
+                              label: formatResourceQuantity(entry.resourceEntry.quantity, entry.resourceEntry.quantityUnit, lang, 'long'),
+                            },
+                            {
+                              label: qualityLabel,
+                              variant: 'outlined',
+                            },
+                            ...(entry.isShared
+                              ? [
+                                  {
+                                    label: t(
+                                      `${entry.sharedOrganizationIds.length} orgs`,
+                                      `${entry.sharedOrganizationIds.length} orgs`,
+                                      `${entry.sharedOrganizationIds.length} Orgs`,
+                                    ),
+                                    color: 'primary' as const,
+                                    variant: 'outlined' as const,
+                                  },
+                                ]
+                              : []),
+                          ]}
+                          footer={
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+                                gap: 0.75,
+                              }}
+                            >
+                              <ToggleButton
+                                value={`share-${entry.resourceEntry.id}`}
+                                size="small"
+                                selected={entry.isShared}
+                                aria-pressed={entry.isShared}
+                                aria-label={t(
+                                  'Choose which linked organizations can access this resource entry',
+                                  'Choisir quelles organisations liees peuvent acceder a cette entree ressource',
+                                  'Auswahlen, welche verknupften Organisationen auf diesen Ressourceneintrag zugreifen konnen',
+                                )}
+                                onClick={() => { openShareResourceDialog(entry.resourceEntry.id); }}
+                                disabled={linkedOrganizations.length === 0 || sharedResourceBusyId === entry.resourceEntry.id}
+                                sx={{
+                                  width: '100%',
+                                  minWidth: 0,
+                                  minHeight: { xs: 38, sm: 40 },
+                                  gap: { xs: 0.5, sm: 0.625 },
+                                  px: { xs: 0.9, sm: 1.05 },
+                                  py: { xs: 0.65, sm: 0.8 },
+                                  justifyContent: 'flex-start',
+                                  textTransform: 'none',
+                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
+                                  fontWeight: 600,
+                                  lineHeight: 1.15,
+                                  borderColor: 'divider',
+                                  backgroundColor: alpha(theme.palette.background.default, 0.22),
+                                  color: 'text.secondary',
+                                  '& .MuiSvgIcon-root': {
+                                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                                    flexShrink: 0,
+                                  },
+                                  '& .resource-asset-action-label': {
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  },
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                    color: 'text.primary',
+                                  },
+                                  ...(entry.isShared && {
+                                    color: 'primary.main',
+                                    borderColor: 'primary.main',
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                                  }),
+                                }}
+                              >
+                                {entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
+                                <Box component="span" className="resource-asset-action-label">
+                                  {entry.isShared
+                                    ? t('Org sharing', 'Partage org', 'Org-Freigabe')
+                                    : t('Share', 'Partage', 'Teilen')}
+                                </Box>
+                              </ToggleButton>
+                              <ToggleButton
+                                value={`remove-${entry.resourceEntry.id}`}
+                                size="small"
+                                aria-label={t('Remove this resource entry', 'Retirer cette entree ressource', 'Diesen Ressourceneintrag entfernen')}
+                                onClick={() => { void handleRemoveResourceEntry(entry.resourceEntry.id); }}
+                                disabled={sharedResourceBusyId === entry.resourceEntry.id}
+                                sx={{
+                                  width: '100%',
+                                  minWidth: 0,
+                                  minHeight: { xs: 38, sm: 40 },
+                                  gap: { xs: 0.5, sm: 0.625 },
+                                  px: { xs: 0.9, sm: 1.05 },
+                                  py: { xs: 0.65, sm: 0.8 },
+                                  justifyContent: 'flex-start',
+                                  textTransform: 'none',
+                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
+                                  fontWeight: 600,
+                                  lineHeight: 1.15,
+                                  borderColor: 'divider',
+                                  backgroundColor: alpha(theme.palette.background.default, 0.22),
+                                  color: 'text.secondary',
+                                  '& .MuiSvgIcon-root': {
+                                    fontSize: { xs: '0.95rem', sm: '1rem' },
+                                    flexShrink: 0,
+                                  },
+                                  '& .resource-asset-action-label': {
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  },
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                    color: 'text.primary',
+                                  },
+                                }}
+                              >
+                                <DeleteOutlineOutlinedIcon fontSize="small" />
+                                <Box component="span" className="resource-asset-action-label">
+                                  {t('Remove', 'Retirer', 'Entfernen')}
+                                </Box>
+                              </ToggleButton>
+                            </Box>
+                          }
+                        />
+                      );
+                    })}
+                  </Box>
+                )}
+
+                {visibleBlueprintCount < filteredAssetEntries.length && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1 }}>
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setVisibleBlueprintCount((currentCount) =>
+                          Math.min(currentCount + ACCOUNT_BLUEPRINT_BATCH_SIZE, filteredAssetEntries.length),
+                        )
+                      }
+                    >
+                      {t('Load more assets', 'Afficher plus d actifs', 'Mehr Assets laden')}
+                    </Button>
+                  </Box>
+                )}
+              </Stack>
             </Paper>
+          )}
 
-            {deleteAction.error && (
-              <Alert severity="error" variant="outlined">
-                {deleteAction.error}
-              </Alert>
-            )}
+          {/* ── Craft Requests Tab ── */}
+          {activeTab === 'requests' && (
+            <CraftRequestsPanel
+              account={account}
+              optimisticState={optimisticState}
+              syncStatus={syncStatus}
+              syncError={syncError}
+              craftRequestActionId={craftRequestActionId}
+              craftRequestError={craftRequestError}
+              craftRequestNotice={craftRequestNotice}
+              onRespondToCraftRequest={(requestId, decision) => { void handleRespondToCraftRequest(requestId, decision); }}
+            />
+          )}
 
+          {/* ── My Orgs Tab ── */}
+          {activeTab === 'orgs' && (
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
               <Stack spacing={2.25}>
                 <Stack
@@ -1807,7 +2401,7 @@ export function AccountPage() {
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
                       variant="overline"
-                      sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
+                      sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}
                     >
                       {t('Organizations', 'Organisations', 'Organisationen')}
                     </Typography>
@@ -2401,588 +2995,165 @@ export function AccountPage() {
                 )}
               </Stack>
             </Paper>
+          )}
 
-            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-              <Stack spacing={1.5}>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.14em' }}
-                  >
-                    {t('Account actions', 'Actions du compte', 'Konto-Aktionen')}
+          {/* ── Settings Tab ── */}
+          {activeTab === 'settings' && (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                gap: 2.5,
+                alignItems: 'start',
+              }}
+            >
+              {/* RSI Account link */}
+              <Paper variant="outlined" sx={{ p: 2.5 }}>
+                <Stack spacing={1.5}>
+                  <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
+                    {t('RSI account', 'Compte RSI', 'RSI-Konto')}
                   </Typography>
-                  <Typography variant="h5" sx={{ mt: 0.5 }}>
-                    {t('Session and deletion', 'Session et suppression', 'Sitzung und Löschung')}
-                  </Typography>
-                </Box>
 
-                {!account?.rsi?.handle && (
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    onClick={openRsiDialog}
-                    icon={(
-                      <Box
-                        component="img"
-                        src={rsiLogoOfficial}
-                        alt=""
-                        sx={{
-                          width: 18,
-                          height: 18,
-                          objectFit: 'contain',
-                          borderRadius: 0.5,
-                        }}
-                      />
-                    )}
-                  >
-                    {t('Link RSI account', 'Lier le compte RSI', 'RSI-Konto verknupfen')}
-                  </Button>
-                )}
-
-                {account?.rsi?.handle && (
-                  <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-                    <Typography sx={{ color: 'text.secondary' }}>
-                      {t(
-                        `Linked RSI handle: ${account.rsi.handle}`,
-                        `Handle RSI lie : ${account.rsi.handle}`,
-                        `Verknüpfter RSI-Handle: ${account.rsi.handle}`,
-                      )}
-                    </Typography>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { void handleUnlinkRsiAccount(); }}
-                      disabled={rsiUnlinkAction.busy}
-                    >
-                      {rsiUnlinkAction.busy
-                        ? t('Removing...', 'Suppression...', 'Entferne...')
-                        : t('Remove link', 'Supprimer le lien', 'Verknüpfung entfernen')}
-                    </Button>
-                  </Stack>
-                )}
-
-                {rsiUnlinkAction.error && (
-                  <Alert severity="error" variant="outlined">
-                    {rsiUnlinkAction.error}
-                  </Alert>
-                )}
-
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    backgroundColor: alpha(theme.palette.info.main, 0.06),
-                    borderColor: alpha(theme.palette.info.main, 0.22),
-                  }}
-                >
-                  <Stack spacing={1.25}>
-                    <Box>
-                      <Typography variant="subtitle2">
-                        {t('PTU data copy', 'Copie des donnees PTU', 'PTU-Datenkopie')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
-                        {t(
-                          'Copies LIVE account data into the PTU account scope only. PTU data is never copied back to LIVE.',
-                          'Copie les donnees LIVE uniquement vers le scope de compte PTU. Les donnees PTU ne sont jamais copiees vers LIVE.',
-                          'Kopiert LIVE-Kontodaten nur in den PTU-Kontobereich. PTU-Daten werden nie nach LIVE zuruckkopiert.',
-                        )}
-                      </Typography>
-                    </Box>
+                  {!account?.rsi?.handle && (
                     <Button
                       variant="secondary"
                       fullWidth
-                      onClick={() => { void handleCopyLiveDataToPtu(); }}
-                      disabled={copyLiveToPtuAction.busy || activeDataset.channel !== 'ptu'}
+                      onClick={openRsiDialog}
+                      icon={(
+                        <Box
+                          component="img"
+                          src={rsiLogoOfficial}
+                          alt=""
+                          sx={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 0.5 }}
+                        />
+                      )}
                     >
-                      {copyLiveToPtuAction.busy
-                        ? t('Copying...', 'Copie...', 'Kopiere...')
-                        : t('Copy LIVE to PTU', 'Copier LIVE vers PTU', 'LIVE nach PTU kopieren')}
+                      {t('Link RSI account', 'Lier le compte RSI', 'RSI-Konto verknupfen')}
                     </Button>
-                    {activeDataset.channel !== 'ptu' && (
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  )}
+
+                  {account?.rsi?.handle && (
+                    <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                      <Typography sx={{ color: 'text.secondary' }}>
                         {t(
-                          'Switch to a PTU dataset before running the copy.',
-                          'Passe sur un dataset PTU avant de lancer la copie.',
-                          'Wechsle vor dem Kopieren zu einem PTU-Dataset.',
+                          `Linked RSI handle: ${account.rsi.handle}`,
+                          `Handle RSI lie : ${account.rsi.handle}`,
+                          `Verknüpfter RSI-Handle: ${account.rsi.handle}`,
                         )}
                       </Typography>
-                    )}
-                    {copyLiveToPtuAction.error && (
-                      <Alert severity="error" variant="outlined">
-                        {copyLiveToPtuAction.error}
-                      </Alert>
-                    )}
-                  </Stack>
-                </Paper>
-
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => { void logout(); }}
-                >
-                  {t('Log out', 'Se deconnecter', 'Abmelden')}
-                </Button>
-
-                <Button
-                  variant="danger"
-                  fullWidth
-                  onClick={() => { void handleDeleteAccount(); }}
-                  disabled={deleteAction.busy}
-                >
-                  {deleteAction.busy
-                    ? t('Deleting account...', 'Suppression du compte...', 'Konto wird gelöscht...')
-                    : t('Delete account', 'Supprimer le compte', 'Konto löschen')}
-                </Button>
-
-                <Typography sx={{ color: 'text.secondary' }}>
-                  {t(
-                    'This removes the cloud profile, favorites, inventory snapshot and planner snapshot, then clears the current session.',
-                    'Cela supprime le profil cloud, les favoris, le snapshot inventaire et le snapshot planner, puis efface la session courante.',
-                    'Dadurch werden Cloud-Profil, Favoriten, Inventar-Snapshot und Planner-Snapshot entfernt und die aktuelle Sitzung geleert.',
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { void handleUnlinkRsiAccount(); }}
+                        disabled={rsiUnlinkAction.busy}
+                      >
+                        {rsiUnlinkAction.busy
+                          ? t('Removing...', 'Suppression...', 'Entferne...')
+                          : t('Remove link', 'Supprimer le lien', 'Verknüpfung entfernen')}
+                      </Button>
+                    </Stack>
                   )}
-                </Typography>
-              </Stack>
-            </Paper>
-          </Stack>
 
-          <Stack spacing={2}>
-            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-              <Stack spacing={2}>
-                <Stack
-                  direction={{ xs: 'column', md: 'row' }}
-                  spacing={1.5}
-                  justifyContent="space-between"
-                  alignItems={{ xs: 'flex-start', md: 'center' }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography
-                      variant="overline"
-                      sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-                    >
-                      {t('Assets', 'Actifs', 'Assets')}
-                    </Typography>
-                    <Typography variant="h4" sx={{ lineHeight: 0.95 }}>
-                      {t('Blueprints and resources', 'Blueprints et ressources', 'Blueprints und Ressourcen')}
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 760 }}>
+                  {rsiUnlinkAction.error && (
+                    <Alert severity="error" variant="outlined">
+                      {rsiUnlinkAction.error}
+                    </Alert>
+                  )}
+                </Stack>
+              </Paper>
+
+              {/* LIVE / PTU data copy */}
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  backgroundColor: alpha(theme.palette.info.main, 0.04),
+                  borderColor: alpha(theme.palette.info.main, 0.22),
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
+                    {t('LIVE / PTU', 'LIVE / PTU', 'LIVE / PTU')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t(
+                      'Copies LIVE account data into the PTU account scope only. PTU data is never copied back to LIVE.',
+                      'Copie les donnees LIVE uniquement vers le scope de compte PTU. Les donnees PTU ne sont jamais copiees vers LIVE.',
+                      'Kopiert LIVE-Kontodaten nur in den PTU-Kontobereich. PTU-Daten werden nie nach LIVE zuruckkopiert.',
+                    )}
+                  </Typography>
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    onClick={() => { void handleCopyLiveDataToPtu(); }}
+                    disabled={copyLiveToPtuAction.busy || activeDataset.channel !== 'ptu'}
+                  >
+                    {copyLiveToPtuAction.busy
+                      ? t('Copying...', 'Copie...', 'Kopiere...')
+                      : t('Copy LIVE to PTU', 'Copier LIVE vers PTU', 'LIVE nach PTU kopieren')}
+                  </Button>
+                  {activeDataset.channel !== 'ptu' && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {t(
-                        'Manage blueprint favorites, inventory snapshots, stored resources and organization sharing from one searchable account library.',
-                        'Gere les favoris blueprint, les snapshots d inventaire, les ressources stockees et le partage avec les organisations dans une seule bibliotheque de compte.',
-                        'Verwalte Blueprint-Favoriten, Inventar-Snapshots, gespeicherte Ressourcen und Organisationsfreigaben in einer durchsuchbaren Kontobibliothek.',
+                        'Switch to a PTU dataset before running the copy.',
+                        'Passe sur un dataset PTU avant de lancer la copie.',
+                        'Wechsle vor dem Kopieren zu einem PTU-Dataset.',
                       )}
                     </Typography>
-                  </Box>
-
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={1}
-                    sx={{ width: { xs: '100%', md: 'auto' }, alignSelf: { xs: 'stretch', md: 'center' } }}
-                  >
-                    <TextField
-                      size="small"
-                      label={t('Search assets', 'Rechercher des actifs', 'Assets suchen')}
-                      value={assetSearch}
-                      onChange={(event) => setAssetSearch(event.target.value)}
-                      sx={{ minWidth: { xs: '100%', sm: 240 } }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchOutlinedIcon fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    <TextField
-                      select
-                      size="small"
-                      label={t('Filter', 'Filtre', 'Filter')}
-                      value={assetFilter}
-                      onChange={(event) => setAssetFilter(event.target.value as AccountAssetFilter)}
-                      sx={{ minWidth: { xs: '100%', sm: 220 } }}
-                    >
-                      <MenuItem value="all">
-                        {t('All assets', 'Tous les actifs', 'Alle Assets')}
-                      </MenuItem>
-                      <MenuItem value="inventory-blueprints">
-                        {t('Inventory blueprints', 'Blueprints inventaire', 'Inventar-Blueprints')}
-                      </MenuItem>
-                      <MenuItem value="favorite-blueprints">
-                        {t('Favorite blueprints', 'Blueprints favoris', 'Favoriten-Blueprints')}
-                      </MenuItem>
-                      <MenuItem value="resources">
-                        {t('Stored resources', 'Ressources stockees', 'Gespeicherte Ressourcen')}
-                      </MenuItem>
-                    </TextField>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<GroupsOutlinedIcon fontSize="small" />}
-                      onClick={openResourceBulkShareDialog}
-                      disabled={linkedOrganizations.length === 0 || inventoryResources.length === 0}
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      {t('Share batch', 'Partager en lot', 'Batch teilen')}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<AddCircleOutlineOutlinedIcon fontSize="small" />}
-                      onClick={openResourceBatchDialog}
-                      disabled={sortedResources.length === 0}
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      {t('Add resources', 'Ajouter des ressources', 'Ressourcen hinzufügen')}
-                    </Button>
-                  </Stack>
-                </Stack>
-
-                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                  <Chip
-                    label={t(
-                      `${filteredAssetEntries.length} visible entries`,
-                      `${filteredAssetEntries.length} entrees visibles`,
-                      `${filteredAssetEntries.length} sichtbare Eintrage`,
-                    )}
-                    size="small"
-                  />
-                  <Chip
-                    label={t(
-                      `${filteredBlueprintEntryCount} blueprints`,
-                      `${filteredBlueprintEntryCount} blueprints`,
-                      `${filteredBlueprintEntryCount} Blueprints`,
-                    )}
-                    size="small"
-                    variant="outlined"
-                  />
-                  <Chip
-                    label={t(
-                      `${filteredResourceEntryCount} resources`,
-                      `${filteredResourceEntryCount} ressources`,
-                      `${filteredResourceEntryCount} Ressourcen`,
-                    )}
-                    size="small"
-                    variant="outlined"
-                  />
-                  <Chip
-                    label={t(
-                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} shared entries`,
-                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} entrees partagees`,
-                      `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} geteilte Eintrage`,
-                    )}
-                    size="small"
-                    variant="outlined"
-                  />
-                  {hiddenBlueprintCount > 0 && (
-                    <Chip
-                      label={t(
-                        `${hiddenBlueprintCount} unavailable blueprints`,
-                        `${hiddenBlueprintCount} blueprints indisponibles`,
-                        `${hiddenBlueprintCount} nicht verfugbare Blueprints`,
-                      )}
-                      size="small"
-                      variant="outlined"
-                    />
+                  )}
+                  {copyLiveToPtuAction.error && (
+                    <Alert severity="error" variant="outlined">
+                      {copyLiveToPtuAction.error}
+                    </Alert>
                   )}
                 </Stack>
+              </Paper>
 
-                {(blueprintCollectionError || sharedBlueprintError || resourceCollectionError) && (
-                  <Alert severity="error" variant="outlined">
-                    {blueprintCollectionError ?? sharedBlueprintError ?? resourceCollectionError}
-                  </Alert>
-                )}
+              {/* Danger zone */}
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderColor: alpha(theme.palette.error.main, 0.25),
+                  backgroundColor: alpha(theme.palette.error.main, 0.03),
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Typography variant="overline" sx={{ color: 'error.main', letterSpacing: '0.08em' }}>
+                    {t('Danger zone', 'Zone dangereuse', 'Gefahrenzone')}
+                  </Typography>
 
-                {resourceCollectionNotice && (
-                  <Alert severity="success" variant="outlined">
-                    {resourceCollectionNotice}
-                  </Alert>
-                )}
+                  {deleteAction.error && (
+                    <Alert severity="error" variant="outlined">
+                      {deleteAction.error}
+                    </Alert>
+                  )}
 
-                {filteredAssetEntries.length === 0 ? (
-                  <Box
-                    sx={{
-                      py: { xs: 5, md: 8 },
-                      px: 2,
-                      textAlign: 'center',
-                      borderRadius: 2,
-                      border: `1px dashed ${theme.palette.divider}`,
-                      backgroundColor: alpha(theme.palette.background.default, 0.35),
-                    }}
+                  <Button
+                    variant="danger"
+                    fullWidth
+                    onClick={() => { void handleDeleteAccount(); }}
+                    disabled={deleteAction.busy}
                   >
-                    <Typography variant="h6" sx={{ mb: 0.75 }}>
-                      {assetFilter === 'resources'
-                        ? t('No stored resources yet', 'Aucune ressource stockee pour le moment', 'Noch keine Ressourcen gespeichert')
-                        : assetFilter === 'favorite-blueprints'
-                          ? t('No favorite blueprints yet', 'Aucun blueprint favori pour le moment', 'Noch keine Favoriten-Blueprints')
-                          : assetFilter === 'inventory-blueprints'
-                            ? t('No inventory blueprints yet', 'Aucun blueprint d inventaire pour le moment', 'Noch keine Inventar-Blueprints')
-                            : t('No saved assets yet', 'Aucun actif sauvegarde pour le moment', 'Noch keine gespeicherten Assets')}
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
-                      {assetFilter === 'resources'
-                        ? t(
-                            'Use Add resources to open the batch table, then capture as many stored resource entries as you need before choosing which linked organizations can access each one.',
-                            'Utilise Ajouter des ressources pour ouvrir la table batch, puis enregistre autant d entrees ressource que necessaire avant de choisir quelles organisations liees peuvent acceder a chacune.',
-                            'Nutze Ressourcen hinzufügen, um die Batch-Tabelle zu öffnen und so viele gespeicherte Ressourceneintrage wie nötig zu erfassen, bevor du auswählst, welche verknüpften Organisationen auf jeden Eintrag zugreifen konnen.',
-                          )
-                        : t(
-                            'Save blueprints or resources to your account, then narrow the view with the search bar or the asset filter above.',
-                            'Sauvegarde des blueprints ou des ressources sur ton compte, puis affine la vue avec la recherche ou le filtre d actif ci-dessus.',
-                            'Speichere Blueprints oder Ressourcen in deinem Konto und verfeinere die Ansicht danach mit Suche oder Asset-Filter oben.',
-                          )}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: {
-                        xs: '1fr',
-                        md: 'repeat(2, minmax(0, 1fr))',
-                        xl: 'repeat(3, minmax(0, 1fr))',
-                      },
-                      gap: { xs: 1.25, sm: 1.5, md: 2 },
-                    }}
-                    role="list"
-                    aria-label={t('Saved account assets', 'Actifs sauvegardes du compte', 'Gespeicherte Konto-Assets')}
-                  >
-                    {visibleAssetEntries.map((entry, index) => {
-                      if (entry.kind === 'blueprint') {
-                        return (
-                          <BlueprintCard
-                            key={entry.key}
-                            blueprint={entry.blueprint}
-                            activeBlueprintId={activeBlueprint?.id ?? null}
-                            isFavorite={entry.isFavorite}
-                            isInInventory={entry.isInInventory}
-                            organizationShareAction={entry.isInInventory
-                              ? {
-                                  selected: entry.isShared,
-                                  busy: sharedBlueprintBusyId === entry.blueprint.id,
-                                  label: entry.isShared
-                                    ? t('Org sharing', 'Partage org', 'Org-Freigabe')
-                                    : t('Share', 'Partage', 'Teilen'),
-                                  ariaLabel: t(
-                                    'Choose which linked organizations can access this blueprint',
-                                    'Choisir quelles organisations liees peuvent acceder a ce blueprint',
-                                    'Auswahlen, welche verknupften Organisationen auf diesen Blueprint zugreifen konnen',
-                                  ),
-                                  disabled: linkedOrganizations.length === 0,
-                                  tooltip: linkedOrganizations.length === 0
-                                    ? t(
-                                        'Link an organization on this account first.',
-                                        'Lie d abord une organisation a ce compte.',
-                                        'Verknupfe zuerst eine Organisation mit diesem Konto.',
-                                      )
-                                    : entry.isShared
-                                      ? t(
-                                          `Shared with ${entry.sharedOrganizationIds.length} linked organization${entry.sharedOrganizationIds.length > 1 ? 's' : ''}. Click to choose the organizations.`,
-                                          `Partage avec ${entry.sharedOrganizationIds.length} organisation${entry.sharedOrganizationIds.length > 1 ? 's' : ''} liee${entry.sharedOrganizationIds.length > 1 ? 's' : ''}. Clique pour choisir les organisations.`,
-                                          `Mit ${entry.sharedOrganizationIds.length} verknupften Organisation${entry.sharedOrganizationIds.length > 1 ? 'en' : ''} geteilt. Klicke, um die Organisationen zu wahlen.`,
-                                        )
-                                      : t(
-                                          'Private to this account until you select one or more linked organizations.',
-                                          'Prive pour ce compte tant que tu ne selectionnes pas une ou plusieurs organisations liees.',
-                                          'Privat fur dieses Konto, bis du eine oder mehrere verknupfte Organisationen auswahlen.',
-                                        ),
-                                  onToggle: (blueprintId) => { openShareBlueprintDialog(blueprintId); },
-                                }
-                              : undefined}
-                            statMaxima={statMaxima}
-                            resources={activeDataset.resources}
-                            priority={index < 8}
-                            onSelect={(blueprint) => startTransition(() => setActiveBlueprint(blueprint))}
-                            onToggleFavorite={handleToggleFavoriteBlueprint}
-                            onToggleInventory={handleToggleInventoryBlueprint}
-                          />
-                        );
-                      }
+                    {deleteAction.busy
+                      ? t('Deleting account...', 'Suppression du compte...', 'Konto wird gelöscht...')
+                      : t('Delete account', 'Supprimer le compte', 'Konto löschen')}
+                  </Button>
 
-                      const qualityLabel = entry.resourceEntry.quality == null
-                        ? t('No quality', 'Sans qualite', 'Ohne Qualitat')
-                        : formatQualityLabel(entry.resourceEntry.quality, lang);
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t(
+                      'This removes the cloud profile, favorites, inventory snapshot and planner snapshot, then clears the current session.',
+                      'Cela supprime le profil cloud, les favoris, le snapshot inventaire et le snapshot planner, puis efface la session courante.',
+                      'Dadurch werden Cloud-Profil, Favoriten, Inventar-Snapshot und Planner-Snapshot entfernt und die aktuelle Sitzung geleert.',
+                    )}
+                  </Typography>
+                </Stack>
+              </Paper>
+            </Box>
+          )}
 
-                      return (
-                        <ResourceAssetCard
-                          key={entry.key}
-                          resource={entry.resource}
-                          insight={resourceInsightById.get(entry.resourceEntry.resourceId) ?? null}
-                          onOpen={
-                            entry.resource
-                              ? () =>
-                                  navigateToPath(resourcePathFromSlug(entry.resourceEntry.resourceId), {
-                                    resourceId: entry.resourceEntry.resourceId,
-                                    mainView: 'resources',
-                                  })
-                              : null
-                          }
-                          href={entry.resource ? resourcePathFromSlug(entry.resourceEntry.resourceId) : null}
-                          title={entry.resourceEntry.resourceName}
-                          infoChips={[
-                            {
-                              label: formatResourceQuantity(entry.resourceEntry.quantity, entry.resourceEntry.quantityUnit, lang, 'long'),
-                            },
-                            {
-                              label: qualityLabel,
-                              variant: 'outlined',
-                            },
-                            ...(entry.isShared
-                              ? [
-                                  {
-                                    label: t(
-                                      `${entry.sharedOrganizationIds.length} orgs`,
-                                      `${entry.sharedOrganizationIds.length} orgs`,
-                                      `${entry.sharedOrganizationIds.length} Orgs`,
-                                    ),
-                                    color: 'primary' as const,
-                                    variant: 'outlined' as const,
-                                  },
-                                ]
-                              : []),
-                          ]}
-                          footer={
-                            <Box
-                              sx={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
-                                gap: 0.75,
-                              }}
-                            >
-                              <ToggleButton
-                                value={`share-${entry.resourceEntry.id}`}
-                                size="small"
-                                selected={entry.isShared}
-                                aria-pressed={entry.isShared}
-                                aria-label={t(
-                                  'Choose which linked organizations can access this resource entry',
-                                  'Choisir quelles organisations liees peuvent acceder a cette entree ressource',
-                                  'Auswahlen, welche verknupften Organisationen auf diesen Ressourceneintrag zugreifen konnen',
-                                )}
-                                onClick={() => { openShareResourceDialog(entry.resourceEntry.id); }}
-                                disabled={linkedOrganizations.length === 0 || sharedResourceBusyId === entry.resourceEntry.id}
-                                sx={{
-                                  width: '100%',
-                                  minWidth: 0,
-                                  minHeight: { xs: 38, sm: 40 },
-                                  gap: { xs: 0.5, sm: 0.625 },
-                                  px: { xs: 0.9, sm: 1.05 },
-                                  py: { xs: 0.65, sm: 0.8 },
-                                  justifyContent: 'flex-start',
-                                  textTransform: 'none',
-                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
-                                  fontWeight: 600,
-                                  lineHeight: 1.15,
-                                  borderColor: 'divider',
-                                  backgroundColor: alpha(theme.palette.background.default, 0.22),
-                                  color: 'text.secondary',
-                                  '& .MuiSvgIcon-root': {
-                                    fontSize: { xs: '0.95rem', sm: '1rem' },
-                                    flexShrink: 0,
-                                  },
-                                  '& .resource-asset-action-label': {
-                                    minWidth: 0,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  },
-                                  '&:hover': {
-                                    borderColor: 'primary.main',
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                                    color: 'text.primary',
-                                  },
-                                  ...(entry.isShared && {
-                                    color: 'primary.main',
-                                    borderColor: 'primary.main',
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                                  }),
-                                }}
-                              >
-                                {entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
-                                <Box component="span" className="resource-asset-action-label">
-                                  {entry.isShared
-                                    ? t('Org sharing', 'Partage org', 'Org-Freigabe')
-                                    : t('Share', 'Partage', 'Teilen')}
-                                </Box>
-                              </ToggleButton>
-                              <ToggleButton
-                                value={`remove-${entry.resourceEntry.id}`}
-                                size="small"
-                                aria-label={t('Remove this resource entry', 'Retirer cette entree ressource', 'Diesen Ressourceneintrag entfernen')}
-                                onClick={() => { void handleRemoveResourceEntry(entry.resourceEntry.id); }}
-                                disabled={sharedResourceBusyId === entry.resourceEntry.id}
-                                sx={{
-                                  width: '100%',
-                                  minWidth: 0,
-                                  minHeight: { xs: 38, sm: 40 },
-                                  gap: { xs: 0.5, sm: 0.625 },
-                                  px: { xs: 0.9, sm: 1.05 },
-                                  py: { xs: 0.65, sm: 0.8 },
-                                  justifyContent: 'flex-start',
-                                  textTransform: 'none',
-                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
-                                  fontWeight: 600,
-                                  lineHeight: 1.15,
-                                  borderColor: 'divider',
-                                  backgroundColor: alpha(theme.palette.background.default, 0.22),
-                                  color: 'text.secondary',
-                                  '& .MuiSvgIcon-root': {
-                                    fontSize: { xs: '0.95rem', sm: '1rem' },
-                                    flexShrink: 0,
-                                  },
-                                  '& .resource-asset-action-label': {
-                                    minWidth: 0,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  },
-                                  '&:hover': {
-                                    borderColor: 'primary.main',
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                                    color: 'text.primary',
-                                  },
-                                }}
-                              >
-                                <DeleteOutlineOutlinedIcon fontSize="small" />
-                                <Box component="span" className="resource-asset-action-label">
-                                  {t('Remove', 'Retirer', 'Entfernen')}
-                                </Box>
-                              </ToggleButton>
-                            </Box>
-                          }
-                        />
-                      );
-                    })}
-                  </Box>
-                )}
 
-                {visibleBlueprintCount < filteredAssetEntries.length && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1 }}>
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        setVisibleBlueprintCount((currentCount) =>
-                          Math.min(currentCount + ACCOUNT_BLUEPRINT_BATCH_SIZE, filteredAssetEntries.length),
-                        )
-                      }
-                    >
-                      {t('Load more assets', 'Afficher plus d actifs', 'Mehr Assets laden')}
-                    </Button>
-                  </Box>
-                )}
-              </Stack>
-            </Paper>
-
-            <CraftRequestsPanel
-              account={account}
-              optimisticState={optimisticState}
-              syncStatus={syncStatus}
-              syncError={syncError}
-              craftRequestActionId={craftRequestActionId}
-              craftRequestError={craftRequestError}
-              craftRequestNotice={craftRequestNotice}
-              onRespondToCraftRequest={(requestId, decision) => { void handleRespondToCraftRequest(requestId, decision); }}
-            />
-          </Stack>
-        </Box>
+        </>
       ) : (
         <AccountGuestView
           enabled={enabled}

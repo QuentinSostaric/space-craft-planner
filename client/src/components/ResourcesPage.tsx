@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
 import Alert from '@mui/material/Alert';
-import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -18,18 +14,22 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined';
@@ -66,7 +66,6 @@ import {
   type ResourceInsight,
 } from '../types';
 import {
-  computeStatMaxima,
   formatProbabilityPercent,
   formatMaterialProviderConfidence,
   formatMaterialProviderType,
@@ -93,7 +92,7 @@ import {
   resourceSlugFromPathname,
 } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
-import { FONT_HEADING } from '../theme';
+import { FONT_DISPLAY, FONT_HEADING, FONT_MONO } from '../theme';
 
 type ResourceSort = 'name-asc' | 'providers-desc' | 'missions-desc' | 'blueprints-desc';
 type ResourceFamilyFilter = 'all' | 'metal' | 'mineral' | 'crystal' | 'ice' | 'crafting-slot';
@@ -484,216 +483,6 @@ function ResourceSystemsChips({ systems }: { systems: string[] }) {
   );
 }
 
-function ResourceActionButtons({
-  resource,
-  onOpen,
-  onAddToPlanner,
-  onAddToInventory,
-}: {
-  resource: Resource;
-  onOpen: () => void;
-  onAddToPlanner: () => void;
-  onAddToInventory: () => void;
-}) {
-  const { t } = useI18n();
-  const theme = useTheme();
-  const compactButtonSx = {
-    minWidth: 0,
-    width: 30,
-    height: 30,
-    p: 0,
-    borderColor: 'divider',
-    color: 'text.secondary',
-    '& .MuiSvgIcon-root': { fontSize: '1rem' },
-    '&:hover': {
-      color: 'text.primary',
-      borderColor: 'primary.main',
-      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-    },
-  } as const;
-
-  return (
-    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-      <Tooltip title={t('Add this resource to the planner', 'Ajouter cette ressource au planificateur', 'Diese Ressource zum Planer hinzufugen')}>
-        <ToggleButton
-          value={`${resource.id}-planner`}
-          size="small"
-          aria-label={t('Add resource to planner', 'Ajouter la ressource au planificateur', 'Ressource zum Planer hinzufugen')}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddToPlanner();
-          }}
-          sx={compactButtonSx}
-        >
-          <PlaylistAddOutlinedIcon />
-        </ToggleButton>
-      </Tooltip>
-      <Tooltip title={t('Add a stored inventory entry for this resource', 'Ajouter une entree d inventaire stockee pour cette ressource', 'Einen gespeicherten Inventareintrag fur diese Ressource hinzufugen')}>
-        <ToggleButton
-          value={`${resource.id}-inventory`}
-          size="small"
-          aria-label={t('Add resource to inventory', 'Ajouter la ressource a l inventaire', 'Ressource zum Inventar hinzufugen')}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddToInventory();
-          }}
-          sx={compactButtonSx}
-        >
-          <Inventory2OutlinedIcon />
-        </ToggleButton>
-      </Tooltip>
-      <Tooltip title={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}>
-        <ToggleButton
-          value={`${resource.id}-open`}
-          size="small"
-          aria-label={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen();
-          }}
-          sx={compactButtonSx}
-        >
-          <ChevronRightOutlinedIcon fontSize="small" />
-        </ToggleButton>
-      </Tooltip>
-    </Stack>
-  );
-}
-
-function ResourceDesktopList({
-  resources,
-  resourceInsightById,
-  selectedResourceId,
-  onSelect,
-  onOpen,
-  onAddToPlanner,
-  onAddToInventory,
-}: {
-  resources: Resource[];
-  resourceInsightById: Map<string, ResourceInsight>;
-  selectedResourceId: string | null;
-  onSelect: (resource: Resource) => void;
-  onOpen: (resource: Resource) => void;
-  onAddToPlanner: (resource: Resource) => void;
-  onAddToInventory: (resource: Resource) => void;
-}) {
-  const { t } = useI18n();
-  const theme = useTheme();
-  const headerCellSx = {
-    color: 'text.secondary',
-    fontFamily: FONT_HEADING,
-    fontSize: '0.75rem',
-    fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-  } as const;
-  const gridColumns =
-    'minmax(176px, 1.55fr) minmax(82px, 0.55fr) minmax(92px, 0.72fr) repeat(3, minmax(56px, 0.36fr)) minmax(102px, 0.62fr)';
-
-  return (
-    <Paper variant="outlined" sx={{ overflow: 'hidden', backgroundColor: alpha(theme.palette.background.paper, 0.72) }}>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: gridColumns,
-          alignItems: 'center',
-          gap: 1,
-          px: 1.25,
-          py: 1.1,
-          borderBottom: 1,
-          borderColor: 'divider',
-          backgroundColor: alpha(theme.palette.background.default, 0.38),
-        }}
-      >
-        <Typography sx={headerCellSx}>{t('Resource', 'Ressource', 'Ressource')}</Typography>
-        <Typography sx={headerCellSx}>{t('Family', 'Famille', 'Familie')}</Typography>
-        <Typography sx={headerCellSx}>{t('Systems', 'Systemes', 'Systeme')}</Typography>
-        <Typography sx={headerCellSx}>{t('Sources', 'Sources', 'Quellen')}</Typography>
-        <Typography sx={headerCellSx}>{t('Missions', 'Missions', 'Missionen')}</Typography>
-        <Typography sx={headerCellSx}>{t('Blueprints', 'Blueprints', 'Blueprints')}</Typography>
-        <Typography sx={{ ...headerCellSx, textAlign: 'right' }}>{t('Actions', 'Actions', 'Aktionen')}</Typography>
-      </Box>
-      <Box role="list">
-        {resources.map((resource) => {
-          const insight = resourceInsightById.get(resource.id) ?? null;
-          const isSelected = selectedResourceId === resource.id;
-
-          return (
-            <Box
-              key={resource.id}
-              role="listitem"
-              onClick={() => onSelect(resource)}
-              sx={{
-                width: '100%',
-                display: 'grid',
-                gridTemplateColumns: gridColumns,
-                alignItems: 'center',
-                gap: 1,
-                px: 1.25,
-                py: 1,
-                border: 0,
-                borderBottom: '1px solid',
-                borderBottomColor: 'divider',
-                borderLeft: '2px solid',
-                borderLeftColor: isSelected ? 'primary.main' : 'transparent',
-                color: 'inherit',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                transition: 'background-color 150ms ease, border-color 150ms ease',
-                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) },
-                '&:last-of-type': { borderBottom: 0 },
-              }}
-            >
-              <Stack direction="row" spacing={1.1} alignItems="center" sx={{ minWidth: 0 }}>
-                <ResourceThumbnail resource={resource} />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    sx={{
-                      fontFamily: FONT_HEADING,
-                      fontWeight: 700,
-                      fontSize: '0.98rem',
-                      lineHeight: 1,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {resource.name}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      display: 'block',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: 220,
-                      mt: 0.35,
-                    }}
-                  >
-                    {resource.description || t('No description available', 'Aucune description disponible', 'Keine Beschreibung verfugbar')}
-                  </Typography>
-                </Box>
-              </Stack>
-              <ResourceFamilyChip resource={resource} />
-              <ResourceSystemsChips systems={insight?.systems ?? []} />
-              <Typography sx={{ fontWeight: 700 }}>{insight?.providerCount ?? 0}</Typography>
-              <Typography sx={{ fontWeight: 700 }}>{insight?.missionObjectiveContractCount ?? 0}</Typography>
-              <Typography sx={{ fontWeight: 700 }}>{insight?.blueprintUsageCount ?? 0}</Typography>
-              <ResourceActionButtons
-                resource={resource}
-                onOpen={() => onOpen(resource)}
-                onAddToPlanner={() => onAddToPlanner(resource)}
-                onAddToInventory={() => onAddToInventory(resource)}
-              />
-            </Box>
-          );
-        })}
-      </Box>
-    </Paper>
-  );
-}
-
 function ResourceMobileList({
   resources,
   resourceInsightById,
@@ -784,16 +573,20 @@ function ResourcePreviewPanel({
   resource,
   insight,
   providers,
+  linkedBlueprints,
   onOpen,
   onAddToPlanner,
   onAddToInventory,
+  onOpenBlueprint,
 }: {
   resource: Resource | null;
   insight: ResourceInsight | null;
   providers: MaterialSourceProvider[];
+  linkedBlueprints: Blueprint[];
   onOpen: (resource: Resource) => void;
   onAddToPlanner: (resource: Resource) => void;
   onAddToInventory: (resource: Resource) => void;
+  onOpenBlueprint: (blueprint: Blueprint) => void;
 }) {
   const { t, lang } = useI18n();
   const theme = useTheme();
@@ -990,320 +783,101 @@ function ResourcePreviewPanel({
           )}
         </Stack>
       </Box>
-    </Paper>
-  );
-}
 
-function ResourcesFilterBar({
-  search,
-  onSearchChange,
-  familyFilter,
-  onFamilyFilterChange,
-  systemFilter,
-  onSystemFilterChange,
-  sourceTypeFilter,
-  onSourceTypeFilterChange,
-  missionFilter,
-  onMissionFilterChange,
-  blueprintCategoryFilter,
-  onBlueprintCategoryFilterChange,
-  sortBy,
-  onSortByChange,
-  systems,
-  blueprintCategories,
-}: {
-  search: string;
-  onSearchChange: (value: string) => void;
-  familyFilter: ResourceFamilyFilter;
-  onFamilyFilterChange: (value: ResourceFamilyFilter) => void;
-  systemFilter: string | null;
-  onSystemFilterChange: (value: string | null) => void;
-  sourceTypeFilter: ResourceSourceTypeFilter;
-  onSourceTypeFilterChange: (value: ResourceSourceTypeFilter) => void;
-  missionFilter: ResourceMissionFilter;
-  onMissionFilterChange: (value: ResourceMissionFilter) => void;
-  blueprintCategoryFilter: ItemCategory | null;
-  onBlueprintCategoryFilterChange: (value: ItemCategory | null) => void;
-  sortBy: ResourceSort;
-  onSortByChange: (value: ResourceSort) => void;
-  systems: string[];
-  blueprintCategories: ItemCategory[];
-}) {
-  const { t, lang } = useI18n();
-  const theme = useTheme();
-  const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
-  const hasActiveFilters =
-    search.trim().length > 0 ||
-    familyFilter !== 'all' ||
-    systemFilter !== null ||
-    sourceTypeFilter !== 'all' ||
-    missionFilter !== 'all' ||
-    blueprintCategoryFilter !== null;
-  const activeFilterChips = [
-    search.trim() ? `${t('Search', 'Recherche', 'Suche')}: ${search.trim()}` : null,
-    familyFilter !== 'all' ? getResourceFamilyLabel(familyFilter, lang) : null,
-    systemFilter ? `${t('System', 'Systeme', 'System')}: ${systemFilter}` : null,
-    sourceTypeFilter !== 'all' ? getSourceTypeLabel(sourceTypeFilter, lang) : null,
-    missionFilter !== 'all'
-      ? missionFilter === 'mission-linked'
-        ? t('Mission-linked', 'Liees aux missions', 'Missionsbezogen')
-        : t('No mission', 'Sans mission', 'Keine Mission')
-      : null,
-    blueprintCategoryFilter ? loc(CATEGORY_LABELS[blueprintCategoryFilter], lang) : null,
-  ].filter((label): label is string => Boolean(label));
-
-  const resetFilters = () => {
-    onSearchChange('');
-    onFamilyFilterChange('all');
-    onSystemFilterChange(null);
-    onSourceTypeFilterChange('all');
-    onMissionFilterChange('all');
-    onBlueprintCategoryFilterChange(null);
-  };
-
-  const content = (
-    <Stack spacing={1.25}>
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1} justifyContent="space-between">
-        <Box>
-          <Typography
-            variant="overline"
-            sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
+      {linkedBlueprints.length > 0 && (
+        <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+          <Box
+            sx={{
+              px: 1.75,
+              py: 1.25,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
-            {t('Advanced filters', 'Filtres avances', 'Erweiterte Filter')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {t(
-              'Search the dataset, focus a family, then narrow sources, mission links or blueprint usage.',
-              'Recherche dans le dataset, cible une famille puis affine les sources, les liens mission ou l usage blueprint.',
-              'Durchsuche den Datensatz, fokussiere eine Familie und verfeinere danach Quellen, Missionsbezug oder Blueprint-Nutzung.',
-            )}
-          </Typography>
-        </Box>
-        {hasActiveFilters && (
-          <Button
-            variant="outlined"
-            startIcon={<FilterListOffOutlinedIcon />}
-            onClick={resetFilters}
-            sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            <Typography
+              sx={{
+                fontFamily: FONT_HEADING,
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {t('Used In', 'Utilisée dans')}
+            </Typography>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
+              {linkedBlueprints.length} bp
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              maxHeight: 220,
+              overflowY: 'auto',
+              scrollbarWidth: 'thin',
+              scrollbarColor: (th) => `${alpha(th.palette.primary.main, 0.25)} transparent`,
+              '&::-webkit-scrollbar': { width: 4 },
+              '&::-webkit-scrollbar-thumb': { bgcolor: (th) => alpha(th.palette.primary.main, 0.25), borderRadius: 99 },
+            }}
           >
-            {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
-          </Button>
-        )}
-      </Stack>
-
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            lg: 'minmax(260px, 1fr) minmax(190px, 220px)',
-          },
-          gap: 1,
-          alignItems: 'center',
-        }}
-      >
-        <TextField
-          type="search"
-          size="small"
-          placeholder={t('Search resources...', 'Rechercher des ressources...')}
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                  <AppGlyph name="search" size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{
-            minWidth: 0,
-            '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
-          }}
-        />
-        <FormControl
-          size="small"
-          sx={{
-            minWidth: { xs: '100%', sm: 220 },
-            '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
-          }}
-        >
-          <Select value={sortBy} onChange={(event) => onSortByChange(event.target.value as ResourceSort)} inputProps={{ 'aria-label': t('Sort by', 'Trier par') }}>
-            {RESOURCE_SORT_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
+            {linkedBlueprints.map((blueprint) => (
+              <Box
+                key={blueprint.id}
+                component="button"
+                type="button"
+                onClick={() => onOpenBlueprint(blueprint)}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 14px',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  width: '100%',
+                  px: 1.75,
+                  py: 0.75,
+                  textAlign: 'left',
+                  bgcolor: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  cursor: 'pointer',
+                  color: 'text.primary',
+                  transition: 'background-color 120ms',
+                  '&:last-child': { borderBottom: 'none' },
+                  '&:hover': { bgcolor: (th) => alpha(th.palette.primary.main, 0.07) },
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    noWrap
+                    sx={{
+                      fontFamily: FONT_DISPLAY,
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.25,
+                      color: 'text.primary',
+                    }}
+                  >
+                    {blueprint.name}
+                  </Typography>
+                  <Typography
+                    noWrap
+                    sx={{
+                      fontFamily: FONT_MONO,
+                      fontSize: '0.65rem',
+                      color: 'text.disabled',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {loc(CATEGORY_LABELS[blueprint.category], lang)}
+                  </Typography>
+                </Box>
+                <ChevronRightOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
+              </Box>
             ))}
-          </Select>
-        </FormControl>
-      </Box>
-
-      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ minHeight: 24 }}>
-        {activeFilterChips.length > 0 ? (
-          activeFilterChips.map((label) => (
-            <Chip key={label} size="small" variant="outlined" color="primary" label={label} />
-          ))
-        ) : (
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {t('No active filters', 'Aucun filtre actif', 'Keine aktiven Filter')}
-          </Typography>
-        )}
-      </Stack>
-
-      <ToggleButtonGroup
-        value={familyFilter}
-        exclusive
-        onChange={(_event, value) => value && onFamilyFilterChange(value)}
-        size="small"
-        sx={{
-          width: { xs: '100%', sm: 'auto' },
-          alignSelf: 'flex-start',
-          display: { xs: 'grid', sm: 'inline-flex' },
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'none' },
-          gridAutoRows: { xs: 'minmax(32px, auto)', sm: 'auto' },
-          '& .MuiToggleButton-root': {
-            px: { xs: 0.75, sm: 1.25 },
-            minHeight: 32,
-            minWidth: 0,
-            fontSize: { xs: '0.75rem', sm: '0.75rem' },
-            lineHeight: 1.1,
-            whiteSpace: 'normal',
-          },
-        }}
-      >
-        {(['all', 'metal', 'mineral', 'crystal', 'ice', 'crafting-slot'] as ResourceFamilyFilter[]).map((family) => (
-          <ToggleButton key={family} value={family}>
-            {getResourceFamilyLabel(family, lang)}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
-
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' },
-          gap: 1,
-        }}
-      >
-        <Autocomplete
-          size="small"
-          options={systems}
-          value={systemFilter}
-          onChange={(_event, value) => onSystemFilterChange(value)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t('System', 'Système')}
-              placeholder={t('System', 'Systeme')}
-              sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-            />
-          )}
-        />
-        <ToggleButtonGroup
-          value={sourceTypeFilter}
-          exclusive
-          onChange={(_event, value) => value && onSourceTypeFilterChange(value)}
-          size="small"
-          sx={{
-            width: '100%',
-            height: 32,
-            '& .MuiToggleButton-root': {
-              flex: 1,
-              minWidth: 0,
-              fontSize: '0.75rem',
-              px: 0.75,
-              lineHeight: 1.1,
-            },
-          }}
-        >
-          {(['all', 'planetary', 'asteroid'] as ResourceSourceTypeFilter[]).map((type) => (
-            <ToggleButton key={type} value={type}>
-              {getSourceTypeLabel(type, lang)}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-        <ToggleButtonGroup
-          value={missionFilter}
-          exclusive
-          onChange={(_event, value) => value && onMissionFilterChange(value)}
-          size="small"
-          sx={{
-            width: '100%',
-            height: 32,
-            '& .MuiToggleButton-root': {
-              flex: 1,
-              minWidth: 0,
-              fontSize: '0.75rem',
-              px: 0.75,
-              lineHeight: 1.1,
-            },
-          }}
-        >
-          <ToggleButton value="all">{t('All', 'Toutes')}</ToggleButton>
-          <ToggleButton value="mission-linked">{t('Mission-linked', 'Liees')}</ToggleButton>
-          <ToggleButton value="no-mission">{t('No mission', 'Sans mission')}</ToggleButton>
-        </ToggleButtonGroup>
-        <Autocomplete
-          size="small"
-          options={blueprintCategories}
-          value={blueprintCategoryFilter}
-          onChange={(_event, value) => onBlueprintCategoryFilterChange(value)}
-          getOptionLabel={(value) => loc(CATEGORY_LABELS[value], lang) ?? value}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t('Blueprint', 'Blueprint')}
-              placeholder={t('Blueprint category', 'Categorie blueprint')}
-              sx={{ '& .MuiInputBase-root': { fontSize: '.75rem', height: 32 } }}
-            />
-          )}
-        />
-      </Box>
-    </Stack>
-  );
-
-  if (!isCompact) {
-    return (
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 1.25, md: 1.5 },
-          borderColor: alpha(theme.palette.primary.main, 0.14),
-          backgroundColor: alpha(theme.palette.background.default, 0.24),
-        }}
-      >
-        {content}
-      </Paper>
-    );
-  }
-
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        p: 0.75,
-        borderColor: alpha(theme.palette.primary.main, 0.14),
-        backgroundColor: alpha(theme.palette.background.default, 0.24),
-      }}
-    >
-      <Accordion
-        disableGutters
-        sx={{
-          backgroundColor: 'transparent',
-          '&::before': { display: 'none' },
-        }}
-      >
-        <AccordionSummary expandIcon={<AppGlyph name="caret-up" size={18} />}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="subtitle2">{t('Resource filters', 'Filtres de ressources')}</Typography>
-            {hasActiveFilters && (
-              <Chip size="small" variant="outlined" color="primary" label={t('Active', 'Actifs', 'Aktiv')} />
-            )}
-          </Stack>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>{content}</AccordionDetails>
-      </Accordion>
+          </Box>
+        </Box>
+      )}
     </Paper>
   );
 }
@@ -1792,7 +1366,6 @@ function ResourceBlueprintUsageSection({
 }) {
   const { t, lang } = useI18n();
   const { favoriteIds, inventoryIds, toggleFavorite, toggleInventory } = useCraft();
-  const statMaxima = useMemo(() => computeStatMaxima(blueprints), [blueprints]);
   const categoryOptions = useMemo(
     () =>
       [...new Set(blueprints.map((blueprint) => blueprint.category))].sort((left, right) =>
@@ -1867,7 +1440,6 @@ function ResourceBlueprintUsageSection({
                 activeBlueprintId={null}
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
-                statMaxima={statMaxima}
                 resources={resources}
                 onSelect={(bp) => { if (bp) onOpenBlueprint(bp); }}
                 onToggleFavorite={toggleFavorite}
@@ -1904,7 +1476,6 @@ export function ResourcesPage() {
   } = useCraft();
   const { t, lang } = useI18n();
   const { account, updateInventoryResources } = useAuth();
-  const theme = useTheme();
   const resources = useMemo(
     () => activeDataset.resources.filter((resource) => !isPlaceholderResource(resource)),
     [activeDataset.resources],
@@ -1918,10 +1489,10 @@ export function ResourcesPage() {
   );
   const [search, setSearch] = useState('');
   const [familyFilter, setFamilyFilter] = useState<ResourceFamilyFilter>('all');
-  const [systemFilter, setSystemFilter] = useState<string | null>(null);
+  const [systemFilter] = useState<string | null>(null);
   const [sourceTypeFilter, setSourceTypeFilter] = useState<ResourceSourceTypeFilter>('all');
-  const [missionFilter, setMissionFilter] = useState<ResourceMissionFilter>('all');
-  const [blueprintCategoryFilter, setBlueprintCategoryFilter] = useState<ItemCategory | null>(null);
+  const [missionFilter] = useState<ResourceMissionFilter>('all');
+  const [blueprintCategoryFilter] = useState<ItemCategory | null>(null);
   const [sortBy, setSortBy] = useState<ResourceSort>('name-asc');
   const [previewResourceId, setPreviewResourceId] = useState<string | null>(null);
   const [inventoryDialog, setInventoryDialog] = useState<ResourceInventoryDialogState | null>(null);
@@ -2080,26 +1651,6 @@ export function ResourcesPage() {
     }
   };
 
-  const systems = useMemo(
-    () =>
-      [...new Set(visibleResourceInsights.flatMap((insight) => insight.systems))].sort((left, right) =>
-        left.localeCompare(right),
-      ),
-    [visibleResourceInsights],
-  );
-
-  const blueprintCategories = useMemo(
-    () =>
-      [
-        ...new Set(
-          visibleResourceInsights.flatMap(
-            (insight) => Object.keys(insight.blueprintCategoryCounts) as ItemCategory[],
-          ),
-        ),
-      ].sort((left, right) => left.localeCompare(right)),
-    [visibleResourceInsights],
-  );
-
   useEffect(() => {
     const syncSelectedResourceFromPath = () => {
       setSelectedResourceSlug(resourceSlugFromPathname(window.location.pathname));
@@ -2221,6 +1772,11 @@ export function ResourcesPage() {
     () => (previewResource ? getMaterialProviders(materialSources, previewResource.id) : []),
     [materialSources, previewResource],
   );
+  const previewLinkedBlueprints = useMemo(() => {
+    if (!previewInsight) return [];
+    const idSet = new Set(previewInsight.blueprintIds);
+    return blueprints.filter((bp) => idSet.has(bp.id));
+  }, [blueprints, previewInsight]);
 
   useEffect(() => {
     if (!previewResourceId && filteredResources.length > 0) {
@@ -2311,203 +1867,426 @@ export function ResourcesPage() {
     return (
       <Box
         sx={{
-          p: { xs: 1.25, sm: 1.5, md: 2, xl: 3 },
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' },
-          gap: { xs: 1.5, md: 2 },
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2.5,
+          p: { xs: 2, sm: 3, lg: 4 },
+          maxWidth: 1600,
+          mx: 'auto',
+          width: '100%',
+          animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both',
         }}
       >
-        <ResourceIdentityPanel
-          resource={selectedResource}
-          insight={selectedInsight}
-          resourceProgress={selectedProgress}
-          craftDemandQuantity={selectedCraftDemand.quantity}
-          craftDemandUnit={selectedCraftDemand.quantityUnit}
-          onBack={() => {
-            setSelectedResourceSlug(null);
-            navigateToPath('/resources', { mainView: 'resources' });
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' },
+            gap: { xs: 2, xl: 3 },
           }}
-        />
-
-        <Stack spacing={2}>
-          <Paper
-            variant="outlined"
-            sx={{
-              p: { xs: 1.5, md: 2 },
-              background: `linear-gradient(180deg, ${alpha(theme.palette.secondary.main, 0.08)} 0%, transparent 100%)`,
+        >
+          <ResourceIdentityPanel
+            resource={selectedResource}
+            insight={selectedInsight}
+            resourceProgress={selectedProgress}
+            craftDemandQuantity={selectedCraftDemand.quantity}
+            craftDemandUnit={selectedCraftDemand.quantityUnit}
+            onBack={() => {
+              setSelectedResourceSlug(null);
+              navigateToPath('/resources', { mainView: 'resources' });
             }}
-          >
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
-              <ResourceFact label={t('Systems', 'Systemes')} value={(selectedInsight?.systems ?? []).join(', ') || '—'} />
-              <ResourceFact label={t('Mission employers', 'Employeurs mission')} value={String(selectedInsight?.missionEmployers.length ?? 0)} />
-              <ResourceFact label={t('Source families', 'Familles de source')} value={(selectedInsight?.providerTypes ?? []).join(', ') || '—'} />
-            </Stack>
-          </Paper>
-
-          <ResourceSourcesSection
-            providers={selectedProviders}
-            hasMaterialSourceData={Boolean(materialSources?.resources) || resourceDataLoading}
-          />
-          <ResourceMissionSection
-            selection={selectedMissionDemand}
-            resourceId={selectedResource.id}
-            missionRewardsLoading={missionRewardsLoading}
-            hasMissionRewardData={Boolean(missionRewards)}
           />
 
-          <ResourceBlueprintUsageSection
-            resourceId={selectedResource.id}
-            blueprints={selectedBlueprints}
-            resources={resources}
-            onOpenBlueprint={setActiveBlueprint}
-          />
-        </Stack>
+          <Stack spacing={2}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: { xs: 1.5, md: 2 },
+                bgcolor: 'ui.surface',
+                borderColor: 'ui.border',
+                borderRadius: 2,
+              }}
+            >
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
+                <ResourceFact label={t('Systems', 'Systèmes')} value={(selectedInsight?.systems ?? []).join(', ') || '—'} />
+                <ResourceFact label={t('Mission employers', 'Employeurs mission')} value={String(selectedInsight?.missionEmployers.length ?? 0)} />
+                <ResourceFact label={t('Source families', 'Familles de source')} value={(selectedInsight?.providerTypes ?? []).join(', ') || '—'} />
+              </Stack>
+            </Paper>
+
+            <ResourceSourcesSection
+              providers={selectedProviders}
+              hasMaterialSourceData={Boolean(materialSources?.resources) || resourceDataLoading}
+            />
+            <ResourceMissionSection
+              selection={selectedMissionDemand}
+              resourceId={selectedResource.id}
+              missionRewardsLoading={missionRewardsLoading}
+              hasMissionRewardData={Boolean(missionRewards)}
+            />
+
+            <ResourceBlueprintUsageSection
+              resourceId={selectedResource.id}
+              blueprints={selectedBlueprints}
+              resources={resources}
+              onOpenBlueprint={setActiveBlueprint}
+            />
+          </Stack>
+        </Box>
       </Box>
     );
   }
 
+  const tableHeaderCellSx = {
+    fontFamily: FONT_MONO,
+    fontSize: '0.6875rem',
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase' as const,
+    color: 'text.disabled',
+    fontWeight: 600,
+    borderColor: 'ui.border',
+  };
+
   return (
     <Box
-      sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto', minHeight: 0 }}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2.5,
+        p: { xs: 2, sm: 3, lg: 4 },
+        maxWidth: 1600,
+        mx: 'auto',
+        width: '100%',
+        animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both',
+      }}
     >
-      <Box
-        sx={{
-          p: { xs: 1.25, sm: 1.5, md: 2 },
-          borderBottom: 1,
-          borderColor: 'divider',
-          backgroundColor: 'background.paper',
-        }}
-      >
-        <Stack spacing={1.25}>
-          <Box>
-            <Typography
-              sx={{
-                fontFamily: FONT_HEADING,
-                fontWeight: 700,
-                fontSize: { xs: '1.9rem', md: '2.2rem' },
-                textTransform: 'uppercase',
-                lineHeight: 1,
-              }}
-            >
-              {t('Resources', 'Ressources')}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
-              {t(
-                'Browse material demand, provider coverage and mission pull across the published dataset.',
-                'Parcourez la demande en materiaux, la couverture des sources et la pression mission du dataset publie.',
-              )}
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
-              gap: 1,
-            }}
-          >
-            <PageStatCard label={t('Resources', 'Ressources')} value={String(resourceStats.resourceCount)} />
-            <PageStatCard label={t('Systems', 'Systemes')} value={String(resourceStats.systemCount)} />
-            <PageStatCard label={t('Mission-linked', 'Liees aux missions')} value={String(resourceStats.missionLinkedCount)} />
-            <PageStatCard label={t('Providers', 'Sources')} value={String(resourceStats.providerCount)} />
-          </Box>
-
-          {(inventoryNotice || inventoryError) && (
-            <Alert severity={inventoryError ? 'error' : 'success'} variant="outlined">
-              {inventoryError ?? inventoryNotice}
-            </Alert>
+      {/* View header */}
+      <Box>
+        <Typography
+          sx={{
+            fontFamily: FONT_MONO,
+            fontSize: '0.6875rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'primary.main',
+            mb: 0.5,
+          }}
+        >
+          {t('Dataset', 'Dataset')}
+        </Typography>
+        <Typography variant="h4" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, lineHeight: 1.1 }}>
+          {t('Resources', 'Ressources')}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+          {t(
+            'Browse material demand, provider coverage and mission pull across the published dataset.',
+            'Parcourez la demande en matériaux, la couverture des sources et la pression mission du dataset publié.',
           )}
-        </Stack>
+        </Typography>
       </Box>
 
-      <ResourcesFilterBar
-        search={search}
-        onSearchChange={setSearch}
-        familyFilter={familyFilter}
-        onFamilyFilterChange={setFamilyFilter}
-        systemFilter={systemFilter}
-        onSystemFilterChange={setSystemFilter}
-        sourceTypeFilter={sourceTypeFilter}
-        onSourceTypeFilterChange={setSourceTypeFilter}
-        missionFilter={missionFilter}
-        onMissionFilterChange={setMissionFilter}
-        blueprintCategoryFilter={blueprintCategoryFilter}
-        onBlueprintCategoryFilterChange={setBlueprintCategoryFilter}
-        sortBy={sortBy}
-        onSortByChange={setSortBy}
-        systems={systems}
-        blueprintCategories={blueprintCategories}
-      />
-
+      {/* Stat cards */}
       <Box
         sx={{
-          p: { xs: 1.25, sm: 1.5, md: 2, xl: 3 },
-          display: 'flex',
-          flexDirection: 'column',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: 1.5,
         }}
       >
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {filteredResources.length} {t('resources', 'ressources')}
-        </Typography>
-
-        {filteredResources.length === 0 ? (
-          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-            <ImageNotSupportedOutlinedIcon sx={{ fontSize: '2rem', mb: 1, color: 'text.disabled' }} />
-            <Typography variant="body1" sx={{ mb: 0.75 }}>
-              {t('No resource matches the current filters.', 'Aucune ressource ne correspond aux filtres actuels.')}
-            </Typography>
-            <Typography variant="body2">
-              {t('Broaden the search or clear one of the active filters.', 'Elargissez la recherche ou retirez un des filtres actifs.')}
-            </Typography>
-          </Paper>
-        ) : (
-          <>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 324px' },
-                gap: { xs: 1.25, md: 1.5 },
-                alignItems: 'flex-start',
-              }}
-            >
-              <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0 }}>
-                <ResourceDesktopList
-                  resources={renderedResources}
-                  resourceInsightById={resourceInsightById}
-                  selectedResourceId={previewResource?.id ?? null}
-                  onSelect={(resource) => setPreviewResourceId(resource.id)}
-                  onOpen={openResourceDetail}
-                  onAddToPlanner={addResourceToPlanner}
-                  onAddToInventory={openInventoryDialog}
-                />
-              </Box>
-              <Box sx={{ display: { xs: 'block', md: 'none' }, minWidth: 0 }}>
-                <ResourceMobileList
-                  resources={renderedResources}
-                  resourceInsightById={resourceInsightById}
-                  onOpen={openResourceDetail}
-                  onAddToPlanner={addResourceToPlanner}
-                  onAddToInventory={openInventoryDialog}
-                />
-              </Box>
-              <Box sx={{ display: { xs: 'none', lg: 'block' }, minWidth: 0 }}>
-                <ResourcePreviewPanel
-                  resource={previewResource}
-                  insight={previewInsight}
-                  providers={previewProviders}
-                  onOpen={openResourceDetail}
-                  onAddToPlanner={addResourceToPlanner}
-                  onAddToInventory={openInventoryDialog}
-                />
-              </Box>
-            </Box>
-            {visibleCount < filteredResources.length && (
-              <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
-            )}
-          </>
-        )}
+        <PageStatCard label={t('Resources', 'Ressources')} value={String(resourceStats.resourceCount)} />
+        <PageStatCard label={t('Systems', 'Systèmes')} value={String(resourceStats.systemCount)} />
+        <PageStatCard label={t('Mission-linked', 'Liées aux missions')} value={String(resourceStats.missionLinkedCount)} />
+        <PageStatCard label={t('Providers', 'Sources')} value={String(resourceStats.providerCount)} />
       </Box>
+
+      {(inventoryNotice || inventoryError) && (
+        <Alert severity={inventoryError ? 'error' : 'success'} variant="outlined">
+          {inventoryError ?? inventoryNotice}
+        </Alert>
+      )}
+
+      {/* Toolbar */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          flexWrap: 'wrap',
+          p: 1.5,
+          bgcolor: 'ui.surface',
+          border: '1px solid',
+          borderColor: 'ui.border',
+          borderRadius: 2,
+        }}
+      >
+        <TextField
+          type="search"
+          size="small"
+          placeholder={t('Search resources...', 'Rechercher des ressources...')}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          sx={{ flex: '1 1 200px', '& .MuiInputBase-root': { fontSize: '0.8125rem', height: 32 } }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
+                  <AppGlyph name="search" size={18} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <ToggleButtonGroup
+          value={familyFilter}
+          exclusive
+          onChange={(_event, value) => value && setFamilyFilter(value)}
+          size="small"
+          sx={{
+            '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.75rem', height: 32 },
+            display: { xs: 'none', md: 'inline-flex' },
+          }}
+        >
+          {(['all', 'metal', 'mineral', 'crystal', 'ice', 'crafting-slot'] as ResourceFamilyFilter[]).map((family) => (
+            <ToggleButton key={family} value={family}>
+              {getResourceFamilyLabel(family, lang)}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+        <ToggleButtonGroup
+          value={sourceTypeFilter}
+          exclusive
+          onChange={(_event, value) => value && setSourceTypeFilter(value)}
+          size="small"
+          sx={{
+            '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.75rem', height: 32 },
+            display: { xs: 'none', sm: 'inline-flex' },
+          }}
+        >
+          {(['all', 'planetary', 'asteroid'] as ResourceSourceTypeFilter[]).map((type) => (
+            <ToggleButton key={type} value={type}>
+              {getSourceTypeLabel(type, lang)}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+        <FormControl size="small" sx={{ minWidth: 140, display: { xs: 'none', lg: 'block' }, '& .MuiInputBase-root': { height: 32, fontSize: '0.8125rem' } }}>
+          <Select value={sortBy} onChange={(event) => setSortBy(event.target.value as ResourceSort)}>
+            {RESOURCE_SORT_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>{loc(option.label, lang)}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* Family chips */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexWrap: 'wrap', gap: 0.75 }}>
+        {(['all', 'metal', 'mineral', 'crystal', 'ice', 'crafting-slot'] as ResourceFamilyFilter[]).map((family) => (
+          <Chip
+            key={family}
+            size="small"
+            label={getResourceFamilyLabel(family, lang)}
+            onClick={() => setFamilyFilter(family)}
+            color={familyFilter === family ? 'primary' : 'default'}
+            variant={familyFilter === family ? 'filled' : 'outlined'}
+          />
+        ))}
+      </Box>
+
+      {/* Resource list */}
+      {filteredResources.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2 }}>
+          <ImageNotSupportedOutlinedIcon sx={{ fontSize: '2rem', mb: 1, color: 'text.disabled' }} />
+          <Typography variant="body1" sx={{ mb: 0.75, color: 'text.secondary' }}>
+            {t('No resource matches the current filters.', 'Aucune ressource ne correspond aux filtres actuels.')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+            {t('Broaden the search or clear one of the active filters.', 'Élargissez la recherche ou retirez un des filtres actifs.')}
+          </Typography>
+        </Paper>
+      ) : (
+        <>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 324px' },
+              gap: { xs: 1.5, lg: 2 },
+              alignItems: 'flex-start',
+            }}
+          >
+            {/* Desktop table */}
+            <Paper
+              variant="outlined"
+              sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderBottom: '1px solid', borderColor: 'ui.border', bgcolor: 'background.paper' }}>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.disabled' }}>
+                  {filteredResources.length} {t('resources', 'ressources')}
+                </Typography>
+              </Box>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'background.paper' }}>
+                    <TableCell sx={tableHeaderCellSx}>{t('Material', 'Matériau')}</TableCell>
+                    <TableCell sx={{ ...tableHeaderCellSx, display: { xs: 'none', md: 'table-cell' } }}>{t('Family', 'Famille')}</TableCell>
+                    <TableCell sx={{ ...tableHeaderCellSx, display: { xs: 'none', lg: 'table-cell' } }}>{t('Source', 'Source')}</TableCell>
+                    <TableCell sx={tableHeaderCellSx}>{t('Providers', 'Sources')}</TableCell>
+                    <TableCell sx={tableHeaderCellSx}>{t('Missions', 'Missions')}</TableCell>
+                    <TableCell sx={tableHeaderCellSx}>{t('Blueprints', 'Blueprints')}</TableCell>
+                    <TableCell sx={{ ...tableHeaderCellSx, textAlign: 'right' }}>{t('Actions', 'Actions')}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {renderedResources.map((resource) => {
+                    const insight = resourceInsightById.get(resource.id) ?? null;
+                    const isSelected = previewResource?.id === resource.id;
+                    return (
+                      <TableRow
+                        key={resource.id}
+                        hover
+                        onClick={() => setPreviewResourceId(resource.id)}
+                        sx={{
+                          cursor: 'pointer',
+                          borderLeft: '2px solid',
+                          borderLeftColor: isSelected ? 'primary.main' : 'transparent',
+                          bgcolor: isSelected ? (th) => alpha(th.palette.primary.main, 0.06) : 'transparent',
+                          '&:hover': { bgcolor: (th) => alpha(th.palette.primary.main, 0.06) },
+                          '& td': { borderColor: 'ui.border' },
+                        }}
+                      >
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                            <Box
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 1,
+                                bgcolor: alpha(resource.color, 0.12),
+                                color: resource.color,
+                                border: `1px solid ${alpha(resource.color, 0.35)}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {resource.visual?.imageUrl ? (
+                                <CardMedia
+                                  component="img"
+                                  image={resource.visual.imageUrl}
+                                  alt=""
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <ResourceIcon name={resource.name} size={18} shimmer={false} />
+                              )}
+                            </Box>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.2 }} noWrap>
+                                {resource.name}
+                              </Typography>
+                              {resource.description && (
+                                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }} noWrap>
+                                  {resource.description}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border', display: { xs: 'none', md: 'table-cell' } }}>
+                          <ResourceFamilyChip resource={resource} />
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border', display: { xs: 'none', lg: 'table-cell' } }}>
+                          {(insight?.sourceMethods ?? []).length > 0 ? (
+                            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                              {(insight?.sourceMethods ?? []).map((method) => (
+                                <Chip
+                                  key={method}
+                                  size="small"
+                                  variant="outlined"
+                                  label={formatMaterialSourceMethod(method, lang)}
+                                  sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem' } }}
+                                />
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.875rem', color: 'text.disabled' }}>—</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.875rem' }}>
+                            {insight?.providerCount ?? 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.875rem' }}>
+                            {insight?.missionObjectiveContractCount ?? 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.875rem' }}>
+                            {insight?.blueprintUsageCount ?? 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                            <Tooltip title={t('Add to planner', 'Ajouter au planificateur')}>
+                              <IconButton
+                                size="small"
+                                onClick={(event) => { event.stopPropagation(); addResourceToPlanner(resource); }}
+                                sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
+                              >
+                                <PlaylistAddOutlinedIcon sx={{ fontSize: '1rem' }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={t('Open resource detail', 'Ouvrir la fiche ressource')}>
+                              <IconButton
+                                size="small"
+                                onClick={(event) => { event.stopPropagation(); openResourceDetail(resource); }}
+                                sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
+                              >
+                                <ChevronRightOutlinedIcon sx={{ fontSize: '1rem' }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Paper>
+
+            {/* Mobile list */}
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+              <ResourceMobileList
+                resources={renderedResources}
+                resourceInsightById={resourceInsightById}
+                onOpen={openResourceDetail}
+                onAddToPlanner={addResourceToPlanner}
+                onAddToInventory={openInventoryDialog}
+              />
+            </Box>
+
+            {/* Preview panel */}
+            <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
+              <ResourcePreviewPanel
+                resource={previewResource}
+                insight={previewInsight}
+                providers={previewProviders}
+                linkedBlueprints={previewLinkedBlueprints}
+                onOpen={openResourceDetail}
+                onAddToPlanner={addResourceToPlanner}
+                onAddToInventory={openInventoryDialog}
+                onOpenBlueprint={setActiveBlueprint}
+              />
+            </Box>
+          </Box>
+          {visibleCount < filteredResources.length && (
+            <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+          )}
+        </>
+      )}
 
       <Dialog
         open={Boolean(inventoryDialog)}

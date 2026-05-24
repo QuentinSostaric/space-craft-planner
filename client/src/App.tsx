@@ -14,6 +14,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { createAppTheme } from './theme';
 import { useTheme } from './hooks/useTheme';
+import { ThemeModeContext } from './hooks/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { AuthProvider } from './auth/AuthContext';
 import { AccountStateSync } from './auth/AccountStateSync';
@@ -676,14 +677,19 @@ function AppShell() {
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <Header />
-        <LinearProgress sx={{ height: 2 }} />
-        <Box
-          component="main"
-          id="main-content"
-          sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
-        >
+      <Box sx={{
+        display: 'grid',
+        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
+        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
+        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
+        height: '100dvh',
+        overflow: 'hidden',
+      }}>
+        <Box sx={{ gridArea: 'header' }}>
+          <Header />
+          <LinearProgress sx={{ height: 2 }} />
+        </Box>
+        <Box component="main" id="main-content" sx={{ gridArea: 'main', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
               <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
@@ -708,72 +714,65 @@ function AppShell() {
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={{ display: 'flex', height: '100dvh', overflow: 'hidden', flexDirection: { xs: 'column', md: 'row' } }}>
-        <NavRail
-          mainView={guardedMainView}
-          onChangeView={handleChangeView}
-        />
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
+      <Box sx={{
+        display: 'grid',
+        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
+        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
+        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
+        height: '100dvh',
+        overflow: 'hidden',
+      }}>
+        <Box sx={{ gridArea: 'header' }}>
           <Header />
           <LinearProgress sx={{ height: 2 }} />
-          <Box
-            component="main"
-            id="main-content"
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              minWidth: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-            }}
-            aria-live="polite"
-          >
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-                <Fade in timeout={300}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress
-                      size={56}
-                      thickness={2}
-                      sx={{ mb: 3, color: 'primary.main' }}
-                    />
-                    <Typography variant="h6" sx={{ mb: 0.75 }}>
-                      {t('Loading new dataset', 'Chargement du dataset')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {t('Please wait\u2026', 'Veuillez patienter\u2026')}
-                    </Typography>
-                  </Box>
-                </Fade>
-              </Box>
-              <Footer />
+        </Box>
+        <Box component="nav" sx={{ gridArea: 'rail', display: 'flex', minWidth: 0 }}>
+          <NavRail mainView={guardedMainView} onChangeView={handleChangeView} />
+        </Box>
+        <Box
+          component="main"
+          id="main-content"
+          sx={{ gridArea: 'main', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          aria-live="polite"
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+              <Fade in timeout={300}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress
+                    size={56}
+                    thickness={2}
+                    sx={{ mb: 3, color: 'primary.main' }}
+                  />
+                  <Typography variant="h6" sx={{ mb: 0.75 }}>
+                    {t('Loading new dataset', 'Chargement du dataset')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('Please wait…', 'Veuillez patienter…')}
+                  </Typography>
+                </Box>
+              </Fade>
             </Box>
+            <Footer />
           </Box>
         </Box>
       </Box>
     );
   }
-
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <Header />
-        <Box
-          component="main"
-          id="main-content"
-          sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
-        >
+      <Box sx={{
+        display: 'grid',
+        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
+        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
+        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
+        height: '100dvh',
+        overflow: 'hidden',
+      }}>
+        <Box sx={{ gridArea: 'header' }}>
+          <Header />
+        </Box>
+        <Box component="main" id="main-content" sx={{ gridArea: 'main', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
               <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
@@ -795,48 +794,41 @@ function AppShell() {
       </Box>
     );
   }
-
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
+        display: 'grid',
+        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
+        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
+        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
         height: '100dvh',
         overflow: 'hidden',
       }}
     >
-      <NavRail
-        mainView={guardedMainView}
-        onChangeView={handleChangeView}
-      />
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
+      <Box sx={{ gridArea: 'header' }}>
         <Header />
         {isPending && <LinearProgress sx={{ height: 2 }} />}
-        <Box
-          component="main"
-          id="main-content"
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-          }}
-          aria-label={t('Content', 'Contenu')}
-        >
-          <MainContent mainView={guardedMainView} />
-        </Box>
+      </Box>
+      <Box component="nav" sx={{ gridArea: 'rail', display: 'flex', minWidth: 0 }}>
+        <NavRail
+          mainView={guardedMainView}
+          onChangeView={handleChangeView}
+        />
+      </Box>
+      <Box
+        component="main"
+        id="main-content"
+        sx={{
+          gridArea: 'main',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+        aria-label={t('Content', 'Contenu')}
+      >
+        <MainContent mainView={guardedMainView} />
       </Box>
       {comparisonOpen && (
         <Suspense fallback={<ComparisonModalFallback />}>
@@ -848,10 +840,15 @@ function AppShell() {
 }
 
 function AppContent() {
-  const [themeMode] = useTheme();
+  const [themeMode, setThemeMode] = useTheme();
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
+  const themeModeCtx = useMemo(
+    () => ({ mode: themeMode, setMode: setThemeMode, toggle: () => setThemeMode(themeMode === 'dark' ? 'light' : 'dark') }),
+    [themeMode, setThemeMode],
+  );
 
   return (
+    <ThemeModeContext.Provider value={themeModeCtx}>
     <ThemeProvider theme={theme}>
       <CssBaseline enableColorScheme />
       <GlobalStyles styles={{
@@ -905,6 +902,7 @@ function AppContent() {
         </AuthProvider>
       </I18nProvider>
     </ThemeProvider>
+    </ThemeModeContext.Provider>
   );
 }
 

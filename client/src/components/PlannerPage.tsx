@@ -1,361 +1,626 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
+import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useCraft } from '../store/CraftContext';
+import AddIcon from '@mui/icons-material/Add';
+import CheckIcon from '@mui/icons-material/Check';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useI18n } from '../i18n/I18nContext';
-import { GoalsList } from './planner/GoalsList';
-import { PlannerTodoBoard } from './planner/PlannerTodoBoard';
-import { ResourcesList } from './planner/ResourcesList';
-import { StarCitizenLicensedIcon } from './ui/StarCitizenLicensedIcon';
-import { aggregatePlannedResources, formatResourceQuantity } from '../utils/crafting';
-import { FONT_HEADING } from '../theme';
+import { useLocalPersist } from '../hooks/useLocalPersist';
+import { LS_KEYS } from '../types';
+import { Button } from './ui/Button';
+import { FONT_DISPLAY, FONT_MONO } from '../theme';
 
-function SummaryMetric({
-  eyebrow,
-  label,
-  value,
-  emphasis = 'default',
-}: {
-  eyebrow: string;
-  label: string;
-  value: string;
-  emphasis?: 'default' | 'primary';
-}) {
+const NOTE_TAGS = ['note', 'mining', 'craft', 'route', 'missions', 'economy'];
+
+export interface PlannerNote {
+  id: string;
+  title: string;
+  body: string;
+  tag: string;
+  pinned: boolean;
+  updatedAt: number;
+}
+
+const DEFAULT_NOTES: PlannerNote[] = [
+  {
+    id: 'demo-1',
+    title: 'Getting started',
+    body: '# Getting started\n\n- [ ] Assign materials to blueprint slots\n- [ ] Check missions for blueprint drops\n- [ ] Add blueprints with **@bp:id** and resources with **@res:id**\n',
+    tag: 'note',
+    pinned: true,
+    updatedAt: Date.now(),
+  },
+];
+
+// ── Inline Markdown tokenizer ──────────────────────────────────────────────
+
+type MdToken = { type: 'text'; value: string }
+  | { type: 'bold'; value: string }
+  | { type: 'italic'; value: string }
+  | { type: 'code'; value: string }
+  | { type: 'ref-bp'; id: string }
+  | { type: 'ref-res'; id: string };
+
+function tokenizeLine(text: string): MdToken[] {
+  const re = /(\*\*([^*\n]+)\*\*)|(_([^_\n]+)_)|(`([^`\n]+)`)|(@bp:([\w-]+))|(@res:([\w-]+))/;
+  const tokens: MdToken[] = [];
+  let rest = text;
+  while (rest.length) {
+    const m = rest.match(re);
+    if (!m) { tokens.push({ type: 'text', value: rest }); break; }
+    if (m.index! > 0) tokens.push({ type: 'text', value: rest.slice(0, m.index) });
+    if (m[1]) tokens.push({ type: 'bold', value: m[2] });
+    else if (m[3]) tokens.push({ type: 'italic', value: m[4] });
+    else if (m[5]) tokens.push({ type: 'code', value: m[6] });
+    else if (m[7]) tokens.push({ type: 'ref-bp', id: m[8] });
+    else if (m[9]) tokens.push({ type: 'ref-res', id: m[10] });
+    rest = rest.slice(m.index! + m[0].length);
+  }
+  return tokens;
+}
+
+function InlineMd({ text }: { text: string }) {
+  const theme = useTheme();
+  const tokens = tokenizeLine(text);
+  return (
+    <>
+      {tokens.map((tok, i) => {
+        if (tok.type === 'text') return <span key={i}>{tok.value}</span>;
+        if (tok.type === 'bold') return <strong key={i}>{tok.value}</strong>;
+        if (tok.type === 'italic') return <em key={i}>{tok.value}</em>;
+        if (tok.type === 'code') return (
+          <Box component="code" key={i} sx={{ fontFamily: FONT_MONO, fontSize: '0.85em', px: 0.5, py: 0.1, backgroundColor: alpha(theme.palette.primary.main, 0.12), color: 'primary.light' }}>
+            {tok.value}
+          </Box>
+        );
+        if (tok.type === 'ref-bp') return (
+          <Chip key={i} label={`@bp:${tok.id}`} size="small" variant="outlined" sx={{ mx: 0.25, height: 18, fontSize: '0.7rem', fontFamily: FONT_MONO, cursor: 'default' }} />
+        );
+        if (tok.type === 'ref-res') return (
+          <Chip key={i} label={`@res:${tok.id}`} size="small" variant="outlined" color="secondary" sx={{ mx: 0.25, height: 18, fontSize: '0.7rem', fontFamily: FONT_MONO, cursor: 'default' }} />
+        );
+        return null;
+      })}
+    </>
+  );
+}
+
+function MarkdownView({ source, onChange }: { source: string; onChange: (next: string) => void }) {
+  const theme = useTheme();
+  const lines = source.split('\n');
+  const elements: React.ReactNode[] = [];
+  let listBuf: React.ReactNode[] = [];
+  let listKey = 0;
+
+  const flushList = () => {
+    if (listBuf.length) {
+      elements.push(
+        <Box component="ul" key={`ul-${listKey++}`} sx={{ pl: 2.5, my: 0.5, '& li': { mb: 0.35 } }}>
+          {listBuf}
+        </Box>,
+      );
+      listBuf = [];
+    }
+  };
+
+  const toggleLine = (idx: number) => {
+    const ln = lines[idx];
+    const next = [...lines];
+    if (/^- \[x\] /i.test(ln)) next[idx] = ln.replace(/^- \[x\] /i, '- [ ] ');
+    else next[idx] = ln.replace(/^- \[ \] /, '- [x] ');
+    onChange(next.join('\n'));
+  };
+
+  lines.forEach((raw, idx) => {
+    if (/^### /.test(raw)) {
+      flushList();
+      elements.push(
+        <Typography key={idx} sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.95rem', mt: 1.5, mb: 0.5, color: 'text.primary' }}>
+          <InlineMd text={raw.slice(4)} />
+        </Typography>,
+      );
+      return;
+    }
+    if (/^## /.test(raw)) {
+      flushList();
+      elements.push(
+        <Typography key={idx} sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1.1rem', mt: 1.75, mb: 0.5, color: 'text.primary', borderBottom: `1px solid ${theme.palette.ui.border}`, pb: 0.5 }}>
+          <InlineMd text={raw.slice(3)} />
+        </Typography>,
+      );
+      return;
+    }
+    if (/^# /.test(raw)) {
+      flushList();
+      elements.push(
+        <Typography key={idx} sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: '1.3rem', mt: 2, mb: 0.75, color: 'text.primary' }}>
+          <InlineMd text={raw.slice(2)} />
+        </Typography>,
+      );
+      return;
+    }
+
+    const checkMatch = raw.match(/^- \[( |x|X)\] (.*)$/);
+    if (checkMatch) {
+      const checked = checkMatch[1].toLowerCase() === 'x';
+      listBuf.push(
+        <Box
+          component="li"
+          key={idx}
+          sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, listStyle: 'none', ml: -2 }}
+        >
+          <Box
+            component="input"
+            type="checkbox"
+            checked={checked}
+            onChange={() => toggleLine(idx)}
+            aria-label="Toggle task"
+            sx={{ mt: '3px', cursor: 'pointer', accentColor: theme.palette.primary.main }}
+          />
+          <Typography
+            component="span"
+            sx={{
+              fontSize: '0.875rem',
+              color: checked ? 'text.disabled' : 'text.primary',
+              textDecoration: checked ? 'line-through' : 'none',
+              lineHeight: 1.5,
+            }}
+          >
+            <InlineMd text={checkMatch[2]} />
+          </Typography>
+        </Box>,
+      );
+      return;
+    }
+
+    const bulletMatch = raw.match(/^- (.*)$/);
+    if (bulletMatch) {
+      listBuf.push(
+        <Typography component="li" key={idx} sx={{ fontSize: '0.875rem', color: 'text.primary', lineHeight: 1.6 }}>
+          <InlineMd text={bulletMatch[1]} />
+        </Typography>,
+      );
+      return;
+    }
+
+    flushList();
+
+    if (raw.trim() === '') {
+      elements.push(<Box key={idx} sx={{ height: 8 }} />);
+      return;
+    }
+
+    elements.push(
+      <Typography key={idx} sx={{ fontSize: '0.875rem', color: 'text.primary', lineHeight: 1.7 }}>
+        <InlineMd text={raw} />
+      </Typography>,
+    );
+  });
+
+  flushList();
+
+  return <Box sx={{ py: 0.5 }}>{elements}</Box>;
+}
+
+// ── Note list item ─────────────────────────────────────────────────────────
+
+function NoteListItem({ note, active, onClick }: { note: PlannerNote; active: boolean; onClick: () => void }) {
+  const theme = useTheme();
+  const preview = note.body.replace(/^#+ /gm, '').replace(/\n+/g, ' ').slice(0, 120) || '…';
+  const taskTotal = (note.body.match(/^- \[/gm) || []).length;
+  const taskDone = (note.body.match(/^- \[x\]/gim) || []).length;
+
   return (
     <Box
+      component="button"
+      type="button"
+      onClick={onClick}
       sx={{
-        p: 1.25,
-        border: 1,
-        borderColor: emphasis === 'primary' ? 'primary.main' : 'divider',
-        borderRadius: 1.5,
-        backgroundColor: emphasis === 'primary' ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'background.paper',
-        minHeight: 88,
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        cursor: 'pointer',
+        px: 1.25,
+        py: 1.25,
+        border: '1px solid',
+        borderColor: active ? alpha(theme.palette.primary.main, 0.35) : 'transparent',
+        borderRadius: 1,
+        backgroundColor: active ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+        '&:hover': { backgroundColor: active ? undefined : alpha(theme.palette.background.default, 0.6) },
+        transition: 'background-color 120ms, border-color 120ms',
       }}
     >
+      <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.875rem', color: 'text.primary', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {note.title || t_('Untitled', 'Sans titre')}
+      </Typography>
       <Typography
-        variant="overline"
-        sx={{ display: 'block', color: emphasis === 'primary' ? 'primary.main' : 'text.secondary', letterSpacing: '0.14em' }}
+        sx={{
+          fontSize: '0.715rem',
+          color: 'text.disabled',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          lineHeight: 1.35,
+          mb: 0.75,
+        }}
       >
-        {eyebrow}
+        {preview}
       </Typography>
-      <Typography sx={{ fontFamily: FONT_HEADING, fontWeight: 700, fontSize: '1.6rem', lineHeight: 0.95 }}>
-        {value}
-      </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-        {label}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <Chip label={note.tag} size="small" sx={{ height: 16, fontSize: '0.65rem', '& .MuiChip-label': { px: 0.75 } }} />
+        {taskTotal > 0 && (
+          <Typography sx={{ fontSize: '0.65rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+            {taskDone}/{taskTotal}
+          </Typography>
+        )}
+        <Typography sx={{ fontSize: '0.65rem', color: 'text.disabled', ml: 'auto' }}>
+          {new Date(note.updatedAt).toLocaleDateString()}
+        </Typography>
+      </Box>
     </Box>
   );
 }
 
+function t_(en: string, _fr: string): string { return en; }
+
+// ── Main component ─────────────────────────────────────────────────────────
+
 export function PlannerPage() {
+  const { t } = useI18n();
   const theme = useTheme();
-  const {
-    goals,
-    blueprints,
-    plannerTodoItems,
-    plannerResourceRequirements,
-    resourceProgress,
-    resetResourceProgress,
-  } = useCraft();
-  const { t, lang } = useI18n();
 
-  const aggregated = useMemo(
-    () => aggregatePlannedResources(goals, blueprints, plannerResourceRequirements),
-    [goals, blueprints, plannerResourceRequirements],
+  const [notes, setNotes] = useLocalPersist<PlannerNote[]>(LS_KEYS.PLANNER_NOTES, DEFAULT_NOTES);
+  const [activeId, setActiveId] = useState<string | null>(notes[0]?.id ?? null);
+  const [search, setSearch] = useState('');
+  const [mode, setMode] = useState<'preview' | 'edit'>('preview');
+  const [copied, setCopied] = useState(false);
+
+  const activeNote = useMemo(() => notes.find((n) => n.id === activeId) ?? notes[0] ?? null, [notes, activeId]);
+
+  const filtered = useMemo(
+    () => notes.filter((n) => !search || `${n.title} ${n.body}`.toLowerCase().includes(search.toLowerCase())),
+    [notes, search],
   );
-  const hasPlannerContent =
-    goals.length > 0 ||
-    plannerTodoItems.length > 0 ||
-    aggregated.length > 0;
+  const pinned = filtered.filter((n) => n.pinned);
+  const others = filtered.filter((n) => !n.pinned);
 
-  const {
-    scuRequired,
-    countRequired,
-    totalCollected,
-    completedResourceCount,
-    globalPct,
-    openTodoCount,
-    completedTodoCount,
-    blueprintMissionCount,
-  } = useMemo(() => {
-    let nextScuRequired = 0;
-    let nextCountRequired = 0;
-    let nextTotalCollected = 0;
-    let nextCompletedResourceCount = 0;
-    let completionSum = 0;
+  const update = (id: string, patch: Partial<PlannerNote>) =>
+    setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)));
 
-    for (const resource of aggregated) {
-      const collected = Math.min(
-        resourceProgress[resource.resourceName]?.collected ?? 0,
-        resource.totalScu,
-      );
-      const completion = resource.totalScu > 0 ? collected / resource.totalScu : 0;
-
-      if (resource.quantityUnit === 'count') {
-        nextCountRequired += resource.totalScu;
-      } else {
-        nextScuRequired += resource.totalScu;
-      }
-
-      nextTotalCollected += collected;
-      completionSum += completion;
-
-      if (completion >= 1 && resource.totalScu > 0) {
-        nextCompletedResourceCount += 1;
-      }
-    }
-
-    return {
-      scuRequired: nextScuRequired,
-      countRequired: nextCountRequired,
-      totalCollected: nextTotalCollected,
-      completedResourceCount: nextCompletedResourceCount,
-      globalPct: aggregated.length > 0 ? Math.round((completionSum / aggregated.length) * 100) : 0,
-      openTodoCount: plannerTodoItems.filter((item) => !item.completed).length,
-      completedTodoCount: plannerTodoItems.filter((item) => item.completed).length,
-      blueprintMissionCount: plannerTodoItems.filter((item) => item.source === 'mission-blueprint').length,
+  const addNote = () => {
+    const n: PlannerNote = {
+      id: `n-${Date.now()}`,
+      title: t('New note', 'Nouvelle note'),
+      body: `# ${t('New note', 'Nouvelle note')}\n\n- [ ] ${t('To do', 'À faire')}\n`,
+      tag: 'note',
+      pinned: false,
+      updatedAt: Date.now(),
     };
-  }, [aggregated, plannerTodoItems, resourceProgress]);
+    setNotes((ns) => [n, ...ns]);
+    setActiveId(n.id);
+    setMode('edit');
+  };
 
-  const handleCopyText = useCallback(() => {
-    const lines = [
-      'ITEM FABRICATOR - Planner',
-      '',
-      '[Open tasks]',
-      ...plannerTodoItems
-        .filter((item) => !item.completed)
-        .map((item) => `- ${item.title}${item.relatedBlueprintName ? ` (${item.relatedBlueprintName})` : ''}`),
-      '',
-      '[Goals]',
-      ...goals.map((goal) => `${goal.quantity}x ${goal.blueprintName} (${goal.qualityScore}/100)`),
-      '',
-      '[Resources]',
-      ...aggregated.map(
-        (resource) =>
-          `${resource.resourceName} - ${formatResourceQuantity(resource.totalScu, resource.quantityUnit, lang, 'long')}`,
-      ),
-    ];
-    navigator.clipboard
-      .writeText(lines.join('\n'))
-      .catch((error) => console.warn('Clipboard write failed:', error));
-  }, [aggregated, goals, lang, plannerTodoItems]);
+  const removeNote = (id: string) => {
+    setNotes((ns) => ns.filter((x) => x.id !== id));
+    const remaining = notes.filter((x) => x.id !== id);
+    setActiveId(remaining[0]?.id ?? null);
+  };
 
-  const handleDownloadJSON = useCallback(() => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      tasks: plannerTodoItems,
-      goals: goals.map((goal) => ({
-        blueprintId: goal.blueprintId,
-        blueprintName: goal.blueprintName,
-        quantity: goal.quantity,
-        qualityScore: goal.qualityScore,
-      })),
-      materials: aggregated.map((resource) => ({
-        resourceName: resource.resourceName,
-        totalQuantity: resource.totalScu,
-        quantityUnit: resource.quantityUnit,
-        manualRequired: plannerResourceRequirements[resource.resourceName]?.quantity ?? 0,
-        collected: resourceProgress[resource.resourceName]?.collected ?? 0,
-        method: resourceProgress[resource.resourceName]?.method ?? null,
-      })),
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-
+  const handleCopy = async () => {
+    if (!activeNote) return;
     try {
-      anchor.href = url;
-      anchor.download = `item-fabricator-planner-${Date.now()}.json`;
-      anchor.click();
-    } finally {
-      URL.revokeObjectURL(url);
+      await navigator.clipboard.writeText(activeNote.body);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      // no-op
     }
-  }, [aggregated, goals, plannerResourceRequirements, plannerTodoItems, resourceProgress]);
+  };
+
+  const taskTotal = activeNote ? (activeNote.body.match(/^- \[/gm) || []).length : 0;
+  const taskDone = activeNote ? (activeNote.body.match(/^- \[x\]/gim) || []).length : 0;
 
   return (
-    <Box
-      sx={{
-        flex: 1,
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
+      {/* Page header */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
+        <Box sx={{ flex: 1, minWidth: 280 }}>
+          <Typography
+            sx={{
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 700,
+              fontSize: { xs: '1.9rem', md: '2.2rem' },
+              textTransform: 'uppercase',
+              lineHeight: 1,
+              letterSpacing: '-0.015em',
+            }}
+          >
+            {t('Planner', 'Planificateur')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, maxWidth: '70ch' }}>
+            {t(
+              'Research notebook in markdown format. Check tasks, reference a blueprint with @bp:id or a resource with @res:id.',
+              'Carnet de recherche au format markdown. Coche les tâches, référence un blueprint avec @bp:id ou une ressource avec @res:id.',
+            )}
+          </Typography>
+        </Box>
+        <Button variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
+          {t('New note', 'Nouvelle note')}
+        </Button>
+      </Box>
+
+      {/* Shell: sidebar + editor — two separate cards with a gap */}
       <Box
         sx={{
-          height: '100%',
-          overflowY: 'auto',
-          px: { xs: 1.25, md: 2.5 },
-          py: { xs: 1.25, md: 2 },
-          display: 'flex',
-          flexDirection: 'column',
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' },
           gap: 2,
+          alignItems: 'stretch',
+          minHeight: 540,
         }}
       >
-        <Paper
-          variant="outlined"
+        {/* Sidebar — own Paper */}
+        <Box
+          component="aside"
           sx={{
-            p: { xs: 1.5, md: 2.25 },
-            borderColor: alpha(theme.palette.primary.main, 0.2),
-            background:
-              theme.palette.mode === 'dark'
-                ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 22%, ${theme.palette.background.paper} 100%)`
-                : theme.palette.background.paper,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            p: 1.5,
+            border: `1px solid ${theme.palette.ui.border}`,
+            backgroundColor: 'ui.surface',
+            overflowY: 'auto',
           }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
-              justifyContent: 'space-between',
-              gap: 2,
+          {/* Search */}
+          <TextField
+            size="small"
+            placeholder={t('Filter notes…', 'Filtrer les notes…')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            fullWidth
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: '0.95rem', color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              },
             }}
-          >
-            <Box sx={{ maxWidth: 760 }}>
-              <Typography
-                variant="overline"
-                sx={{ color: 'primary.main', letterSpacing: '0.16em' }}
-              >
-                {t('Planner', 'Planificateur')}
-              </Typography>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontFamily: FONT_HEADING,
-                  fontSize: { xs: '2rem', md: '2.6rem' },
-                  lineHeight: 0.92,
-                }}
-              >
-                {t('Craft operations center', 'Centre d operations de craft')}
-              </Typography>
-              <Typography variant="body1" sx={{ color: 'text.secondary', mt: 0.75 }}>
-                {t(
-                  'Plan production goals, track manual tasks, prepare blueprint missions and monitor material readiness from a single cockpit.',
-                  'Planifiez la production, les tâches manuelles, les missions blueprint et la préparation des matériaux depuis un seul cockpit.',
-                )}
-              </Typography>
-            </Box>
+            sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.78rem' } }}
+          />
 
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignSelf: 'flex-start' }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleCopyText}
-                disabled={!hasPlannerContent}
-              >
-                {t('Copy summary', 'Copier le résumé')}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleDownloadJSON}
-                disabled={!hasPlannerContent}
-              >
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  <StarCitizenLicensedIcon name="download" size={14} dimmed />
-                  <span>JSON</span>
-                </Box>
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                size="small"
-                onClick={resetResourceProgress}
-                disabled={totalCollected === 0}
-              >
-                {t('Reset progress', 'Réinitialiser la progression')}
-              </Button>
-            </Box>
-          </Box>
+          {pinned.length > 0 && (
+            <>
+              <Typography sx={{ px: 0.5, pt: 0.5, fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.disabled' }}>
+                {t('Pinned', 'Épinglées')}
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {pinned.map((n) => (
+                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} />
+                ))}
+              </Box>
+            </>
+          )}
 
-          <Box
-            sx={{
-              mt: 2,
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' },
-              gap: 1,
-            }}
-          >
-            <SummaryMetric
-              eyebrow={t('Tasks', 'Tâches')}
-              label={t('Open items to handle', 'Éléments ouverts à traiter')}
-              value={String(openTodoCount)}
-              emphasis="primary"
-            />
-            <SummaryMetric
-              eyebrow={t('Done', 'Terminé')}
-              label={t('Completed tasks', 'Tâches terminées')}
-              value={String(completedTodoCount)}
-            />
-            <SummaryMetric
-              eyebrow={t('Goals', 'Objectifs')}
-              label={t('Blueprint builds queued', 'Blueprints en file')}
-              value={String(goals.length)}
-            />
-            <SummaryMetric
-              eyebrow={t('Missions', 'Missions')}
-              label={t('Blueprint mission tasks', 'Tâches de mission blueprint')}
-              value={String(blueprintMissionCount)}
-            />
-            <SummaryMetric
-              eyebrow={t('Resources', 'Ressources')}
-              label={
-                aggregated.length > 0
-                  ? `${completedResourceCount}/${aggregated.length} ${t('completed', 'complétées')}`
-                  : t('No resource checklist yet', 'Aucune checklist ressource')
-              }
-              value={`${globalPct}%`}
-              emphasis={aggregated.length > 0 ? 'primary' : 'default'}
-            />
-          </Box>
+          {others.length > 0 && (
+            <>
+              <Typography sx={{ px: 0.5, pt: pinned.length > 0 ? 0.5 : 0, fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.disabled' }}>
+                {t('Notes', 'Autres')}
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {others.map((n) => (
+                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} />
+                ))}
+              </Box>
+            </>
+          )}
 
-          <Box
-            sx={{
-              mt: 1.5,
-              display: 'flex',
-              gap: 1.5,
-              flexWrap: 'wrap',
-              color: 'text.secondary',
-            }}
-          >
-            <Typography variant="body2">
-              {scuRequired > 0
-                ? `${formatResourceQuantity(scuRequired, 'scu', lang, 'long')} ${t('required', 'requis')}`
-                : t('No SCU requirement yet', 'Aucun besoin SCU pour le moment')}
+          {filtered.length === 0 && (
+            <Typography sx={{ py: 2, color: 'text.disabled', fontSize: '0.78rem', textAlign: 'center' }}>
+              {t('No notes', 'Aucune note')}
             </Typography>
-            <Typography variant="body2">
-              {countRequired > 0
-                ? `${formatResourceQuantity(countRequired, 'count', lang, 'long')} ${t('required', 'requis')}`
-                : t('No item-count requirement yet', 'Aucun besoin en quantité pour le moment')}
-            </Typography>
-          </Box>
-        </Paper>
+          )}
+        </Box>
 
+        {/* Editor — own Paper */}
         <Box
           sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.35fr) minmax(320px, 0.92fr)' },
-            gap: 2,
-            minHeight: { lg: 0 },
-            alignItems: 'start',
+            display: 'flex',
+            flexDirection: 'column',
+            border: `1px solid ${theme.palette.ui.border}`,
+            backgroundColor: 'ui.surface',
+            minHeight: 0,
           }}
         >
-          <PlannerTodoBoard />
+          {activeNote ? (
+            <>
+              {/* Editor header */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 1,
+                  borderBottom: `1px solid ${theme.palette.ui.border}`,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 120 }}>
+                  <TextField
+                    value={activeNote.title}
+                    onChange={(e) => update(activeNote.id, { title: e.target.value })}
+                    variant="standard"
+                    fullWidth
+                    slotProps={{
+                      input: {
+                        disableUnderline: true,
+                        sx: { fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1rem', color: 'text.primary' },
+                      },
+                    }}
+                    aria-label={t('Note title', 'Titre de la note')}
+                  />
+                  <Chip label={activeNote.tag} size="small" sx={{ height: 18, fontSize: '0.65rem', flexShrink: 0, '& .MuiChip-label': { px: 0.75 } }} />
+                </Box>
+                <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                  <Button
+                    variant={activeNote.pinned ? 'secondary' : 'ghost'}
+                    size="sm"
+                    icon={<PushPinOutlinedIcon sx={{ fontSize: '0.8rem' }} />}
+                    onClick={() => update(activeNote.id, { pinned: !activeNote.pinned })}
+                    aria-pressed={activeNote.pinned}
+                  >
+                    {activeNote.pinned ? t('Pinned', 'Épinglée') : t('Pin', 'Épingler')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={copied ? <CheckIcon sx={{ fontSize: '0.8rem' }} /> : <ContentCopyIcon sx={{ fontSize: '0.8rem' }} />}
+                    onClick={handleCopy}
+                  >
+                    {copied ? t('Copied', 'Copié') : t('Copy MD', 'Copier MD')}
+                  </Button>
+                  <ToggleButtonGroup
+                    value={mode}
+                    exclusive
+                    size="small"
+                    onChange={(_e, val) => { if (val) setMode(val as 'preview' | 'edit'); }}
+                    aria-label={t('Edit mode', 'Mode édition')}
+                    sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.35, fontSize: '0.72rem', textTransform: 'none' } }}
+                  >
+                    <ToggleButton value="preview" aria-label={t('Preview', 'Aperçu')}>
+                      <VisibilityOutlinedIcon sx={{ fontSize: '0.8rem', mr: 0.35 }} />
+                      {t('Preview', 'Aperçu')}
+                    </ToggleButton>
+                    <ToggleButton value="edit" aria-label={t('Edit', 'Éditer')}>
+                      <EditOutlinedIcon sx={{ fontSize: '0.8rem', mr: 0.35 }} />
+                      {t('Edit', 'Éditer')}
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <IconButton
+                    size="small"
+                    onClick={() => removeNote(activeNote.id)}
+                    title={t('Delete note', 'Supprimer la note')}
+                    aria-label={t('Delete note', 'Supprimer la note')}
+                    sx={{ color: 'error.main' }}
+                  >
+                    <DeleteOutlineIcon sx={{ fontSize: '1rem' }} />
+                  </IconButton>
+                </Stack>
+              </Box>
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateRows: { xs: 'auto auto', lg: 'minmax(240px, auto) minmax(280px, 1fr)' },
-              gap: 2,
-              minHeight: { lg: 0 },
-            }}
-          >
-            <GoalsList />
-            <ResourcesList aggregated={aggregated} />
-          </Box>
+              {/* Meta bar */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 0.75, borderBottom: `1px solid ${theme.palette.ui.border}`, backgroundColor: alpha(theme.palette.background.default, 0.4) }}>
+                <Typography sx={{ fontSize: '0.65rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                  {new Date(activeNote.updatedAt).toLocaleString()}
+                </Typography>
+                <Typography sx={{ fontSize: '0.65rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                  {activeNote.body.length} {t('chars', 'car.')}
+                </Typography>
+                {taskTotal > 0 && (
+                  <Typography sx={{ fontSize: '0.65rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                    {taskDone}/{taskTotal} {t('tasks', 'tâches')}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Body */}
+              <Box sx={{ flex: 1, overflow: 'auto', px: 2.5, py: 2, minHeight: 320 }}>
+                {mode === 'preview' ? (
+                  <MarkdownView
+                    source={activeNote.body}
+                    onChange={(next) => update(activeNote.id, { body: next })}
+                  />
+                ) : (
+                  <Box
+                    component="textarea"
+                    value={activeNote.body}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => update(activeNote.id, { body: e.target.value })}
+                    placeholder={t('Write in markdown. ## heading, - [ ] task, **bold**, @bp:id, @res:id', 'Écris en markdown. ## titre, - [ ] tâche, **gras**, @bp:id, @res:id')}
+                    aria-label={t('Note body', 'Contenu de la note')}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      minHeight: 320,
+                      resize: 'none',
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'text.primary',
+                      fontFamily: FONT_MONO,
+                      fontSize: '0.875rem',
+                      lineHeight: 1.7,
+                      p: 0,
+                      '&::placeholder': { color: 'text.disabled' },
+                    }}
+                  />
+                )}
+              </Box>
+
+              {/* Footer */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  px: 2,
+                  py: 1,
+                  borderTop: `1px solid ${theme.palette.ui.border}`,
+                  backgroundColor: alpha(theme.palette.background.default, 0.45),
+                  gap: 1,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Typography sx={{ fontSize: '0.65rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                  {t('Markdown:', 'Markdown :')} **{t('bold', 'gras')}** _{t('italic', 'italique')}_ `{t('code', 'code')}` # {t('heading', 'titre')} - [ ] {t('task', 'tâche')} @bp:id @res:id
+                </Typography>
+                <Select
+                  size="small"
+                  value={activeNote.tag}
+                  onChange={(e) => update(activeNote.id, { tag: e.target.value })}
+                  sx={{ height: 24, fontSize: '0.72rem', fontFamily: FONT_MONO, '& .MuiSelect-select': { py: '1px', px: 0.75 } }}
+                  aria-label={t('Tag', 'Tag')}
+                >
+                  {NOTE_TAGS.map((tag) => (
+                    <MenuItem key={tag} value={tag} sx={{ fontSize: '0.72rem', fontFamily: FONT_MONO }}>
+                      {tag}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+            </>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <EditOutlinedIcon sx={{ fontSize: '2.5rem', color: 'text.disabled', mb: 1 }} />
+                <Typography sx={{ color: 'text.disabled', mb: 2 }}>
+                  {t('No note selected', 'Aucune note sélectionnée')}
+                </Typography>
+                <Button variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
+                  {t('Create a note', 'Créer une note')}
+                </Button>
+              </Box>
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>
