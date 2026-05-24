@@ -32,6 +32,7 @@ import {
   resourcePathFromSlug,
 } from '../utils/slug';
 import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
+import { ScLogSyncButton } from './ScLogSyncDialog';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
 const MONTH_NAMES = {
@@ -372,6 +373,8 @@ export function Header() {
               </IconButton>
             </Tooltip>
           )}
+          {isDesktop && <ScLogSyncButton />}
+
           {hasUpdate && (
             <Tooltip title={t('Update available', 'Mise à jour disponible', 'Update verfügbar')}>
               <IconButton

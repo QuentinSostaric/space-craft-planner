@@ -66,6 +66,7 @@ import {
   type OrganizationSharingMutation,
   type PersistedAccountMutation,
 } from './accountMutations';
+import { isTauriRuntime } from '../services/apiBaseUrl';
 
 interface AuthState {
   enabled: boolean;
@@ -1151,7 +1152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accountDatasetScope, enqueueMutation]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
-    window.location.assign(getDiscordLoginUrl(returnTo ?? getCurrentReturnTo()));
+    // In the desktop app the webview origin is https://tauri.localhost — we
+    // pass the full origin so the server can redirect back to the app after
+    // OAuth instead of landing on the itemfab.space website.
+    const effectiveReturnTo = returnTo
+      ?? (isTauriRuntime() ? `${window.location.origin}/` : getCurrentReturnTo());
+    window.location.assign(getDiscordLoginUrl(effectiveReturnTo));
   }, []);
 
   const logout = useCallback(async () => {
