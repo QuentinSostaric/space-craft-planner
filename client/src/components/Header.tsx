@@ -2,6 +2,8 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
@@ -102,7 +104,7 @@ export function Header() {
   } = useCraft();
   const { lang, setLang, t } = useI18n();
   const { mode: themeMode, toggle: toggleTheme } = useThemeMode();
-  const { status: updateStatus, triggerUpdate } = useAppUpdate();
+  const { status: updateStatus, triggerUpdate, availableVersion } = useAppUpdate();
   const isDesktop = isTauriRuntime();
   const hasUpdate = isDesktop && updateStatus === 'available';
   const isLg = useMediaQuery('(min-width:1120px)');
@@ -359,34 +361,60 @@ export function Header() {
             </Select>
           )}
 
-          {/* Desktop app download — hidden in-app unless update available */}
+          {/* Desktop app download CTA — web only */}
           {!isDesktop && (
-            <Tooltip title={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}>
-              <IconButton
-                component="a"
-                href="/api/desktop/latest-installer"
-                size="small"
-                aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
-                sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-              >
-                <DownloadOutlinedIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
+            <Button
+              component="a"
+              href="/api/desktop/latest-installer"
+              size="small"
+              variant="outlined"
+              startIcon={<DownloadOutlinedIcon sx={{ fontSize: 13 }} />}
+              aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
+              sx={{
+                display: { xs: 'none', md: 'flex' },
+                height: 28,
+                fontSize: '0.7rem',
+                fontFamily: FONT_MONO,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                borderColor: 'divider',
+                color: 'text.secondary',
+                flexShrink: 0,
+                '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
+              }}
+            >
+              {t('Desktop app', 'App desktop', 'Desktop-App')}
+            </Button>
           )}
+
+          {/* SC log sync — desktop only */}
           {isDesktop && <ScLogSyncButton />}
 
+          {/* Update available — desktop only */}
           {hasUpdate && (
-            <Tooltip title={t('Update available', 'Mise à jour disponible', 'Update verfügbar')}>
-              <IconButton
-                onClick={triggerUpdate}
+            <Tooltip title={t('Click to install update', 'Cliquer pour installer la mise à jour', 'Klicken zum Aktualisieren')}>
+              <Button
+                onClick={() => { void triggerUpdate(); }}
                 size="small"
-                aria-label={t('Update desktop app', 'Mettre à jour l app desktop', 'Desktop-App aktualisieren')}
-                sx={{ width: 34, height: 34, borderRadius: 1, color: 'warning.main', '&:hover': { color: 'warning.light' } }}
+                variant="outlined"
+                color="warning"
+                startIcon={<SystemUpdateAltIcon sx={{ fontSize: 13 }} />}
+                sx={{
+                  display: { xs: 'none', md: 'flex' },
+                  height: 28,
+                  fontSize: '0.7rem',
+                  fontFamily: FONT_MONO,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  flexShrink: 0,
+                }}
               >
-                <SystemUpdateAltIcon sx={{ fontSize: 18 }} />
-              </IconButton>
+                {availableVersion ? `v${availableVersion}` : t('Update', 'Mise à jour', 'Update')}
+              </Button>
             </Tooltip>
           )}
+
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, opacity: 0.4 }} />
 
           {/* Theme toggle */}
           <Tooltip title={themeMode === 'dark' ? t('Light mode', 'Mode clair') : t('Dark mode', 'Mode sombre')}>

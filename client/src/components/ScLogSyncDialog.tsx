@@ -16,6 +16,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import { FONT_MONO } from '../theme';
 import { useScLogSync } from '../hooks/useScLogSync';
 import { useScLogWatcher } from '../hooks/useScLogWatcher';
 import { useAuth } from '../auth/AuthContext';
@@ -346,30 +347,42 @@ export function ScLogSyncButton() {
 
   return (
     <>
-      <Tooltip title={t('SC log sync', 'Sync logs SC')}>
-        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-          <IconButton
-            onClick={() => setOpen(true)}
-            size="small"
-            aria-label={t('Sync blueprints from SC logs', 'Synchroniser les blueprints depuis les logs SC')}
-            sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-          >
-            <SyncIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-          {newBlueprintCount > 0 && (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: 'success.main',
-                border: '1.5px solid',
-                borderColor: 'background.default',
-              }}
-            />
+      <Tooltip title={running ? t('SC log sync — watching LIVE', 'Sync logs SC — surveillance LIVE active') : t('SC log sync', 'Sync logs SC')}>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer' }}
+          onClick={() => setOpen(true)}
+        >
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <IconButton
+              size="small"
+              aria-label={t('Sync blueprints from SC logs', 'Synchroniser les blueprints depuis les logs SC')}
+              sx={{ width: 34, height: 34, borderRadius: 1, color: running ? 'primary.main' : 'text.secondary', '&:hover': { color: 'text.primary' }, pointerEvents: 'none' }}
+            >
+              <SyncIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            {newBlueprintCount > 0 && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 3,
+                  right: 3,
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.main',
+                  border: '2px solid',
+                  borderColor: 'background.default',
+                }}
+              />
+            )}
+          </Box>
+          {running && (
+            <Box sx={{ display: { xs: 'none', lg: 'flex' }, alignItems: 'center', gap: 0.5 }}>
+              <FiberManualRecordIcon sx={{ fontSize: 8, color: 'success.main', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
+              <Typography sx={{ fontSize: '0.65rem', fontFamily: FONT_MONO, fontWeight: 700, color: 'success.main', letterSpacing: '0.04em' }}>
+                LIVE
+              </Typography>
+            </Box>
           )}
         </Box>
       </Tooltip>

@@ -425,6 +425,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSyncStatus('idle');
         setSyncError(null);
       }
+    } catch {
+      // Network/CORS failure — in the desktop app, always show the login button
+      // since the server-side env vars are always configured in production.
+      if (isTauriRuntime()) {
+        setSession({ enabled: true, provider: 'discord', user: null });
+      }
     } finally {
       setLoading(false);
     }
