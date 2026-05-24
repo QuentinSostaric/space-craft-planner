@@ -127,7 +127,7 @@ Create a root `.dev.vars` file:
 R2_ACCOUNT_ID=<cloudflare-account-id>
 R2_ACCESS_KEY_ID=<r2-access-key-id>
 R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
-R2_BUCKET_NAME=sc-craft-game-data-dev
+R2_BUCKET_NAME=<r2-dev-bucket-name>
 R2_BUCKET_REGION=auto
 
 DISCORD_CLIENT_ID=<discord-client-id>
