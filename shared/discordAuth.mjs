@@ -212,6 +212,14 @@ export function parseCookieHeader(cookieHeader) {
   return cookies;
 }
 
+export function isDesktopRequest(request) {
+  const referer = request?.headers?.get?.('Referer') ?? '';
+  const origin = request?.headers?.get?.('Origin') ?? '';
+  return DESKTOP_ALLOWED_ORIGINS.some(
+    (o) => referer.startsWith(o) || origin.startsWith(o),
+  );
+}
+
 export function sanitizeReturnTo(value) {
   if (!value) {
     return DEFAULT_RETURN_TO;
