@@ -47,22 +47,67 @@ pub struct ScInstallPaths {
     ptu: Option<String>,
 }
 
-/// Checks whether a directory looks like a valid SC channel install
-/// (contains Game.log or launcherData.json or Data directory).
-fn is_valid_sc_channel(path: &Path) -> bool {
-    path.is_dir()
-        && (path.join("Game.log").exists()
-            || path.join("launcherData.json").exists()
-            || path.join("Data").is_dir())
+/// Reads the RSI Launcher log to extract actual SC install paths.
+/// MultitoolV2 approach: parse %APPDATA%\rsilauncher\logs\log.log with a regex
+/// that matches Windows paths containing "StarCitizen\<CHANNEL>".
+fn find_paths_from_launcher_log() -> Vec<PathBuf> {
+    let appdata = match std::env::var("APPDATA") {
+        Ok(v) => v,
+        Err(_) => return vec![],
+    };
+
+    let launcher_log = PathBuf::from(&appdata)
+        .join("rsilauncher")
+        .join("logs")
+        .join("log.log");
+
+    if !launcher_log.is_file() {
+        return vec![];
+    }
+
+    let bytes = match std::fs::read(&launcher_log) {
+        Ok(b) => b,
+        Err(_) => return vec![],
+    };
+    let content = String::from_utf8_lossy(&bytes);
+
+    // Matches any Windows path ending with StarCitizen\<CHANNEL>
+    let re = match Regex::new(
+        r#"([a-zA-Z]:\\(?:[^\\:*?"<>|\r\n]+\\)*StarCitizen\\[A-Za-z0-9_.@-]+)"#,
+    ) {
+        Ok(r) => r,
+        Err(_) => return vec![],
+    };
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut paths: Vec<PathBuf> = Vec::new();
+
+    for caps in re.captures_iter(&content) {
+        let raw = caps[1].trim().to_string();
+        let p = PathBuf::from(&raw);
+        // Validate: must have StarCitizen.exe or Data.p4k
+        if seen.insert(raw)
+            && (p.join("Bin64").join("StarCitizen.exe").exists() || p.join("Data.p4k").exists())
+        {
+            paths.push(p);
+        }
+    }
+
+    paths
 }
 
-/// Tries to locate SC install roots (parent of LIVE/PTU) from common locations.
-fn find_sc_install_roots() -> Vec<PathBuf> {
-    let mut candidates: Vec<PathBuf> = Vec::new();
+/// Checks whether a directory looks like a valid SC channel install.
+fn is_valid_sc_channel(path: &Path) -> bool {
+    path.is_dir()
+        && (path.join("Bin64").join("StarCitizen.exe").exists()
+            || path.join("Data.p4k").exists()
+            || path.join("Game.log").exists()
+            || path.join("launcherData.json").exists())
+}
 
-    // %APPDATA%\rsilauncher\app-*.* — RSI launcher writes lastInstallPath in its config
-    // We probe common install parents instead of parsing LevelDB.
-    let drives = ["C", "D", "E", "F", "G"];
+/// Fallback: probe common install locations across drives.
+fn find_paths_from_common_locations() -> Vec<PathBuf> {
+    let drives = ["C", "D", "E", "F", "G", "H"];
     let common_subdirs = [
         "Program Files\\Roberts Space Industries\\StarCitizen",
         "Roberts Space Industries\\StarCitizen",
@@ -71,57 +116,72 @@ fn find_sc_install_roots() -> Vec<PathBuf> {
         "SC\\StarCitizen",
         "StarCitizen",
     ];
+    let channels = ["LIVE", "PTU", "WAVE", "TECH-PREVIEW"];
 
+    let mut found: Vec<PathBuf> = Vec::new();
     for drive in &drives {
         for sub in &common_subdirs {
-            candidates.push(PathBuf::from(format!("{drive}:\\{sub}")));
+            for ch in &channels {
+                let p = PathBuf::from(format!("{drive}:\\{sub}\\{ch}"));
+                if is_valid_sc_channel(&p) {
+                    found.push(p);
+                }
+            }
         }
     }
-
-    candidates
+    found
 }
 
 #[tauri::command]
 fn detect_sc_install_paths() -> ScInstallPaths {
-    let roots = find_sc_install_roots();
+    // Primary: read actual paths from RSI Launcher log (most reliable)
+    let mut channel_paths = find_paths_from_launcher_log();
+
+    // Fallback: probe common locations if launcher log gave nothing
+    if channel_paths.is_empty() {
+        channel_paths = find_paths_from_common_locations();
+    }
 
     let mut live: Option<String> = None;
     let mut ptu: Option<String> = None;
 
-    for root in &roots {
-        if live.is_none() {
-            let candidate = root.join("LIVE");
-            if is_valid_sc_channel(&candidate) {
-                live = Some(candidate.to_string_lossy().into_owned());
-            }
-        }
-        if ptu.is_none() {
-            let candidate = root.join("PTU");
-            if is_valid_sc_channel(&candidate) {
-                ptu = Some(candidate.to_string_lossy().into_owned());
-            }
-        }
-        if live.is_some() && ptu.is_some() {
-            break;
+    for path in &channel_paths {
+        // Determine channel from path component
+        let channel = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_uppercase();
+
+        if channel == "LIVE" && live.is_none() {
+            live = Some(path.to_string_lossy().into_owned());
+        } else if (channel == "PTU" || channel == "WAVE" || channel == "TECH-PREVIEW")
+            && ptu.is_none()
+        {
+            ptu = Some(path.to_string_lossy().into_owned());
         }
     }
 
     ScInstallPaths { live, ptu }
 }
 
-/// Reads all log lines from Game.log and logbackups/*.log in the given channel directory.
+/// Reads a file robustly using UTF-8 lossy decoding (handles corrupted log bytes).
+fn read_log_file_lossy(path: &Path) -> Option<String> {
+    let bytes = std::fs::read(path).ok()?;
+    Some(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Collects all lines from Game.log and logbackups/*.log in the channel directory.
 fn collect_log_lines(channel_path: &Path) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
 
-    // Main log
     let game_log = channel_path.join("Game.log");
     if game_log.is_file() {
-        if let Ok(content) = std::fs::read_to_string(&game_log) {
+        if let Some(content) = read_log_file_lossy(&game_log) {
             lines.extend(content.lines().map(String::from));
         }
     }
 
-    // All logbackup files
     let logbackups_dir = channel_path.join("logbackups");
     if logbackups_dir.is_dir() {
         for entry in WalkDir::new(&logbackups_dir)
@@ -130,13 +190,9 @@ fn collect_log_lines(channel_path: &Path) -> Vec<String> {
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "log" {
-                        if let Ok(content) = std::fs::read_to_string(path) {
-                            lines.extend(content.lines().map(String::from));
-                        }
-                    }
+            if path.is_file() && path.extension().map_or(false, |e| e == "log") {
+                if let Some(content) = read_log_file_lossy(path) {
+                    lines.extend(content.lines().map(String::from));
                 }
             }
         }
@@ -152,7 +208,8 @@ fn scan_blueprints_from_logs(channel_path: String) -> Result<Vec<String>, String
         return Err(format!("Path not found: {channel_path}"));
     }
 
-    let re = Regex::new(r#"Received Blueprint: ([^:]+):"#)
+    // Handles English and French game client notifications
+    let re = Regex::new(r"(?:Received Blueprint: (.+?):|Sch[eé]mas? re[cç]us? : (.+?):)")
         .map_err(|e| e.to_string())?;
 
     let lines = collect_log_lines(&path);
@@ -161,8 +218,13 @@ fn scan_blueprints_from_logs(channel_path: String) -> Result<Vec<String>, String
 
     for line in &lines {
         if let Some(caps) = re.captures(line) {
-            let name = caps[1].trim().to_string();
-            if seen.insert(name.clone()) {
+            // Group 1 = English, group 2 = French
+            let name = caps
+                .get(1)
+                .or_else(|| caps.get(2))
+                .map(|m| m.as_str().trim().to_string())
+                .unwrap_or_default();
+            if !name.is_empty() && seen.insert(name.clone()) {
                 blueprints.push(name);
             }
         }
