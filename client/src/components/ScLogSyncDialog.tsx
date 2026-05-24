@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -10,14 +10,19 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
+import Switch from '@mui/material/Switch';
 import SyncIcon from '@mui/icons-material/Sync';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { useScLogSync } from '../hooks/useScLogSync';
+import { useScLogWatcher } from '../hooks/useScLogWatcher';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import type { ScLogSyncChannelResult } from '../hooks/useScLogSync';
+
+// ─── Channel row ──────────────────────────────────────────────────────────────
 
 function ChannelRow({
   label,
@@ -84,6 +89,63 @@ function ChannelRow({
   );
 }
 
+// ─── Section label ────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      variant="caption"
+      sx={{
+        display: 'block',
+        mb: 1,
+        color: 'text.secondary',
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        fontSize: '0.6rem',
+      }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+// ─── Setting row ──────────────────────────────────────────────────────────────
+
+function SettingRow({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.25 }}>
+      <Box>
+        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{label}</Typography>
+        {description && (
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem' }}>
+            {description}
+          </Typography>
+        )}
+      </Box>
+      <Switch
+        size="small"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+    </Box>
+  );
+}
+
+// ─── Main dialog ──────────────────────────────────────────────────────────────
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -91,22 +153,39 @@ interface Props {
 
 export function ScLogSyncDialog({ open, onClose }: Props) {
   const { t } = useI18n();
-  const { installPaths, status, error, live, ptu, sync, detectPaths } = useScLogSync();
   const { user } = useAuth();
+  const sync = useScLogSync();
+  const watcher = useScLogWatcher();
 
-  const isWorking = status === 'scanning' || status === 'syncing';
   const isLoggedIn = Boolean(user);
+  const isSyncing = sync.status === 'scanning' || sync.status === 'syncing';
 
-  const handleSync = () => {
-    void sync();
+  const livePath = sync.installPaths?.live ?? null;
+  const ptuPath = sync.installPaths?.ptu ?? null;
+
+  const handleSync = () => { void sync.sync(); };
+  const handleDetect = () => { void sync.detectPaths(); };
+
+  const handleWatcherToggle = async (enabled: boolean) => {
+    if (enabled && livePath) {
+      await watcher.start(livePath);
+      watcher.setAutoStart(true);
+    } else {
+      watcher.stop();
+      watcher.setAutoStart(false);
+    }
   };
 
-  const handleDetect = () => {
-    void detectPaths();
+  const handleAutoStartupToggle = async (enabled: boolean) => {
+    if (enabled) {
+      await watcher.enableAutoStartup();
+    } else {
+      await watcher.disableAutoStartup();
+    }
   };
 
   return (
-    <Dialog open={open} onClose={isWorking ? undefined : onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={isSyncing ? undefined : onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SyncIcon sx={{ fontSize: 18, color: 'primary.main' }} />
@@ -114,32 +193,73 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 0 }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, lineHeight: 1.5 }}>
-          {t(
-            'Scans your Star Citizen Game.log and logbackup files to detect blueprints you received as mission rewards, then syncs them to your LIVE and PTU inventories.',
-            'Analyse les fichiers Game.log et logbackups de Star Citizen pour détecter les blueprints reçus en récompense de missions, puis les synchronise dans vos inventaires LIVE et PTU.',
-          )}
-        </Typography>
+      <DialogContent sx={{ pt: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
 
-        <Box
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            p: 1.5,
-            mb: 2,
-          }}
-        >
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.6rem' }}>
-            {t('Detected installations', 'Installations détectées')}
-          </Typography>
-          <ChannelRow label="LIVE" path={installPaths?.live ?? null} result={live} />
-          <ChannelRow label="PTU" path={installPaths?.ptu ?? null} result={ptu} />
+        {/* Detected installations */}
+        <Box sx={{ border: '1px solid', borderColor: 'divider', p: 1.5 }}>
+          <SectionLabel>{t('Detected installations', 'Installations détectées')}</SectionLabel>
+          <ChannelRow label="LIVE" path={livePath} result={sync.live} />
+          <ChannelRow label="PTU" path={ptuPath} result={sync.ptu} />
         </Box>
 
-        {/* Not logged in warning */}
+        {/* Real-time watcher */}
+        <Box sx={{ border: '1px solid', borderColor: 'divider', p: 1.5 }}>
+          <SectionLabel>{t('Real-time sync', 'Synchronisation temps réel')}</SectionLabel>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            {watcher.running ? (
+              <>
+                <FiberManualRecordIcon sx={{ fontSize: 10, color: 'success.main', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
+                <Typography variant="caption" sx={{ color: 'success.main' }}>
+                  {t('Watching LIVE logs…', 'Surveillance des logs LIVE…')}
+                </Typography>
+                {watcher.newBlueprintCount > 0 && (
+                  <Chip
+                    label={t(`+${watcher.newBlueprintCount} new`, `+${watcher.newBlueprintCount} nouveaux`)}
+                    size="small"
+                    color="success"
+                    sx={{ height: 18, fontSize: '0.65rem' }}
+                  />
+                )}
+              </>
+            ) : (
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                {livePath
+                  ? t('Watcher inactive', 'Surveillance inactive')
+                  : t('No LIVE installation found', 'Aucune installation LIVE trouvée')}
+              </Typography>
+            )}
+          </Box>
+
+          <SettingRow
+            label={t('Watch LIVE logs in real-time', 'Surveiller les logs LIVE en temps réel')}
+            description={t(
+              'Detects new blueprints instantly when received in-game and syncs your inventory automatically.',
+              'Détecte les nouveaux blueprints instantanément en jeu et synchronise automatiquement votre inventaire.',
+            )}
+            checked={watcher.running}
+            disabled={!isLoggedIn || !livePath}
+            onChange={(v) => { void handleWatcherToggle(v); }}
+          />
+        </Box>
+
+        {/* Auto-startup */}
+        <Box sx={{ border: '1px solid', borderColor: 'divider', p: 1.5 }}>
+          <SectionLabel>{t('System', 'Système')}</SectionLabel>
+          <SettingRow
+            label={t('Launch at Windows startup', 'Lancer au démarrage de Windows')}
+            description={t(
+              'Start Item Fabricator automatically when Windows boots so the watcher is always active.',
+              'Démarre Item Fabricator automatiquement au démarrage de Windows pour que la surveillance soit toujours active.',
+            )}
+            checked={watcher.autoStartupEnabled}
+            onChange={(v) => { void handleAutoStartupToggle(v); }}
+          />
+        </Box>
+
+        {/* Auth warning */}
         {!isLoggedIn && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
             <ErrorOutlineIcon sx={{ fontSize: 16 }} />
             <Typography variant="caption">
               {t(
@@ -150,31 +270,29 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
           </Box>
         )}
 
-        {/* Status feedback */}
-        {isWorking && (
+        {/* One-shot scan status */}
+        {isSyncing && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
             <CircularProgress size={14} />
             <Typography variant="caption">
-              {status === 'scanning'
+              {sync.status === 'scanning'
                 ? t('Scanning log files…', 'Analyse des fichiers log…')
                 : t('Syncing to server…', 'Synchronisation vers le serveur…')}
             </Typography>
           </Box>
         )}
 
-        {status === 'done' && (
+        {sync.status === 'done' && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main' }}>
             <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">
-              {t('Sync complete.', 'Synchronisation terminée.')}
-            </Typography>
+            <Typography variant="caption">{t('Sync complete.', 'Synchronisation terminée.')}</Typography>
           </Box>
         )}
 
-        {status === 'error' && (
+        {sync.status === 'error' && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
             <ErrorOutlineIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">{error}</Typography>
+            <Typography variant="caption">{sync.error}</Typography>
           </Box>
         )}
       </DialogContent>
@@ -183,45 +301,79 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
         <Button
           size="small"
           onClick={handleDetect}
-          disabled={isWorking}
+          disabled={isSyncing}
           sx={{ mr: 'auto', fontSize: '0.75rem' }}
         >
-          {t('Re-detect paths', 'Re-détecter les chemins')}
+          {t('Re-detect', 'Re-détecter')}
         </Button>
-        <Button onClick={onClose} disabled={isWorking} size="small">
+        <Button onClick={onClose} disabled={isSyncing} size="small">
           {t('Close', 'Fermer')}
         </Button>
-        <Button
-          variant="contained"
-          onClick={handleSync}
-          disabled={isWorking || !isLoggedIn || (!installPaths?.live && !installPaths?.ptu)}
-          size="small"
-          startIcon={isWorking ? <CircularProgress size={13} /> : <SyncIcon />}
-        >
-          {t('Scan & Sync', 'Scanner et synchroniser')}
-        </Button>
+        <Tooltip title={!isLoggedIn ? t('Login required', 'Connexion requise') : ''}>
+          <span>
+            <Button
+              variant="contained"
+              onClick={handleSync}
+              disabled={isSyncing || !isLoggedIn || (!livePath && !ptuPath)}
+              size="small"
+              startIcon={isSyncing ? <CircularProgress size={13} /> : <SyncIcon />}
+            >
+              {t('Full scan & sync', 'Scan complet')}
+            </Button>
+          </span>
+        </Tooltip>
       </DialogActions>
     </Dialog>
   );
 }
 
+// ─── Header button ────────────────────────────────────────────────────────────
+
 export function ScLogSyncButton() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const { newBlueprintCount, autoStartEnabled, running, start } = useScLogWatcher();
+  const { installPaths } = useScLogSync();
+
+  // Auto-start watcher on mount if preference is saved and LIVE path is known
+  useEffect(() => {
+    if (autoStartEnabled && !running && installPaths?.live) {
+      void start(installPaths.live);
+    }
+  // Only run once when paths are first resolved
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [installPaths?.live]);
 
   return (
     <>
-      <Tooltip title={t('Sync blueprints from SC logs', 'Synchroniser les blueprints depuis les logs SC')}>
-        <IconButton
-          onClick={() => setOpen(true)}
-          size="small"
-          aria-label={t('Sync blueprints from SC logs', 'Synchroniser les blueprints depuis les logs SC')}
-          sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-        >
-          <SyncIcon sx={{ fontSize: 18 }} />
-        </IconButton>
+      <Tooltip title={t('SC log sync', 'Sync logs SC')}>
+        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+          <IconButton
+            onClick={() => setOpen(true)}
+            size="small"
+            aria-label={t('Sync blueprints from SC logs', 'Synchroniser les blueprints depuis les logs SC')}
+            sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+          >
+            <SyncIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+          {newBlueprintCount > 0 && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: 'success.main',
+                border: '1.5px solid',
+                borderColor: 'background.default',
+              }}
+            />
+          )}
+        </Box>
       </Tooltip>
-      {open && <ScLogSyncDialog open onClose={() => setOpen(false)} />}
+      {open && <ScLogSyncDialog open onClose={() => { setOpen(false); }} />}
     </>
   );
 }
