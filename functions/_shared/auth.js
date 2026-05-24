@@ -17,6 +17,16 @@ import {
   sanitizeReturnTo,
 } from '../../shared/discordAuth.mjs';
 import {
+  buildCitizenIdAuthorizationUrl,
+  buildCitizenIdCallbackErrorRedirect,
+  buildExpiredCitizenIdStateCookie,
+  createCitizenIdStateCookie,
+  exchangeCitizenIdCode,
+  fetchCitizenIdRsiProfile,
+  isCitizenIdAuthConfigured,
+  readCitizenIdStateFromCookies,
+} from '../../shared/citizenIdAuth.mjs';
+import {
   clearRsiAccountLink,
   copyLiveAccountScopeToPtu,
   createBucketAccountStore,
@@ -232,7 +242,10 @@ function craftRequestErrorResponse(error, fallbackMessage) {
 
 export async function handleAuthSessionRequest(request, env) {
   const session = await readSessionFromCookies(request.headers.get('cookie'), env);
-  return noStoreJson(buildAuthSessionPayload(env, session));
+  return noStoreJson({
+    ...buildAuthSessionPayload(env, session),
+    citizenIdRsiLinkEnabled: isCitizenIdAuthConfigured(env),
+  });
 }
 
 export async function handleDiscordLoginRequest(request, env) {
@@ -295,6 +308,72 @@ export async function handleDiscordCallbackRequest(request, env) {
         cookies: [expiredStateCookie, expiredSessionCookie],
       },
     );
+  }
+}
+
+export async function handleCitizenIdLoginRequest(request, env) {
+  if (!isCitizenIdAuthConfigured(env)) {
+    return errorResponse(503, 'Citizen iD auth is not configured.');
+  }
+
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+
+  const requestUrl = new URL(request.url);
+  const returnTo = sanitizeReturnTo(requestUrl.searchParams.get('returnTo'));
+  const { state, cookie } = await createCitizenIdStateCookie(request, env, returnTo);
+  const authorizationUrl = buildCitizenIdAuthorizationUrl(request, env, state);
+
+  return redirectResponse(authorizationUrl, {
+    cookies: [cookie],
+  });
+}
+
+export async function handleCitizenIdCallbackRequest(request, env) {
+  if (!isCitizenIdAuthConfigured(env)) {
+    return errorResponse(503, 'Citizen iD auth is not configured.');
+  }
+
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
+  const state = requestUrl.searchParams.get('state');
+  const oauthState = await readCitizenIdStateFromCookies(request.headers.get('cookie'), env);
+  const expiredStateCookie = buildExpiredCitizenIdStateCookie(request, env);
+  const returnTo = oauthState?.returnTo ?? '/';
+
+  if (!code || !state || !oauthState || oauthState.nonce !== state) {
+    return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
+      cookies: [expiredStateCookie],
+    });
+  }
+
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, 'Authentication required.'), {
+      cookies: [expiredStateCookie],
+    });
+  }
+
+  try {
+    const tokenPayload = await exchangeCitizenIdCode(request, env, code);
+    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token);
+    const accountStore = getAccountStore(request, env);
+    await ensureAccountForSession(accountStore, session);
+    await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+
+    return redirectResponse(returnTo, {
+      cookies: [expiredStateCookie],
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'citizenid_oauth_failed';
+    return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, message), {
+      cookies: [expiredStateCookie],
+    });
   }
 }
 

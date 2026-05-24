@@ -74,6 +74,7 @@ interface AuthState {
   loading: boolean;
   user: AuthenticatedUser | null;
   provider: 'discord' | null;
+  citizenIdRsiLinkEnabled: boolean;
   account: StoredAccount | null;
   optimisticState: OptimisticAccountState;
   pendingMutationCount: number;
@@ -1557,6 +1558,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       user: session.user,
       provider: session.provider,
+      citizenIdRsiLinkEnabled: Boolean(session.citizenIdRsiLinkEnabled),
       account,
       optimisticState,
       pendingMutationCount: pendingMutations.length,
@@ -1622,6 +1624,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       respondToCraftRequestBinding,
       session.enabled,
       session.provider,
+      session.citizenIdRsiLinkEnabled,
       session.user,
       setOrganizationBlueprintSharingBinding,
       syncAccountState,

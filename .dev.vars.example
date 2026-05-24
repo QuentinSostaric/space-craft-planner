@@ -19,3 +19,11 @@ STARCITIZEN_API_KEY=<starcitizen-api-key>
 # Optional overrides:
 # DISCORD_OAUTH_SCOPES=identify
 # DISCORD_REDIRECT_URI=http://localhost:5173/api/auth/discord/callback
+
+# Optional Citizen iD RSI link flow
+# Register http://localhost:5173/api/auth/citizenid/callback in Citizen iD.
+CITIZENID_CLIENT_ID=<citizenid-client-id>
+CITIZENID_CLIENT_SECRET=<citizenid-client-secret>
+# Optional overrides:
+# CITIZENID_OAUTH_SCOPES=openid rsi.profile
+# CITIZENID_REDIRECT_URI=http://localhost:5173/api/auth/citizenid/callback
