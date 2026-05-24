@@ -3,15 +3,6 @@ compatibility_date = "2024-09-23"
 
 pages_build_output_dir = "client/dist"
 
-[vars]
-DISCORD_BOT_WORKER_URL = "<discord-bot-worker-url>"
-DISCORD_CLIENT_ID = "<discord-client-id>"
-
-[env.preview.vars]
-DISCORD_BOT_WORKER_URL = "<discord-bot-worker-url>"
-DISCORD_CLIENT_ID = "<discord-client-id>"
-CITIZENID_ORIGIN = "<citizenid-origin>"
-
 [[r2_buckets]]
 binding = "GAME_DATA_PROD"
 bucket_name = "sc-craft-game-data"

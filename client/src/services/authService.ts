@@ -219,8 +219,6 @@ export interface StoredAccount {
   lastLoginAt: string | null;
 }
 
-const DISCORD_BOT_INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=<discord-client-id>';
-
 export interface AccountStateSnapshot {
   favoriteBlueprintIds: string[];
   inventoryBlueprintIds: string[];
@@ -551,5 +549,5 @@ export function getCitizenIdRsiLinkUrl(returnTo?: string): string {
 }
 
 export function getDiscordBotInviteUrl(): string {
-  return DISCORD_BOT_INVITE_URL;
+  return getApiUrl('/api/auth/discord/bot-invite');
 }

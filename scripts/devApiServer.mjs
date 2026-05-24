@@ -413,6 +413,18 @@ async function handleDiscordLogin(request, response, url) {
   });
 }
 
+function handleDiscordBotInvite(response) {
+  const clientId = String(process.env.DISCORD_CLIENT_ID ?? '').trim();
+  if (!clientId) {
+    sendError(response, 503, 'Discord bot invite is not configured.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  sendRedirect(response, `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}`);
+}
+
 async function handleDiscordCallback(request, response, url) {
   if (!isDiscordAuthConfigured(process.env)) {
     sendError(response, 503, 'Discord auth is not configured.', {
@@ -1408,6 +1420,11 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === 'GET' && path === '/api/auth/discord/login') {
       await handleDiscordLogin(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && path === '/api/auth/discord/bot-invite') {
+      handleDiscordBotInvite(response);
       return;
     }
 

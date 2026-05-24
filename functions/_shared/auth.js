@@ -269,6 +269,15 @@ export async function handleDiscordLoginRequest(request, env) {
   });
 }
 
+export function handleDiscordBotInviteRequest(env) {
+  const clientId = String(env?.DISCORD_CLIENT_ID ?? '').trim();
+  if (!clientId) {
+    return errorResponse(503, 'Discord bot invite is not configured.');
+  }
+
+  return redirectResponse(`https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}`);
+}
+
 export async function handleDiscordCallbackRequest(request, env) {
   if (!isDiscordAuthConfigured(env)) {
     return errorResponse(503, 'Discord auth is not configured.');
