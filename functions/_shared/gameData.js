@@ -26,8 +26,10 @@ export function publicApiJsonResponse(payload, init = {}) {
   return jsonResponse(payload, { ...init, headers });
 }
 
-const PAGES_PROJECT_HOSTNAME = 'space-craft-planner.pages.dev';
-const PREVIEW_HOSTNAME = `preview.${PAGES_PROJECT_HOSTNAME}`;
+const PAGES_PROJECT_HOSTNAMES = ['itemfab.pages.dev', 'space-craft-planner.pages.dev'];
+const PREVIEW_HOSTNAMES = new Set(
+  PAGES_PROJECT_HOSTNAMES.map((hostname) => `preview.${hostname}`),
+);
 const LOCAL_DATASET_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 function getAllowedUnpublishedDatasetHosts(env) {
@@ -46,11 +48,15 @@ function getAllowedUnpublishedDatasetHosts(env) {
 }
 
 function isPagesPreviewHostname(hostname) {
-  if (hostname === PREVIEW_HOSTNAME) {
+  if (PREVIEW_HOSTNAMES.has(hostname)) {
     return true;
   }
 
-  return hostname.endsWith(`.${PAGES_PROJECT_HOSTNAME}`) && hostname !== PAGES_PROJECT_HOSTNAME;
+  return PAGES_PROJECT_HOSTNAMES.some(
+    (projectHostname) =>
+      hostname.endsWith(`.${projectHostname}`) &&
+      hostname !== projectHostname,
+  );
 }
 
 export function shouldExposeUnpublishedDatasets(request, env) {

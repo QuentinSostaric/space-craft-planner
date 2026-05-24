@@ -11,17 +11,25 @@ function getHostnameFromRequest(request) {
 }
 
 function isPreviewHostname(hostname) {
+  const pagesProjectHostnames = [
+    'itemfab.pages.dev',
+    'space-craft-planner.pages.dev',
+  ];
+
   return (
     hostname.startsWith('preview.') ||
-    (hostname.endsWith('.space-craft-planner.pages.dev') &&
-      hostname !== 'space-craft-planner.pages.dev')
+    pagesProjectHostnames.some(
+      (projectHostname) =>
+        hostname.endsWith(`.${projectHostname}`) &&
+        hostname !== projectHostname,
+    )
   );
 }
 
 export function resolveRuntimeStorageScope(env, request = null) {
   const branch = normalizeText(env?.CF_PAGES_BRANCH).toLowerCase();
   if (branch) {
-    return branch === 'main' ? 'prod' : 'dev';
+    return branch === 'production' || branch === 'prod' ? 'prod' : 'dev';
   }
 
   const hostname = getHostnameFromRequest(request);
