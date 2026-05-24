@@ -25,6 +25,7 @@ import { Header } from './components/Header';
 import { NavRail } from './components/NavRail';
 import { Footer } from './components/Footer';
 import { AppUpdateSnackbar } from './components/AppUpdateSnackbar';
+import { AppUpdateContext, useAppUpdateState } from './hooks/useAppUpdate';
 import { useCraft } from './store/CraftContext';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
@@ -839,6 +840,17 @@ function AppShell() {
   );
 }
 
+function AppUpdateProviderInner() {
+  const updateState = useAppUpdateState();
+  return (
+    <AppUpdateContext.Provider value={updateState}>
+      <AccountStateSync />
+      <AppShell />
+      <AppUpdateSnackbar />
+    </AppUpdateContext.Provider>
+  );
+}
+
 function AppContent() {
   const [themeMode, setThemeMode] = useTheme();
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
@@ -895,9 +907,7 @@ function AppContent() {
       <I18nProvider>
         <AuthProvider>
           <CraftProvider>
-            <AccountStateSync />
-            <AppShell />
-            <AppUpdateSnackbar />
+            <AppUpdateProviderInner />
           </CraftProvider>
         </AuthProvider>
       </I18nProvider>
