@@ -17,7 +17,9 @@ jobs:
       matrix:
         include:
           - platform: windows-latest
-            args: --target x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc --bundles nsis
+          - platform: ubuntu-24.04
+            args: --bundles appimage,deb
 
     runs-on: ${{ matrix.platform }}
 
@@ -30,8 +32,22 @@ jobs:
           cache: 'npm'
 
       - uses: dtolnay/rust-toolchain@stable
+        if: runner.os == 'Windows'
         with:
           targets: x86_64-pc-windows-msvc
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: runner.os == 'Linux'
+
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
