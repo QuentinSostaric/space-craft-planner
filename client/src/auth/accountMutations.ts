@@ -977,13 +977,20 @@ function normalizePersistedMutation(value: unknown): PersistedAccountMutation | 
 export function resolveClientStorageScope(origin = window.location.origin): 'prod' | 'dev' {
   try {
     const hostname = new URL(origin).hostname.toLowerCase();
+    const pagesProjectHostnames = [
+      'itemfab.pages.dev',
+      'space-craft-planner.pages.dev',
+    ];
     if (
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
       hostname.endsWith('.local') ||
       hostname.startsWith('preview.') ||
-      (hostname.endsWith('.space-craft-planner.pages.dev') &&
-        hostname !== 'space-craft-planner.pages.dev')
+      pagesProjectHostnames.some(
+        (projectHostname) =>
+          hostname.endsWith(`.${projectHostname}`) &&
+          hostname !== projectHostname,
+      )
     ) {
       return 'dev';
     }
