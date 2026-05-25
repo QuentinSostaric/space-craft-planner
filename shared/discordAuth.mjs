@@ -12,7 +12,8 @@ const DEFAULT_RETURN_TO = '/';
 const DEFAULT_DISCORD_SCOPES = ['identify'];
 
 // Allowed desktop app origins for cross-origin auth flows
-const DESKTOP_ALLOWED_ORIGINS = ['https://tauri.localhost'];
+// http://localhost covers Tauri dev mode (webview at http://localhost:5173)
+const DESKTOP_ALLOWED_ORIGINS = ['https://tauri.localhost', 'http://localhost'];
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

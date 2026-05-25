@@ -256,11 +256,10 @@ export async function handleDiscordLoginRequest(request, env) {
   }
 
   const requestUrl = new URL(request.url);
-  // Desktop app: always redirect back to tauri.localhost after OAuth regardless
-  // of the returnTo param (relative paths would land on the real website).
-  const rawReturnTo = isDesktopRequest(request)
-    ? 'https://tauri.localhost/'
-    : requestUrl.searchParams.get('returnTo');
+  // Prefer client-provided returnTo (covers Tauri dev mode at http://localhost:5173).
+  // Fall back to tauri.localhost for production desktop requests that send no returnTo.
+  const rawReturnTo = requestUrl.searchParams.get('returnTo')
+    || (isDesktopRequest(request) ? 'https://tauri.localhost/' : null);
   const returnTo = sanitizeReturnTo(rawReturnTo);
   const { state, cookie } = await createOauthStateCookie(request, env, returnTo);
   const authorizationUrl = buildDiscordAuthorizationUrl(request, env, state);

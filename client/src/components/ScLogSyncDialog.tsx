@@ -21,7 +21,7 @@ import { useScLogSync } from '../hooks/useScLogSync';
 import { useScLogWatcher } from '../hooks/useScLogWatcher';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
-import type { ScLogSyncChannelResult } from '../hooks/useScLogSync';
+import type { ScLogSyncChannelResult, ScLogSyncState } from '../hooks/useScLogSync';
 
 // ─── Channel row ──────────────────────────────────────────────────────────────
 
@@ -150,17 +150,18 @@ function SettingRow({
 interface Props {
   open: boolean;
   onClose: () => void;
+  sync: ScLogSyncState;
 }
 
-export function ScLogSyncDialog({ open, onClose }: Props) {
+export function ScLogSyncDialog({ open, onClose, sync }: Props) {
   const { t } = useI18n();
   const { user } = useAuth();
-  const sync = useScLogSync();
   const watcher = useScLogWatcher();
   const [watcherError, setWatcherError] = useState<string | null>(null);
 
   const isLoggedIn = Boolean(user);
   const isSyncing = sync.status === 'scanning' || sync.status === 'syncing';
+  const isDetecting = sync.detecting;
 
   const livePath = sync.installPaths?.live ?? null;
   const ptuPath = sync.installPaths?.ptu ?? null;
@@ -201,9 +202,19 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
 
         {/* Detected installations */}
         <Box sx={{ border: '1px solid', borderColor: 'divider', p: 1.5 }}>
-          <SectionLabel>{t('Detected installations', 'Installations détectées')}</SectionLabel>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SectionLabel>{t('Detected installations', 'Installations détectées')}</SectionLabel>
+            {isDetecting && <CircularProgress size={11} sx={{ mb: 1 }} />}
+          </Box>
           <ChannelRow label="LIVE" path={livePath} result={sync.live} />
           <ChannelRow label="PTU" path={ptuPath} result={sync.ptu} />
+          {sync.detectError && (
+            <Box sx={{ mt: 0.5, p: 0.75, bgcolor: 'error.dark', borderRadius: 0 }}>
+              <Typography variant="caption" sx={{ color: 'error.contrastText', fontFamily: 'monospace', fontSize: '0.6rem', wordBreak: 'break-all' }}>
+                {`[debug] ${sync.detectError}`}
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Real-time watcher */}
@@ -318,7 +329,8 @@ export function ScLogSyncDialog({ open, onClose }: Props) {
         <Button
           size="small"
           onClick={handleDetect}
-          disabled={isSyncing}
+          disabled={isSyncing || isDetecting}
+          startIcon={isDetecting ? <CircularProgress size={13} /> : undefined}
           sx={{ mr: 'auto', fontSize: '0.75rem' }}
         >
           {t('Re-detect', 'Re-détecter')}
@@ -350,14 +362,14 @@ export function ScLogSyncButton() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const { newBlueprintCount, autoStartEnabled, running, start } = useScLogWatcher();
-  const { installPaths } = useScLogSync();
+  const sync = useScLogSync();
 
   // Auto-start watcher on mount if preference is saved and LIVE path is known
   useEffect(() => {
-    if (autoStartEnabled && !running && installPaths?.live) {
-      void start(installPaths.live);
+    if (autoStartEnabled && !running && sync.installPaths?.live) {
+      void start(sync.installPaths.live);
     }
-  }, [autoStartEnabled, installPaths?.live, running, start]);
+  }, [autoStartEnabled, sync.installPaths?.live, running, start]);
 
   return (
     <>
@@ -400,7 +412,7 @@ export function ScLogSyncButton() {
           )}
         </Box>
       </Tooltip>
-      {open && <ScLogSyncDialog open onClose={() => { setOpen(false); }} />}
+      {open && <ScLogSyncDialog open onClose={() => { setOpen(false); }} sync={sync} />}
     </>
   );
 }

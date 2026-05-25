@@ -111,7 +111,10 @@ fn find_paths_from_launcher_log() -> Vec<PathBuf> {
         Ok(b) => b,
         Err(_) => return vec![],
     };
-    let content = String::from_utf8_lossy(&bytes);
+    let raw_content = String::from_utf8_lossy(&bytes);
+    // The RSI Launcher writes paths as JSON-encoded strings with escaped backslashes (e.g. E:\\SC\\...).
+    // Normalize double backslashes to single before applying the path regex.
+    let content = raw_content.replace(r"\\", r"\");
 
     let re = match Regex::new(
         r#"([a-zA-Z]:\\(?:[^\\:*?"<>|\r\n]+\\)*StarCitizen\\[A-Za-z0-9_.@-]+)"#,

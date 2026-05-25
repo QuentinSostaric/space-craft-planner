@@ -3,6 +3,9 @@
   "identifier": "default",
   "description": "Default desktop permissions",
   "windows": ["main"],
+  "remote": {
+    "urls": ["https://itemfab.space/*"]
+  },
   "permissions": [
     "core:default",
     "updater:default",

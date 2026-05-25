@@ -26,6 +26,8 @@ export interface ScLogSyncChannelResult {
 export interface ScLogSyncState {
   available: boolean;
   installPaths: ScInstallPaths | null;
+  detecting: boolean;
+  detectError: string | null;
   status: ScLogSyncStatus;
   error: string | null;
   live: ScLogSyncChannelResult | null;
@@ -47,18 +49,34 @@ export function useScLogSync(): ScLogSyncState {
   const { user, refreshSession, setAccountDatasetScope, accountDatasetScope } = useAuth();
 
   const [installPaths, setInstallPaths] = useState<ScInstallPaths | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
   const [status, setStatus] = useState<ScLogSyncStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState<ScLogSyncChannelResult | null>(null);
   const [ptu, setPtu] = useState<ScLogSyncChannelResult | null>(null);
 
   const detectPaths = useCallback(async () => {
-    if (!available) return;
+    if (!available) {
+      setDetectError('isTauriRuntime() = false — invoke unavailable');
+      return;
+    }
+    setDetecting(true);
+    setDetectError(null);
     try {
       const paths = await invoke<ScInstallPaths>('detect_sc_install_paths');
+      console.log('[useScLogSync] detect result:', JSON.stringify(paths));
       setInstallPaths(paths);
+      if (!paths.live && !paths.ptu) {
+        setDetectError('invoke OK but live=null, ptu=null — paths not found by Rust');
+      }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[useScLogSync] detect_sc_install_paths failed:', e);
+      setDetectError(`invoke error: ${msg}`);
       setInstallPaths({ live: null, ptu: null });
+    } finally {
+      setDetecting(false);
     }
   }, [available]);
 
@@ -165,5 +183,5 @@ export function useScLogSync(): ScLogSyncState {
     refreshSession,
   ]);
 
-  return { available, installPaths, status, error, live, ptu, sync, detectPaths };
+  return { available, installPaths, detecting, detectError, status, error, live, ptu, sync, detectPaths };
 }
