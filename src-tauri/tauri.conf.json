@@ -49,7 +49,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYzOUNDRUNCNTIzM0FFQTMKUldTanJqTlN5ODZjWXd6WWJ3M2FIbm5ZM1VCNHJtOHdsR1Z2aFhFMGFtRDFrNlk1TW50VFpHSzMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyNjNCMDFDNkY4NjY2RjQKUldUMFpvWnZITEJqTXBGNUZ3NVhvQ1pvVlZxbTNmOW5GMm82am5jNkpITkh1dU1sMGlyNlp6NnkK",
       "endpoints": [
         "https://github.com/QuentinSostaric/space-craft-planner/releases/latest/download/latest.json"
       ],
