@@ -76,7 +76,8 @@ function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKe
 }
 
 function roundStatValue(value: number): number {
-  return Number.isInteger(value) ? value : Math.round(value * 100) / 100;
+  // 6 decimal places: eliminates float noise without losing % precision (UI formats separately).
+  return Number.isInteger(value) ? value : Math.round(value * 1000000) / 1000000;
 }
 
 
