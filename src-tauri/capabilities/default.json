@@ -9,6 +9,15 @@
   "permissions": [
     "core:default",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "allow-fetch-api-json",
+    "allow-detect-sc-install-paths",
+    "allow-scan-blueprints-from-logs",
+    "allow-start-log-watcher",
+    "allow-stop-log-watcher",
+    "allow-get-watcher-status",
+    "allow-enable-auto-startup",
+    "allow-disable-auto-startup",
+    "allow-is-auto-startup-enabled"
   ]
 }

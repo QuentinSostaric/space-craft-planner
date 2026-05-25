@@ -1,0 +1,44 @@
+[[permission]]
+identifier = "allow-fetch-api-json"
+description = "Enables the fetch_api_json command."
+commands.allow = ["fetch_api_json"]
+
+[[permission]]
+identifier = "allow-detect-sc-install-paths"
+description = "Enables the detect_sc_install_paths command."
+commands.allow = ["detect_sc_install_paths"]
+
+[[permission]]
+identifier = "allow-scan-blueprints-from-logs"
+description = "Enables the scan_blueprints_from_logs command."
+commands.allow = ["scan_blueprints_from_logs"]
+
+[[permission]]
+identifier = "allow-start-log-watcher"
+description = "Enables the start_log_watcher command."
+commands.allow = ["start_log_watcher"]
+
+[[permission]]
+identifier = "allow-stop-log-watcher"
+description = "Enables the stop_log_watcher command."
+commands.allow = ["stop_log_watcher"]
+
+[[permission]]
+identifier = "allow-get-watcher-status"
+description = "Enables the get_watcher_status command."
+commands.allow = ["get_watcher_status"]
+
+[[permission]]
+identifier = "allow-enable-auto-startup"
+description = "Enables the enable_auto_startup command."
+commands.allow = ["enable_auto_startup"]
+
+[[permission]]
+identifier = "allow-disable-auto-startup"
+description = "Enables the disable_auto_startup command."
+commands.allow = ["disable_auto_startup"]
+
+[[permission]]
+identifier = "allow-is-auto-startup-enabled"
+description = "Enables the is_auto_startup_enabled command."
+commands.allow = ["is_auto_startup_enabled"]
