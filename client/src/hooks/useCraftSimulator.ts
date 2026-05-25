@@ -79,17 +79,6 @@ function roundStatValue(value: number): number {
   return Number.isInteger(value) ? value : Math.round(value * 100) / 100;
 }
 
-function applyModifierValue(
-  currentValue: number,
-  modifier: { modifierType: 'multiplier' | 'additive'; value: number },
-  occurrenceCount: number,
-): number {
-  if (modifier.modifierType === 'additive') {
-    return currentValue + Math.floor(modifier.value) * occurrenceCount;
-  }
-
-  return currentValue * Math.pow(modifier.value, occurrenceCount);
-}
 
 /** Project all base stats through slot GPP modifiers. Only stats present in baseStats are projected. */
 export function calcProjectedStats(
@@ -97,6 +86,9 @@ export function calcProjectedStats(
   assignments: Record<string, number | undefined>,
 ): ItemStats {
   const result: ItemStats = { ...blueprint.baseStats };
+  // Multiplier modifiers are accumulated additively: Σ(modifier - 1) per stat,
+  // then applied as base × (1 + Σdelta). This matches the game's behaviour.
+  const multiplierDeltas: Partial<Record<NumericItemStatKey, number>> = {};
 
   for (const slot of blueprint.slots) {
     const qualityValue = assignments[slot.id];
@@ -111,15 +103,22 @@ export function calcProjectedStats(
       const occurrenceCount = mod.occurrenceCount ?? 1;
 
       for (const statKey of targets) {
-        const currentValue =
-          typeof result[statKey] === 'number'
-            ? result[statKey]
-            : modifier.modifierType === 'additive'
-              ? 0
-              : 1;
-        result[statKey] = applyModifierValue(currentValue, modifier, occurrenceCount);
+        if (modifier.modifierType === 'additive') {
+          const currentValue = typeof result[statKey] === 'number' ? result[statKey] : 0;
+          result[statKey] = currentValue + Math.floor(modifier.value) * occurrenceCount;
+        } else {
+          // Accumulate delta (modifier - 1) for additive composition across slots
+          const delta = (modifier.value - 1) * occurrenceCount;
+          multiplierDeltas[statKey] = (multiplierDeltas[statKey] ?? 0) + delta;
+        }
       }
     }
+  }
+
+  // Apply accumulated multiplier deltas
+  for (const [statKey, totalDelta] of Object.entries(multiplierDeltas) as [NumericItemStatKey, number][]) {
+    const baseValue = typeof result[statKey] === 'number' ? result[statKey] : 1;
+    result[statKey] = baseValue * (1 + totalDelta);
   }
 
   for (const statKey of NUMERIC_ITEM_STAT_KEYS) {
