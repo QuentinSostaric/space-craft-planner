@@ -26,6 +26,9 @@ import { AppGlyph } from './ui/AppGlyph';
 import { Panel } from './ui/Panel';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
+import { useAuth } from '../auth/AuthContext';
+import { isTauriRuntime } from '../services/apiBaseUrl';
+import { SyncBlueprintsButton } from './ScLogSyncDialog';
 import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
 import {
   buildShipComponentCardModel,
@@ -234,8 +237,12 @@ export function BlueprintExplorer() {
   } = useCraft();
   const { lang, t } = useI18n();
   const theme = useTheme();
+  const { user } = useAuth();
+  const isDesktop = isTauriRuntime();
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const showSyncButton = isDesktop && Boolean(user);
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>();
@@ -661,6 +668,13 @@ export function BlueprintExplorer() {
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
+
+        {/* Sync button — desktop + logged in */}
+        {showSyncButton && (
+          <SyncBlueprintsButton
+            onSuccess={() => setLibrarySegment('inventory')}
+          />
+        )}
 
         {/* Spacer */}
         <Box sx={{ flex: '1 1 auto' }} />

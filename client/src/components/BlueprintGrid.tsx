@@ -20,7 +20,7 @@ import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 
-import { useCraft } from '../store/CraftContext';
+import { useCraft, DEFAULT_INVENTORY_IDS } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { CategoryBadge } from './ui/Badge';
@@ -30,6 +30,13 @@ import { MaterialChips } from './ui/MaterialChips';
 import { getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
+import { useAuth } from '../auth/AuthContext';
+import { isTauriRuntime } from '../services/apiBaseUrl';
+import { navigateToPath } from '../utils/slug';
+import { SyncBlueprintsButton } from './ScLogSyncDialog';
+import Button from '@mui/material/Button';
+import SyncIcon from '@mui/icons-material/Sync';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import {
   buildShipComponentCardModel,
   isDisplayableShipComponent,
@@ -291,7 +298,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   priority?: boolean;
   onSelect: (bp: Blueprint | null) => void;
   onToggleFavorite: (blueprintId: string) => void;
-  onToggleInventory: (blueprintId: string) => void;
+  onToggleInventory?: (blueprintId: string) => void;
   onAddToPlanner?: (blueprintId: string) => void;
 }) {
   const isActive = activeBlueprintId === blueprint.id;
@@ -493,12 +500,14 @@ export const BlueprintCard = memo(function BlueprintCard({
           icon={isFavorite ? <StarIcon /> : <StarBorderIcon />}
           color={isFavorite ? theme.palette.warning.main : undefined}
         />
-        <QuickActionBtn
-          active={isInInventory}
-          onClick={() => onToggleInventory(blueprint.id)}
-          label={t('Inventaire', 'Inventaire', 'Inventar')}
-          icon={isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
-        />
+        {onToggleInventory && (
+          <QuickActionBtn
+            active={isInInventory}
+            onClick={() => onToggleInventory(blueprint.id)}
+            label={t('Inventaire', 'Inventaire', 'Inventar')}
+            icon={isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
+          />
+        )}
         <QuickActionBtn
           onClick={() => onAddToPlanner?.(blueprint.id)}
           label={t('Planner', 'Planner', 'Planner')}
@@ -569,7 +578,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   prev.resources === next.resources &&
   prev.priority === next.priority &&
   prev.onToggleFavorite === next.onToggleFavorite &&
-  prev.onToggleInventory === next.onToggleInventory &&
+  (prev.onToggleInventory === next.onToggleInventory || (!prev.onToggleInventory && !next.onToggleInventory)) &&
   prev.onAddToPlanner === next.onAddToPlanner
 );
 
@@ -610,6 +619,14 @@ export function BlueprintGrid() {
     activeDataset,
   } = useCraft();
   const { t } = useI18n();
+  const { user } = useAuth();
+  const isDesktop = isTauriRuntime();
+
+  const defaultInventoryIdSet = useMemo(() => new Set<string>(DEFAULT_INVENTORY_IDS), []);
+  const hasOnlyDefaultInventory = useMemo(
+    () => inventoryIds.length === 0 || inventoryIds.every((id) => defaultInventoryIdSet.has(id)),
+    [inventoryIds, defaultInventoryIdSet],
+  );
 
   const resources = activeDataset.resources;
   const allShipComponents = activeDataset.shipComponents?.entries ?? [];
@@ -1078,6 +1095,68 @@ export function BlueprintGrid() {
                     ))}
                   </Box>
                 </Box>
+              )}
+            </Box>
+          )}
+
+          {/* ── Inventory sync CTA — shown when inventory has only default blueprints ── */}
+          {librarySegment === 'inventory' && hasOnlyDefaultInventory && (
+            <Box
+              sx={{
+                mt: 3,
+                py: { xs: 4, md: 5 },
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1.5,
+                border: '1px dashed',
+                borderColor: 'divider',
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                {t('Sync your game inventory', 'Synchronisez votre inventaire de jeu')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.disabled', maxWidth: 440 }}>
+                {isDesktop && Boolean(user)
+                  ? t(
+                      'Scan your Star Citizen game logs to automatically detect all blueprints you own.',
+                      'Analysez vos logs Star Citizen pour détecter automatiquement tous vos blueprints.',
+                    )
+                  : isDesktop && !user
+                    ? t(
+                        'Connect your Discord account on the Account page to enable game log sync.',
+                        'Connectez votre compte Discord sur la page Compte pour activer la synchronisation.',
+                      )
+                    : t(
+                        'Install the desktop app to sync blueprints directly from your Star Citizen logs.',
+                        'Installez l\'application de bureau pour synchroniser depuis vos logs Star Citizen.',
+                      )}
+              </Typography>
+              {isDesktop && Boolean(user) ? (
+                <SyncBlueprintsButton variant="contained" size="small" />
+              ) : isDesktop && !user ? (
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<SyncIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => navigateToPath('/account', { mainView: 'account' })}
+                  sx={{ fontWeight: 700 }}
+                >
+                  {t('Go to Account', 'Aller sur le Compte')}
+                </Button>
+              ) : (
+                <Button
+                  component="a"
+                  href="/api/desktop/latest-installer"
+                  variant="contained"
+                  size="small"
+                  startIcon={<DownloadOutlinedIcon sx={{ fontSize: 14 }} />}
+                  sx={{ fontWeight: 700 }}
+                >
+                  {t('Download desktop app', 'Télécharger l\'app bureau')}
+                </Button>
               )}
             </Box>
           )}

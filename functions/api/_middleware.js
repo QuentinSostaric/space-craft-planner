@@ -1,4 +1,4 @@
-const DESKTOP_ALLOWED_ORIGINS = new Set(['https://tauri.localhost']);
+const DESKTOP_ALLOWED_ORIGINS = new Set(['https://tauri.localhost', 'http://tauri.localhost']);
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',

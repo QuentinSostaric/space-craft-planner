@@ -84,7 +84,7 @@ const EMPTY_DATASET: GameDataset = {
   updatedAt: null,
 };
 
-const DEFAULT_INVENTORY_IDS = [
+export const DEFAULT_INVENTORY_IDS = [
   'bp_craft_behr_pistol_ballistic_01',
   'bp_craft_behr_pistol_ballistic_01_mag',
   'bp_craft_behr_rifle_ballistic_01',

@@ -20,6 +20,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { AccountStateSync } from './auth/AccountStateSync';
 import { useAuth } from './auth/AuthContext';
 import { CraftProvider } from './store/CraftContext';
+import { ScLogProvider } from './hooks/ScLogSyncContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { NavRail } from './components/NavRail';
@@ -907,7 +908,9 @@ function AppContent() {
       <I18nProvider>
         <AuthProvider>
           <CraftProvider>
-            <AppUpdateProviderInner />
+            <ScLogProvider>
+              <AppUpdateProviderInner />
+            </ScLogProvider>
           </CraftProvider>
         </AuthProvider>
       </I18nProvider>

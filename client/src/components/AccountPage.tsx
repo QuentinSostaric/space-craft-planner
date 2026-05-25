@@ -13,6 +13,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Link from '@mui/material/Link';
+import MuiButton from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Rating from '@mui/material/Rating';
@@ -54,7 +55,7 @@ import {
   type AccountInventoryResourceQuantityUnit,
   type AccountInventoryResourceEntry,
 } from '../services/authService';
-import { useCraft } from '../store/CraftContext';
+import { useCraft, DEFAULT_INVENTORY_IDS } from '../store/CraftContext';
 import {
   clampQualityValue,
   formatQualityLabel,
@@ -69,6 +70,14 @@ import { BlueprintCard } from './BlueprintGrid';
 import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { Button } from './ui/Button';
 import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { useScLog } from '../hooks/ScLogSyncContext';
+import { isTauriRuntime } from '../services/apiBaseUrl';
+import { SyncBlueprintsButton } from './ScLogSyncDialog';
+import Switch from '@mui/material/Switch';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 
 function readAuthError(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -186,6 +195,47 @@ function openDiscordBotInvite() {
   window.open(getDiscordBotInviteUrl(), '_blank', 'noopener,noreferrer');
 }
 
+function CitizenIdLogoMark({ size = 22 }: { size?: number }) {
+  const fontSize = Math.max(9, Math.round(size * 0.43));
+
+  return (
+    <Box
+      aria-hidden="true"
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        flexShrink: 0,
+        color: '#ffffff',
+        background: 'linear-gradient(135deg, #20232b 0%, #3b3d48 100%)',
+        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.24)',
+        fontFamily: FONT_DISPLAY,
+        fontWeight: 800,
+        fontSize,
+        lineHeight: 1,
+      }}
+    >
+      iD
+      <Box
+        component="span"
+        sx={{
+          position: 'absolute',
+          right: -1,
+          top: -1,
+          width: Math.max(7, Math.round(size * 0.34)),
+          height: Math.max(7, Math.round(size * 0.34)),
+          backgroundColor: '#ff4057',
+          clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
+        }}
+      />
+    </Box>
+  );
+}
+
 export function AccountPage() {
   const { t, lang } = useI18n();
   const {
@@ -231,6 +281,8 @@ export function AccountPage() {
     replaceLocalBlueprintCollections,
   } = useCraft();
   const theme = useTheme();
+  const isDesktop = isTauriRuntime();
+  const { sync, watcher } = useScLog();
   const authError = useMemo(() => readAuthError(), []);
   const deleteAction = useAsyncAction();
   const [assetFilter, setAssetFilter] = useState<AccountAssetFilter>('all');
@@ -288,6 +340,61 @@ export function AccountPage() {
   );
 
   const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'requests' | 'orgs' | 'settings'>('overview');
+
+  // Custom SC installation paths (settings tab)
+  const [customPaths, setCustomPaths] = useState<Array<{ id: string; label: string; path: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem('sc-custom-install-paths') ?? '[]'); } catch { return []; }
+  });
+  const [customPathInput, setCustomPathInput] = useState('');
+  const [customPathLabel, setCustomPathLabel] = useState<string>('LIVE');
+  const [watcherError, setWatcherError] = useState<string | null>(null);
+
+  const saveCustomPaths = (next: typeof customPaths) => {
+    setCustomPaths(next);
+    localStorage.setItem('sc-custom-install-paths', JSON.stringify(next));
+  };
+
+  const addCustomPath = () => {
+    const trimmedPath = customPathInput.trim();
+    if (!trimmedPath) return;
+    const next = [...customPaths, { id: `${Date.now()}`, label: customPathLabel, path: trimmedPath }];
+    saveCustomPaths(next);
+    setCustomPathInput('');
+  };
+
+  const removeCustomPath = (id: string) => {
+    saveCustomPaths(customPaths.filter((p) => p.id !== id));
+  };
+
+  const defaultInventoryIdSet = useMemo(() => new Set<string>(DEFAULT_INVENTORY_IDS), []);
+  const handleWatcherToggle = async (enabled: boolean) => {
+    setWatcherError(null);
+    const livePath = sync.installPaths?.live ?? null;
+    try {
+      if (enabled && livePath) {
+        await watcher.start(livePath);
+        watcher.setAutoStart(true);
+      } else {
+        watcher.stop();
+        watcher.setAutoStart(false);
+      }
+    } catch (err: unknown) {
+      setWatcherError(err instanceof Error ? err.message : 'Failed to toggle watcher.');
+    }
+  };
+
+  const handleAutoStartupToggle = async (enabled: boolean) => {
+    setWatcherError(null);
+    try {
+      if (enabled) {
+        await watcher.enableAutoStartup();
+      } else {
+        await watcher.disableAutoStartup();
+      }
+    } catch (err: unknown) {
+      setWatcherError(err instanceof Error ? err.message : 'Failed to update startup setting.');
+    }
+  };
 
   const favoriteSnapshotIds = account?.favoriteBlueprintIds ?? favoriteIds;
   const inventorySnapshotIds = account?.inventoryBlueprintIds ?? inventoryIds;
@@ -908,6 +1015,15 @@ export function AccountPage() {
     setRsiCopyFeedback(null);
     rsiAction.clearError();
     linkRsiAccountWithCitizenId(returnTo);
+  };
+
+  const handleStartRsiLink = () => {
+    if (citizenIdRsiLinkEnabled) {
+      handleCitizenIdRsiLink('/account');
+      return;
+    }
+
+    openRsiDialog();
   };
 
   const handleUnlinkRsiAccount = async () => {
@@ -1944,13 +2060,39 @@ export function AccountPage() {
                           {rsiUnlinkAction.busy ? t('…', '…', '…') : t('Unlink', 'Délier', 'Entknüpfen')}
                         </Button>
                       ) : (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={openRsiDialog}
+                        <MuiButton
+                          size="small"
+                          variant={citizenIdRsiLinkEnabled ? 'contained' : 'outlined'}
+                          onClick={handleStartRsiLink}
+                          startIcon={citizenIdRsiLinkEnabled ? (
+                            <CitizenIdLogoMark size={18} />
+                          ) : (
+                            <Box
+                              component="img"
+                              src={rsiLogoOfficial}
+                              alt=""
+                              sx={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 0.5 }}
+                            />
+                          )}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            justifySelf: 'end',
+                            ...(citizenIdRsiLinkEnabled
+                              ? {
+                                  px: 1.25,
+                                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.error.main} 100%)`,
+                                  color: '#fff',
+                                  '&:hover': {
+                                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.error.dark} 100%)`,
+                                  },
+                                }
+                              : null),
+                          }}
                         >
-                          {t('Link', 'Lier', 'Verknüpfen')}
-                        </Button>
+                          {citizenIdRsiLinkEnabled
+                            ? t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')
+                            : t('Manual RSI link', 'Lien RSI manuel', 'Manuelle RSI-Verknupfung')}
+                        </MuiButton>
                       )}
                     </Paper>
                   </Stack>
@@ -2054,6 +2196,9 @@ export function AccountPage() {
                     >
                       {t('Add resources', 'Ajouter des ressources', 'Ressourcen hinzufügen')}
                     </Button>
+                    {isDesktop && (
+                      <SyncBlueprintsButton variant="outlined" size="small" />
+                    )}
                   </Stack>
                 </Stack>
 
@@ -2158,8 +2303,10 @@ export function AccountPage() {
                       display: 'grid',
                       gridTemplateColumns: {
                         xs: '1fr',
-                        md: 'repeat(2, minmax(0, 1fr))',
-                        xl: 'repeat(3, minmax(0, 1fr))',
+                        sm: 'repeat(2, minmax(0, 1fr))',
+                        md: 'repeat(3, minmax(0, 1fr))',
+                        lg: 'repeat(5, minmax(0, 1fr))',
+                        xl: 'repeat(5, minmax(0, 1fr))',
                       },
                       gap: { xs: 1.25, sm: 1.5, md: 2 },
                     }}
@@ -2212,7 +2359,7 @@ export function AccountPage() {
                             priority={index < 8}
                             onSelect={(blueprint) => startTransition(() => setActiveBlueprint(blueprint))}
                             onToggleFavorite={handleToggleFavoriteBlueprint}
-                            onToggleInventory={handleToggleInventoryBlueprint}
+                            onToggleInventory={defaultInventoryIdSet.has(entry.blueprint.id) ? undefined : handleToggleInventoryBlueprint}
                           />
                         );
                       }
@@ -3072,6 +3219,177 @@ export function AccountPage() {
                 alignItems: 'start',
               }}
             >
+              {/* Desktop: Star Citizen installations */}
+              {isDesktop && (
+                <Paper variant="outlined" sx={{ p: 2.5 }}>
+                  <Stack spacing={2}>
+                    <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
+                      {t('Star Citizen installations', 'Installations Star Citizen', 'Star Citizen Installationen')}
+                    </Typography>
+
+                    {/* Auto-detected paths */}
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+                        {t('Detected', 'Détectées', 'Erkannt')}
+                      </Typography>
+                      <Stack spacing={0.75} sx={{ mt: 0.75 }}>
+                        {sync.installPaths?.live ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>LIVE</MuiButton>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
+                              <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                {sync.installPaths.live}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                            {sync.detecting
+                              ? t('Detecting…', 'Détection…', 'Erkenne…')
+                              : t('No LIVE installation found', 'Aucune installation LIVE détectée', 'Keine LIVE-Installation gefunden')}
+                          </Typography>
+                        )}
+                        {sync.installPaths?.ptu && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>PTU</MuiButton>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
+                              <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                {sync.installPaths.ptu}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {/* Custom paths */}
+                    {customPaths.length > 0 && (
+                      <Box>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+                          {t('Custom', 'Personnalisées', 'Benutzerdefiniert')}
+                        </Typography>
+                        <Stack spacing={0.75} sx={{ mt: 0.75 }}>
+                          {customPaths.map((cp) => (
+                            <Box key={cp.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>{cp.label}</MuiButton>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
+                                <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
+                                <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                  {cp.path}
+                                </Typography>
+                              </Box>
+                              <MuiButton
+                                size="small"
+                                sx={{ minWidth: 0, px: 0.5 }}
+                                onClick={() => removeCustomPath(cp.id)}
+                              >
+                                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                              </MuiButton>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {/* Add custom path */}
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem', display: 'block', mb: 0.75 }}>
+                        {t('Add installation', 'Ajouter une installation', 'Installation hinzufügen')}
+                      </Typography>
+                      <Stack direction="row" spacing={1} sx={{ mb: 0.75 }}>
+                        {(['LIVE', 'PTU', 'HOTFIX', 'TECH-PREVIEW', 'EVOCATI'] as const).map((label) => (
+                          <MuiButton
+                            key={label}
+                            size="small"
+                            variant={customPathLabel === label ? 'contained' : 'outlined'}
+                            onClick={() => setCustomPathLabel(label)}
+                            sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', px: 0.75, py: 0.25, minWidth: 0 }}
+                          >
+                            {label}
+                          </MuiButton>
+                        ))}
+                      </Stack>
+                      <Stack direction="row" spacing={1}>
+                        <TextField
+                          size="small"
+                          placeholder={t('Path to channel folder…', 'Chemin vers le dossier…', 'Pfad zum Channel-Ordner…')}
+                          value={customPathInput}
+                          onChange={(e) => setCustomPathInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') addCustomPath(); }}
+                          sx={{ flex: 1, '& .MuiInputBase-root': { fontSize: '0.75rem', fontFamily: FONT_MONO } }}
+                        />
+                        <MuiButton
+                          size="small"
+                          variant="outlined"
+                          onClick={addCustomPath}
+                          disabled={!customPathInput.trim()}
+                          startIcon={<AddOutlinedIcon sx={{ fontSize: 14 }} />}
+                        >
+                          {t('Add', 'Ajouter', 'Hinzufügen')}
+                        </MuiButton>
+                      </Stack>
+                    </Box>
+
+                    {/* Real-time watcher toggle */}
+                    <Divider />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.25 }}>
+                          {watcher.running && (
+                            <FiberManualRecordIcon sx={{ fontSize: 8, color: 'success.main', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.3 } } }} />
+                          )}
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {t('Watch LIVE logs in real-time', 'Surveiller les logs LIVE en temps réel', 'LIVE-Logs in Echtzeit überwachen')}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+                          {t(
+                            'Detects new blueprints instantly when received in-game.',
+                            'Détecte les nouveaux blueprints instantanément en jeu.',
+                            'Erkennt neue Blueprints sofort im Spiel.',
+                          )}
+                        </Typography>
+                      </Box>
+                      <Switch
+                        size="small"
+                        checked={watcher.running}
+                        disabled={!user || !sync.installPaths?.live}
+                        onChange={(e) => { void handleWatcherToggle(e.target.checked); }}
+                      />
+                    </Box>
+
+                    {/* Launch at startup */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {t('Launch at Windows startup', 'Lancer au démarrage de Windows', 'Bei Windows-Start starten')}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+                          {t(
+                            'Start automatically when Windows boots so the watcher is always active.',
+                            'Démarre automatiquement au démarrage de Windows.',
+                            'Startet automatisch beim Windows-Start.',
+                          )}
+                        </Typography>
+                      </Box>
+                      <Switch
+                        size="small"
+                        checked={watcher.autoStartupEnabled}
+                        onChange={(e) => { void handleAutoStartupToggle(e.target.checked); }}
+                      />
+                    </Box>
+
+                    {watcherError && (
+                      <Alert severity="error" variant="outlined">
+                        {watcherError}
+                      </Alert>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+
               {/* RSI Account link */}
               <Paper variant="outlined" sx={{ p: 2.5 }}>
                 <Stack spacing={1.5}>
@@ -3080,21 +3398,68 @@ export function AccountPage() {
                   </Typography>
 
                   {!account?.rsi?.handle && (
-                    <Button
-                      variant="secondary"
+                    <MuiButton
+                      variant={citizenIdRsiLinkEnabled ? 'contained' : 'outlined'}
                       fullWidth
-                      onClick={openRsiDialog}
-                      icon={(
+                      onClick={handleStartRsiLink}
+                      startIcon={citizenIdRsiLinkEnabled ? (
+                        <CitizenIdLogoMark />
+                      ) : (
                         <Box
                           component="img"
                           src={rsiLogoOfficial}
                           alt=""
-                          sx={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 0.5 }}
+                          sx={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 0.5 }}
                         />
                       )}
+                      sx={{
+                        justifyContent: 'flex-start',
+                        alignItems: 'center',
+                        px: 1.75,
+                        py: 1.2,
+                        minHeight: 54,
+                        ...(citizenIdRsiLinkEnabled
+                          ? {
+                              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.error.main} 100%)`,
+                              color: '#fff',
+                              boxShadow: `0 12px 28px ${alpha(theme.palette.error.main, 0.18)}`,
+                              '&:hover': {
+                                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.error.dark} 100%)`,
+                                boxShadow: `0 14px 32px ${alpha(theme.palette.error.main, 0.24)}`,
+                              },
+                            }
+                          : null),
+                      }}
                     >
-                      {t('Link RSI account', 'Lier le compte RSI', 'RSI-Konto verknupfen')}
-                    </Button>
+                      <Stack spacing={0.2} alignItems="flex-start" sx={{ minWidth: 0 }}>
+                        <Box component="span" sx={{ fontWeight: 800 }}>
+                          {citizenIdRsiLinkEnabled
+                            ? t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')
+                            : t('Verify RSI manually', 'Verifier RSI manuellement', 'RSI manuell verifizieren')}
+                        </Box>
+                        <Box
+                          component="span"
+                          sx={{
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            lineHeight: 1.25,
+                            color: citizenIdRsiLinkEnabled ? alpha('#fff', 0.78) : 'text.secondary',
+                          }}
+                        >
+                          {citizenIdRsiLinkEnabled
+                            ? t(
+                                'Sync RSI handle and organizations',
+                                'Synchronise le handle RSI et les organisations',
+                                'Synchronisiert RSI-Handle und Organisationen',
+                              )
+                            : t(
+                                'Alternative RSI verification method',
+                                'Methode alternative de verification RSI',
+                                'Alternative RSI-Verifizierungsmethode',
+                              )}
+                        </Box>
+                      </Stack>
+                    </MuiButton>
                   )}
 
                   {account?.rsi?.handle && (
@@ -4129,65 +4494,67 @@ export function AccountPage() {
         fullWidth
         maxWidth="sm"
         aria-labelledby="dialog-title-link-rsi"
+        PaperProps={{
+          sx: {
+            borderRadius: 1.5,
+            borderColor: alpha(theme.palette.primary.main, 0.26),
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: `0 24px 80px ${alpha('#020817', 0.62)}`,
+            overflow: 'hidden',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: alpha('#020817', 0.78),
+              backdropFilter: 'blur(2px)',
+            },
+          },
+        }}
       >
         <DialogTitle id="dialog-title-link-rsi">
-          {t('Link RSI account', 'Lier le compte RSI', 'RSI-Konto verknupfen')}
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Box
+              component="img"
+              src={rsiLogoOfficial}
+              alt=""
+              sx={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 0.75 }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h6" component="span" sx={{ display: 'block', fontWeight: 800 }}>
+                {t('Manual RSI verification', 'Verification RSI manuelle', 'Manuelle RSI-Verifizierung')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {t('Alternative verification method', 'Methode de verification alternative', 'Alternative Verifizierungsmethode')}
+              </Typography>
+            </Box>
+          </Stack>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ backgroundColor: alpha(theme.palette.background.default, 0.28) }}>
           <Stack spacing={2}>
+            <Alert severity="info" variant="outlined">
+              {t(
+                'Citizen iD is not available right now.',
+                'Citizen iD n est pas disponible pour le moment.',
+                'Citizen iD ist derzeit nicht verfuegbar.',
+              )}
+            </Alert>
+
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
-                'Copy the verification code, paste it into the short bio on your RSI profile, then enter your RSI handle below.',
-                'Copie le code de verification, colle-le dans la short bio de ton profil RSI, puis saisis ton handle RSI ci-dessous.',
-                'Kopiere den Verifizierungscode, füg ihn in die Kurzbiografie deines RSI-Profils ein und gib danach unten deinen RSI-Handle ein.',
+                'Paste this verification code into the short bio on your RSI profile, then enter the matching RSI handle below.',
+                'Colle ce code de verification dans la short bio de ton profil RSI, puis saisis le handle RSI correspondant ci-dessous.',
+                'Fuege diesen Verifizierungscode in die Kurzbiografie deines RSI-Profils ein und gib danach den passenden RSI-Handle unten ein.',
               )}
             </Typography>
 
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                borderColor: alpha(theme.palette.primary.main, 0.24),
-              }}
-            >
-              <Stack spacing={1.25}>
-                <Typography sx={{ color: 'text.secondary' }}>
-                  {t(
-                    'You can also link your RSI profile through Citizen iD if your Citizen iD account is already connected to RSI.',
-                    'Tu peux aussi lier ton profil RSI via Citizen iD si ton compte Citizen iD est deja connecte a RSI.',
-                    'Du kannst dein RSI-Profil auch über Citizen iD verknüpfen, wenn dein Citizen iD-Konto bereits mit RSI verbunden ist.',
-                  )}
-                </Typography>
-                <Box>
-                  <Button
-                    variant="secondary"
-                    onClick={() => { handleCitizenIdRsiLink(); }}
-                    disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
-                  >
-                    {t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')}
-                  </Button>
-                </Box>
-                {!citizenIdRsiLinkEnabled && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t(
-                      'Citizen iD linking is not configured yet.',
-                      'La liaison Citizen iD n est pas encore configuree.',
-                      'Citizen iD-Verknupfung ist noch nicht konfiguriert.',
-                    )}
-                  </Typography>
-                )}
-              </Stack>
-            </Paper>
-
-            <Divider />
-
-            <Typography sx={{ color: 'text.secondary' }}>
+            <Typography sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>
               <Link
                 href="https://robertsspaceindustries.com/en/account/profile"
                 target="_blank"
                 rel="noreferrer"
                 underline="hover"
+                sx={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}
               >
                 https://robertsspaceindustries.com/en/account/profile
               </Link>

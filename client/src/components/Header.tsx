@@ -20,7 +20,9 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import { alpha } from '@mui/material/styles';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
-import { useEffect, useMemo } from 'react';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import { useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useThemeMode } from '../hooks/ThemeContext';
@@ -34,7 +36,8 @@ import {
   resourcePathFromSlug,
 } from '../utils/slug';
 import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
-import { ScLogSyncButton } from './ScLogSyncDialog';
+import { useScLog } from '../hooks/ScLogSyncContext';
+import { useAuth } from '../auth/AuthContext';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
 const MONTH_NAMES = {
@@ -105,9 +108,32 @@ export function Header() {
   const { lang, setLang, t } = useI18n();
   const { mode: themeMode, toggle: toggleTheme } = useThemeMode();
   const { status: updateStatus, triggerUpdate, availableVersion } = useAppUpdate();
+  const { user } = useAuth();
   const isDesktop = isTauriRuntime();
   const hasUpdate = isDesktop && updateStatus === 'available';
   const isLg = useMediaQuery('(min-width:1120px)');
+
+  const { watcher, sync } = useScLog();
+  const [watcherError, setWatcherError] = useState<string | null>(null);
+
+  const livePath = sync.installPaths?.live ?? null;
+  const isLoggedIn = Boolean(user);
+  const canWatch = isLoggedIn && Boolean(livePath);
+
+  const handleWatcherToggle = async () => {
+    setWatcherError(null);
+    try {
+      if (watcher.running) {
+        watcher.stop();
+        watcher.setAutoStart(false);
+      } else if (livePath) {
+        await watcher.start(livePath);
+        watcher.setAutoStart(true);
+      }
+    } catch (err: unknown) {
+      setWatcherError(err instanceof Error ? err.message : 'Failed to toggle watcher.');
+    }
+  };
 
   const availableChannels = useMemo(
     () => new Set(availableDatasets.map((d) => d.channel)),
@@ -387,8 +413,76 @@ export function Header() {
             </Button>
           )}
 
-          {/* SC log sync — desktop only */}
-          {isDesktop && <ScLogSyncButton />}
+          {/* Live watcher toggle — desktop only */}
+          {isDesktop && (
+            <Tooltip
+              title={
+                watcherError ?? (
+                  !isLoggedIn
+                    ? t('Login to watch LIVE logs', 'Connecte-toi pour surveiller les logs LIVE')
+                    : !livePath
+                      ? t('No LIVE installation detected', 'Aucune installation LIVE détectée')
+                      : watcher.running
+                        ? t('Click to stop watching LIVE logs', 'Cliquer pour arrêter la surveillance')
+                        : t('Click to watch LIVE logs in real-time', 'Surveiller les logs LIVE en temps réel')
+                )
+              }
+            >
+              <Box
+                component="button"
+                onClick={() => { void handleWatcherToggle(); }}
+                disabled={!canWatch && !watcher.running}
+                aria-pressed={watcher.running}
+                aria-label={t('Watch LIVE logs toggle', 'Basculer surveillance logs LIVE')}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  height: 28,
+                  px: 1.25,
+                  border: '1px solid',
+                  borderColor: watcher.running ? 'success.main' : 'divider',
+                  borderRadius: 1,
+                  bgcolor: watcher.running
+                    ? (th) => alpha(th.palette.success.main, 0.1)
+                    : 'transparent',
+                  cursor: canWatch || watcher.running ? 'pointer' : 'not-allowed',
+                  opacity: !canWatch && !watcher.running ? 0.45 : 1,
+                  transition: 'all 150ms ease',
+                  '&:hover:not(:disabled)': {
+                    borderColor: watcher.running ? 'success.light' : 'primary.main',
+                    bgcolor: watcher.running
+                      ? (th) => alpha(th.palette.success.main, 0.18)
+                      : (th) => alpha(th.palette.primary.main, 0.08),
+                  },
+                }}
+              >
+                {watcher.running ? (
+                  <FiberManualRecordIcon
+                    sx={{
+                      fontSize: 8,
+                      color: 'success.main',
+                      animation: 'if-pulse-ring 1.6s infinite',
+                    }}
+                  />
+                ) : (
+                  <VisibilityOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                )}
+                <Typography
+                  sx={{
+                    fontFamily: FONT_MONO,
+                    fontWeight: 700,
+                    fontSize: '0.68rem',
+                    letterSpacing: '0.06em',
+                    color: watcher.running ? 'success.main' : 'text.secondary',
+                    userSelect: 'none',
+                  }}
+                >
+                  {watcher.running ? 'LIVE' : t('Watch', 'Watch')}
+                </Typography>
+              </Box>
+            </Tooltip>
+          )}
 
           {/* Update available — desktop only */}
           {hasUpdate && (
