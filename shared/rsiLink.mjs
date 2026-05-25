@@ -18,6 +18,11 @@ function normalizeNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function normalizeRsiVerificationProvider(value) {
+  const provider = String(value ?? '').trim().toLowerCase();
+  return provider === 'citizenid' || provider === 'rsi-profile' ? provider : null;
+}
+
 function decodeHtmlEntities(value) {
   return String(value ?? '')
     .replace(/&nbsp;/g, ' ')
@@ -121,6 +126,7 @@ export function normalizeRsiLink(value) {
     displayName: value.displayName ? String(value.displayName) : null,
     profileUrl: value.profileUrl ? String(value.profileUrl) : null,
     verifiedAt: value.verifiedAt ? String(value.verifiedAt) : null,
+    verificationProvider: normalizeRsiVerificationProvider(value.verificationProvider),
   };
 }
 
@@ -271,5 +277,6 @@ export async function verifyRsiHandleOwnership(
     displayName: profile.displayName,
     profileUrl: profile.profileUrl,
     verifiedAt: new Date().toISOString(),
+    verificationProvider: 'rsi-profile',
   });
 }

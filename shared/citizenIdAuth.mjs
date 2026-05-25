@@ -373,6 +373,7 @@ function normalizeCitizenIdRsiProfilePayload(payload) {
       ? `https://robertsspaceindustries.com/citizens/${encodeURIComponent(payload.username)}`
       : null,
     verifiedAt: new Date().toISOString(),
+    verificationProvider: 'citizenid',
   });
 
   if (!rsiLink) {
@@ -407,6 +408,7 @@ export function extractCitizenIdRsiProfileFromClaims(claims) {
       ? `https://robertsspaceindustries.com/citizens/${encodeURIComponent(claims['urn:user:rsi:username'])}`
       : null,
     verifiedAt: new Date().toISOString(),
+    verificationProvider: 'citizenid',
   });
 }
 

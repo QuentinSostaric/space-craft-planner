@@ -50,6 +50,7 @@ export interface LinkedRsiAccount {
   displayName: string | null;
   profileUrl: string | null;
   verifiedAt: string | null;
+  verificationProvider: 'citizenid' | 'rsi-profile' | null;
 }
 
 export type AccountOrganizationSource = 'profile-main' | 'manual';

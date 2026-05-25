@@ -73,7 +73,7 @@ import { FONT_DISPLAY, FONT_MONO } from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { SyncBlueprintsButton } from './ScLogSyncDialog';
-import { CitizenIdSignInButton } from './CitizenIdBrand';
+import { CitizenIdIcon, CitizenIdSignInButton } from './CitizenIdBrand';
 import Switch from '@mui/material/Switch';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
@@ -2088,11 +2088,38 @@ export function AccountPage() {
                       />
                       <Box>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>RSI</Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {account?.rsi?.handle
-                            ? `${account.rsi.handle} · ${t('verified', 'vérifié', 'verifiziert')}`
-                            : t('Not linked', 'Non lié', 'Nicht verknüpft')}
-                        </Typography>
+                        {account?.rsi?.handle ? (
+                          <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {`${account.rsi.handle} · ${t('verified', 'vérifié', 'verifiziert')}`}
+                            </Typography>
+                            {account.rsi.verificationProvider === 'citizenid' && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                icon={<CitizenIdIcon environment={citizenIdBrandEnvironment} size={14} variant="light" />}
+                                label="via Citizen iD"
+                                sx={{
+                                  height: 20,
+                                  borderColor: 'rgba(240, 240, 240, 0.22)',
+                                  color: 'text.secondary',
+                                  '& .MuiChip-label': {
+                                    px: 0.75,
+                                    fontSize: '0.68rem',
+                                    lineHeight: 1,
+                                  },
+                                  '& .MuiChip-icon': {
+                                    ml: 0.5,
+                                  },
+                                }}
+                              />
+                            )}
+                          </Stack>
+                        ) : (
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {t('Not linked', 'Non lié', 'Nicht verknüpft')}
+                          </Typography>
+                        )}
                       </Box>
                       {account?.rsi?.handle ? (
                         <Button
