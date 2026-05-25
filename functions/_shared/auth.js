@@ -130,6 +130,10 @@ function getOrganizationClaimReviewerEmail(env) {
   return reviewerEmail || null;
 }
 
+function isDesktopOAuthState(value) {
+  return String(value ?? '').startsWith('desktop.');
+}
+
 function runBackgroundTask(executionContext, task, label = 'background-task') {
   const promise = Promise.resolve()
     .then(task)
@@ -315,7 +319,7 @@ export async function handleDiscordCallbackRequest(request, env) {
   const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), request, env);
   const returnTo = oauthState?.returnTo ?? '/';
   const accountStore = getAccountStore(request, env);
-  const desktopState = !oauthState
+  const desktopState = isDesktopOAuthState(state)
     ? await consumeDesktopOAuthState(accountStore, env, state, 'discord')
     : null;
 
@@ -420,7 +424,7 @@ export async function handleCitizenIdCallbackRequest(request, env) {
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(request, env);
   const returnTo = oauthState?.returnTo ?? '/';
   const accountStore = getAccountStore(request, env);
-  const desktopState = !oauthState
+  const desktopState = isDesktopOAuthState(state)
     ? await consumeDesktopOAuthState(accountStore, env, state, 'citizenid')
     : null;
 

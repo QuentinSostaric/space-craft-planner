@@ -190,6 +190,10 @@ function getOrganizationClaimReviewerEmail() {
   return reviewerEmail || null;
 }
 
+function isDesktopOAuthState(value) {
+  return String(value ?? '').startsWith('desktop.');
+}
+
 function logBackgroundTaskError(label, error) {
   console.error(`[${label}]`, error);
 }
@@ -463,7 +467,7 @@ async function handleDiscordCallback(request, response, url) {
   const returnTo = oauthState?.returnTo ?? '/';
   const expiredStateCookie = buildExpiredCookie(getOauthStateCookieName(), url.toString(), process.env);
   const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), url.toString(), process.env);
-  const desktopState = !oauthState
+  const desktopState = isDesktopOAuthState(state)
     ? await consumeDesktopOAuthState(accountStore, process.env, state, 'discord')
     : null;
 
@@ -588,7 +592,7 @@ async function handleCitizenIdCallback(request, response, url) {
   const oauthState = await readCitizenIdStateFromCookies(request.headers.cookie, process.env);
   const returnTo = oauthState?.returnTo ?? '/';
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(url.toString(), process.env);
-  const desktopState = !oauthState
+  const desktopState = isDesktopOAuthState(state)
     ? await consumeDesktopOAuthState(accountStore, process.env, state, 'citizenid')
     : null;
 
