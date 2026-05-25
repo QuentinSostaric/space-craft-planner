@@ -560,6 +560,14 @@ export const GERMAN_FALLBACKS: Record<string, string> = {
   'Component profile': 'Komponentenprofil',
   'Component size': 'Komponentengröße',
   'Component grade': 'Komponentenklasse',
+  'Ship component family': 'Komponentenfamilie',
+  'Ship component grade': 'Komponentenklasse',
+  'Ship component profile': 'Komponentenprofil',
+  'Ship component size': 'Komponentengröße',
+  'Acquisition standing filter': 'Rufstufen-Filter für Erwerb',
+  'Resource objective filter': 'Ressourcenziel-Filter',
+  'Slot count filter': 'Slot-Anzahl-Filter',
+  'Standing requirement': 'Rufanforderung',
 
   // ── BlueprintGrid ─────────────────────────────────────────────────────────
   'blueprints': 'Blueprints',
@@ -580,5 +588,61 @@ export const GERMAN_FALLBACKS: Record<string, string> = {
 
   // ── AccountPage ───────────────────────────────────────────────────────────
   'Bot workflow steps': 'Bot-Workflow-Schritte',
+  'Login with Discord to sync your inventory': 'Mit Discord einloggen um Inventar zu synchronisieren',
+
+  // ── DismantlingPanel ──────────────────────────────────────────────────────
+  'Efficiency': 'Effizienz',
+  'Time': 'Zeit',
+  'Output Quality': 'Ausgabequalität',
+  'Fabricator SCU': 'Fabricator-SCU',
+  'Available Queues': 'Verfügbare Warteschlangen',
+  'Per-item Yields': 'Ausbeute pro Element',
+  'Per-Item Yields': 'Ausbeute pro Element',
+  'Observed runtime result fields:': 'Beobachtete Laufzeitergebnis-Felder:',
+  'Data Confidence': 'Datenzuverlässigkeit',
+  'Global Process': 'Globaler Prozess',
+  'UI Result Shape': 'UI-Ergebnisstruktur',
+  'No source data': 'Keine Quelldaten',
+
+  // ── QualityScore ──────────────────────────────────────────────────────────
+  'Excellent': 'Ausgezeichnet',
+  'Good': 'Gut',
+  'Fair': 'Mittel',
+  'Poor': 'Schwach',
+
+  // ── ItemIdentity ──────────────────────────────────────────────────────────
+  'Back to blueprints': 'Zurück zu Blueprints',
+  'Attach Profile': 'Ausrüstungsprofil',
+  'Item Brief': 'Gegenstandsübersicht',
+  'Blueprint dossier': 'Blueprint-Dossier',
+  'Loading blueprint detail': 'Blueprint-Details werden geladen',
+
+  // ── ShipComponentIdentity ─────────────────────────────────────────────────
+  'Library': 'Bibliothek',
+
+  // ── ScLogSyncDialog ───────────────────────────────────────────────────────
+  'Scanning…': 'Scannt…',
+  'Syncing…': 'Synchronisiere…',
+  'Synced': 'Synchronisiert',
+  'Sync game': 'Spiel synchronisieren',
+
+  // ── AcquisitionSection ────────────────────────────────────────────────────
+  'Acquisition': 'Erwerb',
+
+  // ── GoalsList / PlannerTodoBoard ──────────────────────────────────────────
+  '< 1 min': '< 1 Min',
+  'Task type': 'Aufgabentyp',
+  'Filter tasks': 'Aufgaben filtern',
+
+  // ── ResourcesPage ────────────────────────────────────────────────────────
+  'Family': 'Familie',
+  'Source': 'Quelle',
+  'Actions': 'Aktionen',
+  'Add resource to inventory': 'Ressource zum Inventar hinzufügen',
+  'resources': 'Ressourcen',
+
+  // ── OrganizationsPage ─────────────────────────────────────────────────────
+  'lot': 'Posten',
+  'total': 'gesamt',
 
 };

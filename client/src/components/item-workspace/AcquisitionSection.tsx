@@ -450,7 +450,7 @@ function AcquisitionMissionCard({
               flexShrink: 0,
             }}
           >
-            {isUnlawful ? t('Illégal', 'Illégal') : t('Légal', 'Légal')}
+            {isUnlawful ? t('Unlawful', 'Illégal') : t('Lawful', 'Légal')}
           </Box>
         </Box>
 
