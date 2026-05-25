@@ -25,6 +25,7 @@ import {
   fetchRsiOrganizationBySid,
   fetchRsiProfileByHandle,
   isOrganizationAdminCandidate,
+  scrapeRsiProfileByHandle,
 } from './rsiLink.mjs';
 import {
   normalizeIsoTimestamp,
@@ -300,6 +301,93 @@ function upsertOrganizationRef(refs, nextRef) {
       };
 
   return sortOrganizationRefs([...filteredRefs, mergedRef]);
+}
+
+function normalizeExternalOrganizationRef(organization, { source = 'manual', status = 'verified_member' } = {}) {
+  const sid = normalizeOrganizationSid(organization?.sid);
+  if (!sid) {
+    return null;
+  }
+
+  const member = {
+    rank: organization.rank ?? null,
+    stars: organization.stars ?? null,
+  };
+
+  return {
+    sid,
+    source,
+    name: normalizeText(organization.name ?? organization.display ?? sid) || sid,
+    image: organization.image ?? organization.logo ?? null,
+    logo: organization.logo ?? null,
+    url: organization.url ?? `https://robertsspaceindustries.com/orgs/${encodeURIComponent(sid)}`,
+    archetype: organization.archetype ?? null,
+    commitment: organization.commitment ?? null,
+    primaryFocus: organization.primaryFocus ?? null,
+    secondaryFocus: organization.secondaryFocus ?? null,
+    lang: organization.lang ?? null,
+    members: Number.isFinite(Number(organization.members)) ? Number(organization.members) : null,
+    status: isOrganizationAdminCandidate(member) ? 'verified_admin' : status,
+    rank: member.rank,
+    stars: Number.isFinite(Number(member.stars)) ? Number(member.stars) : null,
+    lastSeenAt: toIsoNow(),
+    lastVerifiedAt: toIsoNow(),
+  };
+}
+
+async function syncExternalVerifiedOrganizations(store, account, organizations = []) {
+  if (!account?.rsi?.handle || !Array.isArray(organizations) || organizations.length === 0) {
+    return account;
+  }
+
+  let nextRefs = account.organizations ?? [];
+  let nextIgnoredOrganizationSids = account.ignoredOrganizationSids ?? [];
+
+  for (const organization of organizations) {
+    const normalizedRef = normalizeExternalOrganizationRef(organization, {
+      source: organization.source === 'profile-main' ? 'profile-main' : 'manual',
+      status: organization.status === 'observed' ? 'observed' : 'verified_member',
+    });
+    if (!normalizedRef) {
+      continue;
+    }
+
+    const existingOrganizationRecord = await readOrganizationRecord(store, normalizedRef.sid);
+    const canReviveDeletedOrganization =
+      isOrganizationDeleted(existingOrganizationRecord) && normalizedRef.status === 'verified_admin';
+    if (isOrganizationDeleted(existingOrganizationRecord) && !canReviveDeletedOrganization) {
+      nextIgnoredOrganizationSids = Array.from(
+        new Set([...nextIgnoredOrganizationSids, normalizedRef.sid]),
+      );
+      continue;
+    }
+
+    if (canReviveDeletedOrganization) {
+      await reviveDeletedOrganizationRecord(store, existingOrganizationRecord, normalizedRef, {
+        now: toIsoNow(),
+      });
+    } else {
+      await upsertOrganizationMetadata(store, normalizedRef);
+    }
+
+    nextRefs = upsertOrganizationRef(nextRefs, normalizedRef);
+    nextIgnoredOrganizationSids = nextIgnoredOrganizationSids.filter(
+      (ignoredSid) => ignoredSid !== normalizedRef.sid,
+    );
+  }
+
+  const currentSerialized = JSON.stringify(sortOrganizationRefs(account.organizations ?? []));
+  const nextSerialized = JSON.stringify(sortOrganizationRefs(nextRefs));
+  if (
+    currentSerialized === nextSerialized &&
+    nextIgnoredOrganizationSids.length === (account.ignoredOrganizationSids ?? []).length
+  ) {
+    return account;
+  }
+
+  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile, {
+    ignoredOrganizationSids: nextIgnoredOrganizationSids,
+  });
 }
 
 function decorateOrganizationRef(ref, organizationRecord, accountId, nowMs = Date.now()) {
@@ -816,6 +904,11 @@ export async function syncAndDecorateAccountOrganizations(
   return decorateAccountOrganizations(nextAccount, organizationRecordsBySid, claimRequestsBySid);
 }
 
+export async function syncCitizenIdAccountOrganizations(store, account, organizations = []) {
+  const nextAccount = await syncExternalVerifiedOrganizations(store, account, organizations);
+  return decorateAccountOrganizationsFromStore(store, nextAccount);
+}
+
 export async function addAccountOrganizationBySid(
   store,
   account,
@@ -837,21 +930,45 @@ export async function addAccountOrganizationBySid(
   const existingOrganizationRecord = await readOrganizationRecord(store, normalizedSid);
   const isDeletedOrganization = isOrganizationDeleted(existingOrganizationRecord);
 
-  let metadata;
-  try {
-    metadata = await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
-      fetchImpl,
-      mode: 'cache',
-    });
-  } catch (error) {
-    if (!isLikelyNotFoundError(error)) {
-      throw error;
-    }
+  const scrapedProfile = await scrapeRsiProfileByHandle(account.rsi.handle, { fetchImpl });
+  const scrapedOrganizations = [
+    scrapedProfile.organization
+      ? {
+          ...scrapedProfile.organization,
+          source: 'profile-main',
+          rank: scrapedProfile.rank,
+          stars: scrapedProfile.stars,
+        }
+      : null,
+    ...(scrapedProfile.affiliations ?? []),
+  ].filter(Boolean);
+  const scrapedMetadata = scrapedOrganizations.find(
+    (organization) => normalizeOrganizationSid(organization.sid) === normalizedSid,
+  );
+  const metadataFromLinkedProfile = Boolean(scrapedMetadata);
+  const metadata =
+    scrapedMetadata ??
+    (apiKey
+      ? await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
+          fetchImpl,
+          mode: 'cache',
+        }).catch(async (error) => {
+          if (!isLikelyNotFoundError(error)) {
+            throw error;
+          }
 
-    metadata = await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
-      fetchImpl,
-      mode: 'auto',
-    });
+          return fetchRsiOrganizationBySid(apiKey, normalizedSid, {
+            fetchImpl,
+            mode: 'auto',
+          });
+        })
+      : null);
+
+  if (!metadata) {
+    throw new OrganizationServiceError(
+      403,
+      'Your linked RSI handle was not found in this organization.',
+    );
   }
 
   const existingMetadataRef = account.organizations.find((ref) => ref.sid === metadata.sid) ?? null;
@@ -866,6 +983,19 @@ export async function addAccountOrganizationBySid(
     ? findOrganizationMemberByHandle(existingRecord.memberSnapshot, account.rsi.handle)
     : null;
 
+  if (!matchingMember && metadataFromLinkedProfile) {
+    matchingMember = {
+      handle: account.rsi.handle,
+      display: account.rsi.displayName ?? account.rsi.handle,
+      image: account.rsi.image ?? null,
+      rank: metadata.rank ?? scrapedProfile.rank ?? null,
+      stars: Number.isFinite(Number(metadata.stars ?? scrapedProfile.stars))
+        ? Number(metadata.stars ?? scrapedProfile.stars)
+        : null,
+      roles: [],
+    };
+  }
+
   if (!matchingMember) {
     matchingMember = await resolveOrganizationMembershipEvidence(
       apiKey,
@@ -877,6 +1007,13 @@ export async function addAccountOrganizationBySid(
   }
 
   if (!matchingMember) {
+    if (!apiKey) {
+      throw new OrganizationServiceError(
+        403,
+        'Your linked RSI handle was not found in this organization.',
+      );
+    }
+
     const quotaStatus = await fetchRsiApiKeyStatus(apiKey, { fetchImpl });
     if (quotaStatus.remainingLiveRequests <= 0) {
       throw new OrganizationServiceError(

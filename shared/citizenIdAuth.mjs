@@ -11,7 +11,12 @@ const DEFAULT_CITIZENID_ORIGIN = 'https://citizenid.space';
 
 const CITIZENID_STATE_COOKIE_NAME = 'sc_craft_citizenid_oauth_state';
 const CITIZENID_STATE_COOKIE_MAX_AGE = 60 * 10;
-const DEFAULT_CITIZENID_SCOPES = ['openid', 'rsi.profile'];
+const DEFAULT_CITIZENID_SCOPES = [
+  'openid',
+  'rsi.profile',
+  'rsi.orgs.primary',
+  'rsi.orgs.public',
+];
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -197,7 +202,9 @@ export function getCitizenIdScopes(env) {
     .map((scope) => scope.trim())
     .filter(Boolean);
 
-  return scopes.length > 0 ? [...new Set(scopes)] : [...DEFAULT_CITIZENID_SCOPES];
+  return scopes.length > 0
+    ? [...new Set([...scopes, ...DEFAULT_CITIZENID_SCOPES])]
+    : [...DEFAULT_CITIZENID_SCOPES];
 }
 
 export async function createCitizenIdStateCookie(requestOrUrl, env, returnTo = '/') {
@@ -361,16 +368,141 @@ export function extractCitizenIdRsiProfileFromClaims(claims) {
   });
 }
 
-export async function resolveCitizenIdRsiProfile(tokenPayload, env = {}) {
-  const rsiLink =
-    extractCitizenIdRsiProfileFromClaims(decodeJwtPayload(tokenPayload?.id_token)) ??
-    extractCitizenIdRsiProfileFromClaims(decodeJwtPayload(tokenPayload?.access_token));
-
-  if (rsiLink) {
-    return rsiLink;
+function parseMaybeJson(value) {
+  if (typeof value !== 'string') {
+    return value;
   }
 
-  return fetchCitizenIdRsiProfile(tokenPayload?.access_token, env);
+  const trimmed = value.trim();
+  if (!trimmed || (!trimmed.startsWith('{') && !trimmed.startsWith('['))) {
+    return value;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeCitizenIdOrganizationClaim(value, { source = 'manual' } = {}) {
+  const parsedValue = parseMaybeJson(value);
+  if (!parsedValue) {
+    return null;
+  }
+
+  if (typeof parsedValue === 'string') {
+    const sid = parsedValue.trim().toUpperCase();
+    return sid
+      ? {
+          sid,
+          source,
+          name: sid,
+          image: null,
+          logo: null,
+          url: `https://robertsspaceindustries.com/orgs/${encodeURIComponent(sid)}`,
+          status: 'verified_member',
+          rank: null,
+          stars: null,
+          lastSeenAt: new Date().toISOString(),
+          lastVerifiedAt: new Date().toISOString(),
+        }
+      : null;
+  }
+
+  if (typeof parsedValue !== 'object') {
+    return null;
+  }
+
+  const sid = String(
+    parsedValue.sid ??
+      parsedValue.SID ??
+      parsedValue.spectrumId ??
+      parsedValue.spectrumID ??
+      parsedValue.spectrumIdentification ??
+      parsedValue.identifier ??
+      '',
+  ).trim().toUpperCase();
+  if (!sid) {
+    return null;
+  }
+
+  const stars = Number(parsedValue.stars ?? parsedValue.rankStars);
+  const rank = parsedValue.rank ? String(parsedValue.rank) : null;
+  return {
+    sid,
+    source,
+    name: String(parsedValue.name ?? parsedValue.displayName ?? parsedValue.display ?? sid).trim() || sid,
+    image: parsedValue.image ?? parsedValue.logo ?? parsedValue.avatarUrl ?? null,
+    logo: parsedValue.logo ?? null,
+    url: parsedValue.url ?? `https://robertsspaceindustries.com/orgs/${encodeURIComponent(sid)}`,
+    archetype: parsedValue.archetype ?? null,
+    commitment: parsedValue.commitment ?? null,
+    primaryFocus: parsedValue.primaryFocus ?? parsedValue.primaryActivity ?? null,
+    secondaryFocus: parsedValue.secondaryFocus ?? parsedValue.secondaryActivity ?? null,
+    lang: parsedValue.lang ?? parsedValue.language ?? null,
+    members: Number.isFinite(Number(parsedValue.members)) ? Number(parsedValue.members) : null,
+    status: 'verified_member',
+    rank,
+    stars: Number.isFinite(stars) ? stars : null,
+    lastSeenAt: new Date().toISOString(),
+    lastVerifiedAt: new Date().toISOString(),
+  };
+}
+
+function extractCitizenIdOrganizationsFromClaimValue(value, options) {
+  const parsedValue = parseMaybeJson(value);
+  const values = Array.isArray(parsedValue) ? parsedValue : [parsedValue];
+  return values
+    .map((entry) => normalizeCitizenIdOrganizationClaim(entry, options))
+    .filter(Boolean);
+}
+
+export function extractCitizenIdOrganizationsFromClaims(claims) {
+  if (!claims || typeof claims !== 'object') {
+    return [];
+  }
+
+  return [
+    ...extractCitizenIdOrganizationsFromClaimValue(
+      claims['urn:user:rsi:orgs:primary'],
+      { source: 'profile-main' },
+    ),
+    ...extractCitizenIdOrganizationsFromClaimValue(
+      claims['urn:user:rsi:orgs:public'],
+      { source: 'manual' },
+    ),
+  ];
+}
+
+function getCitizenIdTokenClaims(tokenPayload) {
+  const idTokenClaims = decodeJwtPayload(tokenPayload?.id_token);
+  const accessTokenClaims = decodeJwtPayload(tokenPayload?.access_token);
+  return [idTokenClaims, accessTokenClaims].filter(Boolean);
+}
+
+export async function resolveCitizenIdAccountData(tokenPayload, env = {}) {
+  const tokenClaims = getCitizenIdTokenClaims(tokenPayload);
+  const rsiLink =
+    tokenClaims
+      .map((claims) => extractCitizenIdRsiProfileFromClaims(claims))
+      .find(Boolean) ?? null;
+
+  if (rsiLink) {
+    return {
+      rsiLink,
+      organizations: tokenClaims.flatMap((claims) => extractCitizenIdOrganizationsFromClaims(claims)),
+    };
+  }
+
+  return {
+    rsiLink: await fetchCitizenIdRsiProfile(tokenPayload?.access_token, env),
+    organizations: [],
+  };
+}
+
+export async function resolveCitizenIdRsiProfile(tokenPayload, env = {}) {
+  return (await resolveCitizenIdAccountData(tokenPayload, env)).rsiLink;
 }
 
 export function buildCitizenIdCallbackErrorRedirect(returnTo, message) {

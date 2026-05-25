@@ -25,7 +25,7 @@ import {
   exchangeCitizenIdCode,
   isCitizenIdAuthConfigured,
   readCitizenIdStateFromCookies,
-  resolveCitizenIdRsiProfile,
+  resolveCitizenIdAccountData,
 } from '../../shared/citizenIdAuth.mjs';
 import {
   clearRsiAccountLink,
@@ -54,6 +54,7 @@ import {
   refreshAccountOrganizationMembers,
   removeAccountOrganizationBySid,
   setOwnedOrganizationBlueprintSharingEnabled,
+  syncCitizenIdAccountOrganizations,
   syncAndDecorateAccountOrganizations,
 } from '../../shared/organizationService.mjs';
 import { notifyOrganizationClaimRequest } from '../../shared/organizationClaimNotification.mjs';
@@ -70,7 +71,7 @@ import {
   resolveCraftRequestStorageScope,
   syncCraftRequestStatusViaWorker,
 } from '../../shared/discordBotRelay.mjs';
-import { verifyRsiHandleOwnership } from '../../shared/rsiLink.mjs';
+import { scrapeRsiProfileByHandle, verifyRsiHandleOwnership } from '../../shared/rsiLink.mjs';
 import { getGameDataBucket } from './runtimeBuckets.js';
 
 function noStoreJson(payload, init = {}) {
@@ -370,10 +371,13 @@ export async function handleCitizenIdCallbackRequest(request, env) {
 
   try {
     const tokenPayload = await exchangeCitizenIdCode(request, env, code);
-    const verifiedLink = await resolveCitizenIdRsiProfile(tokenPayload, env);
+    const { rsiLink: verifiedLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, env);
     const accountStore = getAccountStore(request, env);
     await ensureAccountForSession(accountStore, session);
-    await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    const linkedAccount = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    if (organizations.length > 0) {
+      await syncCitizenIdAccountOrganizations(accountStore, linkedAccount, organizations);
+    }
 
     return redirectResponse(returnTo, {
       cookies: [expiredStateCookie],
@@ -550,11 +554,6 @@ export async function handleRsiLinkRequest(request, env) {
     return errorResponse(401, 'Authentication required.');
   }
 
-  const apiKey = getStarCitizenApiKey(env);
-  if (!apiKey) {
-    return errorResponse(503, 'Star Citizen API is not configured.');
-  }
-
   let payload;
   try {
     payload = await readAccountJsonFromRequest(request);
@@ -584,11 +583,26 @@ export async function handleRsiLinkRequest(request, env) {
       );
     }
 
-    const verifiedLink = await verifyRsiHandleOwnership(apiKey, handle, code);
+    const verifiedLink = await verifyRsiHandleOwnership(null, handle, code);
     const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    const scrapedProfile = await scrapeRsiProfileByHandle(verifiedLink.handle);
+    const scrapedOrganizations = [
+      scrapedProfile.organization
+        ? {
+            ...scrapedProfile.organization,
+            source: 'profile-main',
+            rank: scrapedProfile.rank,
+            stars: scrapedProfile.stars,
+          }
+        : null,
+      ...(scrapedProfile.affiliations ?? []),
+    ].filter(Boolean);
+    const linkedAccount = scrapedOrganizations.length > 0
+      ? await syncCitizenIdAccountOrganizations(accountStore, account, scrapedOrganizations)
+      : account;
     const decoratedAccount = await buildScopedDecoratedAccount(
       accountStore,
-      account,
+      linkedAccount,
       env,
       getAccountDatasetScopeFromRequest(request, payload),
     );
@@ -632,11 +646,6 @@ export async function handleAccountOrganizationsCreateRequest(request, env) {
     return errorResponse(401, 'Authentication required.');
   }
 
-  const apiKey = getStarCitizenApiKey(env);
-  if (!apiKey) {
-    return errorResponse(503, 'Star Citizen API is not configured.');
-  }
-
   let payload;
   try {
     payload = await readAccountJsonFromRequest(request);
@@ -650,7 +659,7 @@ export async function handleAccountOrganizationsCreateRequest(request, env) {
     const nextAccount = await addAccountOrganizationBySid(
       accountStore,
       account,
-      apiKey,
+      getStarCitizenApiKey(env),
       payload?.sid,
     );
     const decoratedAccount = await buildScopedDecoratedAccount(
