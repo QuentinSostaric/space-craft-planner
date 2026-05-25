@@ -25,9 +25,9 @@ import {
   buildExpiredCitizenIdStateCookie,
   createCitizenIdStateCookie,
   exchangeCitizenIdCode,
-  fetchCitizenIdRsiProfile,
   isCitizenIdAuthConfigured,
   readCitizenIdStateFromCookies,
+  resolveCitizenIdAccountData,
 } from '../shared/citizenIdAuth.mjs';
 import {
   createR2Client,
@@ -42,6 +42,7 @@ import {
   isRsiLinkRateLimited,
   readAccountRecord,
   saveAccountInventoryResources,
+  saveAccountOnboardingState,
   saveAccountOrganizationBlueprintShares,
   saveAccountOrganizationResourceShares,
   saveAccountState,
@@ -58,6 +59,7 @@ import {
   refreshAccountOrganizationMembers,
   removeAccountOrganizationBySid,
   setOwnedOrganizationBlueprintSharingEnabled,
+  syncCitizenIdAccountOrganizations,
   syncAndDecorateAccountOrganizations,
 } from '../shared/organizationService.mjs';
 import { notifyOrganizationClaimRequest } from '../shared/organizationClaimNotification.mjs';
@@ -74,7 +76,7 @@ import {
   resolveCraftRequestStorageScope,
   syncCraftRequestStatusViaWorker,
 } from '../shared/discordBotRelay.mjs';
-import { verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
+import { scrapeRsiProfileByHandle, verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
 import { buildBlueprintCatalogPage } from '../shared/blueprintCatalog.mjs';
 
 const PORT = 8788;
@@ -172,10 +174,6 @@ const r2Config = getR2Config(process.env);
 const client = createR2Client(process.env);
 const accountStore = createS3AccountStore(client, r2Config.bucketName);
 
-function getStarCitizenApiKey() {
-  return String(process.env.STARCITIZEN_API_KEY ?? '').trim();
-}
-
 function getOrganizationClaimReviewerEmail() {
   const reviewerEmail = String(process.env.ORGANIZATION_CLAIM_REVIEWER_EMAIL ?? '').trim();
   return reviewerEmail || null;
@@ -200,11 +198,7 @@ async function syncCraftRequestStatusBestEffort(requestRecord, ownerAccount, req
 
 async function buildDecoratedAccount(account) {
   try {
-    return await syncAndDecorateAccountOrganizations(
-      accountStore,
-      account,
-      getStarCitizenApiKey(),
-    );
+    return await syncAndDecorateAccountOrganizations(accountStore, account);
   } catch {
     return account;
   }
@@ -536,9 +530,12 @@ async function handleCitizenIdCallback(request, response, url) {
 
   try {
     const tokenPayload = await exchangeCitizenIdCode(url.toString(), process.env, code);
-    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token, process.env);
+    const { rsiLink: verifiedLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, process.env);
     await ensureAccountForSession(session);
-    await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    if (organizations.length > 0) {
+      await syncCitizenIdAccountOrganizations(accountStore, account, organizations);
+    }
 
     sendRedirect(response, returnTo, {
       'Set-Cookie': expiredStateCookie,
@@ -616,6 +613,46 @@ async function handleAccountUpdate(request, response) {
 
   await ensureAccountForSession(session);
   const account = await saveAccountState(accountStore, session.accountId, payload, session.user);
+  const decoratedAccount = await buildDecoratedAccount(account);
+  sendJson(
+    response,
+    200,
+    { account: decoratedAccount },
+    {
+      'Cache-Control': 'no-store',
+    },
+  );
+}
+
+async function handleAccountOnboardingUpdate(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.', {
+      'Cache-Control': 'no-store',
+    });
+    return;
+  }
+
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendError(
+      response,
+      400,
+      error instanceof Error ? error.message : 'Invalid JSON body.',
+      {
+        'Cache-Control': 'no-store',
+      },
+    );
+    return;
+  }
+
+  await ensureAccountForSession(session);
+  const account = await saveAccountOnboardingState(accountStore, session.accountId, session.user, {
+    completed: payload?.completed === true,
+    dismissed: payload?.dismissed === true,
+  });
   const decoratedAccount = await buildDecoratedAccount(account);
   sendJson(
     response,
@@ -762,14 +799,6 @@ async function handleRsiLink(request, response) {
     return;
   }
 
-  const apiKey = String(process.env.STARCITIZEN_API_KEY ?? '').trim();
-  if (!apiKey) {
-    sendError(response, 503, 'Star Citizen API is not configured.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
   let payload;
   try {
     payload = await readJsonBody(request);
@@ -817,9 +846,24 @@ async function handleRsiLink(request, response) {
       return;
     }
 
-    const verifiedLink = await verifyRsiHandleOwnership(apiKey, handle, code);
+    const verifiedLink = await verifyRsiHandleOwnership(null, handle, code);
     const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
-    const decoratedAccount = await buildDecoratedAccount(account);
+    const scrapedProfile = await scrapeRsiProfileByHandle(verifiedLink.handle);
+    const scrapedOrganizations = [
+      scrapedProfile.organization
+        ? {
+            ...scrapedProfile.organization,
+            source: 'profile-main',
+            rank: scrapedProfile.rank,
+            stars: scrapedProfile.stars,
+          }
+        : null,
+      ...(scrapedProfile.affiliations ?? []),
+    ].filter(Boolean);
+    const linkedAccount = scrapedOrganizations.length > 0
+      ? await syncCitizenIdAccountOrganizations(accountStore, account, scrapedOrganizations)
+      : account;
+    const decoratedAccount = await buildDecoratedAccount(linkedAccount);
     sendJson(
       response,
       200,
@@ -882,14 +926,6 @@ async function handleAccountOrganizationsCreate(request, response) {
     return;
   }
 
-  const apiKey = getStarCitizenApiKey();
-  if (!apiKey) {
-    sendError(response, 503, 'Star Citizen API is not configured.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
   let payload;
   try {
     payload = await readJsonBody(request);
@@ -910,7 +946,6 @@ async function handleAccountOrganizationsCreate(request, response) {
     const nextAccount = await addAccountOrganizationBySid(
       accountStore,
       account,
-      apiKey,
       payload?.sid,
     );
     sendJson(
@@ -1074,17 +1109,9 @@ async function handleOrganizationRefresh(request, response, sid) {
     return;
   }
 
-  const apiKey = getStarCitizenApiKey();
-  if (!apiKey) {
-    sendError(response, 503, 'Star Citizen API is not configured.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
   try {
     const account = await ensureAccountForSession(session);
-    const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, apiKey, sid);
+    const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, sid);
     sendJson(
       response,
       200,
@@ -1455,6 +1482,11 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === 'PUT' && path === '/api/auth/account') {
       await handleAccountUpdate(request, response);
+      return;
+    }
+
+    if (request.method === 'PUT' && path === '/api/auth/account/onboarding') {
+      await handleAccountOnboardingUpdate(request, response);
       return;
     }
 

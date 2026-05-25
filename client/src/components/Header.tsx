@@ -37,6 +37,22 @@ import {
 } from '../utils/slug';
 import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
 import { useScLog } from '../hooks/ScLogSyncContext';
+
+function getDesktopInstallerUrl(): string {
+  const uaData = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
+  let platform: string | null = null;
+  if (uaData?.platform) {
+    const p = uaData.platform.toLowerCase();
+    if (p === 'windows' || p === 'linux' || p === 'macos') platform = p;
+  }
+  if (!platform) {
+    const ua = navigator.userAgent;
+    if (/windows/i.test(ua)) platform = 'windows';
+    else if (/macintosh|mac os x/i.test(ua)) platform = 'macos';
+    else if (/linux|x11/i.test(ua)) platform = 'linux';
+  }
+  return `/api/desktop/latest-installer${platform ? `?platform=${platform}` : ''}`;
+}
 import { useAuth } from '../auth/AuthContext';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
@@ -391,7 +407,7 @@ export function Header() {
           {!isDesktop && (
             <Button
               component="a"
-              href="/api/desktop/latest-installer"
+              href={getDesktopInstallerUrl()}
               size="small"
               variant="outlined"
               startIcon={<DownloadOutlinedIcon sx={{ fontSize: 13 }} />}

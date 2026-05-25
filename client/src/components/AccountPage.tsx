@@ -256,6 +256,7 @@ export function AccountPage() {
     linkRsiAccount,
     linkRsiAccountWithCitizenId,
     unlinkRsiAccount,
+    updateOnboardingState,
     updateInventoryResources,
     updateOrganizationBlueprintShares,
     updateOrganizationResourceShares,
@@ -264,7 +265,6 @@ export function AccountPage() {
     claimOrganization,
     deleteOrganization,
     setOrganizationBlueprintSharing,
-    refreshOrganizationMembers,
     respondToCraftRequest,
   } = useAuth();
   const {
@@ -290,6 +290,7 @@ export function AccountPage() {
   const [importModalDismissed, setImportModalDismissed] = useState(false);
   const importAction = useAsyncAction();
   const copyLiveToPtuAction = useAsyncAction();
+  const onboardingAction = useAsyncAction();
   const [rsiDialogOpen, setRsiDialogOpen] = useState(false);
   const [rsiCode, setRsiCode] = useState('');
   const [rsiHandleInput, setRsiHandleInput] = useState('');
@@ -1026,6 +1027,15 @@ export function AccountPage() {
     openRsiDialog();
   };
 
+  const handleCompleteOnboarding = () => {
+    void onboardingAction.run(
+      async () => {
+        await updateOnboardingState({ completed: true });
+      },
+      t('Failed to update onboarding.', 'La mise a jour de l onboarding a echoue.', 'Onboarding konnte nicht aktualisiert werden.'),
+    );
+  };
+
   const handleUnlinkRsiAccount = async () => {
     await rsiUnlinkAction.run(
       () => unlinkRsiAccount(),
@@ -1602,27 +1612,6 @@ export function AccountPage() {
     }
   };
 
-  const handleRefreshOrganization = async (sid: string) => {
-    setOrganizationActionSid(sid);
-    setOrganizationError(null);
-    setOrganizationNotice(null);
-    try {
-      await refreshOrganizationMembers(sid);
-    } catch (error) {
-      setOrganizationError(
-        error instanceof Error
-          ? error.message
-          : t(
-            'Failed to refresh organization members.',
-            'Le rafraichissement des membres de l organisation a echoue.',
-            'Die Organisationsmitglieder konnten nicht aktualisiert werden.',
-          ),
-      );
-    } finally {
-      setOrganizationActionSid(null);
-    }
-  };
-
   const handleDeleteOrganization = async () => {
     if (!organizationDeleteDialogSid) {
       return;
@@ -1903,6 +1892,93 @@ export function AccountPage() {
             <Alert severity="error" variant="outlined">
               {syncError}
             </Alert>
+          )}
+
+          {account && !account.onboardingCompletedAt && (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: { xs: 1.5, md: 2 },
+                borderColor: alpha(theme.palette.primary.main, 0.22),
+                backgroundColor: alpha(theme.palette.primary.main, 0.045),
+              }}
+            >
+              <Stack
+                direction={{ xs: 'column', lg: 'row' }}
+                spacing={1.5}
+                alignItems={{ xs: 'stretch', lg: 'center' }}
+                justifyContent="space-between"
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                    {t('Setup checklist', 'Checklist de configuration', 'Einrichtungs-Checkliste')}
+                  </Typography>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
+                    <Chip
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                      label={t('Discord linked', 'Discord lie', 'Discord verknuepft')}
+                    />
+                    <Chip
+                      size="small"
+                      color={account.rsi?.handle ? 'success' : 'default'}
+                      variant={account.rsi?.handle ? 'outlined' : 'filled'}
+                      label={account.rsi?.handle
+                        ? t('RSI linked', 'RSI lie', 'RSI verknuepft')
+                        : t('Link RSI', 'Lier RSI', 'RSI verknuepfen')}
+                    />
+                    <Chip
+                      size="small"
+                      color={isDesktop ? 'success' : 'default'}
+                      variant={isDesktop ? 'outlined' : 'filled'}
+                      label={isDesktop
+                        ? t('Desktop app active', 'App desktop active', 'Desktop-App aktiv')
+                        : t('Desktop app available', 'App desktop disponible', 'Desktop-App verfuegbar')}
+                    />
+                  </Stack>
+                </Box>
+
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}>
+                  {!account.rsi?.handle && (
+                    <MuiButton
+                      size="small"
+                      variant="contained"
+                      onClick={handleStartRsiLink}
+                      disabled={rsiAction.busy}
+                      startIcon={citizenIdRsiLinkEnabled ? <CitizenIdLogoMark size={18} /> : undefined}
+                    >
+                      {citizenIdRsiLinkEnabled
+                        ? t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknuepfen')
+                        : t('Link RSI', 'Lier RSI', 'RSI verknuepfen')}
+                    </MuiButton>
+                  )}
+                  {!isDesktop && (
+                    <MuiButton
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href="/api/desktop/latest-installer"
+                    >
+                      {t('Download app', 'Telecharger l app', 'App herunterladen')}
+                    </MuiButton>
+                  )}
+                  <MuiButton
+                    size="small"
+                    variant="outlined"
+                    onClick={handleCompleteOnboarding}
+                    disabled={onboardingAction.busy || !account.rsi?.handle}
+                  >
+                    {t('Mark done', 'Marquer termine', 'Als erledigt markieren')}
+                  </MuiButton>
+                </Stack>
+              </Stack>
+              {onboardingAction.error && (
+                <Alert severity="error" variant="outlined" sx={{ mt: 1.5 }}>
+                  {onboardingAction.error}
+                </Alert>
+              )}
+            </Paper>
           )}
 
           {/* ── Overview Tab ── */}
@@ -2779,14 +2855,9 @@ export function AccountPage() {
                     }}
                   >
                     {linkedOrganizations.map((organization) => {
-                      const nextEligibleLabel = formatAbsoluteDate(organization.nextEligibleLiveSyncAt);
                       const lastSyncLabel = formatAbsoluteDate(organization.lastLiveSyncAt);
                       const lastVerifiedLabel = formatAbsoluteDate(organization.lastVerifiedAt);
                       const claimRequestSubmittedLabel = formatAbsoluteDate(organization.claimRequestSubmittedAt);
-                      const refreshLocked = Boolean(
-                        organization.nextEligibleLiveSyncAt &&
-                        Date.parse(organization.nextEligibleLiveSyncAt) > Date.now(),
-                      );
                       const organizationImage = organization.image ?? organization.logo ?? undefined;
                       const hasPendingClaimRequest = organization.claimRequestStatus === 'pending';
                       const organizationStatusLabel =
@@ -2806,14 +2877,14 @@ export function AccountPage() {
                         : t('Unknown', 'Inconnu', 'Unbekannt');
                       const lastSyncSummary = lastSyncLabel
                         ? t(
-                          `Last live member sync: ${lastSyncLabel}`,
-                          `Derniere synchro live des membres : ${lastSyncLabel}`,
-                          `Letzte Live-Mitgliedersynchronisierung: ${lastSyncLabel}`,
+                          `Legacy member snapshot: ${lastSyncLabel}`,
+                          `Snapshot membres historique : ${lastSyncLabel}`,
+                          `Legacy-Mitgliedersnapshot: ${lastSyncLabel}`,
                         )
                         : t(
-                          'No live member snapshot stored yet',
-                          'Aucun snapshot live des membres n est encore stocke',
-                          'Es ist noch kein Live-Mitgliedersnapshot gespeichert',
+                          'Citizen iD syncs your own RSI membership. Full org rosters are not exposed by Citizen iD.',
+                          'Citizen iD synchronise ton appartenance RSI. Les rosters complets d org ne sont pas exposes par Citizen iD.',
+                          'Citizen iD synchronisiert deine RSI-Mitgliedschaft. Vollstaendige Org-Roster werden von Citizen iD nicht bereitgestellt.',
                         );
                       const lastVerificationSummary = lastVerifiedLabel
                         ? t(
@@ -3019,7 +3090,7 @@ export function AccountPage() {
                                   }}
                                 >
                                   <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                                    {t('Member snapshot', 'Snapshot membres', 'Mitgliedersnapshot')}
+                                    {t('Roster source', 'Source roster', 'Roster-Quelle')}
                                   </Typography>
                                   <Typography variant="body2" sx={{ mt: 0.55, color: 'text.secondary' }}>
                                     {lastSyncSummary}
@@ -3049,17 +3120,6 @@ export function AccountPage() {
                                     label={t('Snapshot stale', 'Snapshot obsolete', 'Snapshot veraltet')}
                                     size="small"
                                     color="warning"
-                                    variant="outlined"
-                                  />
-                                )}
-                                {refreshLocked && nextEligibleLabel && organization.status === 'verified_admin' && (
-                                  <Chip
-                                    label={t(
-                                      `Refresh after ${nextEligibleLabel}`,
-                                      `Refresh apres ${nextEligibleLabel}`,
-                                      `Refresh nach ${nextEligibleLabel}`,
-                                    )}
-                                    size="small"
                                     variant="outlined"
                                   />
                                 )}
@@ -3144,19 +3204,6 @@ export function AccountPage() {
                                   </Button>
                                 )}
 
-                                {organization.claimed && organization.status === 'verified_admin' && (
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    disabled={organizationActionSid === organization.sid || refreshLocked}
-                                    onClick={() => { void handleRefreshOrganization(organization.sid); }}
-                                  >
-                                    {organizationActionSid === organization.sid
-                                      ? t('Refreshing...', 'Rafraichissement...', 'Aktualisiere...')
-                                      : t('Refresh members', 'Rafraichir les membres', 'Mitglieder aktualisieren')}
-                                  </Button>
-                                )}
-
                                 {organization.claimedByCurrentUser && (
                                   <Button
                                     variant="ghost"
@@ -3189,15 +3236,6 @@ export function AccountPage() {
                                 </Typography>
                               )}
 
-                              {refreshLocked && nextEligibleLabel && organization.status === 'verified_admin' && (
-                                <Typography sx={{ color: 'text.secondary' }}>
-                                  {t(
-                                    `Next live refresh available after ${nextEligibleLabel}.`,
-                                    `Prochain refresh live disponible apres ${nextEligibleLabel}.`,
-                                    `Der nächste Live-Refresh ist nach ${nextEligibleLabel} verfügbar.`,
-                                  )}
-                                </Typography>
-                              )}
                             </Stack>
                           </Stack>
                         </Paper>

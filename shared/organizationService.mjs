@@ -8,8 +8,6 @@ import {
   writeAccountRecord,
 } from './accountStorage.mjs';
 import {
-  ORGANIZATION_LIVE_SYNC_COOLDOWN_MS,
-  ORGANIZATION_SNAPSHOT_STALE_MS,
   readOrganizationRecord,
   upsertOrganizationMetadata,
   writeOrganizationRecord,
@@ -19,11 +17,6 @@ import {
   writeOrganizationClaimRequest,
 } from './organizationClaimRequestStorage.mjs';
 import {
-  fetchAllRsiOrganizationMembers,
-  fetchRsiApiKeyStatus,
-  findRsiOrganizationMemberByHandle,
-  fetchRsiOrganizationBySid,
-  fetchRsiProfileByHandle,
   isOrganizationAdminCandidate,
   scrapeRsiProfileByHandle,
 } from './rsiLink.mjs';
@@ -34,25 +27,8 @@ import {
   toIsoNow,
 } from './normalize.mjs';
 
-const PROFILE_MAIN_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
-
 function normalizeComparableText(value) {
   return normalizeText(value).toLowerCase();
-}
-
-function isLikelyNotFoundError(error) {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  const normalizedMessage = message.toLowerCase();
-  return normalizedMessage.includes('404') || normalizedMessage.includes('not found');
-}
-
-function isTimestampWithinWindow(timestamp, windowMs, nowMs = Date.now()) {
-  const normalizedTimestamp = normalizeIsoTimestamp(timestamp);
-  if (!normalizedTimestamp) {
-    return false;
-  }
-
-  return nowMs - Date.parse(normalizedTimestamp) < windowMs;
 }
 
 function isSnapshotFreshForMembership(record, nowMs = Date.now()) {
@@ -62,48 +38,6 @@ function isSnapshotFreshForMembership(record, nowMs = Date.now()) {
       Array.isArray(record?.memberSnapshot) &&
       record.memberSnapshot.length > 0 &&
       Date.parse(staleAt) >= nowMs,
-  );
-}
-
-function shouldRefreshProfileMainOrganization(account, nowMs = Date.now()) {
-  if (!account?.rsi?.handle) {
-    return false;
-  }
-
-  const profileMainRef =
-    Array.isArray(account.organizations)
-      ? account.organizations.find((ref) => ref.source === 'profile-main') ?? null
-      : null;
-  if (!profileMainRef) {
-    return true;
-  }
-
-  if (profileMainRef.status === 'observed') {
-    return true;
-  }
-
-  return !isTimestampWithinWindow(profileMainRef.lastSeenAt, PROFILE_MAIN_SYNC_COOLDOWN_MS, nowMs);
-}
-
-function isOrganizationIgnored(account, sid) {
-  return (account?.ignoredOrganizationSids ?? []).includes(sid);
-}
-
-function isSnapshotReusableForClaim(record, nowMs = Date.now()) {
-  return (
-    Array.isArray(record?.memberSnapshot) &&
-    record.memberSnapshot.length > 0 &&
-    isTimestampWithinWindow(record?.lastLiveSyncAt, ORGANIZATION_LIVE_SYNC_COOLDOWN_MS, nowMs)
-  );
-}
-
-function isSnapshotStale(record, nowMs = Date.now()) {
-  const staleAt = normalizeIsoTimestamp(record?.staleAt);
-  return Boolean(
-    staleAt &&
-      Array.isArray(record?.memberSnapshot) &&
-      record.memberSnapshot.length > 0 &&
-      Date.parse(staleAt) < nowMs,
   );
 }
 
@@ -175,67 +109,6 @@ function findOrganizationMemberByHandle(memberSnapshot, handle) {
       (member) => normalizeComparableText(member?.handle) === normalizedHandle,
     ) ?? null
   );
-}
-
-async function resolveOrganizationMembershipEvidence(
-  apiKey,
-  sid,
-  account,
-  memberSnapshot,
-  { fetchImpl = fetch } = {},
-) {
-  const snapshotMember = findOrganizationMemberByHandle(memberSnapshot, account?.rsi?.handle);
-  if (snapshotMember) {
-    return snapshotMember;
-  }
-
-  if (!apiKey || !account?.rsi?.handle) {
-    return null;
-  }
-
-  try {
-    const loadProfile = async (mode) =>
-      fetchRsiProfileByHandle(apiKey, account.rsi.handle, {
-        fetchImpl,
-        mode,
-      });
-
-    let profile = await loadProfile('cache');
-    let matchingOrganization =
-      profile.organization?.sid === sid
-        ? profile.organization
-        : profile.affiliations?.find((organization) => organization.sid === sid) ?? null;
-
-    if (!matchingOrganization) {
-      profile = await loadProfile('auto');
-      matchingOrganization =
-        profile.organization?.sid === sid
-          ? profile.organization
-          : profile.affiliations?.find((organization) => organization.sid === sid) ?? null;
-    }
-
-    if (!matchingOrganization) {
-      return null;
-    }
-
-    const fallbackMember = {
-      handle: profile.handle,
-      display: profile.displayName ?? profile.handle,
-      image: null,
-      rank: matchingOrganization.rank ?? null,
-      stars: Number.isFinite(Number(matchingOrganization.stars))
-        ? Number(matchingOrganization.stars)
-        : null,
-      roles: [],
-    };
-
-    return {
-      ...fallbackMember,
-      isAdminCandidate: isOrganizationAdminCandidate(fallbackMember),
-    };
-  } catch {
-    return null;
-  }
 }
 
 function buildObservedOrganizationRef(ref, overrides = {}) {
@@ -453,123 +326,6 @@ async function readOrganizationClaimRequestsBySid(store, accountId, refs) {
   return new Map(entries);
 }
 
-async function syncProfileMainOrganization(store, account, apiKey, { fetchImpl = fetch } = {}) {
-  if (!account?.rsi?.handle || !apiKey) {
-    return account;
-  }
-  if (!shouldRefreshProfileMainOrganization(account)) {
-    return account;
-  }
-
-  const profile = await fetchRsiProfileByHandle(apiKey, account.rsi.handle, {
-    fetchImpl,
-    mode: 'cache',
-  });
-  const profileOrganization = profile.organization;
-  const currentRefs = Array.isArray(account.organizations) ? account.organizations : [];
-  const refsWithoutProfileMain = currentRefs.filter((ref) => ref.source !== 'profile-main');
-  const now = toIsoNow();
-
-  if (!profileOrganization) {
-    if (refsWithoutProfileMain.length === currentRefs.length) {
-      return account;
-    }
-
-    return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile);
-  }
-
-  const existingOrganizationRecord = await readOrganizationRecord(store, profileOrganization.sid);
-  const ownerBypassCandidate = isOrganizationAdminCandidate({
-    rank: profileOrganization.rank,
-    stars: null,
-  });
-  const canReviveDeletedOrganization =
-    isOrganizationDeleted(existingOrganizationRecord) && ownerBypassCandidate;
-
-  if (isOrganizationIgnored(account, profileOrganization.sid) && !canReviveDeletedOrganization) {
-    if (refsWithoutProfileMain.length === currentRefs.length) {
-      return account;
-    }
-
-    return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile);
-  }
-
-  if (isOrganizationDeleted(existingOrganizationRecord) && !canReviveDeletedOrganization) {
-    const nextIgnoredOrganizationSids = Array.from(
-      new Set([...(account.ignoredOrganizationSids ?? []), profileOrganization.sid]),
-    );
-
-    if (
-      refsWithoutProfileMain.length === currentRefs.length &&
-      nextIgnoredOrganizationSids.length === (account.ignoredOrganizationSids ?? []).length
-    ) {
-      return account;
-    }
-
-    return saveAccountOrganizations(store, account.accountId, refsWithoutProfileMain, account.profile, {
-      ignoredOrganizationSids: nextIgnoredOrganizationSids,
-    });
-  }
-
-  if (canReviveDeletedOrganization) {
-    await reviveDeletedOrganizationRecord(
-      store,
-      existingOrganizationRecord,
-      {
-        ...profileOrganization,
-        image: profileOrganization.image ?? profileOrganization.logo ?? null,
-      },
-      { now },
-    );
-  }
-
-  await upsertOrganizationMetadata(store, {
-    ...profileOrganization,
-    image: profileOrganization.image ?? profileOrganization.logo ?? null,
-  });
-
-  const existingRef =
-    currentRefs.find((ref) => ref.sid === profileOrganization.sid) ?? null;
-  const profileMainStatus =
-    existingRef?.status === 'verified_admin'
-      ? 'verified_admin'
-      : 'verified_member';
-  const profileMainRef = {
-    sid: profileOrganization.sid,
-    source: 'profile-main',
-    name: profileOrganization.name,
-    image: profileOrganization.image ?? profileOrganization.logo ?? null,
-    status: profileMainStatus,
-    rank:
-      existingRef?.status === 'verified_admin'
-        ? existingRef?.rank ?? profileOrganization.rank ?? null
-        : profileOrganization.rank ?? existingRef?.rank ?? null,
-    stars: existingRef?.stars ?? null,
-    lastSeenAt: now,
-    lastVerifiedAt:
-      existingRef?.status === 'verified_admin'
-        ? existingRef?.lastVerifiedAt ?? now
-        : now,
-  };
-
-  const nextRefs = upsertOrganizationRef(refsWithoutProfileMain, profileMainRef);
-  const nextIgnoredOrganizationSids = (account.ignoredOrganizationSids ?? []).filter(
-    (ignoredSid) => ignoredSid !== profileOrganization.sid,
-  );
-  const currentSerialized = JSON.stringify(sortOrganizationRefs(currentRefs));
-  const nextSerialized = JSON.stringify(sortOrganizationRefs(nextRefs));
-  if (
-    currentSerialized === nextSerialized &&
-    nextIgnoredOrganizationSids.length === (account.ignoredOrganizationSids ?? []).length
-  ) {
-    return account;
-  }
-
-  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile, {
-    ignoredOrganizationSids: nextIgnoredOrganizationSids,
-  });
-}
-
 async function applyFreshMembershipSnapshots(store, account) {
   if (!account?.rsi?.handle || !Array.isArray(account.organizations) || account.organizations.length === 0) {
     return account;
@@ -655,185 +411,17 @@ async function decorateAccountOrganizationsFromStore(store, account) {
   return decorateAccountOrganizations(account, organizationRecordsBySid, claimRequestsBySid);
 }
 
-function canAutoRefreshStaleSnapshot(account, organizationRef, organizationRecord, nowMs = Date.now()) {
-  if (!organizationRecord || !isSnapshotStale(organizationRecord, nowMs)) {
-    return false;
-  }
-
-  return Boolean(
-    organizationRecord.claimedByAccountId === account.accountId ||
-      organizationRecord.adminAccountIds.includes(account.accountId) ||
-      organizationRef?.status === 'verified_admin',
-  );
-}
-
-async function refreshStaleOrganizationSnapshots(
-  store,
-  account,
-  apiKey,
-  { fetchImpl = fetch } = {},
-) {
-  if (!apiKey || !Array.isArray(account?.organizations) || account.organizations.length === 0) {
-    return account;
-  }
-
-  const organizationRecordsBySid = await readOrganizationRecordsBySid(store, account.organizations);
-  const nowMs = Date.now();
-
-  for (const organizationRef of account.organizations) {
-    const organizationRecord = organizationRecordsBySid.get(organizationRef.sid) ?? null;
-    if (!canAutoRefreshStaleSnapshot(account, organizationRef, organizationRecord, nowMs)) {
-      continue;
-    }
-
-    try {
-      const refreshedRecord = await refreshLiveOrganizationSnapshot(store, apiKey, organizationRef.sid, {
-        fetchImpl,
-      });
-      organizationRecordsBySid.set(organizationRef.sid, refreshedRecord);
-      break;
-    } catch (error) {
-      if (error instanceof OrganizationServiceError && error.status === 429) {
-        break;
-      }
-    }
-  }
-
-  return account;
-}
-
 async function safeSyncAndDecorateAccountOrganizations(
   store,
   account,
-  apiKey,
-  { fetchImpl = fetch } = {},
+  _unused = null,
+  _options = {},
 ) {
   try {
-    return await syncAndDecorateAccountOrganizations(store, account, apiKey, { fetchImpl });
+    return await syncAndDecorateAccountOrganizations(store, account);
   } catch {
     return decorateAccountOrganizationsFromStore(store, account);
   }
-}
-
-async function refreshOrganizationMetadataCounts(
-  store,
-  account,
-  apiKey,
-  { fetchImpl = fetch } = {},
-) {
-  if (!apiKey || !Array.isArray(account?.organizations) || account.organizations.length === 0) {
-    return account;
-  }
-
-  for (const organizationRef of account.organizations) {
-    const organizationRecord = await readOrganizationRecord(store, organizationRef.sid);
-    if (isOrganizationDeleted(organizationRecord)) {
-      continue;
-    }
-    const hasKnownMemberCount =
-      (Number.isFinite(Number(organizationRecord?.memberCount)) && Number(organizationRecord.memberCount) > 0) ||
-      (Number.isFinite(Number(organizationRecord?.members)) && Number(organizationRecord.members) > 0);
-
-    if (hasKnownMemberCount) {
-      continue;
-    }
-
-    try {
-      const metadata = await fetchRsiOrganizationBySid(apiKey, organizationRef.sid, {
-        fetchImpl,
-        mode: 'cache',
-      });
-      await upsertOrganizationMetadata(store, metadata);
-    } catch {
-      // Ignore metadata refresh failures here and keep the last known record.
-    }
-  }
-
-  return account;
-}
-
-async function refreshLiveOrganizationSnapshot(store, apiKey, sid, { fetchImpl = fetch } = {}) {
-  const quotaStatus = await fetchRsiApiKeyStatus(apiKey, { fetchImpl });
-  if (quotaStatus.remainingLiveRequests <= 0) {
-    throw new OrganizationServiceError(
-      429,
-      'The daily live RSI verification limit has been reached. Try again tomorrow.',
-    );
-  }
-
-  let metadata;
-  try {
-    metadata = await fetchRsiOrganizationBySid(apiKey, sid, {
-      fetchImpl,
-      mode: 'cache',
-    });
-  } catch (error) {
-    if (!isLikelyNotFoundError(error)) {
-      throw error;
-    }
-
-    metadata = await fetchRsiOrganizationBySid(apiKey, sid, {
-      fetchImpl,
-      mode: 'auto',
-    });
-  }
-  const members = await fetchAllRsiOrganizationMembers(apiKey, sid, { fetchImpl });
-  const existingRecord = await readOrganizationRecord(store, sid);
-  const now = toIsoNow();
-  const nextRecord = {
-    ...(existingRecord ?? {
-      sid: metadata.sid,
-      claimed: false,
-      claimedByAccountId: null,
-    adminAccountIds: [],
-    createdAt: now,
-    blueprintSharingEnabled: true,
-    deletedAt: null,
-    }),
-    ...metadata,
-    image: metadata.image ?? metadata.logo ?? existingRecord?.image ?? null,
-    memberSnapshot: members,
-    lastLiveSyncAt: now,
-    nextEligibleLiveSyncAt: new Date(Date.now() + ORGANIZATION_LIVE_SYNC_COOLDOWN_MS).toISOString(),
-    staleAt: new Date(Date.now() + ORGANIZATION_SNAPSHOT_STALE_MS).toISOString(),
-    memberCount: members.length,
-    syncStatus: 'fresh',
-    updatedAt: now,
-  };
-
-  return writeOrganizationRecord(store, nextRecord);
-}
-
-async function ensureAccountHasOrganizationRef(store, account, sid, apiKey, { fetchImpl = fetch } = {}) {
-  const normalizedSid = normalizeOrganizationSid(sid);
-  if (!normalizedSid) {
-    throw new OrganizationServiceError(400, 'Organization SID is required.');
-  }
-
-  const existingRef = account.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
-  if (existingRef) {
-    return account;
-  }
-
-  const metadata = await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
-    fetchImpl,
-    mode: 'cache',
-  });
-  await upsertOrganizationMetadata(store, metadata);
-
-  const nextRef = {
-    sid: normalizedSid,
-    source: 'manual',
-    name: metadata.name,
-    image: metadata.image ?? metadata.logo ?? null,
-    status: 'observed',
-    rank: null,
-    stars: null,
-    lastSeenAt: toIsoNow(),
-    lastVerifiedAt: null,
-  };
-  const nextRefs = upsertOrganizationRef(account.organizations, nextRef);
-  return saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
 }
 
 function assertLinkedRsiHandle(account) {
@@ -884,16 +472,10 @@ export class OrganizationServiceError extends Error {
 export async function syncAndDecorateAccountOrganizations(
   store,
   account,
-  apiKey,
-  { fetchImpl = fetch } = {},
+  _unused = null,
+  _options = {},
 ) {
   let nextAccount = account;
-  if (nextAccount?.rsi?.handle && apiKey) {
-    nextAccount = await syncProfileMainOrganization(store, nextAccount, apiKey, { fetchImpl });
-  }
-
-  nextAccount = await refreshOrganizationMetadataCounts(store, nextAccount, apiKey, { fetchImpl });
-  nextAccount = await refreshStaleOrganizationSnapshots(store, nextAccount, apiKey, { fetchImpl });
   nextAccount = await applyFreshMembershipSnapshots(store, nextAccount);
   const organizationRecordsBySid = await readOrganizationRecordsBySid(store, nextAccount.organizations);
   const claimRequestsBySid = await readOrganizationClaimRequestsBySid(
@@ -912,7 +494,6 @@ export async function syncCitizenIdAccountOrganizations(store, account, organiza
 export async function addAccountOrganizationBySid(
   store,
   account,
-  apiKey,
   sid,
   { fetchImpl = fetch } = {},
 ) {
@@ -945,24 +526,7 @@ export async function addAccountOrganizationBySid(
   const scrapedMetadata = scrapedOrganizations.find(
     (organization) => normalizeOrganizationSid(organization.sid) === normalizedSid,
   );
-  const metadataFromLinkedProfile = Boolean(scrapedMetadata);
-  const metadata =
-    scrapedMetadata ??
-    (apiKey
-      ? await fetchRsiOrganizationBySid(apiKey, normalizedSid, {
-          fetchImpl,
-          mode: 'cache',
-        }).catch(async (error) => {
-          if (!isLikelyNotFoundError(error)) {
-            throw error;
-          }
-
-          return fetchRsiOrganizationBySid(apiKey, normalizedSid, {
-            fetchImpl,
-            mode: 'auto',
-          });
-        })
-      : null);
+  const metadata = scrapedMetadata ?? null;
 
   if (!metadata) {
     throw new OrganizationServiceError(
@@ -983,7 +547,7 @@ export async function addAccountOrganizationBySid(
     ? findOrganizationMemberByHandle(existingRecord.memberSnapshot, account.rsi.handle)
     : null;
 
-  if (!matchingMember && metadataFromLinkedProfile) {
+  if (!matchingMember) {
     matchingMember = {
       handle: account.rsi.handle,
       display: account.rsi.displayName ?? account.rsi.handle,
@@ -994,48 +558,6 @@ export async function addAccountOrganizationBySid(
         : null,
       roles: [],
     };
-  }
-
-  if (!matchingMember) {
-    matchingMember = await resolveOrganizationMembershipEvidence(
-      apiKey,
-      metadata.sid,
-      account,
-      null,
-      { fetchImpl },
-    );
-  }
-
-  if (!matchingMember) {
-    if (!apiKey) {
-      throw new OrganizationServiceError(
-        403,
-        'Your linked RSI handle was not found in this organization.',
-      );
-    }
-
-    const quotaStatus = await fetchRsiApiKeyStatus(apiKey, { fetchImpl });
-    if (quotaStatus.remainingLiveRequests <= 0) {
-      throw new OrganizationServiceError(
-        429,
-        'The daily live RSI verification limit has been reached. Try again tomorrow.',
-      );
-    }
-
-    const membershipProof = await findRsiOrganizationMemberByHandle(
-      apiKey,
-      metadata.sid,
-      account.rsi.handle,
-      { fetchImpl },
-    );
-    matchingMember = membershipProof?.member ?? null;
-  }
-
-  if (!matchingMember) {
-    throw new OrganizationServiceError(
-      403,
-      'Your linked RSI handle was not found in this organization.',
-    );
   }
 
   if (isDeletedOrganization && !isOrganizationAdminCandidate(matchingMember)) {
@@ -1078,7 +600,7 @@ export async function addAccountOrganizationBySid(
       ignoredOrganizationSids: nextIgnoredOrganizationSids,
     },
   );
-  return safeSyncAndDecorateAccountOrganizations(store, nextAccount, apiKey, { fetchImpl });
+  return safeSyncAndDecorateAccountOrganizations(store, nextAccount);
 }
 
 export async function removeAccountOrganizationBySid(store, account, sid) {
@@ -1283,9 +805,8 @@ export async function claimAccountOrganization(
 export async function refreshAccountOrganizationMembers(
   store,
   account,
-  apiKey,
   sid,
-  { fetchImpl = fetch } = {},
+  _options = {},
 ) {
   assertLinkedRsiHandle(account);
   const normalizedSid = normalizeOrganizationSid(sid);
@@ -1298,76 +819,10 @@ export async function refreshAccountOrganizationMembers(
     throw new OrganizationServiceError(404, 'Organization not found in this account.');
   }
 
-  const existingRecord = await readOrganizationRecord(store, normalizedSid);
-  assertActiveOrganizationRecord(existingRecord);
-  if (!existingRecord.claimed) {
-    throw new OrganizationServiceError(
-      400,
-      'Claim the organization first before refreshing members.',
-    );
-  }
-
-  const isKnownAdmin =
-    existingRecord.adminAccountIds.includes(account.accountId) ||
-    organizationRef.status === 'verified_admin';
-  if (!isKnownAdmin) {
-    throw new OrganizationServiceError(
-      403,
-      'Only verified organization admins can refresh organization members.',
-    );
-  }
-
-  const nextEligibleAt = normalizeIsoTimestamp(existingRecord.nextEligibleLiveSyncAt);
-  if (nextEligibleAt && Date.parse(nextEligibleAt) > Date.now()) {
-    throw new OrganizationServiceError(
-      429,
-      `Organization members can be refreshed only once every 24 hours. Try again after ${nextEligibleAt}.`,
-    );
-  }
-
-  const refreshedRecord = await refreshLiveOrganizationSnapshot(store, apiKey, normalizedSid, {
-    fetchImpl,
-  });
-  const matchingMember = await resolveOrganizationMembershipEvidence(
-    apiKey,
-    normalizedSid,
-    account,
-    refreshedRecord.memberSnapshot,
-    { fetchImpl },
+  throw new OrganizationServiceError(
+    410,
+    'Live organization member refresh is no longer available. Re-sync with Citizen iD to update your own RSI organization memberships.',
   );
-  const adminAccountIds = isOrganizationAdminCandidate(matchingMember)
-    ? Array.from(new Set([...(refreshedRecord.adminAccountIds ?? []), account.accountId]))
-    : (refreshedRecord.adminAccountIds ?? []).filter((accountId) => accountId !== account.accountId);
-
-  await writeOrganizationRecord(store, {
-    ...refreshedRecord,
-    adminAccountIds,
-    updatedAt: toIsoNow(),
-  });
-
-  const nextRefs = account.organizations.map((ref) => {
-    if (ref.sid !== normalizedSid) {
-      return ref;
-    }
-
-    if (!matchingMember) {
-      return buildObservedOrganizationRef(ref, {
-        lastSeenAt: refreshedRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
-      });
-    }
-
-    return buildVerifiedOrganizationRef(
-      ref,
-      matchingMember,
-      refreshedRecord.lastLiveSyncAt,
-      {
-        lastSeenAt: refreshedRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
-      },
-    );
-  });
-
-  const nextAccount = await saveAccountOrganizations(store, account.accountId, nextRefs, account.profile);
-  return safeSyncAndDecorateAccountOrganizations(store, nextAccount, apiKey, { fetchImpl });
 }
 
 export async function buildOrganizationSharedBlueprints(store, account, sid, options = {}) {

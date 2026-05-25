@@ -135,7 +135,9 @@ export function useAppUpdateState(): AppUpdateState {
       await relaunch();
     } catch (e) {
       setStatus('error');
-      setError(e instanceof Error ? e.message : 'Unable to install the update.');
+      const msg = e instanceof Error ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
+      console.error('[updater] install failed:', e);
+      setError(msg || 'Unable to install the update.');
     }
   }, [mode]);
 

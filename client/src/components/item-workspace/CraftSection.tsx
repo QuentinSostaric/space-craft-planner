@@ -343,9 +343,6 @@ export function CraftSection({
                 {attackProfile && <FieldRow label={t('Attack Profile', 'Profil attaque')} value={attackProfile} />}
                 {ammoType && <FieldRow label={t('Ammo Type', 'Type munition')} value={ammoType} />}
                 {armorSlot && <FieldRow label={t('Armor Slot', 'Emplacement')} value={armorSlot} />}
-                <FieldRow label={t('Craft XP', 'XP fabrication')} value={craftXp} />
-                <FieldRow label={t('Blueprint ID', 'ID blueprint')} value={blueprintId} />
-                {entityPath && <FieldRow label={t('Entity Path', 'Chemin entité')} value={entityPath} />}
               </Box>
 
               {technicalTags.length > 0 && (
@@ -464,7 +461,6 @@ export function CraftSection({
 
           <Divider sx={{ my: 1.25, borderColor: theme.palette.ui.border }} />
           <Stack spacing={0.15} sx={{ mb: 1.25 }}>
-            <KVRow label={t('Estimated XP', 'XP estimé')} value={`+${estimatedXp.toLocaleString()}`} />
             <KVRow label={t('Station cost', 'Coût station')} value={`${stationCost} aUEC`} />
             <KVRow label={t('Craft time', 'Temps de craft')} value={formatCraftTime(blueprint.craftTimeSecs)} />
           </Stack>

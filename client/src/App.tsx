@@ -25,6 +25,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { NavRail } from './components/NavRail';
 import { Footer } from './components/Footer';
+import { OnboardingDialog } from './components/OnboardingDialog';
 import { AppUpdateSnackbar } from './components/AppUpdateSnackbar';
 import { AppUpdateContext, useAppUpdateState } from './hooks/useAppUpdate';
 import { useCraft } from './store/CraftContext';
@@ -847,6 +848,7 @@ function AppUpdateProviderInner() {
     <AppUpdateContext.Provider value={updateState}>
       <AccountStateSync />
       <AppShell />
+      <OnboardingDialog />
       <AppUpdateSnackbar />
     </AppUpdateContext.Provider>
   );

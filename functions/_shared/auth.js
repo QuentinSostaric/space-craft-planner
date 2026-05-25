@@ -38,6 +38,7 @@ import {
   readAccountRecord,
   readScopedAccountRecord,
   saveAccountInventoryResources,
+  saveAccountOnboardingState,
   saveAccountOrganizationBlueprintShares,
   saveAccountOrganizationResourceShares,
   saveAccountState,
@@ -113,10 +114,6 @@ function getAccountDatasetScopeFromRequest(request, payload = null) {
   );
 }
 
-function getStarCitizenApiKey(env) {
-  return String(env?.STARCITIZEN_API_KEY ?? '').trim();
-}
-
 function getOrganizationClaimReviewerEmail(env) {
   const reviewerEmail = String(env?.ORGANIZATION_CLAIM_REVIEWER_EMAIL ?? '').trim();
   return reviewerEmail || null;
@@ -176,11 +173,7 @@ async function ensureAccountForSession(accountStore, session) {
 
 async function buildDecoratedAccount(accountStore, account, env) {
   try {
-    return await syncAndDecorateAccountOrganizations(
-      accountStore,
-      account,
-      getStarCitizenApiKey(env),
-    );
+    return await syncAndDecorateAccountOrganizations(accountStore, account);
   } catch {
     return account;
   }
@@ -478,6 +471,15 @@ export async function handleAccountUpdateRequest(request, env) {
   });
 }
 
+export async function handleAccountOnboardingUpdateRequest(request, env) {
+  return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload) => {
+    return saveAccountOnboardingState(accountStore, session.accountId, session.user, {
+      completed: payload?.completed === true,
+      dismissed: payload?.dismissed === true,
+    });
+  });
+}
+
 export async function handleAccountSharedBlueprintsUpdateRequest(request, env) {
   return withAuthenticatedAccountJson(request, env, async (accountStore, session, _account, payload, _env, datasetScope) => {
     return saveAccountOrganizationBlueprintShares(
@@ -668,7 +670,6 @@ export async function handleAccountOrganizationsCreateRequest(request, env) {
     const nextAccount = await addAccountOrganizationBySid(
       accountStore,
       account,
-      getStarCitizenApiKey(env),
       payload?.sid,
     );
     const decoratedAccount = await buildScopedDecoratedAccount(
@@ -810,15 +811,10 @@ export async function handleOrganizationRefreshRequest(request, env, sid) {
     return errorResponse(401, 'Authentication required.');
   }
 
-  const apiKey = getStarCitizenApiKey(env);
-  if (!apiKey) {
-    return errorResponse(503, 'Star Citizen API is not configured.');
-  }
-
   try {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
-    const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, apiKey, sid);
+    const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, sid);
     const decoratedAccount = await buildScopedDecoratedAccount(
       accountStore,
       nextAccount,

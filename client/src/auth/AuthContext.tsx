@@ -22,10 +22,10 @@ import {
   fetchOrganizationSharedResources,
   getDiscordLoginUrl,
   logoutAuthSession,
-  refreshAccountOrganizationMembers,
   removeAccountOrganization,
   respondToOrganizationCraftRequestsBulk,
   saveAccountInventoryResources,
+  saveAccountOnboardingState,
   saveCurrentAccountState,
   saveOrganizationBlueprintShares,
   saveOrganizationResourceShares,
@@ -62,7 +62,6 @@ import {
   type OrganizationBlueprintSharesMutation,
   type OrganizationClaimMutation,
   type OrganizationMembershipMutation,
-  type OrganizationRefreshMutation,
   type OrganizationResourceSharesMutation,
   type OrganizationSharingMutation,
   type PersistedAccountMutation,
@@ -97,6 +96,7 @@ interface AuthState {
   linkRsiAccount: (handle: string, code: string) => Promise<void>;
   linkRsiAccountWithCitizenId: (returnTo?: string) => void;
   unlinkRsiAccount: () => Promise<void>;
+  updateOnboardingState: (payload: { completed?: boolean; dismissed?: boolean }) => Promise<void>;
   updateInventoryResources: (
     inventoryResources: AccountInventoryResourceEntry[],
     options?: { flushAfterMs?: number },
@@ -135,7 +135,6 @@ interface AuthState {
   claimOrganization: (sid: string) => Promise<void>;
   deleteOrganization: (sid: string) => Promise<void>;
   setOrganizationBlueprintSharing: (sid: string, enabled: boolean) => Promise<void>;
-  refreshOrganizationMembers: (sid: string) => Promise<void>;
   loadOrganizationSharedBlueprints: (sid: string) => Promise<OrganizationSharedBlueprintPayload>;
   loadOrganizationSharedResources: (sid: string) => Promise<OrganizationSharedResourcePayload>;
   requestOrganizationCraft: (
@@ -837,15 +836,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               break;
             }
             case 'organization-refresh': {
-              const nextAccount = await refreshAccountOrganizationMembers(
-                mutation.payload.sid,
-                accountDatasetScope,
-              );
               const nextMutations = workingMutations.filter(
                 (entry) => entry.id !== mutation.id,
               );
               workingMutations = nextMutations;
-              markProgress(nextAccount, nextMutations);
+              markProgress(workingAccount, nextMutations);
               break;
             }
             default:
@@ -1246,6 +1241,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSyncError(null);
   }, []);
 
+  const updateOnboardingState = useCallback<AuthState['updateOnboardingState']>(async (payload) => {
+    const nextAccount = await saveAccountOnboardingState(payload);
+    setServerAccount(nextAccount);
+    setSyncError(null);
+  }, []);
+
   const updateOrganizationBlueprintShares = useCallback<
     AuthState['updateOrganizationBlueprintShares']
   >(async (organizationBlueprintShares, options) => {
@@ -1385,35 +1386,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [accountDatasetScope, enqueueMutation],
   );
-
-  const refreshOrganizationMembersBinding = useCallback(async (sid: string) => {
-    const currentAccount = applyOptimisticAccountMutations(
-      serverAccountRef.current,
-      pendingMutationsRef.current,
-    );
-    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope)) {
-      throw new Error('Authentication required.');
-    }
-
-    const normalizedSid = normalizeOrganizationSid(sid);
-    if (!normalizedSid) {
-      throw new Error('Organization SID is required.');
-    }
-
-    const mutation = {
-      id: createMutationId('orgrefresh'),
-      kind: 'organization-refresh',
-      scope: 'command',
-      createdAt: Date.now(),
-      accountId: currentAccount.accountId,
-      dedupeKey: `organization-refresh:${normalizedSid}`,
-      flushAfterMs: DEFAULT_CLICK_FLUSH_MS,
-      payload: {
-        sid: normalizedSid,
-      },
-    } satisfies OrganizationRefreshMutation;
-    enqueueMutation(mutation);
-  }, [accountDatasetScope, enqueueMutation]);
 
   const loadOrganizationSharedBlueprintsBinding = useCallback(async (sid: string) => {
     return fetchOrganizationSharedBlueprints(sid, accountDatasetScope);
@@ -1578,6 +1550,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkRsiAccount,
       linkRsiAccountWithCitizenId,
       unlinkRsiAccount: unlinkRsiAccountBinding,
+      updateOnboardingState,
       updateOrganizationBlueprintShares,
       queueOrganizationBlueprintSharesUpdate,
       updateOrganizationResourceShares,
@@ -1587,7 +1560,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       claimOrganization: claimOrganizationBinding,
       deleteOrganization: deleteOrganizationBinding,
       setOrganizationBlueprintSharing: setOrganizationBlueprintSharingBinding,
-      refreshOrganizationMembers: refreshOrganizationMembersBinding,
       loadOrganizationSharedBlueprints: loadOrganizationSharedBlueprintsBinding,
       loadOrganizationSharedResources: loadOrganizationSharedResourcesBinding,
       requestOrganizationCraft: requestOrganizationCraftBinding,
@@ -1615,7 +1587,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queueInventoryResourcesUpdate,
       queueOrganizationBlueprintSharesUpdate,
       queueOrganizationResourceSharesUpdate,
-      refreshOrganizationMembersBinding,
       refreshSession,
       removeOrganization,
       requestOrganizationCraftBinding,
@@ -1629,6 +1600,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       syncError,
       syncStatus,
       unlinkRsiAccountBinding,
+      updateOnboardingState,
       updateInventoryResources,
       updateOrganizationBlueprintShares,
       updateOrganizationResourceShares,

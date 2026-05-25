@@ -214,6 +214,8 @@ export interface StoredAccount {
   rsi: LinkedRsiAccount | null;
   isAdmin: boolean;
   lastRsiLinkAt: string | null;
+  onboardingCompletedAt: string | null;
+  onboardingDismissedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
   lastLoginAt: string | null;
@@ -296,6 +298,21 @@ export async function saveCurrentAccountState(
   });
 
   return payload.account;
+}
+
+export async function saveAccountOnboardingState(payload: {
+  completed?: boolean;
+  dismissed?: boolean;
+}): Promise<StoredAccount> {
+  const response = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/onboarding', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return response.account;
 }
 
 export async function deleteCurrentAccount(): Promise<void> {
@@ -439,17 +456,6 @@ export async function setAccountOrganizationBlueprintSharing(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ enabled, datasetScope }),
-    },
-  );
-
-  return payload.account;
-}
-
-export async function refreshAccountOrganizationMembers(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>(
-    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/refresh`, datasetScope),
-    {
-      method: 'POST',
     },
   );
 

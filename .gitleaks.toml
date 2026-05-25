@@ -1,0 +1,27 @@
+title = "Item Fabricator secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hardcoded-oauth-client-id"
+description = "Hardcoded OAuth or API client ID"
+regex = '''(?i)(?:discord|citizen|rsi|oauth|api|auth)?[_-]?(?:client|application|app)[_-]?id\s*[:=]\s*["']([0-9A-Za-z][0-9A-Za-z._:-]{7,})["']'''
+secretGroup = 1
+keywords = [
+  "client",
+  "application",
+  "app",
+]
+tags = ["id", "oauth"]
+
+[[rules]]
+id = "hardcoded-oauth-client-secret"
+description = "Hardcoded OAuth or API client secret"
+regex = '''(?i)(?:discord|citizen|rsi|oauth|api|auth)?[_-]?(?:client|application|app)?[_-]?secret\s*[:=]\s*["']([0-9A-Za-z][0-9A-Za-z._~+/=-]{15,})["']'''
+secretGroup = 1
+entropy = 3.5
+keywords = [
+  "secret",
+]
+tags = ["secret", "oauth"]

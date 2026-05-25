@@ -137,8 +137,6 @@ AUTH_PUBLIC_ORIGIN=http://localhost:5173
 
 DISCORD_BOT_WORKER_URL=https://sc-craft-discord-bot.<your-subdomain>.workers.dev
 DISCORD_BOT_INTERNAL_TOKEN=<shared-secret-between-site-and-bot-worker>
-
-STARCITIZEN_API_KEY=<starcitizen-api-key>
 ```
 
 Create `workers/discord-bot/.dev.vars`:
@@ -219,7 +217,7 @@ Secrets and runtime bindings are configured in Cloudflare, not in GitHub.
 | `shared/craftRequestService.mjs` | Craft request create / update logic |
 | `shared/discordBotRelay.mjs` | Signed site-to-bot relay |
 | `shared/discordBot.mjs` | Discord DM payload builders and API helpers |
-| `shared/rsiLink.mjs` | StarCitizen API integration |
+| `shared/rsiLink.mjs` | RSI public profile verification helpers |
 | `workers/discord-bot/` | Dedicated Discord bot Worker |
 
 ## Game Data Rules

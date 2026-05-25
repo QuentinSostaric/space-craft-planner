@@ -12,7 +12,7 @@ import {
   toIsoNow,
 } from './normalize.mjs';
 
-const ACCOUNT_RECORD_VERSION = 9;
+const ACCOUNT_RECORD_VERSION = 10;
 const ACCOUNT_SCOPE_RECORD_VERSION = 1;
 export const RSI_LINK_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
 const ADMIN_DISCORD_USER_IDS = new Set(['183946313669410816']);
@@ -1259,6 +1259,8 @@ export function createDefaultAccountRecord(profile, { accountId, now } = {}) {
     rsi: null,
     isAdmin,
     lastRsiLinkAt: null,
+    onboardingCompletedAt: null,
+    onboardingDismissedAt: null,
     createdAt: timestamp,
     updatedAt: timestamp,
     lastLoginAt: timestamp,
@@ -1313,6 +1315,8 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
     legacySharedResourceEntryIds,
   );
   const lastRsiLinkAt = normalizeIsoTimestamp(value?.lastRsiLinkAt ?? rsi?.verifiedAt);
+  const onboardingCompletedAt = normalizeIsoTimestamp(value?.onboardingCompletedAt);
+  const onboardingDismissedAt = normalizeIsoTimestamp(value?.onboardingDismissedAt);
   const isAdmin = normalizeAdminFlag(value?.isAdmin, normalizedProfile, rsi);
 
   return {
@@ -1336,6 +1340,8 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
     rsi,
     isAdmin,
     lastRsiLinkAt,
+    onboardingCompletedAt,
+    onboardingDismissedAt,
     createdAt,
     updatedAt,
     lastLoginAt,
@@ -1600,6 +1606,8 @@ export async function upsertDiscordAccount(store, profile) {
     profile: normalizedProfile,
     isAdmin: normalizeAdminFlag(existing?.isAdmin, normalizedProfile, existing?.rsi ?? null),
     lastRsiLinkAt: normalizeIsoTimestamp(existing?.lastRsiLinkAt),
+    onboardingCompletedAt: normalizeIsoTimestamp(existing?.onboardingCompletedAt),
+    onboardingDismissedAt: normalizeIsoTimestamp(existing?.onboardingDismissedAt),
     inventoryResources,
     organizationBlueprintShares,
     organizationResourceShares,
@@ -1671,6 +1679,32 @@ export async function saveAccountState(store, accountId, stateSnapshot, fallback
   };
 
   return writeAccountScopeRecord(store, nextRecord, datasetScope, existing);
+}
+
+export async function saveAccountOnboardingState(
+  store,
+  accountId,
+  fallbackProfile = null,
+  { completed = false, dismissed = false } = {},
+) {
+  const existing = await readAccountRecord(store, accountId, fallbackProfile);
+  if (!existing) {
+    throw new Error(`Account "${accountId}" does not exist.`);
+  }
+
+  const now = toIsoNow();
+  const nextRecord = {
+    ...existing,
+    onboardingCompletedAt: completed
+      ? (existing.onboardingCompletedAt ?? now)
+      : existing.onboardingCompletedAt,
+    onboardingDismissedAt: dismissed
+      ? now
+      : existing.onboardingDismissedAt,
+    updatedAt: now,
+  };
+
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
 }
 
 export async function saveAccountOrganizations(

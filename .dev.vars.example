@@ -15,7 +15,6 @@ AUTH_SESSION_SECRET=<long-random-secret>
 AUTH_PUBLIC_ORIGIN=http://localhost:5173
 DISCORD_BOT_WORKER_URL=<discord-bot-worker-url>
 DISCORD_BOT_INTERNAL_TOKEN=<shared-secret-between-site-and-bot-worker>
-STARCITIZEN_API_KEY=<starcitizen-api-key>
 # Optional overrides:
 # DISCORD_OAUTH_SCOPES=identify
 # DISCORD_REDIRECT_URI=http://localhost:5173/api/auth/discord/callback
