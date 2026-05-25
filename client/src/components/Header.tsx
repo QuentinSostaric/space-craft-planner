@@ -27,7 +27,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useThemeMode } from '../hooks/ThemeContext';
 import { useAppUpdate } from '../hooks/useAppUpdate';
-import { isTauriRuntime } from '../services/apiBaseUrl';
+import { getDesktopInstallerUrl, isTauriRuntime } from '../services/apiBaseUrl';
 import { FONT_MONO, FONT_BODY, FONT_HEADING } from '../theme';
 import {
   missionPathFromSlug,
@@ -38,21 +38,6 @@ import {
 import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
 import { useScLog } from '../hooks/ScLogSyncContext';
 
-function getDesktopInstallerUrl(): string {
-  const uaData = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
-  let platform: string | null = null;
-  if (uaData?.platform) {
-    const p = uaData.platform.toLowerCase();
-    if (p === 'windows' || p === 'linux' || p === 'macos') platform = p;
-  }
-  if (!platform) {
-    const ua = navigator.userAgent;
-    if (/windows/i.test(ua)) platform = 'windows';
-    else if (/macintosh|mac os x/i.test(ua)) platform = 'macos';
-    else if (/linux|x11/i.test(ua)) platform = 'linux';
-  }
-  return `/api/desktop/latest-installer${platform ? `?platform=${platform}` : ''}`;
-}
 import { useAuth } from '../auth/AuthContext';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 

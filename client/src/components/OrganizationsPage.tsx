@@ -23,7 +23,6 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import HandymanOutlinedIcon from '@mui/icons-material/HandymanOutlined';
-import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../auth/AuthContext';
@@ -38,6 +37,7 @@ import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfinit
 import { ResourceIcon } from './ui/ResourceIcon';
 import { Panel } from './ui/Panel';
 import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { CitizenIdSignInButton, type CitizenIdBrandEnvironment } from './CitizenIdBrand';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1454,12 +1454,14 @@ function OrganizationList({
   accessibleOrganizations,
   lockedOrganizations,
   citizenIdRsiLinkEnabled,
+  citizenIdBrandEnvironment,
   onSyncCitizenId,
   onOpenOrg,
 }: {
   accessibleOrganizations: AccountOrganization[];
   lockedOrganizations: AccountOrganization[];
   citizenIdRsiLinkEnabled: boolean;
+  citizenIdBrandEnvironment: CitizenIdBrandEnvironment;
   onSyncCitizenId: () => void;
   onOpenOrg: (org: AccountOrganization) => void;
 }) {
@@ -1491,15 +1493,12 @@ function OrganizationList({
             )}
           </Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshOutlinedIcon />}
+        <CitizenIdSignInButton
+          environment={citizenIdBrandEnvironment}
           onClick={onSyncCitizenId}
           disabled={!citizenIdRsiLinkEnabled}
           sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-        >
-          {t('Sync Citizen iD orgs', 'Synchroniser les orgs Citizen iD', 'Citizen-iD-Orgs synchronisieren')}
-        </Button>
+        />
       </Box>
 
       <Alert severity="info" variant="outlined">
@@ -1594,9 +1593,11 @@ export function OrganizationsPage() {
   const {
     account,
     citizenIdRsiLinkEnabled,
+    citizenIdBrandEnvironment,
     linkRsiAccountWithCitizenId,
     syncStatus,
     syncError,
+    authError,
   } = useAuth();
   const {
     blueprints,
@@ -1632,9 +1633,12 @@ export function OrganizationsPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto' }}>
       {/* Sync banners */}
-      {(syncError || syncStatus === 'pending' || syncStatus === 'syncing' || !account?.rsi?.handle) && (
+      {(authError || syncError || syncStatus === 'pending' || syncStatus === 'syncing' || !account?.rsi?.handle) && (
         <Box sx={{ px: { xs: 2, sm: 3, lg: 4 }, pt: { xs: 2, sm: 3 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
           <Stack spacing={1}>
+            {authError && (
+              <Alert severity="error" variant="outlined">{authError}</Alert>
+            )}
             {syncError && (
               <Alert severity="error" variant="outlined">{syncError}</Alert>
             )}
@@ -1674,6 +1678,7 @@ export function OrganizationsPage() {
           accessibleOrganizations={accessibleOrganizations}
           lockedOrganizations={lockedOrganizations}
           citizenIdRsiLinkEnabled={citizenIdRsiLinkEnabled}
+          citizenIdBrandEnvironment={citizenIdBrandEnvironment}
           onSyncCitizenId={() => { linkRsiAccountWithCitizenId('/organizations'); }}
           onOpenOrg={(org) => setSelectedOrg(org.sid)}
         />

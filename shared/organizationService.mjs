@@ -548,6 +548,9 @@ export async function addAccountOrganizationBySid(
     : null;
 
   if (!matchingMember) {
+    console.warn(
+      `[org-claim] handle "${account.rsi.handle}" not found in roster snapshot for org "${metadata.sid}" — granting verified_member without roster confirmation`,
+    );
     matchingMember = {
       handle: account.rsi.handle,
       display: account.rsi.displayName ?? account.rsi.handle,

@@ -11,6 +11,8 @@
     "updater:default",
     "process:allow-restart",
     "allow-fetch-api-json",
+    "allow-start-desktop-oauth",
+    "allow-clear-desktop-auth-session",
     "allow-detect-sc-install-paths",
     "allow-scan-blueprints-from-logs",
     "allow-start-log-watcher",

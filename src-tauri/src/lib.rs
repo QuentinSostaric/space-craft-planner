@@ -1,22 +1,49 @@
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use url::Url;
 use walkdir::WalkDir;
 
 const API_BASE_URL: &str = "https://itemfab.space";
+const API_BASE_URL_ENV: &str = "ITEMFAB_API_BASE_URL";
 const TAIL_POLL_MS: u64 = 200;
 const APP_REGISTRY_NAME: &str = "ItemFabricator";
+const KEYRING_SERVICE: &str = "space.itemfab.desktop";
+const KEYRING_SESSION_USER: &str = "desktop-session";
 
 // ─── Watcher state ────────────────────────────────────────────────────────────
 
 pub struct WatcherState {
     stop_flag: Mutex<Option<Arc<AtomicBool>>>,
     channel_path: Mutex<Option<String>>,
+}
+
+pub struct DesktopAuthState {
+    session_token: Mutex<Option<String>>,
+}
+
+impl DesktopAuthState {
+    fn new() -> Self {
+        Self {
+            session_token: Mutex::new(read_desktop_session_token()),
+        }
+    }
+
+    fn get_token(&self) -> Option<String> {
+        self.session_token.lock().unwrap().clone()
+    }
+
+    fn set_token(&self, token: Option<String>) -> Result<(), String> {
+        *self.session_token.lock().unwrap() = token.clone();
+        write_desktop_session_token(token.as_deref())
+    }
 }
 
 impl WatcherState {
@@ -44,24 +71,113 @@ impl WatcherState {
     }
 }
 
+fn desktop_session_path() -> Option<PathBuf> {
+    let base = if cfg!(target_os = "windows") {
+        std::env::var_os("APPDATA").map(PathBuf::from)
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|home| home.join("Library").join("Application Support"))
+    } else {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+    }?;
+
+    Some(base.join("ItemFabricator").join("desktop-session.token"))
+}
+
+fn read_desktop_session_token() -> Option<String> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER).ok()?;
+    let token = entry.get_password().ok()?.trim().to_string();
+    if token.is_empty() {
+        None
+    } else {
+        Some(token)
+    }
+}
+
+fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER)
+        .map_err(|e| format!("Unable to open desktop credential store: {e}"))?;
+
+    match token {
+        Some(value) if !value.trim().is_empty() => entry
+            .set_password(value.trim())
+            .map_err(|e| format!("Unable to save desktop session: {e}")),
+        _ => {
+            let _ = entry.delete_credential();
+            if let Some(path) = desktop_session_path() {
+                let _ = std::fs::remove_file(path);
+            }
+            Ok(())
+        }
+    }
+}
+
+fn api_base_url() -> String {
+    std::env::var(API_BASE_URL_ENV)
+        .ok()
+        .or_else(|| option_env!("ITEMFAB_API_BASE_URL").map(ToString::to_string))
+        .map(|value| value.trim().trim_end_matches('/').to_string())
+        .filter(|value| {
+            value.starts_with("https://")
+                || value.starts_with("http://localhost:")
+                || value.starts_with("http://127.0.0.1:")
+        })
+        .unwrap_or_else(|| API_BASE_URL.to_string())
+}
+
+fn generate_url_secret(bytes_length: usize) -> Result<String, String> {
+    let mut bytes = vec![0_u8; bytes_length];
+    getrandom::getrandom(&mut bytes).map_err(|e| e.to_string())?;
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    Ok(bytes
+        .iter()
+        .map(|byte| ALPHABET[usize::from(*byte) % ALPHABET.len()] as char)
+        .collect())
+}
+
 // ─── API proxy ────────────────────────────────────────────────────────────────
 
 #[tauri::command]
-async fn fetch_api_json(path: String) -> Result<serde_json::Value, String> {
+async fn fetch_api_json(
+    path: String,
+    method: Option<String>,
+    body: Option<serde_json::Value>,
+    auth_state: tauri::State<'_, DesktopAuthState>,
+) -> Result<serde_json::Value, String> {
+    let base_url = api_base_url();
     let url = if path.starts_with("/api/") {
-        format!("{API_BASE_URL}{path}")
-    } else if path.starts_with("https://itemfab.space/api/") {
+        format!("{base_url}{path}")
+    } else if path.starts_with(&format!("{base_url}/api/"))
+        || path.starts_with("https://itemfab.space/api/")
+    {
         path
     } else {
         return Err("Unsupported API path".to_string());
     };
 
-    let response = reqwest::Client::new()
-        .get(&url)
-        .header(reqwest::header::ACCEPT, "application/json")
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let method = method.unwrap_or_else(|| "GET".to_string()).to_uppercase();
+    let client = reqwest::Client::new();
+    let mut request = match method.as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        _ => return Err(format!("Unsupported API method: {method}")),
+    }
+    .header(reqwest::header::ACCEPT, "application/json");
+
+    if let Some(token) = auth_state.get_token() {
+        request = request.bearer_auth(token);
+    }
+
+    if let Some(payload) = body {
+        request = request.json(&payload);
+    }
+
+    let response = request.send().await.map_err(|e| e.to_string())?;
 
     let status = response.status();
     let payload = response
@@ -79,6 +195,221 @@ async fn fetch_api_json(path: String) -> Result<serde_json::Value, String> {
     }
 
     Ok(payload)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopOauthPayload {
+    flow: String,
+}
+
+#[derive(Deserialize)]
+struct DesktopExchangeResponse {
+    #[serde(rename = "sessionToken")]
+    session_token: String,
+    #[serde(flatten)]
+    payload: serde_json::Value,
+}
+
+fn open_system_browser(url: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Err("Opening the system browser is not supported on this platform.".to_string())
+}
+
+async fn receive_desktop_oauth_callback(
+    listener: TcpListener,
+    expected_path: String,
+) -> Result<(String, String), String> {
+    let accept = async {
+        loop {
+            let (mut stream, _) = listener.accept().await.map_err(|e| e.to_string())?;
+            let mut buffer = vec![0_u8; 8192];
+            let bytes_read = stream.read(&mut buffer).await.map_err(|e| e.to_string())?;
+            let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+            let request_line = match request.lines().next() {
+                Some(value) => value,
+                None => {
+                    continue;
+                }
+            };
+            let target = match request_line.split_whitespace().nth(1) {
+                Some(value) => value,
+                None => {
+                    continue;
+                }
+            };
+            let url = match Url::parse(&format!("http://127.0.0.1{target}")) {
+                Ok(value) => value,
+                Err(_) => {
+                    continue;
+                }
+            };
+            if url.path() != expected_path {
+                let html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Item Fabricator</title></head><body>Invalid callback.</body></html>";
+                let response = format!(
+                    "HTTP/1.1 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    html.len(),
+                    html,
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                continue;
+            }
+            let code = url
+                .query_pairs()
+                .find(|(key, _)| key == "code")
+                .map(|(_, value)| value.to_string());
+            let flow = url
+                .query_pairs()
+                .find(|(key, _)| key == "flow")
+                .map(|(_, value)| value.to_string())
+                .unwrap_or_else(|| "discord".to_string());
+            let error = url
+                .query_pairs()
+                .find(|(key, _)| key == "error")
+                .map(|(_, value)| value.to_string());
+
+            let html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Item Fabricator</title></head><body style=\"font-family:system-ui;background:#0b1220;color:#f8fafc;display:grid;place-items:center;min-height:100vh;margin:0\"><main><h1>Authentication complete</h1><p>You can return to Item Fabricator.</p></main></body></html>";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                html.len(),
+                html,
+            );
+            stream
+                .write_all(response.as_bytes())
+                .await
+                .map_err(|e| e.to_string())?;
+
+            if let Some(error) = error {
+                return Err(error);
+            }
+
+            return Ok((
+                flow,
+                code.ok_or_else(|| "Desktop OAuth callback did not return a code.".to_string())?,
+            ));
+        }
+    };
+
+    tokio::time::timeout(tokio::time::Duration::from_secs(300), accept)
+        .await
+        .map_err(|_| "Desktop OAuth timed out.".to_string())?
+}
+
+#[tauri::command]
+async fn start_desktop_oauth(
+    payload: DesktopOauthPayload,
+    auth_state: tauri::State<'_, DesktopAuthState>,
+) -> Result<serde_json::Value, String> {
+    let flow = payload.flow.trim().to_lowercase();
+    if flow != "discord" && flow != "citizenid" {
+        return Err("Unsupported desktop OAuth flow.".to_string());
+    }
+
+    let base_url = api_base_url();
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .map_err(|e| e.to_string())?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    let callback_nonce = generate_url_secret(24)?;
+    let callback_path = format!("/auth/desktop-callback/{callback_nonce}");
+    let callback = format!("http://127.0.0.1:{port}{callback_path}");
+    let login_path = if flow == "discord" {
+        "/api/auth/discord/login"
+    } else {
+        "/api/auth/citizenid/login"
+    };
+    let encoded_callback =
+        url::form_urlencoded::byte_serialize(callback.as_bytes()).collect::<String>();
+    let login_url = format!("{base_url}{login_path}?desktop=1&desktopCallback={encoded_callback}");
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut login_request = client
+        .get(&login_url)
+        .header(reqwest::header::ACCEPT, "application/json");
+    if let Some(token) = auth_state.get_token() {
+        login_request = login_request.bearer_auth(token);
+    }
+    let login_response = login_request.send().await.map_err(|e| e.to_string())?;
+    if !login_response.status().is_redirection() {
+        let status = login_response.status();
+        let message = login_response
+            .text()
+            .await
+            .unwrap_or_else(|_| format!("HTTP {status}"));
+        return Err(format!("Failed to start desktop OAuth: {message}"));
+    }
+    let authorization_url = login_response
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| "Desktop OAuth login did not return a redirect URL.".to_string())?
+        .to_string();
+
+    open_system_browser(&authorization_url)?;
+    let (_callback_flow, exchange_code) =
+        receive_desktop_oauth_callback(listener, callback_path).await?;
+    let exchange_response = reqwest::Client::new()
+        .post(format!("{base_url}/api/auth/desktop/exchange"))
+        .header(reqwest::header::ACCEPT, "application/json")
+        .json(&serde_json::json!({ "code": exchange_code }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = exchange_response.status();
+    if !status.is_success() {
+        let message = exchange_response
+            .text()
+            .await
+            .unwrap_or_else(|_| format!("HTTP {status}"));
+        return Err(format!("Desktop auth exchange failed: {message}"));
+    }
+    let payload = exchange_response
+        .json::<DesktopExchangeResponse>()
+        .await
+        .map_err(|e| format!("Non-JSON desktop exchange response - HTTP {status}: {e}"))?;
+
+    auth_state.set_token(Some(payload.session_token.clone()))?;
+    Ok(payload.payload)
+}
+
+#[tauri::command]
+fn clear_desktop_auth_session(
+    auth_state: tauri::State<'_, DesktopAuthState>,
+) -> Result<(), String> {
+    auth_state.set_token(None)
 }
 
 // ─── SC install path detection ────────────────────────────────────────────────
@@ -116,12 +447,11 @@ fn find_paths_from_launcher_log() -> Vec<PathBuf> {
     // Normalize double backslashes to single before applying the path regex.
     let content = raw_content.replace(r"\\", r"\");
 
-    let re = match Regex::new(
-        r#"([a-zA-Z]:\\(?:[^\\:*?"<>|\r\n]+\\)*StarCitizen\\[A-Za-z0-9_.@-]+)"#,
-    ) {
-        Ok(r) => r,
-        Err(_) => return vec![],
-    };
+    let re =
+        match Regex::new(r#"([a-zA-Z]:\\(?:[^\\:*?"<>|\r\n]+\\)*StarCitizen\\[A-Za-z0-9_.@-]+)"#) {
+            Ok(r) => r,
+            Err(_) => return vec![],
+        };
 
     let mut seen: HashSet<String> = HashSet::new();
     let mut paths: Vec<PathBuf> = Vec::new();
@@ -130,8 +460,7 @@ fn find_paths_from_launcher_log() -> Vec<PathBuf> {
         let raw = caps[1].trim().to_string();
         let p = PathBuf::from(&raw);
         if seen.insert(raw)
-            && (p.join("Bin64").join("StarCitizen.exe").exists()
-                || p.join("Data.p4k").exists())
+            && (p.join("Bin64").join("StarCitizen.exe").exists() || p.join("Data.p4k").exists())
         {
             paths.push(p);
         }
@@ -295,13 +624,10 @@ async fn run_log_watcher(
     mut known: HashSet<String>,
 ) {
     // Start from current end of file — don't re-emit already-known blueprints
-    let mut position: u64 = std::fs::metadata(&log_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let mut position: u64 = std::fs::metadata(&log_path).map(|m| m.len()).unwrap_or(0);
     let mut last_size: u64 = position;
-    let mut last_modified: Option<std::time::SystemTime> = std::fs::metadata(&log_path)
-        .and_then(|m| m.modified())
-        .ok();
+    let mut last_modified: Option<std::time::SystemTime> =
+        std::fs::metadata(&log_path).and_then(|m| m.modified()).ok();
 
     loop {
         tokio::time::sleep(tokio::time::Duration::from_millis(TAIL_POLL_MS)).await;
@@ -348,8 +674,7 @@ async fn run_log_watcher(
         };
 
         let text = String::from_utf8_lossy(&new_bytes);
-        let new_names =
-            extract_blueprints_from_lines(text.lines(), &re, &mut known);
+        let new_names = extract_blueprints_from_lines(text.lines(), &re, &mut known);
 
         if !new_names.is_empty() {
             let _ = app.emit("sc-log-new-blueprints", &new_names);
@@ -390,13 +715,7 @@ async fn start_log_watcher(
     *state.stop_flag.lock().unwrap() = Some(Arc::clone(&stop));
     *state.channel_path.lock().unwrap() = Some(channel_path);
 
-    tauri::async_runtime::spawn(run_log_watcher(
-        log_path,
-        stop,
-        app,
-        re,
-        known,
-    ));
+    tauri::async_runtime::spawn(run_log_watcher(log_path, stop, app, re, known));
 
     Ok(())
 }
@@ -444,7 +763,8 @@ fn disable_auto_startup() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let key = get_run_key()?;
-        key.delete_value(APP_REGISTRY_NAME).map_err(|e| e.to_string())?;
+        key.delete_value(APP_REGISTRY_NAME)
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -467,10 +787,13 @@ fn is_auto_startup_enabled() -> bool {
 pub fn run() {
     tauri::Builder::default()
         .manage(WatcherState::new())
+        .manage(DesktopAuthState::new())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             fetch_api_json,
+            start_desktop_oauth,
+            clear_desktop_auth_session,
             detect_sc_install_paths,
             scan_blueprints_from_logs,
             start_log_watcher,

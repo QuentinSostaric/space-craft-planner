@@ -4,7 +4,7 @@ import type {
   PlannerTodoItem,
   ResourceProgress,
 } from '../types';
-import { getApiCredentials, getApiUrl } from './apiBaseUrl';
+import { fetchTauriApi, getApiCredentials, getApiUrl } from './apiBaseUrl';
 
 export interface AuthenticatedUser {
   id: string;
@@ -20,6 +20,7 @@ export interface AuthSessionResponse {
   provider: 'discord' | null;
   user: AuthenticatedUser | null;
   citizenIdRsiLinkEnabled?: boolean;
+  citizenIdBrandEnvironment?: 'production' | 'unstable';
 }
 
 export type AccountDatasetScope = 'live' | 'ptu';
@@ -238,6 +239,11 @@ export class AuthApiError extends Error {
 }
 
 async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const tauriPayload = await fetchTauriApi<T>(path, init);
+  if (tauriPayload) {
+    return tauriPayload;
+  }
+
   const response = await fetch(getApiUrl(path), {
     credentials: getApiCredentials(),
     ...init,
@@ -415,6 +421,17 @@ export async function removeAccountOrganization(sid: string, datasetScope: Accou
     withDatasetScope(`/api/auth/account/organizations/${encodeURIComponent(sid)}`, datasetScope),
     {
       method: 'DELETE',
+    },
+  );
+
+  return payload.account;
+}
+
+export async function refreshAccountOrganization(sid: string, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(
+    withDatasetScope(`/api/auth/organizations/${encodeURIComponent(sid)}/refresh`, datasetScope),
+    {
+      method: 'POST',
     },
   );
 

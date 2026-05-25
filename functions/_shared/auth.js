@@ -5,6 +5,7 @@ import {
   buildDiscordAuthorizationUrl,
   buildExpiredCookie,
   createOauthStateCookie,
+  createDesktopSessionToken,
   createSessionCookie,
   exchangeDiscordCode,
   fetchDiscordUserProfile,
@@ -14,7 +15,8 @@ import {
   isDesktopReturnTo,
   isDiscordAuthConfigured,
   readOauthStateFromCookies,
-  readSessionFromCookies,
+  readSessionFromRequest,
+  revokeDesktopSessionToken,
   sanitizeReturnTo,
 } from '../../shared/discordAuth.mjs';
 import {
@@ -23,10 +25,19 @@ import {
   buildExpiredCitizenIdStateCookie,
   createCitizenIdStateCookie,
   exchangeCitizenIdCode,
+  getCitizenIdBrandEnvironment,
   isCitizenIdAuthConfigured,
   readCitizenIdStateFromCookies,
   resolveCitizenIdAccountData,
 } from '../../shared/citizenIdAuth.mjs';
+import {
+  appendDesktopCallbackParams,
+  consumeDesktopExchangeCode,
+  consumeDesktopOAuthState,
+  createDesktopExchangeCode,
+  createDesktopOAuthState,
+  isDesktopOAuthRequest,
+} from '../../shared/desktopAuth.mjs';
 import {
   clearRsiAccountLink,
   copyLiveAccountScopeToPtu,
@@ -154,7 +165,7 @@ async function syncCraftRequestStatusBestEffort(
 }
 
 async function requireAuthenticatedSession(request, env) {
-  const session = await readSessionFromCookies(request.headers.get('cookie'), env);
+  const session = await readSessionFromRequest(request, env, getAccountStore(request, env));
   if (!session?.user?.id || !session.accountId) {
     return null;
   }
@@ -246,10 +257,11 @@ function craftRequestErrorResponse(error, fallbackMessage) {
 }
 
 export async function handleAuthSessionRequest(request, env) {
-  const session = await readSessionFromCookies(request.headers.get('cookie'), env);
+  const session = await readSessionFromRequest(request, env, getAccountStore(request, env));
   return noStoreJson({
     ...buildAuthSessionPayload(env, session),
     citizenIdRsiLinkEnabled: isCitizenIdAuthConfigured(env),
+    citizenIdBrandEnvironment: getCitizenIdBrandEnvironment(env),
   });
 }
 
@@ -259,6 +271,15 @@ export async function handleDiscordLoginRequest(request, env) {
   }
 
   const requestUrl = new URL(request.url);
+  const accountStore = getAccountStore(request, env);
+  if (isDesktopOAuthRequest(requestUrl)) {
+    const state = await createDesktopOAuthState(accountStore, env, {
+      flow: 'discord',
+      callbackUrl: requestUrl.searchParams.get('desktopCallback'),
+    });
+    return redirectResponse(buildDiscordAuthorizationUrl(request, env, state));
+  }
+
   // Prefer client-provided returnTo (covers Tauri dev mode at http://localhost:5173).
   // Fall back to tauri.localhost for production desktop requests that send no returnTo.
   const rawReturnTo = requestUrl.searchParams.get('returnTo')
@@ -293,6 +314,35 @@ export async function handleDiscordCallbackRequest(request, env) {
   const expiredStateCookie = buildExpiredCookie(getOauthStateCookieName(), request, env);
   const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), request, env);
   const returnTo = oauthState?.returnTo ?? '/';
+  const accountStore = getAccountStore(request, env);
+  const desktopState = !oauthState
+    ? await consumeDesktopOAuthState(accountStore, env, state, 'discord')
+    : null;
+
+  if (desktopState) {
+    try {
+      const tokenPayload = await exchangeDiscordCode(request, env, code);
+      const user = await fetchDiscordUserProfile(tokenPayload.access_token);
+      const account = await upsertDiscordAccount(accountStore, user);
+      const exchangeCode = await createDesktopExchangeCode(accountStore, {
+        flow: 'discord',
+        session: {
+          provider: 'discord',
+          user,
+          accountId: account.accountId,
+        },
+      });
+      return redirectResponse(appendDesktopCallbackParams(desktopState.callbackUrl, {
+        flow: 'discord',
+        code: exchangeCode,
+      }));
+    } catch (error) {
+      return redirectResponse(appendDesktopCallbackParams(desktopState.callbackUrl, {
+        flow: 'discord',
+        error: error instanceof Error ? error.message : 'discord_oauth_failed',
+      }));
+    }
+  }
 
   if (!code || !state || !oauthState || oauthState.nonce !== state) {
     return redirectResponse(appendQueryParam(returnTo, 'auth_error', 'state_mismatch'), {
@@ -303,7 +353,6 @@ export async function handleDiscordCallbackRequest(request, env) {
   try {
     const tokenPayload = await exchangeDiscordCode(request, env, code);
     const user = await fetchDiscordUserProfile(tokenPayload.access_token);
-    const accountStore = getAccountStore(request, env);
     const account = await upsertDiscordAccount(accountStore, user);
     const sessionCookie = await createSessionCookie(request, env, user, account.accountId, {
       crossSite: isDesktopReturnTo(returnTo),
@@ -332,11 +381,24 @@ export async function handleCitizenIdLoginRequest(request, env) {
   }
 
   const session = await requireAuthenticatedSession(request, env);
+  const requestUrl = new URL(request.url);
+  const accountStore = getAccountStore(request, env);
+  if (isDesktopOAuthRequest(requestUrl)) {
+    if (!session) {
+      return errorResponse(401, 'Authentication required.');
+    }
+    const state = await createDesktopOAuthState(accountStore, env, {
+      flow: 'citizenid',
+      callbackUrl: requestUrl.searchParams.get('desktopCallback'),
+      session,
+    });
+    return redirectResponse(buildCitizenIdAuthorizationUrl(request, env, state));
+  }
+
   if (!session) {
     return errorResponse(401, 'Authentication required.');
   }
 
-  const requestUrl = new URL(request.url);
   const returnTo = sanitizeReturnTo(requestUrl.searchParams.get('returnTo'));
   const { state, cookie } = await createCitizenIdStateCookie(request, env, returnTo);
   const authorizationUrl = buildCitizenIdAuthorizationUrl(request, env, state);
@@ -357,6 +419,47 @@ export async function handleCitizenIdCallbackRequest(request, env) {
   const oauthState = await readCitizenIdStateFromCookies(request.headers.get('cookie'), env);
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(request, env);
   const returnTo = oauthState?.returnTo ?? '/';
+  const accountStore = getAccountStore(request, env);
+  const desktopState = !oauthState
+    ? await consumeDesktopOAuthState(accountStore, env, state, 'citizenid')
+    : null;
+
+  if (desktopState) {
+    if (!desktopState.session?.user?.id || !desktopState.session?.accountId) {
+      return redirectResponse(appendDesktopCallbackParams(desktopState.callbackUrl, {
+        flow: 'citizenid',
+        error: 'Authentication required.',
+      }));
+    }
+
+    try {
+      const tokenPayload = await exchangeCitizenIdCode(request, env, code);
+      const { rsiLink: verifiedLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, env);
+      await ensureAccountForSession(accountStore, desktopState.session);
+      const linkedAccount = await saveRsiAccountLink(
+        accountStore,
+        desktopState.session.accountId,
+        verifiedLink,
+        desktopState.session.user,
+      );
+      if (organizations.length > 0) {
+        await syncCitizenIdAccountOrganizations(accountStore, linkedAccount, organizations);
+      }
+      const exchangeCode = await createDesktopExchangeCode(accountStore, {
+        flow: 'citizenid',
+        session: desktopState.session,
+      });
+      return redirectResponse(appendDesktopCallbackParams(desktopState.callbackUrl, {
+        flow: 'citizenid',
+        code: exchangeCode,
+      }));
+    } catch (error) {
+      return redirectResponse(appendDesktopCallbackParams(desktopState.callbackUrl, {
+        flow: 'citizenid',
+        error: error instanceof Error ? error.message : 'citizenid_oauth_failed',
+      }));
+    }
+  }
 
   if (!code || !state || !oauthState || oauthState.nonce !== state) {
     return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
@@ -374,7 +477,6 @@ export async function handleCitizenIdCallbackRequest(request, env) {
   try {
     const tokenPayload = await exchangeCitizenIdCode(request, env, code);
     const { rsiLink: verifiedLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, env);
-    const accountStore = getAccountStore(request, env);
     await ensureAccountForSession(accountStore, session);
     const linkedAccount = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
     if (organizations.length > 0) {
@@ -395,7 +497,43 @@ export async function handleCitizenIdCallbackRequest(request, env) {
   }
 }
 
-export function handleLogoutRequest(request, env) {
+export async function handleDesktopExchangeRequest(request, env) {
+  let payload;
+  try {
+    payload = await readAccountJsonFromRequest(request);
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Invalid JSON body.');
+  }
+
+  const accountStore = getAccountStore(request, env);
+  const exchange = await consumeDesktopExchangeCode(accountStore, payload?.code);
+  if (!exchange?.session?.user?.id || !exchange.session.accountId) {
+    return errorResponse(400, 'Invalid or expired desktop auth code.');
+  }
+
+  const account = await ensureAccountForSession(accountStore, exchange.session);
+  const sessionToken = await createDesktopSessionToken(
+    accountStore,
+    env,
+    exchange.session.user,
+    exchange.session.accountId,
+  );
+  const decoratedAccount = await buildScopedDecoratedAccount(accountStore, account, env, 'live');
+  return noStoreJson({
+    ok: true,
+    flow: exchange.flow ?? 'discord',
+    sessionToken,
+    session: buildAuthSessionPayload(env, exchange.session),
+    account: decoratedAccount,
+  });
+}
+
+export async function handleLogoutRequest(request, env) {
+  await revokeDesktopSessionToken(
+    getAccountStore(request, env),
+    request.headers.get('Authorization'),
+    env,
+  );
   const headers = new Headers({
     'Cache-Control': 'no-store',
   });

@@ -7,44 +7,19 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
-import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
-import { isTauriRuntime } from '../services/apiBaseUrl';
-
-function CitizenIdLogoMark({ size = 24 }: { size?: number }) {
-  const fontSize = Math.max(10, Math.round(size * 0.42));
-
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #2196f3 0%, #f44336 100%)',
-        color: '#fff',
-        fontWeight: 900,
-        fontSize,
-        lineHeight: 1,
-        flexShrink: 0,
-      }}
-    >
-      iD
-    </Box>
-  );
-}
+import { getDesktopInstallerUrl, isTauriRuntime } from '../services/apiBaseUrl';
+import { CitizenIdIcon, CitizenIdSignInButton } from './CitizenIdBrand';
 
 export function OnboardingDialog() {
   const {
     account,
     user,
     citizenIdRsiLinkEnabled,
+    citizenIdBrandEnvironment,
     linkRsiAccountWithCitizenId,
     updateOnboardingState,
   } = useAuth();
@@ -118,7 +93,7 @@ export function OnboardingDialog() {
                 }}
               >
                 <Stack direction="row" spacing={1.25} alignItems="center">
-                  <CitizenIdLogoMark />
+                  <CitizenIdIcon environment={citizenIdBrandEnvironment} />
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {t(
                       'This lets ItemFab add your organizations without manual SID entry.',
@@ -175,20 +150,17 @@ export function OnboardingDialog() {
           {t('Later', 'Plus tard', 'Spaeter')}
         </Button>
         {step === 'rsi' && (
-          <Button
-            variant="contained"
-            startIcon={citizenIdRsiLinkEnabled ? <CitizenIdLogoMark size={18} /> : <LinkOutlinedIcon />}
+          <CitizenIdSignInButton
+            environment={citizenIdBrandEnvironment}
             disabled={busy || !citizenIdRsiLinkEnabled}
             onClick={() => { linkRsiAccountWithCitizenId('/account'); }}
-          >
-            {t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknuepfen')}
-          </Button>
+          />
         )}
         {step === 'desktop' && (
           <>
             <Button
               component="a"
-              href="/api/desktop/latest-installer"
+              href={getDesktopInstallerUrl()}
               variant="contained"
               startIcon={<DownloadOutlinedIcon />}
             >

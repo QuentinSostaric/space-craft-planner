@@ -63,3 +63,7 @@ venv/
 .superpowers/
 src-tauri/signing.key
 src-tauri/signing.key.pub
+
+# AI assistant context (local only)
+AGENTS.md
+CLAUDE.md

@@ -4,6 +4,16 @@ description = "Enables the fetch_api_json command."
 commands.allow = ["fetch_api_json"]
 
 [[permission]]
+identifier = "allow-start-desktop-oauth"
+description = "Enables the start_desktop_oauth command."
+commands.allow = ["start_desktop_oauth"]
+
+[[permission]]
+identifier = "allow-clear-desktop-auth-session"
+description = "Enables the clear_desktop_auth_session command."
+commands.allow = ["clear_desktop_auth_session"]
+
+[[permission]]
 identifier = "allow-detect-sc-install-paths"
 description = "Enables the detect_sc_install_paths command."
 commands.allow = ["detect_sc_install_paths"]

@@ -73,6 +73,7 @@ import { FONT_DISPLAY, FONT_MONO } from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { SyncBlueprintsButton } from './ScLogSyncDialog';
+import { CitizenIdSignInButton } from './CitizenIdBrand';
 import Switch from '@mui/material/Switch';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
@@ -195,47 +196,6 @@ function openDiscordBotInvite() {
   window.open(getDiscordBotInviteUrl(), '_blank', 'noopener,noreferrer');
 }
 
-function CitizenIdLogoMark({ size = 22 }: { size?: number }) {
-  const fontSize = Math.max(9, Math.round(size * 0.43));
-
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        flexShrink: 0,
-        color: '#ffffff',
-        background: 'linear-gradient(135deg, #20232b 0%, #3b3d48 100%)',
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.24)',
-        fontFamily: FONT_DISPLAY,
-        fontWeight: 800,
-        fontSize,
-        lineHeight: 1,
-      }}
-    >
-      iD
-      <Box
-        component="span"
-        sx={{
-          position: 'absolute',
-          right: -1,
-          top: -1,
-          width: Math.max(7, Math.round(size * 0.34)),
-          height: Math.max(7, Math.round(size * 0.34)),
-          backgroundColor: '#ff4057',
-          clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
-        }}
-      />
-    </Box>
-  );
-}
-
 export function AccountPage() {
   const { t, lang } = useI18n();
   const {
@@ -243,10 +203,12 @@ export function AccountPage() {
     loading,
     user,
     citizenIdRsiLinkEnabled,
+    citizenIdBrandEnvironment,
     account,
     optimisticState,
     syncStatus,
     syncError,
+    authError: desktopAuthError,
     copyLiveDataToPtu,
     loginWithDiscord,
     logout,
@@ -283,7 +245,7 @@ export function AccountPage() {
   const theme = useTheme();
   const isDesktop = isTauriRuntime();
   const { sync, watcher } = useScLog();
-  const authError = useMemo(() => readAuthError(), []);
+  const urlAuthError = useMemo(() => readAuthError(), []);
   const deleteAction = useAsyncAction();
   const [assetFilter, setAssetFilter] = useState<AccountAssetFilter>('all');
   const [assetSearch, setAssetSearch] = useState('');
@@ -1747,9 +1709,9 @@ export function AccountPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
 
-      {authError && (
+      {urlAuthError && (
         <Alert severity="error" variant="outlined">
-          {t('Discord authentication failed.', 'La connexion Discord a echoue.', 'Discord-Anmeldung ist fehlgeschlagen.')} {authError}
+          {t('Discord authentication failed.', 'La connexion Discord a echoue.', 'Discord-Anmeldung ist fehlgeschlagen.')} {urlAuthError}
         </Alert>
       )}
 
@@ -1888,9 +1850,9 @@ export function AccountPage() {
             </Tabs>
           </Paper>
 
-          {syncError && (
+          {(desktopAuthError || syncError) && (
             <Alert severity="error" variant="outlined">
-              {syncError}
+              {desktopAuthError || syncError}
             </Alert>
           )}
 
@@ -1941,17 +1903,23 @@ export function AccountPage() {
 
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}>
                   {!account.rsi?.handle && (
-                    <MuiButton
-                      size="small"
-                      variant="contained"
-                      onClick={handleStartRsiLink}
-                      disabled={rsiAction.busy}
-                      startIcon={citizenIdRsiLinkEnabled ? <CitizenIdLogoMark size={18} /> : undefined}
-                    >
-                      {citizenIdRsiLinkEnabled
-                        ? t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknuepfen')
-                        : t('Link RSI', 'Lier RSI', 'RSI verknuepfen')}
-                    </MuiButton>
+                    citizenIdRsiLinkEnabled ? (
+                      <CitizenIdSignInButton
+                        size="small"
+                        environment={citizenIdBrandEnvironment}
+                        onClick={handleStartRsiLink}
+                        disabled={rsiAction.busy}
+                      />
+                    ) : (
+                      <MuiButton
+                        size="small"
+                        variant="contained"
+                        onClick={handleStartRsiLink}
+                        disabled={rsiAction.busy}
+                      >
+                        {t('Link RSI', 'Lier RSI', 'RSI verknuepfen')}
+                      </MuiButton>
+                    )
                   )}
                   {!isDesktop && (
                     <MuiButton
@@ -2136,39 +2104,34 @@ export function AccountPage() {
                           {rsiUnlinkAction.busy ? t('…', '…', '…') : t('Unlink', 'Délier', 'Entknüpfen')}
                         </Button>
                       ) : (
-                        <MuiButton
-                          size="small"
-                          variant={citizenIdRsiLinkEnabled ? 'contained' : 'outlined'}
-                          onClick={handleStartRsiLink}
-                          startIcon={citizenIdRsiLinkEnabled ? (
-                            <CitizenIdLogoMark size={18} />
-                          ) : (
-                            <Box
-                              component="img"
-                              src={rsiLogoOfficial}
-                              alt=""
-                              sx={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 0.5 }}
-                            />
-                          )}
-                          sx={{
-                            whiteSpace: 'nowrap',
-                            justifySelf: 'end',
-                            ...(citizenIdRsiLinkEnabled
-                              ? {
-                                  px: 1.25,
-                                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.error.main} 100%)`,
-                                  color: '#fff',
-                                  '&:hover': {
-                                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.error.dark} 100%)`,
-                                  },
-                                }
-                              : null),
-                          }}
-                        >
-                          {citizenIdRsiLinkEnabled
-                            ? t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')
-                            : t('Manual RSI link', 'Lien RSI manuel', 'Manuelle RSI-Verknupfung')}
-                        </MuiButton>
+                        citizenIdRsiLinkEnabled ? (
+                          <CitizenIdSignInButton
+                            size="small"
+                            environment={citizenIdBrandEnvironment}
+                            onClick={handleStartRsiLink}
+                            sx={{ justifySelf: 'end', whiteSpace: 'nowrap' }}
+                          />
+                        ) : (
+                          <MuiButton
+                            size="small"
+                            variant="outlined"
+                            onClick={handleStartRsiLink}
+                            startIcon={(
+                              <Box
+                                component="img"
+                                src={rsiLogoOfficial}
+                                alt=""
+                                sx={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 0.5 }}
+                              />
+                            )}
+                            sx={{
+                              whiteSpace: 'nowrap',
+                              justifySelf: 'end',
+                            }}
+                          >
+                            {t('Manual RSI link', 'Lien RSI manuel', 'Manuelle RSI-Verknupfung')}
+                          </MuiButton>
+                        )
                       )}
                     </Paper>
                   </Stack>
@@ -2723,26 +2686,23 @@ export function AccountPage() {
                         {t(
                           'Citizen iD imports every public RSI organization exposed by your account. Re-sync after changing org visibility or granting new Citizen iD scopes.',
                           'Citizen iD importe chaque organisation RSI publique exposee par ton compte. Relance la synchro apres avoir change la visibilite des orgs ou accepte de nouveaux scopes Citizen iD.',
-                          'Citizen iD importiert jede oeffentliche RSI-Organisation, die dein Konto freigibt. Synchronisiere erneut, wenn du die Org-Sichtbarkeit oder Citizen-iD-Scopes geaendert hast.',
+                          'Citizen iD importiert jede oeffentliche RSI-Organisation, die dein Konto freigibt. Synchronisiere erneut, wenn du die Org-Sichtbarkeit oder Citizen iD Scopes geaendert hast.',
                         )}
                       </Typography>
                     </Box>
-                    <Button
-                      variant="secondary"
-                      icon={<RefreshOutlinedIcon fontSize="small" />}
+                    <CitizenIdSignInButton
+                      environment={citizenIdBrandEnvironment}
                       onClick={() => { handleCitizenIdRsiLink('/account'); }}
                       disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
-                      style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      {t('Sync with Citizen iD', 'Synchroniser avec Citizen iD', 'Mit Citizen iD synchronisieren')}
-                    </Button>
+                      sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                    />
                   </Stack>
                   {!citizenIdRsiLinkEnabled && (
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>
                       {t(
                         'Citizen iD sync is not configured in this environment yet.',
                         'La synchro Citizen iD n est pas encore configuree dans cet environnement.',
-                        'Citizen-iD-Sync ist in dieser Umgebung noch nicht konfiguriert.',
+                        'Citizen iD Sync ist in dieser Umgebung noch nicht konfiguriert.',
                       )}
                     </Typography>
                   )}
@@ -3436,68 +3396,70 @@ export function AccountPage() {
                   </Typography>
 
                   {!account?.rsi?.handle && (
-                    <MuiButton
-                      variant={citizenIdRsiLinkEnabled ? 'contained' : 'outlined'}
-                      fullWidth
-                      onClick={handleStartRsiLink}
-                      startIcon={citizenIdRsiLinkEnabled ? (
-                        <CitizenIdLogoMark />
-                      ) : (
-                        <Box
-                          component="img"
-                          src={rsiLogoOfficial}
-                          alt=""
-                          sx={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 0.5 }}
-                        />
-                      )}
-                      sx={{
-                        justifyContent: 'flex-start',
-                        alignItems: 'center',
-                        px: 1.75,
-                        py: 1.2,
-                        minHeight: 54,
-                        ...(citizenIdRsiLinkEnabled
-                          ? {
-                              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.error.main} 100%)`,
-                              color: '#fff',
-                              boxShadow: `0 12px 28px ${alpha(theme.palette.error.main, 0.18)}`,
-                              '&:hover': {
-                                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.error.dark} 100%)`,
-                                boxShadow: `0 14px 32px ${alpha(theme.palette.error.main, 0.24)}`,
-                              },
-                            }
-                          : null),
-                      }}
-                    >
-                      <Stack spacing={0.2} alignItems="flex-start" sx={{ minWidth: 0 }}>
-                        <Box component="span" sx={{ fontWeight: 800 }}>
-                          {citizenIdRsiLinkEnabled
-                            ? t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')
-                            : t('Verify RSI manually', 'Verifier RSI manuellement', 'RSI manuell verifizieren')}
-                        </Box>
-                        <Box
-                          component="span"
+                    citizenIdRsiLinkEnabled ? (
+                      <Stack spacing={1}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {t(
+                            'Use Citizen iD to link your RSI handle and synchronize organizations.',
+                            'Utilise Citizen iD pour lier ton handle RSI et synchroniser les organisations.',
+                            'Nutze Citizen iD, um deinen RSI-Handle zu verknuepfen und Organisationen zu synchronisieren.',
+                          )}
+                        </Typography>
+                        <CitizenIdSignInButton
+                          fullWidth
+                          environment={citizenIdBrandEnvironment}
+                          onClick={handleStartRsiLink}
                           sx={{
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            lineHeight: 1.25,
-                            color: citizenIdRsiLinkEnabled ? alpha('#fff', 0.78) : 'text.secondary',
+                            justifyContent: 'flex-start',
+                            px: 1.75,
+                            py: 1.2,
+                            minHeight: 54,
                           }}
-                        >
-                          {citizenIdRsiLinkEnabled
-                            ? t(
-                                'Sync RSI handle and organizations',
-                                'Synchronise le handle RSI et les organisations',
-                                'Synchronisiert RSI-Handle und Organisationen',
-                              )
-                            : t(
-                                'Alternative RSI verification method',
-                                'Methode alternative de verification RSI',
-                                'Alternative RSI-Verifizierungsmethode',
-                              )}
-                        </Box>
+                        />
                       </Stack>
-                    </MuiButton>
+                    ) : (
+                      <MuiButton
+                        variant="outlined"
+                        fullWidth
+                        onClick={handleStartRsiLink}
+                        startIcon={(
+                          <Box
+                            component="img"
+                            src={rsiLogoOfficial}
+                            alt=""
+                            sx={{ width: 22, height: 22, objectFit: 'contain', borderRadius: 0.5 }}
+                          />
+                        )}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          alignItems: 'center',
+                          px: 1.75,
+                          py: 1.2,
+                          minHeight: 54,
+                        }}
+                      >
+                        <Stack spacing={0.2} alignItems="flex-start" sx={{ minWidth: 0 }}>
+                          <Box component="span" sx={{ fontWeight: 800 }}>
+                            {t('Verify RSI manually', 'Verifier RSI manuellement', 'RSI manuell verifizieren')}
+                          </Box>
+                          <Box
+                            component="span"
+                            sx={{
+                              fontSize: '0.75rem',
+                              fontWeight: 500,
+                              lineHeight: 1.25,
+                              color: 'text.secondary',
+                            }}
+                          >
+                            {t(
+                              'Alternative RSI verification method',
+                              'Methode alternative de verification RSI',
+                              'Alternative RSI-Verifizierungsmethode',
+                            )}
+                          </Box>
+                        </Stack>
+                      </MuiButton>
+                    )
                   )}
 
                   {account?.rsi?.handle && (

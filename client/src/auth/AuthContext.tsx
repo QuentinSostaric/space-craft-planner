@@ -66,7 +66,7 @@ import {
   type OrganizationSharingMutation,
   type PersistedAccountMutation,
 } from './accountMutations';
-import { isTauriRuntime } from '../services/apiBaseUrl';
+import { clearDesktopAuthSession, isTauriRuntime, startDesktopOAuth } from '../services/apiBaseUrl';
 
 interface AuthState {
   enabled: boolean;
@@ -74,12 +74,15 @@ interface AuthState {
   user: AuthenticatedUser | null;
   provider: 'discord' | null;
   citizenIdRsiLinkEnabled: boolean;
+  citizenIdBrandEnvironment: 'production' | 'unstable';
   account: StoredAccount | null;
   optimisticState: OptimisticAccountState;
   pendingMutationCount: number;
   syncStatus: AccountSyncStatus;
   syncError: string | null;
   clearSyncError: () => void;
+  authError: string | null;
+  clearAuthError: () => void;
   accountDatasetScope: AccountDatasetScope;
   setAccountDatasetScope: (datasetScope: AccountDatasetScope) => void;
   copyLiveDataToPtu: () => Promise<void>;
@@ -306,6 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingMutations, setPendingMutations] = useState<PersistedAccountMutation[]>([]);
   const [syncStatus, setSyncStatus] = useState<AccountSyncStatus>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [lastFlushAt, setLastFlushAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [accountDatasetScope, setAccountDatasetScope] = useState<AccountDatasetScope>('live');
@@ -370,6 +374,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSyncError = useCallback(() => {
     setSyncError(null);
     setSyncStatus(pendingMutationsRef.current.length > 0 ? 'pending' : 'idle');
+  }, []);
+
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
   }, []);
 
   const updatePersistedMutations = useCallback(
@@ -1156,16 +1164,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accountDatasetScope, enqueueMutation]);
 
   const loginWithDiscord = useCallback((returnTo?: string) => {
+    if (isTauriRuntime()) {
+      setAuthError(null);
+      void startDesktopOAuth('discord')
+        .then(() => refreshSession())
+        .catch((error) => {
+          setAuthError(error instanceof Error ? error.message : 'Discord authentication failed.');
+        });
+      return;
+    }
+
     // Tauri needs an absolute return URL; web login must stay relative so the
     // server accepts the requested page instead of falling back to "/".
     const effectiveReturnTo = isTauriRuntime()
       ? `${window.location.origin}${returnTo ?? '/'}`
       : (returnTo ?? getCurrentReturnTo());
     window.location.assign(getDiscordLoginUrl(effectiveReturnTo));
-  }, []);
+  }, [refreshSession]);
 
   const logout = useCallback(async () => {
     await logoutAuthSession();
+    await clearDesktopAuthSession();
     await refreshSession();
   }, [refreshSession]);
 
@@ -1229,11 +1248,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const linkRsiAccountWithCitizenId = useCallback((returnTo?: string) => {
+    if (isTauriRuntime()) {
+      setAuthError(null);
+      void startDesktopOAuth('citizenid')
+        .then(() => refreshSession())
+        .catch((error) => {
+          setAuthError(error instanceof Error ? error.message : 'Citizen iD authentication failed.');
+        });
+      return;
+    }
+
     const effectiveReturnTo = isTauriRuntime()
       ? `${window.location.origin}/`
       : (returnTo ?? getCurrentReturnTo());
     window.location.assign(getCitizenIdRsiLinkUrl(effectiveReturnTo));
-  }, []);
+  }, [refreshSession]);
 
   const unlinkRsiAccountBinding = useCallback(async () => {
     const nextAccount = await unlinkRsiAccount();
@@ -1529,12 +1558,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session.user,
       provider: session.provider,
       citizenIdRsiLinkEnabled: Boolean(session.citizenIdRsiLinkEnabled),
+      citizenIdBrandEnvironment: session.citizenIdBrandEnvironment === 'unstable' ? 'unstable' : 'production',
       account,
       optimisticState,
       pendingMutationCount: pendingMutations.length,
       syncStatus,
       syncError,
       clearSyncError,
+      authError,
+      clearAuthError,
       accountDatasetScope,
       setAccountDatasetScope,
       copyLiveDataToPtu,
@@ -1569,7 +1601,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       account,
       accountDatasetScope,
       addOrganization,
+      authError,
       claimOrganizationBinding,
+      clearAuthError,
       clearSyncError,
       copyLiveDataToPtu,
       deleteAccount,
@@ -1593,6 +1627,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       respondToCraftRequestBinding,
       session.enabled,
       session.provider,
+      session.citizenIdBrandEnvironment,
       session.citizenIdRsiLinkEnabled,
       session.user,
       setOrganizationBlueprintSharingBinding,

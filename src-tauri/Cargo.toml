@@ -21,7 +21,10 @@ serde_json = "1"
 tauri = { version = "2", default-features = false, features = ["wry", "x11", "dbus", "devtools"] }
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
-tokio = { version = "1", features = ["time"] }
+getrandom = "0.2"
+keyring = "3"
+tokio = { version = "1", features = ["io-util", "net", "time"] }
+url = "2"
 walkdir = "2"
 
 [target.'cfg(windows)'.dependencies]

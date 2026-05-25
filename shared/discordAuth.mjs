@@ -5,7 +5,9 @@ const DISCORD_USER_URL = 'https://discord.com/api/v10/users/@me';
 const SESSION_COOKIE_NAME = 'sc_craft_session';
 const OAUTH_STATE_COOKIE_NAME = 'sc_craft_discord_oauth_state';
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+const DESKTOP_SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 const OAUTH_STATE_COOKIE_MAX_AGE = 60 * 10;
+const DESKTOP_SESSION_PREFIX = 'auth/desktop/sessions/';
 
 const SESSION_VERSION = 2;
 const DEFAULT_RETURN_TO = '/';
@@ -346,26 +348,11 @@ export async function readOauthStateFromCookies(cookieHeader, env) {
 }
 
 export async function createSessionCookie(requestOrUrl, env, user, accountId, options = {}) {
-  const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
-  if (!sessionSecret) {
-    throw new Error('AUTH_SESSION_SECRET is required to create auth sessions.');
-  }
-
+  const signedPayload = await createSessionToken(env, user, accountId);
   const publicOrigin = getPublicOrigin(requestOrUrl, env);
   const isSecure =
     normalizeBoolean(env?.AUTH_COOKIE_SECURE) ||
     publicOrigin.startsWith('https://');
-  const now = Date.now();
-  const payload = {
-    v: SESSION_VERSION,
-    provider: 'discord',
-    issuedAt: now,
-    expiresAt: now + SESSION_COOKIE_MAX_AGE * 1000,
-    user,
-    accountId: String(accountId ?? buildAccountIdFromDiscordUser(user?.id) ?? '').trim(),
-  };
-  const signedPayload = await encodeSignedPayload(payload, sessionSecret);
-
   const needsCrossSiteCookie = Boolean(options.crossSite) || isDesktopRequest(requestOrUrl);
 
   return serializeCookie(SESSION_COOKIE_NAME, signedPayload, {
@@ -377,14 +364,112 @@ export async function createSessionCookie(requestOrUrl, env, user, accountId, op
   });
 }
 
-export async function readSessionFromCookies(cookieHeader, env) {
+export async function createSessionToken(env, user, accountId) {
+  const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
+  if (!sessionSecret) {
+    throw new Error('AUTH_SESSION_SECRET is required to create auth sessions.');
+  }
+
+  const now = Date.now();
+  const payload = {
+    v: SESSION_VERSION,
+    provider: 'discord',
+    issuedAt: now,
+    expiresAt: now + SESSION_COOKIE_MAX_AGE * 1000,
+    user,
+    accountId: String(accountId ?? buildAccountIdFromDiscordUser(user?.id) ?? '').trim(),
+  };
+  return encodeSignedPayload(payload, sessionSecret);
+}
+
+export async function createDesktopSessionToken(store, env, user, accountId) {
+  if (!store?.writeJson) {
+    throw new Error('A valid account store is required to create desktop sessions.');
+  }
+
+  const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
+  if (!sessionSecret) {
+    throw new Error('AUTH_SESSION_SECRET is required to create desktop auth sessions.');
+  }
+
+  const now = Date.now();
+  const sessionId = generateNonce();
+  const normalizedAccountId = String(accountId ?? buildAccountIdFromDiscordUser(user?.id) ?? '').trim();
+  const payload = {
+    v: SESSION_VERSION,
+    tokenType: 'desktop',
+    provider: 'discord',
+    sid: sessionId,
+    issuedAt: now,
+    expiresAt: now + DESKTOP_SESSION_MAX_AGE * 1000,
+    user,
+    accountId: normalizedAccountId,
+  };
+
+  await store.writeJson(`${DESKTOP_SESSION_PREFIX}${sessionId}.json`, {
+    accountId: normalizedAccountId,
+    userId: String(user?.id ?? ''),
+    issuedAt: new Date(now).toISOString(),
+    expiresAt: payload.expiresAt,
+  });
+
+  return encodeSignedPayload(payload, sessionSecret);
+}
+
+async function isDesktopSessionActive(store, payload) {
+  if (payload?.tokenType !== 'desktop') {
+    return true;
+  }
+  if (!store?.readJson || !payload.sid) {
+    return false;
+  }
+
+  const sessionRecord = await store.readJson(`${DESKTOP_SESSION_PREFIX}${payload.sid}.json`);
+  if (
+    !sessionRecord ||
+    String(sessionRecord.accountId ?? '') !== String(payload.accountId ?? '') ||
+    Number(sessionRecord.expiresAt) < Date.now()
+  ) {
+    if (store?.deleteObject && payload.sid) {
+      await store.deleteObject(`${DESKTOP_SESSION_PREFIX}${payload.sid}.json`);
+    }
+    return false;
+  }
+
+  return true;
+}
+
+export async function revokeDesktopSessionToken(store, authorizationHeader, env) {
+  if (!store?.deleteObject) {
+    return false;
+  }
+
+  const match = String(authorizationHeader ?? '').match(/^Bearer\s+(.+)$/i);
+  if (!match?.[1]) {
+    return false;
+  }
+
+  const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
+  if (!sessionSecret) {
+    return false;
+  }
+
+  const payload = await decodeSignedPayload(match[1], sessionSecret);
+  if (payload?.tokenType !== 'desktop' || !payload.sid) {
+    return false;
+  }
+
+  await store.deleteObject(`${DESKTOP_SESSION_PREFIX}${payload.sid}.json`);
+  return true;
+}
+
+async function readSessionFromSignedValue(value, env, store = null) {
   const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
   if (!sessionSecret) {
     return null;
   }
 
-  const cookies = parseCookieHeader(cookieHeader);
-  const payload = await decodeSignedPayload(cookies[SESSION_COOKIE_NAME], sessionSecret);
+  const payload = await decodeSignedPayload(value, sessionSecret);
   if (!payload || typeof payload !== 'object') {
     return null;
   }
@@ -398,11 +483,32 @@ export async function readSessionFromCookies(cookieHeader, env) {
     return null;
   }
 
+  if (!await isDesktopSessionActive(store, payload)) {
+    return null;
+  }
+
   return {
     ...payload,
     accountId:
       String(payload.accountId ?? buildAccountIdFromDiscordUser(payload.user?.id) ?? '').trim() || null,
   };
+}
+
+export async function readSessionFromCookies(cookieHeader, env) {
+  const cookies = parseCookieHeader(cookieHeader);
+  return readSessionFromSignedValue(cookies[SESSION_COOKIE_NAME], env);
+}
+
+export async function readSessionFromBearerToken(authorizationHeader, env, store = null) {
+  const match = String(authorizationHeader ?? '').match(/^Bearer\s+(.+)$/i);
+  return readSessionFromSignedValue(match?.[1], env, store);
+}
+
+export async function readSessionFromRequest(request, env, store = null) {
+  return (
+    await readSessionFromBearerToken(request?.headers?.get?.('Authorization'), env, store) ??
+    await readSessionFromCookies(request?.headers?.get?.('cookie'), env)
+  );
 }
 
 export function getSessionCookieName() {

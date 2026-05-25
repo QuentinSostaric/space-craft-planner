@@ -156,6 +156,25 @@ function getCitizenIdOrigin(env) {
   return (explicitOrigin || DEFAULT_CITIZENID_ORIGIN).replace(/\/+$/g, '');
 }
 
+export function getCitizenIdBrandEnvironment(env) {
+  const explicitEnvironment = String(env?.CITIZENID_BRAND_ENVIRONMENT ?? '').trim().toLowerCase();
+  if (explicitEnvironment === 'production' || explicitEnvironment === 'prod') {
+    return 'production';
+  }
+  if (
+    explicitEnvironment === 'development' ||
+    explicitEnvironment === 'dev' ||
+    explicitEnvironment === 'staging' ||
+    explicitEnvironment === 'unstable' ||
+    explicitEnvironment === 'test'
+  ) {
+    return 'unstable';
+  }
+
+  const origin = getCitizenIdOrigin(env).toLowerCase();
+  return origin.includes('citizenid.dev') ? 'unstable' : 'production';
+}
+
 function parseCookieHeader(cookieHeader) {
   const cookies = {};
   if (!cookieHeader) {
