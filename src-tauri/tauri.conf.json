@@ -27,7 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "category": "Utility",
     "shortDescription": "Star Citizen crafting simulator, dismantling calculator and resource planner.",
     "longDescription": "Item Fabricator is a Star Citizen crafting simulator, dismantling calculator and resource planner.",
@@ -49,7 +49,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMzRjYwNDAxNEIwREUyRDUKUldUVjRnMUxBUVQyTTNsaGloR1RFOE9sbUFybldWZTdMWlpSbG02NHRrMmppSUpQeXJkK2hEai8K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYzOUNDRUNCNTIzM0FFQTMKUldTanJqTlN5ODZjWXd6WWJ3M2FIbm5ZM1VCNHJtOHdsR1Z2aFhFMGFtRDFrNlk1TW50VFpHSzMK",
       "endpoints": [
         "https://github.com/QuentinSostaric/space-craft-planner/releases/latest/download/latest.json"
       ],

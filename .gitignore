@@ -61,3 +61,5 @@ venv/
 # Exporter / workspace artifacts
 /.claude/
 .superpowers/
+src-tauri/signing.key
+src-tauri/signing.key.pub
