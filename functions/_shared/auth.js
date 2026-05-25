@@ -82,11 +82,21 @@ function noStoreJson(payload, init = {}) {
 
 function redirectResponse(location, { status = 302, headers = {}, cookies = [] } = {}) {
   const responseHeaders = new Headers(headers);
-  responseHeaders.set('Location', location);
   responseHeaders.set('Cache-Control', 'no-store');
   for (const cookie of cookies) {
     responseHeaders.append('Set-Cookie', cookie);
   }
+
+  // WebView2 does not follow HTTP redirects to virtual hostnames (tauri.localhost, localhost).
+  // Return an HTML page with a JS redirect instead so the browser initiates the navigation itself.
+  if (isDesktopReturnTo(location)) {
+    const target = JSON.stringify(location);
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><script>window.location.replace(${target});\x3c/script></head><body></body></html>`;
+    responseHeaders.set('Content-Type', 'text/html;charset=utf-8');
+    return new Response(html, { status: 200, headers: responseHeaders });
+  }
+
+  responseHeaders.set('Location', location);
   return new Response(null, { status, headers: responseHeaders });
 }
 
