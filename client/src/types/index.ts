@@ -133,10 +133,15 @@ export interface ItemStats {
 
   maxHealth?: number;
   shieldMaxHealth?: number;
+  maxShieldRegen?: number;
+  shieldDownedRegenDelay?: number;
+  shieldDamagedRegenDelay?: number;
   powerGeneration?: number;
   coolantGeneration?: number;
   quantumSpeed?: number;
   quantumFuelRequirement?: number;
+  quantumSpoolUpTime?: number;
+  quantumCooldownTime?: number;
   radarMinAimAssistDistance?: number;
   radarMaxAimAssistDistance?: number;
   hullScrapingEfficiency?: number;
@@ -213,10 +218,15 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'impactForceResistance',
   'maxHealth',
   'shieldMaxHealth',
+  'maxShieldRegen',
+  'shieldDownedRegenDelay',
+  'shieldDamagedRegenDelay',
   'powerGeneration',
   'coolantGeneration',
   'quantumSpeed',
   'quantumFuelRequirement',
+  'quantumSpoolUpTime',
+  'quantumCooldownTime',
   'radarMinAimAssistDistance',
   'radarMaxAimAssistDistance',
   'hullScrapingEfficiency',
@@ -374,10 +384,15 @@ Object.assign(STAT_LABELS, {
   spread: { en: 'Spread', fr: 'Dispersion', de: 'Spread' },
   maxHealth: { en: 'Integrity', fr: 'Intégrité', de: 'Integrity' },
   shieldMaxHealth: { en: 'Shield HP', fr: 'PV bouclier', de: 'Shield HP' },
-  powerGeneration: { en: 'Power Generation', fr: 'Production energie', de: 'Power Generation' },
-  coolantGeneration: { en: 'Coolant Generation', fr: 'Production refroidissement', de: 'Coolant Generation' },
+  maxShieldRegen: { en: 'Shield Regen', fr: 'Regen bouclier', de: 'Schild-Regen' },
+  shieldDownedRegenDelay: { en: 'Downed Regen Delay', fr: 'Delai regen (detruit)', de: 'Downed Regen Delay' },
+  shieldDamagedRegenDelay: { en: 'Damaged Regen Delay', fr: 'Delai regen (dommage)', de: 'Damaged Regen Delay' },
+  powerGeneration: { en: 'Power Output', fr: 'Production energie', de: 'Leistungsabgabe' },
+  coolantGeneration: { en: 'Cooling Rate', fr: 'Taux de refroidissement', de: 'Kühlrate' },
   quantumSpeed: { en: 'Quantum Speed', fr: 'Vitesse quantum', de: 'Quantum Speed' },
   quantumFuelRequirement: { en: 'Quantum Fuel Burn', fr: 'Carburant quantum', de: 'Quantum Fuel Burn' },
+  quantumSpoolUpTime: { en: 'Spool-Up Time', fr: 'Temps de mise en marche', de: 'Aufspulzeit' },
+  quantumCooldownTime: { en: 'Cooldown Time', fr: 'Temps de recharge', de: 'Abkühlzeit' },
   radarMinAimAssistDistance: { en: 'Min Aim Assist', fr: 'Aide visee min', de: 'Min Aim Assist' },
   radarMaxAimAssistDistance: { en: 'Max Aim Assist', fr: 'Aide visee max', de: 'Max Aim Assist' },
   hullScrapingEfficiency: { en: 'Scraping Efficiency', fr: 'Efficacite raclage', de: 'Scraping Efficiency' },
@@ -458,12 +473,17 @@ export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
 Object.assign(STAT_UNITS, {
   reloadSpeed: 'x',
   spread: 'x',
-  maxHealth: 'x',
-  shieldMaxHealth: 'x',
-  powerGeneration: 'x',
-  coolantGeneration: 'x',
-  quantumSpeed: 'x',
-  quantumFuelRequirement: 'x',
+  maxHealth: 'HP',
+  shieldMaxHealth: 'HP',
+  maxShieldRegen: 'HP/s',
+  shieldDownedRegenDelay: 's',
+  shieldDamagedRegenDelay: 's',
+  powerGeneration: 'EU/s',
+  coolantGeneration: 'SRU/s',
+  quantumSpeed: 'Mm/s',
+  quantumFuelRequirement: 'SCU/km',
+  quantumSpoolUpTime: 's',
+  quantumCooldownTime: 's',
   radarMinAimAssistDistance: 'x',
   radarMaxAimAssistDistance: 'x',
   hullScrapingEfficiency: 'x',
