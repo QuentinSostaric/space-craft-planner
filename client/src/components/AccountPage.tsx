@@ -904,10 +904,10 @@ export function AccountPage() {
     }
   };
 
-  const handleCitizenIdRsiLink = () => {
+  const handleCitizenIdRsiLink = (returnTo?: string) => {
     setRsiCopyFeedback(null);
     rsiAction.clearError();
-    linkRsiAccountWithCitizenId();
+    linkRsiAccountWithCitizenId(returnTo);
   };
 
   const handleUnlinkRsiAccount = async () => {
@@ -2482,6 +2482,53 @@ export function AccountPage() {
                   variant="outlined"
                   sx={{
                     p: { xs: 1.5, md: 1.75 },
+                    borderColor: alpha(theme.palette.success.main, 0.22),
+                    backgroundColor: alpha(theme.palette.success.main, 0.05),
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    spacing={1.5}
+                    alignItems={{ xs: 'stretch', md: 'center' }}
+                    justifyContent="space-between"
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        {t('Automatic organization sync', 'Synchro automatique des organisations', 'Automatische Organisationssynchronisierung')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
+                        {t(
+                          'Citizen iD imports every public RSI organization exposed by your account. Re-sync after changing org visibility or granting new Citizen iD scopes.',
+                          'Citizen iD importe chaque organisation RSI publique exposee par ton compte. Relance la synchro apres avoir change la visibilite des orgs ou accepte de nouveaux scopes Citizen iD.',
+                          'Citizen iD importiert jede oeffentliche RSI-Organisation, die dein Konto freigibt. Synchronisiere erneut, wenn du die Org-Sichtbarkeit oder Citizen-iD-Scopes geaendert hast.',
+                        )}
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="secondary"
+                      icon={<RefreshOutlinedIcon fontSize="small" />}
+                      onClick={() => { handleCitizenIdRsiLink('/account'); }}
+                      disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
+                      style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      {t('Sync with Citizen iD', 'Synchroniser avec Citizen iD', 'Mit Citizen iD synchronisieren')}
+                    </Button>
+                  </Stack>
+                  {!citizenIdRsiLinkEnabled && (
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>
+                      {t(
+                        'Citizen iD sync is not configured in this environment yet.',
+                        'La synchro Citizen iD n est pas encore configuree dans cet environnement.',
+                        'Citizen-iD-Sync ist in dieser Umgebung noch nicht konfiguriert.',
+                      )}
+                    </Typography>
+                  )}
+                </Paper>
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: { xs: 1.5, md: 1.75 },
                     borderColor: alpha(theme.palette.primary.main, 0.16),
                     backgroundColor: alpha(theme.palette.background.default, 0.22),
                   }}
@@ -2489,13 +2536,13 @@ export function AccountPage() {
                   <Stack spacing={1.5}>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {t('Add an organization', 'Ajouter une organisation', 'Organisation hinzufügen')}
+                        {t('Manual fallback', 'Fallback manuel', 'Manueller Fallback')}
                       </Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
                         {t(
-                          'Paste a SID such as PROTECTORA or the full RSI organization URL.',
-                          'Colle un SID comme PROTECTORA ou l URL complete de l organisation RSI.',
-                          'Fuge eine SID wie PROTECTORA oder die vollständige RSI-Organisations-URL ein.',
+                          'Use this only when an organization is public on RSI but was not returned by Citizen iD.',
+                          'Utilise ceci uniquement quand une organisation est publique sur RSI mais n a pas ete renvoyee par Citizen iD.',
+                          'Nutze dies nur, wenn eine Organisation auf RSI oeffentlich ist, aber nicht von Citizen iD zurueckgegeben wurde.',
                         )}
                       </Typography>
                     </Box>
@@ -2548,7 +2595,7 @@ export function AccountPage() {
                       >
                         {organizationAddBusy
                           ? t('Adding...', 'Ajout...', 'Füge hinzu...')
-                          : t('Add organization', 'Ajouter l organisation', 'Organisation hinzufügen')}
+                          : t('Add fallback org', 'Ajouter l org fallback', 'Fallback-Org hinzufuegen')}
                       </Button>
                     </Stack>
                   </Stack>
@@ -2570,9 +2617,9 @@ export function AccountPage() {
                     </Typography>
                     <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
                       {t(
-                        'Once the RSI account is linked, the profile main organization can be imported automatically and extra organizations can be added by SID.',
-                        'Une fois le compte RSI lie, l organisation principale du profil peut etre importee automatiquement et des organisations supplementaires peuvent etre ajoutees par SID.',
-                        'Sobald das RSI-Konto verknüpft ist, kann die Hauptorganisation des Profils automatisch importiert werden und weitere Organisationen konnen per SID hinzugefügt werden.',
+                        'Connect or re-sync with Citizen iD to import public RSI organizations automatically. The SID form above stays available as a fallback.',
+                        'Connecte ou resynchronise avec Citizen iD pour importer automatiquement les organisations RSI publiques. Le formulaire SID ci-dessus reste disponible comme fallback.',
+                        'Verbinde oder synchronisiere erneut mit Citizen iD, um oeffentliche RSI-Organisationen automatisch zu importieren. Das SID-Formular oben bleibt als Fallback verfuegbar.',
                       )}
                     </Typography>
                   </Box>
@@ -4115,7 +4162,7 @@ export function AccountPage() {
                 <Box>
                   <Button
                     variant="secondary"
-                    onClick={handleCitizenIdRsiLink}
+                    onClick={() => { handleCitizenIdRsiLink(); }}
                     disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
                   >
                     {t('Link with Citizen iD', 'Lier avec Citizen iD', 'Mit Citizen iD verknupfen')}

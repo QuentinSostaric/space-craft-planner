@@ -21,9 +21,9 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
 import HandymanOutlinedIcon from '@mui/icons-material/HandymanOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../auth/AuthContext';
@@ -1453,10 +1453,14 @@ function OrganizationCard({
 function OrganizationList({
   accessibleOrganizations,
   lockedOrganizations,
+  citizenIdRsiLinkEnabled,
+  onSyncCitizenId,
   onOpenOrg,
 }: {
   accessibleOrganizations: AccountOrganization[];
   lockedOrganizations: AccountOrganization[];
+  citizenIdRsiLinkEnabled: boolean;
+  onSyncCitizenId: () => void;
   onOpenOrg: (org: AccountOrganization) => void;
 }) {
   const { t } = useI18n();
@@ -1489,12 +1493,22 @@ function OrganizationList({
         </Box>
         <Button
           variant="outlined"
-          startIcon={<AddOutlinedIcon />}
+          startIcon={<RefreshOutlinedIcon />}
+          onClick={onSyncCitizenId}
+          disabled={!citizenIdRsiLinkEnabled}
           sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
         >
-          {t('Link RSI Org', 'Lier une org RSI', 'RSI-Org verknüpfen')}
+          {t('Sync Citizen iD orgs', 'Synchroniser les orgs Citizen iD', 'Citizen-iD-Orgs synchronisieren')}
         </Button>
       </Box>
+
+      <Alert severity="info" variant="outlined">
+        {t(
+          'Public RSI organizations are imported automatically from Citizen iD. Re-sync here after changing organization visibility or granting new scopes; manual SID linking remains a fallback on the account page.',
+          'Les organisations RSI publiques sont importees automatiquement depuis Citizen iD. Relance la synchro ici apres avoir change la visibilite des organisations ou accepte de nouveaux scopes ; le lien manuel par SID reste disponible sur la page compte.',
+          'Oeffentliche RSI-Organisationen werden automatisch aus Citizen iD importiert. Synchronisiere hier erneut, wenn sich Org-Sichtbarkeit oder Scopes geaendert haben; manuelle SID-Verknuepfung bleibt auf der Kontoseite als Fallback verfuegbar.',
+        )}
+      </Alert>
 
       {/* Accessible org grid */}
       {accessibleOrganizations.length === 0 ? (
@@ -1577,7 +1591,13 @@ function OrganizationList({
 
 export function OrganizationsPage() {
   const { t } = useI18n();
-  const { account, syncStatus, syncError } = useAuth();
+  const {
+    account,
+    citizenIdRsiLinkEnabled,
+    linkRsiAccountWithCitizenId,
+    syncStatus,
+    syncError,
+  } = useAuth();
   const {
     blueprints,
     activeDataset,
@@ -1653,6 +1673,8 @@ export function OrganizationsPage() {
         <OrganizationList
           accessibleOrganizations={accessibleOrganizations}
           lockedOrganizations={lockedOrganizations}
+          citizenIdRsiLinkEnabled={citizenIdRsiLinkEnabled}
+          onSyncCitizenId={() => { linkRsiAccountWithCitizenId('/organizations'); }}
           onOpenOrg={(org) => setSelectedOrg(org.sid)}
         />
       )}
