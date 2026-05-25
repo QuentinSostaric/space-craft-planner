@@ -68,8 +68,8 @@ export function useAppUpdateState(): AppUpdateState {
             setAvailableVersion(nextUpdate.version);
             setStatus('available');
           }
-        } catch {
-          // never interrupt the app on startup
+        } catch (e) {
+          console.error('[updater] check failed:', e);
         }
         return;
       }
