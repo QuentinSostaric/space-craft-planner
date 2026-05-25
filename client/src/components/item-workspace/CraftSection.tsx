@@ -208,8 +208,6 @@ export function CraftSection({
   const attackProfile = [attachDef?.type, attachDef?.subType].filter(Boolean).map(humanizeToken).join(' / ') || null;
   const ammoType = blueprint.baseStats.ammoType || blueprint.baseStats.ammoFlavor || null;
   const armorSlot = blueprint.baseStats.armorSlot || null;
-  const blueprintId = blueprint.id;
-  const entityPath = blueprint.identity?.entityPath ?? null;
   const technicalTags = [
     attachDef?.size != null ? `Size ${attachDef.size}` : null,
     attachDef?.grade != null ? `Grade ${attachDef.grade}` : null,
@@ -217,10 +215,6 @@ export function CraftSection({
     ...(attachDef?.requiredTags ?? []).map(humanizeToken),
   ].filter(Boolean) as string[];
   const hasFieldData = !!(itemType || sizeVal || volumeVal || gridSizeVal || footprintVal || attackProfile || ammoType || armorSlot || technicalTags.length > 0);
-
-  const estimatedXp = Math.round(8000 + qualityScore * 80);
-  const craftXp = `~${estimatedXp.toLocaleString()}`;
-  const stationCost = (1200 + blueprint.slots.length * 600 + qualityScore * 4).toLocaleString();
 
   const gradeChipSx = {
     height: 22,
@@ -461,7 +455,6 @@ export function CraftSection({
 
           <Divider sx={{ my: 1.25, borderColor: theme.palette.ui.border }} />
           <Stack spacing={0.15} sx={{ mb: 1.25 }}>
-            <KVRow label={t('Station cost', 'Coût station')} value={`${stationCost} aUEC`} />
             <KVRow label={t('Craft time', 'Temps de craft')} value={formatCraftTime(blueprint.craftTimeSecs)} />
           </Stack>
         </Panel>
