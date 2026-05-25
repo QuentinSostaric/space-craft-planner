@@ -50,6 +50,24 @@ function decodeBase64Url(value) {
   return bytes;
 }
 
+function decodeBase64UrlJson(value) {
+  try {
+    return JSON.parse(textDecoder.decode(decodeBase64Url(value)));
+  } catch {
+    return null;
+  }
+}
+
+function decodeJwtPayload(token) {
+  const parts = String(token ?? '').split('.');
+  if (parts.length < 2 || !parts[1]) {
+    return null;
+  }
+
+  const payload = decodeBase64UrlJson(parts[1]);
+  return payload && typeof payload === 'object' ? payload : null;
+}
+
 async function importHmacKey(secret) {
   const cacheKey = String(secret);
   if (!hmacKeyCache.has(cacheKey)) {
@@ -324,6 +342,35 @@ export async function fetchCitizenIdRsiProfile(accessToken, env = {}) {
   }
 
   return rsiLink;
+}
+
+export function extractCitizenIdRsiProfileFromClaims(claims) {
+  if (!claims || typeof claims !== 'object') {
+    return null;
+  }
+
+  return normalizeRsiLink({
+    handle: claims['urn:user:rsi:username'],
+    displayName:
+      claims['urn:user:rsi:displayName'] ??
+      claims['urn:user:rsi:username'],
+    profileUrl: claims['urn:user:rsi:username']
+      ? `https://robertsspaceindustries.com/citizens/${encodeURIComponent(claims['urn:user:rsi:username'])}`
+      : null,
+    verifiedAt: new Date().toISOString(),
+  });
+}
+
+export async function resolveCitizenIdRsiProfile(tokenPayload, env = {}) {
+  const rsiLink =
+    extractCitizenIdRsiProfileFromClaims(decodeJwtPayload(tokenPayload?.id_token)) ??
+    extractCitizenIdRsiProfileFromClaims(decodeJwtPayload(tokenPayload?.access_token));
+
+  if (rsiLink) {
+    return rsiLink;
+  }
+
+  return fetchCitizenIdRsiProfile(tokenPayload?.access_token, env);
 }
 
 export function buildCitizenIdCallbackErrorRedirect(returnTo, message) {

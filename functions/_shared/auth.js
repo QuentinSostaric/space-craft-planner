@@ -23,9 +23,9 @@ import {
   buildExpiredCitizenIdStateCookie,
   createCitizenIdStateCookie,
   exchangeCitizenIdCode,
-  fetchCitizenIdRsiProfile,
   isCitizenIdAuthConfigured,
   readCitizenIdStateFromCookies,
+  resolveCitizenIdRsiProfile,
 } from '../../shared/citizenIdAuth.mjs';
 import {
   clearRsiAccountLink,
@@ -370,7 +370,7 @@ export async function handleCitizenIdCallbackRequest(request, env) {
 
   try {
     const tokenPayload = await exchangeCitizenIdCode(request, env, code);
-    const verifiedLink = await fetchCitizenIdRsiProfile(tokenPayload.access_token, env);
+    const verifiedLink = await resolveCitizenIdRsiProfile(tokenPayload, env);
     const accountStore = getAccountStore(request, env);
     await ensureAccountForSession(accountStore, session);
     await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
