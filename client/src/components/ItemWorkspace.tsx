@@ -253,7 +253,7 @@ export function ItemWorkspace() {
               )}
               {acquisitionEntry && (
                 <Chip
-                  label={t('Mission liée', 'Mission liée')}
+                  label={t('Mission-linked', 'Mission liée')}
                   size="small"
                   variant="outlined"
                   icon={<FlagOutlinedIcon sx={{ fontSize: '0.85rem !important' }} />}

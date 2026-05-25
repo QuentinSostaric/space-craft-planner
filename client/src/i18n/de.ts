@@ -293,4 +293,292 @@ export const GERMAN_FALLBACKS: Record<string, string> = {
 
   // ── GoalEditModal ─────────────────────────────────────────────────────────
   'Loading blueprint detail...': 'Blueprint-Details werden geladen...',
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  'Search blueprints, resources, missions…': 'Baupläne, Ressourcen, Missionen suchen…',
+  'Global search': 'Globale Suche',
+  'PTU dataset': 'PTU-Datensatz',
+  'Latest': 'Neuester',
+  'Login to watch LIVE logs': 'Einloggen, um LIVE-Logs zu überwachen',
+  'No LIVE installation detected': 'Keine LIVE-Installation erkannt',
+  'Click to stop watching LIVE logs': 'Klicken, um Überwachung zu stoppen',
+  'Click to watch LIVE logs in real-time': 'LIVE-Logs in Echtzeit überwachen',
+  'Watch LIVE logs toggle': 'LIVE-Log-Überwachung umschalten',
+  'Light mode': 'Heller Modus',
+  'Dark mode': 'Dunkler Modus',
+  'Switch to light mode': 'Zu hellem Modus wechseln',
+  'Switch to dark mode': 'Zu dunklem Modus wechseln',
+
+  // ── ItemWorkspace ─────────────────────────────────────────────────────────
+  'Fabrication': 'Fertigung',
+  'Blueprint sections': 'Blueprint-Bereiche',
+  'Loading blueprint details…': 'Blueprint-Details werden geladen…',
+  'slots': 'Slots',
+  'Add to inventory': 'Zum Inventar hinzufügen',
+  'Remove from favourites': 'Aus Favoriten entfernen',
+  'Add to favourites': 'Zu Favoriten hinzufügen',
+  'Add to planner': 'Zum Planer hinzufügen',
+  'Blueprint overview': 'Blueprint-Übersicht',
+
+  // ── BlueprintOverview ─────────────────────────────────────────────────────
+  'Difficulty': 'Schwierigkeitsgrad',
+  'Complex': 'Komplex',
+  'Standard': 'Standard',
+  'Simple': 'Einfach',
+  '1 configurable part': '1 konfigurierbares Bauteil',
+  'configurable parts': 'konfigurierbare Bauteile',
+  'Craft Time': 'Fertigungszeit',
+  'Per fabrication': 'Pro Fertigung',
+  'Multiplier': 'Multiplikator',
+  'Primary stat impact': 'Primärwert-Einfluss',
+
+  // ── DismantleSection ──────────────────────────────────────────────────────
+  'No materials': 'Keine Materialien',
+  'Recovered': 'Zurückgewonnen',
+  'Craft cost': 'Fertigungskosten',
+  'Recovery': 'Bergung',
+  'Same as selected': 'Wie ausgewählt',
+
+  // ── CraftSection ──────────────────────────────────────────────────────────
+  'Craft simulator': 'Fertigungssimulator',
+  'Materials & quality': 'Materialien & Qualität',
+  'Place a material in each slot and adjust its quality. 500 = standard.':
+    'Platziere ein Material in jedem Slot und passe die Qualität an. 500 = Standard.',
+  'valid': 'gültig',
+  'Reset 500': 'Zurücksetzen 500',
+  'Max quality': 'Max-Qualität',
+  'Field Data': 'Objektdaten',
+  'Item Type': 'Gegenstandstyp',
+  'Size': 'Größe',
+  'Volume': 'Volumen',
+  'Grid Size': 'Rastergröße',
+  'Footprint': 'Platzbedarf',
+  'Attack Profile': 'Angriffsprofil',
+  'Ammo Type': 'Munitionstyp',
+  'Armor Slot': 'Rüstungsslot',
+  'Technical Tags': 'Technische Tags',
+  'Simulation': 'Simulation',
+  'Expected result': 'Erwartetes Ergebnis',
+  'Final stats update live with sliders': 'Endwerte aktualisieren sich live mit den Reglern',
+  'No modifiable stats': 'Keine änderbaren Werte',
+  'Blueprint details': 'Blueprint-Details',
+  'Reference': 'Referenz',
+  'Category': 'Kategorie',
+  'materials': 'Materialien',
+
+  // ── SlotCard ──────────────────────────────────────────────────────────────
+  'System slot': 'System-Slot',
+  'Optimal': 'Optimal',
+  'Inventory lot': 'Inventarposten',
+  'Select inventory lot': 'Inventarposten auswählen',
+
+  // ── CombinedModifiers ─────────────────────────────────────────────────────
+  'Combined Modifiers': 'Kombinierte Modifikatoren',
+  'Stats modifiers': 'Stat-Modifikatoren',
+  'Stat': 'Wert',
+  'Final': 'Endwert',
+  'Delta': 'Delta',
+
+  // ── ResourceSummary (shared) ───────────────────────────────────────────────
+  'Required Resources': 'Benötigte Ressourcen',
+  'Required resources': 'Benötigte Ressourcen',
+
+  // ── ComparisonModal ───────────────────────────────────────────────────────
+  'Compare': 'Vergleichen',
+  'item': 'Element',
+  'max 4': 'max 4',
+  'Clear all': 'Alle löschen',
+  'Close comparison': 'Vergleich schließen',
+  'Add items to compare from the Stats panel.': 'Füge Elemente aus dem Stats-Panel zum Vergleich hinzu.',
+  '+ Add from Stats panel': '+ Aus Stats-Panel hinzufügen',
+  'Radar': 'Radar',
+  'Stat breakdown': 'Wertaufschlüsselung',
+
+  // ── MaterialSourcesSection ────────────────────────────────────────────────
+  'Material sources': 'Materialquellen',
+  '1 required resource': '1 benötigte Ressource',
+  'required resources': 'benötigte Ressourcen',
+  'Add Goal to Planner': 'Ziel zum Planer hinzufügen',
+  'Lead source': 'Hauptquelle',
+  'Top share': 'Höchster Anteil',
+  'Planner qty': 'Planermenge',
+  'items': 'Teile',
+  'Add to Planner': 'Zum Planer hinzufügen',
+  'Detailed locations': 'Detaillierte Fundorte',
+  'No source data available': 'Keine Quelldaten verfügbar',
+  'Required': 'Benötigt',
+  'quantity': 'Menge',
+  'Quantity': 'Menge',
+
+  // ── AcquisitionSection ────────────────────────────────────────────────────
+  'Unknown employer': 'Unbekannter Auftraggeber',
+  'Not obtainable via missions': 'Nicht über Missionen erhältlich',
+  'Drop score': 'Drop-Wert',
+  'Best linked chance': 'Beste verknüpfte Chance',
+  'Blueprint acquisition missions': 'Blueprint-Erwerbsmissionen',
+  'localities': 'Standorte',
+
+  // ── MissionsPanel ─────────────────────────────────────────────────────────
+  'Unnamed contract': 'Unbenannter Vertrag',
+  'Unknown theater': 'Unbekannter Einsatzraum',
+  'Mission theater': 'Missionseinsatzraum',
+  'Open source page': 'Quellseite öffnen',
+  'Unknown faction': 'Unbekannte Fraktion',
+  'No locality data': 'Keine Ortsdaten',
+  'Standing requirements': 'Rufsanforderungen',
+  'Operational notes': 'Operative Notizen',
+  'Blueprint rewards': 'Blueprint-Belohnungen',
+  'Loot table view for this contract. Click any blueprint card to jump to the craft workspace.':
+    'Loottabelle für diesen Vertrag. Klicke auf eine Blueprint-Karte, um zum Fertigungsbereich zu wechseln.',
+  'No blueprint rewards are linked to this mission in the current dataset.':
+    'Keine Blueprint-Belohnungen sind dieser Mission im aktuellen Datensatz zugeordnet.',
+  'Lootable blueprint list': 'Liste der erbeutbaren Blueprints',
+  'contracts': 'Verträge',
+  'View mode': 'Ansichtsmodus',
+  'Cards': 'Karten',
+  'Rows': 'Zeilen',
+  'item awards': 'Gegenstandsprämien',
+  'Explore contracts, faction employers and blueprint rewards...':
+    'Verträge, Fraktionsauftraggeber und Blueprint-Belohnungen erkunden…',
+  'Employers': 'Auftraggeber',
+  'Factions': 'Fraktionen',
+  'Sort missions': 'Missionen sortieren',
+  'None': 'Keine',
+  'Jurisdiction': 'Zuständigkeit',
+  'Locations': 'Orte',
+
+  // ── BlueprintExplorer ─────────────────────────────────────────────────────
+  'Refine by manufacturer, material, rarity, legality…':
+    'Verfeinern nach Hersteller, Material, Seltenheit, Legalität…',
+
+  // ── ResourcesPage ─────────────────────────────────────────────────────────
+  'Sources': 'Quellen',
+  'Used In': 'Verwendet in',
+  'Asteroid sources': 'Asteroidenquellen',
+  'Planetary sources': 'Planetarische Quellen',
+  'Other sources': 'Andere Quellen',
+  'Share': 'Anteil',
+  'Tier': 'Stufe',
+  'mixed': 'gemischt',
+  'Craft demand': 'Fertigungsbedarf',
+  'Mission employers': 'Missionsauftraggeber',
+  'lootable blueprints': 'erbeutbare Blueprints',
+  'chance': 'Chance',
+  'No provider data available for this resource.': 'Keine Quellen für diese Ressource verfügbar.',
+  'No mission objectives currently reference this resource.':
+    'Keine Missionsziele verweisen auf diese Ressource.',
+  'Loading mission data...': 'Missionsdaten werden geladen...',
+  'No blueprint currently uses this resource.': 'Kein Blueprint verwendet diese Ressource.',
+  'Dataset': 'Datensatz',
+
+  // ── DatasetChangelogPage ──────────────────────────────────────────────────
+  'Changelog': 'Änderungsprotokoll',
+  'Compare published datasets and isolate gameplay stat, modifier, resource and material changes.':
+    'Veröffentlichte Datensätze vergleichen und Gameplay-Wert-, Modifikator-, Ressourcen- und Materialänderungen isolieren.',
+  'Stat rows': 'Statistikzeilen',
+  'Loading datasets': 'Datensätze werden geladen',
+  'No published dataset is available yet.': 'Noch kein veröffentlichter Datensatz verfügbar.',
+  'Comparator': 'Komparator',
+  'Dataset selector': 'Datensatzauswahl',
+  'entries': 'Einträge',
+  'Base dataset': 'Basis-Datensatz',
+  'Target dataset': 'Ziel-Datensatz',
+  'All statuses': 'Alle Status',
+  'All domains': 'Alle Bereiche',
+  'Materials': 'Materialien',
+  'All types': 'Alle Typen',
+  'All impacts': 'Alle Auswirkungen',
+  'Buffs': 'Buffs',
+  'Nerfs': 'Nerfs',
+  'Neutral': 'Neutral',
+  'History': 'Verlauf',
+  'All changes': 'Alle Änderungen',
+  'added': 'hinzugefügt',
+  'changed': 'geändert',
+  'Stats / modifiers': 'Stats / Modifikatoren',
+  'Name, type, stat or modifier…': 'Name, Typ, Wert oder Modifikator…',
+
+  // ── ResourceMethodDetail ──────────────────────────────────────────────────
+  'Manual collection. Enter what you gathered.': 'Manuelle Sammlung. Gib ein, was du gesammelt hast.',
+  'No mining source data available in the current dataset.':
+    'Keine Bergbauquelldaten im aktuellen Datensatz verfügbar.',
+  'Provider': 'Anbieter',
+  'Type': 'Typ',
+  'Confidence': 'Zuverlässigkeit',
+  'Groups': 'Gruppen',
+  'Recovered by dismantling. Enter what you got.':
+    'Durch Zerlegen gewonnen. Gib ein, was du erhalten hast.',
+  'Bought from a shop or terminal. Enter what you bought.':
+    'Im Laden oder Terminal gekauft. Gib ein, was du gekauft hast.',
+  'Available mission contracts': 'Verfügbare Missionsverträge',
+  'Combat': 'Kampf',
+  'Objective': 'Ziel',
+
+  // ── PlannerPage (notes) ───────────────────────────────────────────────────
+  'Research notebook in markdown format...': 'Forschungsnotizbuch im Markdown-Format...',
+  'Filter notes…': 'Notizen filtern…',
+  'Pinned': 'Angeheftet',
+  'New note': 'Neue Notiz',
+  'Pin': 'Anheften',
+  'Copy MD': 'MD kopieren',
+  'Copied': 'Kopiert',
+  'Edit mode': 'Bearbeitungsmodus',
+  'Preview': 'Vorschau',
+  'Note title': 'Notiztitel',
+  'Delete note': 'Notiz löschen',
+  'chars': 'Zeichen',
+  'tasks': 'Aufgaben',
+  'No notes': 'Keine Notizen',
+  'No note selected': 'Keine Notiz ausgewählt',
+  'Create a note': 'Notiz erstellen',
+  'Note body': 'Notizinhalt',
+  'Write in markdown. ## heading, - [ ] task, **bold**, @bp:id, @res:id':
+    'Im Markdown-Format schreiben. ## Überschrift, - [ ] Aufgabe, **fett**, @bp:id, @res:id',
+  'Tag': 'Tag',
+  'Markdown:': 'Markdown:',
+  'bold': 'fett',
+  'italic': 'kursiv',
+  'code': 'Code',
+  'heading': 'Überschrift',
+  'task': 'Aufgabe',
+  'To do': 'Zu erledigen',
+
+  // ── App / global ──────────────────────────────────────────────────────────
+  'Loading new dataset': 'Neuer Datensatz wird geladen',
+  'Please wait…': 'Bitte warten…',
+  'and': 'und',
+  'Made by': 'Erstellt von',
+  'External media credit:': 'Externe Medienkredite:',
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  'Watch': 'Überwachen',
+  'Update download progress': 'Fortschritt des Update-Downloads',
+
+  // ── BlueprintExplorer ─────────────────────────────────────────────────────
+  'Legality': 'Legalität',
+  'Component family': 'Komponentenfamilie',
+  'Component profile': 'Komponentenprofil',
+  'Component size': 'Komponentengröße',
+  'Component grade': 'Komponentenklasse',
+
+  // ── BlueprintGrid ─────────────────────────────────────────────────────────
+  'blueprints': 'Blueprints',
+  'ship components': 'Schiffskomponenten',
+  'Blueprint list': 'Blueprint-Liste',
+  'Ship Components': 'Schiffskomponenten',
+  'Ship component list': 'Schiffskomponentenliste',
+  'No blueprints match your filters.': 'Keine Blueprints entsprechen den Filtern.',
+  'No favorites yet. Star a blueprint to save it here.': 'Noch keine Favoriten. Markiere einen Blueprint mit ★ um ihn hier zu speichern.',
+  'Loading obtainable blueprints...': 'Erbeutbare Blueprints werden geladen...',
+  'No obtainable blueprints found.': 'Keine erbeutbaren Blueprints gefunden.',
+  'No blueprints found.': 'Keine Blueprints gefunden.',
+  'Sync your game inventory': 'Spielinventar synchronisieren',
+  'Go to Account': 'Zum Konto',
+
+  // ── ItemWorkspace ─────────────────────────────────────────────────────────
+  'Favourite': 'Favorit',
+
+  // ── AccountPage ───────────────────────────────────────────────────────────
+  'Bot workflow steps': 'Bot-Workflow-Schritte',
+
 };
