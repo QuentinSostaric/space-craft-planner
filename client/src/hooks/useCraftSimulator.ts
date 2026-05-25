@@ -65,6 +65,8 @@ function getModifierTargets(gppId: string, result: ItemStats): NumericItemStatKe
   }
 
   if (gppId === 'GPP_Weapon_Damage') {
+    // Mining lasers store power in miningLaserPower rather than damage
+    if (typeof result.miningLaserPower === 'number') return ['miningLaserPower'];
     const damageTargets: NumericItemStatKey[] = ['damage'];
     if (typeof result.burstDps === 'number') damageTargets.push('burstDps');
     if (typeof result.sustainedDps === 'number') damageTargets.push('sustainedDps');

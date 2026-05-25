@@ -131,6 +131,7 @@ export interface ItemStats {
   radiationCapacity?: number;
   impactForceResistance?: number;
 
+  miningLaserPower?: number;
   maxHealth?: number;
   shieldMaxHealth?: number;
   maxShieldRegen?: number;
@@ -216,6 +217,7 @@ export const NUMERIC_ITEM_STAT_KEYS = [
   'wearAimingMultiplier',
   'radiationCapacity',
   'impactForceResistance',
+  'miningLaserPower',
   'maxHealth',
   'shieldMaxHealth',
   'maxShieldRegen',
@@ -382,6 +384,7 @@ export const STAT_LABELS: Partial<Record<keyof ItemStats, LocalizedString>> = {
 Object.assign(STAT_LABELS, {
   reloadSpeed: { en: 'Reload Speed', fr: 'Vitesse rechargement', de: 'Reload Speed' },
   spread: { en: 'Spread', fr: 'Dispersion', de: 'Spread' },
+  miningLaserPower: { en: 'Laser Power', fr: 'Puissance laser', de: 'Laserleistung' },
   maxHealth: { en: 'Integrity', fr: 'Intégrité', de: 'Integrity' },
   shieldMaxHealth: { en: 'Shield HP', fr: 'PV bouclier', de: 'Shield HP' },
   maxShieldRegen: { en: 'Shield Regen', fr: 'Regen bouclier', de: 'Schild-Regen' },
@@ -473,6 +476,7 @@ export const STAT_UNITS: Partial<Record<keyof ItemStats, string>> = {
 Object.assign(STAT_UNITS, {
   reloadSpeed: 'x',
   spread: 'x',
+  miningLaserPower: '',
   maxHealth: 'HP',
   shieldMaxHealth: 'HP',
   maxShieldRegen: 'HP/s',
