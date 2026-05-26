@@ -8,6 +8,7 @@ import {
   saveCurrentAccountState,
   type AccountDatasetScope,
 } from '../services/authService';
+import { rememberScLogBlueprintNames } from '../services/scLogBlueprintCache';
 
 interface ScInstallPaths {
   live: string | null;
@@ -87,16 +88,17 @@ export function useScLogSync(): ScLogSyncState {
   }, [available, detectPaths]);
 
   const scanChannel = useCallback(
-    async (path: string): Promise<ScLogSyncChannelResult> => {
+    async (path: string, scope: AccountDatasetScope): Promise<ScLogSyncChannelResult> => {
       const foundNames: string[] = await invoke<string[]>('scan_blueprints_from_logs', {
         channelPath: path,
       });
+      const knownNames = rememberScLogBlueprintNames(scope, foundNames);
 
       const nameToId = new Map(blueprints.map((b) => [b.name, b.id]));
       const matchedIds: string[] = [];
       const unmatchedNames: string[] = [];
 
-      for (const name of foundNames) {
+      for (const name of knownNames) {
         const id = nameToId.get(name);
         if (id) {
           matchedIds.push(id);
@@ -105,7 +107,7 @@ export function useScLogSync(): ScLogSyncState {
         }
       }
 
-      return { scanned: true, foundNames, matchedIds, unmatchedNames };
+      return { scanned: true, foundNames: knownNames, matchedIds, unmatchedNames };
     },
     [blueprints],
   );
@@ -131,12 +133,12 @@ export function useScLogSync(): ScLogSyncState {
       let ptuResult: ScLogSyncChannelResult = EMPTY_RESULT;
 
       if (paths.live) {
-        liveResult = await scanChannel(paths.live);
+        liveResult = await scanChannel(paths.live, 'live');
         setLive(liveResult);
       }
 
       if (paths.ptu) {
-        ptuResult = await scanChannel(paths.ptu);
+        ptuResult = await scanChannel(paths.ptu, 'ptu');
         setPtu(ptuResult);
       }
 
@@ -149,7 +151,9 @@ export function useScLogSync(): ScLogSyncState {
         await saveCurrentAccountState(
           {
             favoriteBlueprintIds: currentAccount.favoriteBlueprintIds,
-            inventoryBlueprintIds: matchedIds,
+            inventoryBlueprintIds: [
+              ...new Set([...currentAccount.inventoryBlueprintIds, ...matchedIds]),
+            ],
             planner: currentAccount.planner,
           },
           scope,

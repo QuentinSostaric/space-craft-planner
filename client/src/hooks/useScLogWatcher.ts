@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
+import { rememberScLogBlueprintNames } from '../services/scLogBlueprintCache';
 import { useCraft } from '../store/CraftContext';
 
 const WATCHER_AUTO_KEY = 'sc-log-watcher-auto';
@@ -77,6 +78,7 @@ export function useScLogWatcher(): ScLogWatcherState {
       if (!names.length) return;
 
       setNewBlueprintCount((n) => n + names.length);
+      rememberScLogBlueprintNames(scopeRef.current, names);
 
       const currentUser = userRef.current;
       if (!currentUser) return;

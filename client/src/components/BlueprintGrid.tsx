@@ -716,8 +716,12 @@ export function BlueprintGrid() {
     }
 
     if (materialFilter) {
+      const normalizedMaterial = materialFilter
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
       list = list.filter((bp) =>
-        (bp.requiredResourceIds?.includes(materialFilter) ?? false) ||
+        (bp.requiredResourceIds?.includes(normalizedMaterial) ?? false) ||
         bp.slots.some((slot) => isResourceSlot(slot) && slot.requiredResource === materialFilter),
       );
     }

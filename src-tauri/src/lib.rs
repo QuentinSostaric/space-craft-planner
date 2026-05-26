@@ -88,25 +88,63 @@ fn desktop_session_path() -> Option<PathBuf> {
 }
 
 fn read_desktop_session_token() -> Option<String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER).ok()?;
-    let token = entry.get_password().ok()?.trim().to_string();
-    if token.is_empty() {
-        None
-    } else {
-        Some(token)
+    // Try OS keyring first (Windows Credential Manager, macOS Keychain, etc.)
+    if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(token) = entry.get_password() {
+            let trimmed = token.trim().to_string();
+            if !trimmed.is_empty() {
+                return Some(trimmed);
+            }
+        }
     }
+    // File fallback for environments without a keyring daemon (some Linux setups)
+    let path = desktop_session_path()?;
+    let content = std::fs::read_to_string(path).ok()?;
+    let trimmed = content.trim().to_string();
+    if trimmed.is_empty() { None } else { Some(trimmed) }
 }
 
 fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER)
-        .map_err(|e| format!("Unable to open desktop credential store: {e}"))?;
-
     match token {
-        Some(value) if !value.trim().is_empty() => entry
-            .set_password(value.trim())
-            .map_err(|e| format!("Unable to save desktop session: {e}")),
+        Some(value) if !value.trim().is_empty() => {
+            let value = value.trim();
+            let keyring_ok = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER)
+                .and_then(|entry| entry.set_password(value))
+                .is_ok();
+            if keyring_ok {
+                // Keyring succeeded — purge any stale fallback file from a prior keyring-less session
+                if let Some(path) = desktop_session_path() {
+                    let _ = std::fs::remove_file(path);
+                }
+            } else {
+                // Keyring unavailable — persist to a plain file as fallback
+                let path = desktop_session_path()
+                    .ok_or_else(|| "Unable to resolve session file path.".to_string())?;
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| format!("Unable to create session directory: {e}"))?;
+                }
+                std::fs::write(&path, value)
+                    .map_err(|e| format!("Unable to save desktop session: {e}"))?;
+                // Restrict file access to the current user only
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = std::fs::set_permissions(
+                        &path,
+                        std::fs::Permissions::from_mode(0o600),
+                    );
+                }
+            }
+            Ok(())
+        }
         _ => {
-            let _ = entry.delete_credential();
+            if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+                match entry.delete_credential() {
+                    Ok(()) | Err(keyring::Error::NoEntry) => {}
+                    Err(e) => return Err(format!("Unable to clear desktop session from keyring: {e}")),
+                }
+            }
             if let Some(path) = desktop_session_path() {
                 let _ = std::fs::remove_file(path);
             }
@@ -186,6 +224,12 @@ async fn fetch_api_json(
         .map_err(|e| format!("Non-JSON response - HTTP {status}: {e}"))?;
 
     if !status.is_success() {
+        // Clear a stale/expired token when the server rejects it, but only if a
+        // token was actually sent — avoids wiping a valid session on transient
+        // gateway/proxy 401s that are unrelated to the application session.
+        if status == reqwest::StatusCode::UNAUTHORIZED && auth_state.get_token().is_some() {
+            auth_state.set_token(None).ok();
+        }
         let message = payload
             .get("message")
             .and_then(|v| v.as_str())

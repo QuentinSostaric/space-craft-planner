@@ -27,6 +27,7 @@ import { NavRail } from './components/NavRail';
 import { Footer } from './components/Footer';
 import { OnboardingDialog } from './components/OnboardingDialog';
 import { AppUpdateSnackbar } from './components/AppUpdateSnackbar';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { AppUpdateContext, useAppUpdateState } from './hooks/useAppUpdate';
 import { useCraft } from './store/CraftContext';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -850,6 +851,7 @@ function AppUpdateProviderInner() {
       <AppShell />
       <OnboardingDialog />
       <AppUpdateSnackbar />
+      <CookieConsentBanner />
     </AppUpdateContext.Provider>
   );
 }

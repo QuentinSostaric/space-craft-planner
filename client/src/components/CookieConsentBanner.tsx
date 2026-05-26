@@ -1,0 +1,88 @@
+import { useState } from 'react';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import { useI18n } from '../i18n/I18nContext';
+import { isTauriRuntime } from '../services/apiBaseUrl';
+import { LS_KEYS } from '../types';
+
+function readStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    try {
+      // Fallback for private browsing / storage-quota contexts — persists for the tab session
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Both unavailable; in-memory state handles the rest of the session
+    }
+  }
+}
+
+function readConsent(): boolean {
+  if (isTauriRuntime()) return true;
+  return readStorage(LS_KEYS.COOKIE_CONSENT) === '1';
+}
+
+export function CookieConsentBanner() {
+  const { t } = useI18n();
+  const [dismissed, setDismissed] = useState(readConsent);
+
+  if (dismissed) return null;
+
+  const handleDismiss = () => {
+    writeStorage(LS_KEYS.COOKIE_CONSENT, '1');
+    setDismissed(true);
+  };
+
+  return (
+    <Box
+      role="region"
+      aria-label={t('Cookie notice', 'Avis sur les cookies', 'Cookie-Hinweis')}
+      sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1500,
+        bgcolor: 'background.paper',
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        px: { xs: 2, sm: 3 },
+        py: 1.25,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        flexWrap: 'wrap',
+      }}
+    >
+      <Typography variant="body2" sx={{ flex: 1, minWidth: 220, color: 'text.secondary' }}>
+        {t(
+          'This site uses strictly necessary cookies for authentication only. No tracking or advertising cookies are used.',
+          "Ce site utilise uniquement des cookies strictement nécessaires à l'authentification. Aucun cookie de suivi ou publicitaire n'est utilisé.",
+          'Diese Website verwendet ausschließlich für die Authentifizierung notwendige Cookies. Es werden keine Tracking- oder Werbe-Cookies verwendet.',
+        )}
+      </Typography>
+      <Button
+        variant="contained"
+        size="small"
+        onClick={handleDismiss}
+        sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+      >
+        {t('Got it', 'Compris', 'Verstanden')}
+      </Button>
+    </Box>
+  );
+}

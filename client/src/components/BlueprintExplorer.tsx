@@ -253,8 +253,13 @@ export function BlueprintExplorer() {
   }, [blueprints]);
 
   const materials = useMemo(() => {
+    const resources = activeDataset.resources;
     const set = new Set<string>();
     for (const bp of blueprints) {
+      for (const id of bp.requiredResourceIds ?? []) {
+        const res = resources.find((r) => r.id === id);
+        set.add(res?.name ?? id);
+      }
       for (const slot of bp.slots) {
         if (isResourceSlot(slot) && slot.requiredResource) {
           set.add(slot.requiredResource);
@@ -262,7 +267,7 @@ export function BlueprintExplorer() {
       }
     }
     return [...set].sort();
-  }, [blueprints]);
+  }, [blueprints, activeDataset.resources]);
 
   const weaponTypes = useMemo(() => {
     const set = new Set<string>();
