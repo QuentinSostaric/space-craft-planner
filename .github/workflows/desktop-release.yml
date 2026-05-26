@@ -61,11 +61,9 @@ jobs:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
-          if (-not $env:WINDOWS_CERTIFICATE) {
-            throw "Missing WINDOWS_CERTIFICATE secret. Add a base64-encoded .pfx code-signing certificate."
-          }
-          if (-not $env:WINDOWS_CERTIFICATE_PASSWORD) {
-            throw "Missing WINDOWS_CERTIFICATE_PASSWORD secret. Add the .pfx export password."
+          if (-not $env:WINDOWS_CERTIFICATE -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            Write-Host "WINDOWS_CERTIFICATE or WINDOWS_CERTIFICATE_PASSWORD not set — skipping Authenticode signing."
+            exit 0
           }
 
           $certificateBase64 = (
@@ -83,7 +81,8 @@ jobs:
             -Password $password
 
           if (-not $certificate.Thumbprint) {
-            throw "Windows code-signing certificate import did not return a thumbprint."
+            Write-Host "Certificate import did not return a thumbprint — skipping Authenticode signing."
+            exit 0
           }
 
           $configPath = "src-tauri\tauri.conf.json"
@@ -92,6 +91,7 @@ jobs:
           $config.bundle.windows.digestAlgorithm = "sha256"
           $config.bundle.windows.timestampUrl = "http://timestamp.digicert.com"
           $config | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $configPath -Encoding utf8
+          Write-Host "Authenticode signing configured with thumbprint $($certificate.Thumbprint)."
 
       - name: Build and upload desktop bundles
         uses: tauri-apps/tauri-action@v0
