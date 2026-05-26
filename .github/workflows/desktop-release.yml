@@ -54,6 +54,45 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Configure Windows Authenticode signing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE) {
+            throw "Missing WINDOWS_CERTIFICATE secret. Add a base64-encoded .pfx code-signing certificate."
+          }
+          if (-not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            throw "Missing WINDOWS_CERTIFICATE_PASSWORD secret. Add the .pfx export password."
+          }
+
+          $certificateBase64 = (
+            $env:WINDOWS_CERTIFICATE -split "\r?\n" |
+              Where-Object { $_ -notmatch "^-+BEGIN " -and $_ -notmatch "^-+END " }
+          ) -join ""
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP "item-fabricator-windows-codesign.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($certificateBase64))
+
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $certificate = Import-PfxCertificate `
+            -FilePath $certificatePath `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -Password $password
+
+          if (-not $certificate.Thumbprint) {
+            throw "Windows code-signing certificate import did not return a thumbprint."
+          }
+
+          $configPath = "src-tauri\tauri.conf.json"
+          $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json -Depth 100
+          $config.bundle.windows.certificateThumbprint = $certificate.Thumbprint
+          $config.bundle.windows.digestAlgorithm = "sha256"
+          $config.bundle.windows.timestampUrl = "http://timestamp.digicert.com"
+          $config | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $configPath -Encoding utf8
+
       - name: Build and upload desktop bundles
         uses: tauri-apps/tauri-action@v0
         env:
