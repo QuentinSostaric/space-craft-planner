@@ -8,11 +8,13 @@ function readCache(): BlueprintNameCache {
   try {
     const raw = localStorage.getItem(SC_LOG_BLUEPRINT_CACHE_KEY);
     if (!raw) return {};
+
     const parsed = JSON.parse(raw) as BlueprintNameCache;
     if (!parsed || typeof parsed !== 'object') return {};
+
     return {
-      live: Array.isArray(parsed.live) ? parsed.live.filter((n) => typeof n === 'string') : [],
-      ptu: Array.isArray(parsed.ptu) ? parsed.ptu.filter((n) => typeof n === 'string') : [],
+      live: Array.isArray(parsed.live) ? parsed.live.filter((name) => typeof name === 'string') : [],
+      ptu: Array.isArray(parsed.ptu) ? parsed.ptu.filter((name) => typeof name === 'string') : [],
     };
   } catch {
     return {};

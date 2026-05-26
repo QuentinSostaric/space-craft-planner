@@ -582,14 +582,12 @@ fn read_log_file_lossy(path: &Path) -> Option<String> {
     Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-fn collect_log_lines(channel_path: &Path) -> Vec<String> {
-    let mut lines: Vec<String> = Vec::new();
+fn collect_log_file_paths(channel_path: &Path) -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = Vec::new();
 
     let game_log = channel_path.join("Game.log");
     if game_log.is_file() {
-        if let Some(content) = read_log_file_lossy(&game_log) {
-            lines.extend(content.lines().map(String::from));
-        }
+        paths.push(game_log);
     }
 
     let logbackups_dir = channel_path.join("logbackups");
@@ -601,10 +599,20 @@ fn collect_log_lines(channel_path: &Path) -> Vec<String> {
         {
             let path = entry.path();
             if path.is_file() && path.extension().map_or(false, |e| e == "log") {
-                if let Some(content) = read_log_file_lossy(path) {
-                    lines.extend(content.lines().map(String::from));
-                }
+                paths.push(path.to_path_buf());
             }
+        }
+    }
+
+    paths
+}
+
+fn collect_log_lines(channel_path: &Path) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+
+    for path in collect_log_file_paths(channel_path) {
+        if let Some(content) = read_log_file_lossy(&path) {
+            lines.extend(content.lines().map(String::from));
         }
     }
 
@@ -849,4 +857,89 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Item Fabricator");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_test_channel_dir(test_name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "item_fabricator_{test_name}_{}_{}",
+            std::process::id(),
+            nanos
+        ));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn scans_game_log_and_direct_logbackups_with_unique_blueprints() {
+        let channel_dir = create_test_channel_dir("scan_logs");
+        let backup_dir = channel_dir.join("logbackups");
+        fs::create_dir_all(&backup_dir).unwrap();
+
+        fs::write(
+            channel_dir.join("Game.log"),
+            "<2026-05-25T12:00:00.000Z> Received Blueprint: Current One: acquired\n",
+        )
+        .unwrap();
+        fs::write(
+            backup_dir.join("Game Build(1) 24 May 26.log"),
+            "<2026-05-24T12:00:00.000Z> Received Blueprint: Backup One: acquired\n",
+        )
+        .unwrap();
+        fs::write(
+            backup_dir.join("Game Build(1) 23 May 26.log"),
+            "<2026-05-23T12:00:00.000Z> Received Blueprint: Backup Two: acquired\n\
+             <2026-05-23T12:01:00.000Z> Received Blueprint: Current One: duplicate\n",
+        )
+        .unwrap();
+        fs::create_dir_all(backup_dir.join("nested")).unwrap();
+        fs::write(
+            backup_dir.join("nested").join("ignored.log"),
+            "<2026-05-22T12:00:00.000Z> Received Blueprint: Nested Ignored: acquired\n",
+        )
+        .unwrap();
+
+        let re = build_blueprint_regex();
+        let lines = collect_log_lines(&channel_dir);
+        let mut seen = HashSet::new();
+        let blueprints = extract_blueprints_from_lines(lines.iter().map(String::as_str), &re, &mut seen);
+
+        assert_eq!(blueprints.len(), 3);
+        assert!(blueprints.contains(&"Current One".to_string()));
+        assert!(blueprints.contains(&"Backup One".to_string()));
+        assert!(blueprints.contains(&"Backup Two".to_string()));
+        assert!(!blueprints.contains(&"Nested Ignored".to_string()));
+
+        let _ = fs::remove_dir_all(channel_dir);
+    }
+
+    #[test]
+    fn blueprint_regex_handles_english_and_french_notifications() {
+        let re = build_blueprint_regex();
+        let lines = [
+            "<2026-05-25T12:00:00.000Z> Received Blueprint: English Name: acquired",
+            "<2026-05-25T12:01:00.000Z> Schéma reçu : Nom Francais: acquis",
+            "<2026-05-25T12:02:00.000Z> Schémas reçus : Nom Pluriel: acquis",
+        ];
+        let mut seen = HashSet::new();
+        let blueprints = extract_blueprints_from_lines(lines.iter().copied(), &re, &mut seen);
+
+        assert_eq!(
+            blueprints,
+            vec![
+                "English Name".to_string(),
+                "Nom Francais".to_string(),
+                "Nom Pluriel".to_string(),
+            ]
+        );
+    }
 }
