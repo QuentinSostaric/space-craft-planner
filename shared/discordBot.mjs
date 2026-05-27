@@ -538,3 +538,139 @@ export async function removeCraftRequestOwnerMessage(env, request, options = {})
 export function getItemFabAccountUrl(env, request = null) {
   return `${getCraftRequestBaseUrl(request, env)}/account`;
 }
+
+// ── Organization claim review ────────────────────────────────────────────────
+
+export function buildOrganizationClaimActionCustomId(action, sid, accountId, storageScope = 'prod') {
+  const normalizedAction = normalizeText(action).toLowerCase();
+  const normalizedSid = String(sid ?? '').trim().toUpperCase();
+  const normalizedStorageScope = normalizeText(storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
+  const normalizedAccountId = normalizeText(accountId);
+  if (!normalizedAction || !normalizedSid || !normalizedAccountId) {
+    throw new Error('Organization claim action identifiers are required.');
+  }
+  return `orgclaim:${normalizedAction}:${normalizedStorageScope}:${normalizedSid}:${normalizedAccountId}`;
+}
+
+export function parseOrganizationClaimActionCustomId(value) {
+  const parts = normalizeText(value).split(':');
+  if (parts[0] !== 'orgclaim' || parts.length !== 5) {
+    return null;
+  }
+  return {
+    action: parts[1],
+    storageScope: parts[2] === 'dev' ? 'dev' : 'prod',
+    sid: parts[3],
+    accountId: parts[4],
+  };
+}
+
+function buildOrganizationClaimButtons(claimData) {
+  return {
+    type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
+    components: [
+      {
+        type: DISCORD_COMPONENT_TYPE_BUTTON,
+        style: DISCORD_BUTTON_STYLE_SUCCESS,
+        label: 'Approve',
+        custom_id: buildOrganizationClaimActionCustomId('approve', claimData.sid, claimData.accountId, claimData.storageScope),
+      },
+      {
+        type: DISCORD_COMPONENT_TYPE_BUTTON,
+        style: DISCORD_BUTTON_STYLE_DANGER,
+        label: 'Reject',
+        custom_id: buildOrganizationClaimActionCustomId('reject', claimData.sid, claimData.accountId, claimData.storageScope),
+      },
+    ],
+  };
+}
+
+function buildDisabledOrganizationClaimButton(claimData, label) {
+  return {
+    type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
+    components: [
+      {
+        type: DISCORD_COMPONENT_TYPE_BUTTON,
+        style: DISCORD_BUTTON_STYLE_SECONDARY,
+        label,
+        custom_id: buildOrganizationClaimActionCustomId('status', claimData.sid, claimData.accountId, claimData.storageScope),
+        disabled: true,
+      },
+    ],
+  };
+}
+
+export function buildOrganizationClaimReviewDmPayload(env, claimData, currentOwnerName = null) {
+  const rsiOrgUrl = `https://robertsspaceindustries.com/orgs/${String(claimData.sid ?? '').trim().toUpperCase()}`;
+  const appUrl = getAppBaseUrl(env);
+
+  return {
+    content: `**ItemFab — Organization claim review** ${appUrl}/account`,
+    embeds: [
+      {
+        title: 'Organization claim review request',
+        color: 0x4f8cff,
+        fields: [
+          {
+            name: 'Organization',
+            value: `[${claimData.organizationName ?? claimData.sid}](${rsiOrgUrl}) (\`${claimData.sid}\`)`,
+            inline: false,
+          },
+          {
+            name: 'Current ItemFab owner',
+            value: currentOwnerName ?? 'Not yet claimed',
+            inline: true,
+          },
+          {
+            name: 'Requested by',
+            value: [
+              `${claimData.requestedByDiscordDisplayName ?? 'Unknown'} (@${claimData.requestedByDiscordUsername ?? 'unknown'})`,
+              buildDiscordUserMention(claimData.requestedByDiscordId),
+            ].join('\n'),
+            inline: true,
+          },
+          {
+            name: 'RSI handle',
+            value: claimData.requestedByRsiHandle ?? 'Unknown',
+            inline: true,
+          },
+        ],
+        footer: {
+          text: `Submitted: ${claimData.submittedAt ?? 'unknown'}`,
+        },
+      },
+    ],
+    components: [buildOrganizationClaimButtons(claimData)],
+  };
+}
+
+export function buildOrganizationClaimResolvedDmPayload(env, claimData, status) {
+  const base = buildOrganizationClaimReviewDmPayload(env, claimData);
+  const normalizedStatus = normalizeText(status).toLowerCase();
+  const statusLabel =
+    normalizedStatus === 'approved' ? 'Approved' :
+    normalizedStatus === 'rejected' ? 'Rejected' : 'Resolved';
+  const color =
+    normalizedStatus === 'approved' ? 0x2ecc71 :
+    normalizedStatus === 'rejected' ? 0xe74c3c : 0x95a5a6;
+  const [embed] = base.embeds;
+
+  return {
+    ...base,
+    embeds: [{ ...embed, color, title: `Organization claim ${statusLabel.toLowerCase()}` }],
+    components: [buildDisabledOrganizationClaimButton(claimData, statusLabel)],
+  };
+}
+
+export async function notifyOrganizationClaimReviewer(env, reviewerDiscordUserId, claimData, currentOwnerName = null, options = {}) {
+  const normalizedUserId = normalizeText(reviewerDiscordUserId);
+  if (!normalizedUserId || !getDiscordBotToken(env)) {
+    return false;
+  }
+  return sendDiscordDirectMessage(
+    env,
+    normalizedUserId,
+    buildOrganizationClaimReviewDmPayload(env, claimData, currentOwnerName),
+    options,
+  );
+}

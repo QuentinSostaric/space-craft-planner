@@ -14,11 +14,24 @@ import { respondToCraftRequest, saveCraftRequestNotificationState } from '../../
 import {
   buildCraftRequestOwnerDmPayload,
   buildCraftRequestResolvedMessagePayload,
+  buildOrganizationClaimResolvedDmPayload,
+  buildOrganizationClaimReviewDmPayload,
   notifyCraftRequestOwner,
+  notifyOrganizationClaimReviewer,
   parseCraftRequestActionCustomId,
+  parseOrganizationClaimActionCustomId,
   removeCraftRequestOwnerMessage,
   syncCraftRequestOwnerMessage,
 } from '../../../shared/discordBot.mjs';
+import {
+  readOrganizationClaimRequest,
+  writeOrganizationClaimRequest,
+} from '../../../shared/organizationClaimRequestStorage.mjs';
+import {
+  readOrganizationRecord,
+  writeOrganizationRecord,
+} from '../../../shared/organizationStorage.mjs';
+import { toIsoNow } from '../../../shared/normalize.mjs';
 
 const PAGE_PATHS = {
   site: '/',
@@ -161,6 +174,10 @@ function interactionUpdateMessage(data) {
   };
 }
 
+function getOrganizationClaimReviewerDiscordUserId(env) {
+  return String(env.ORGANIZATION_CLAIM_REVIEWER_DISCORD_USER_ID ?? '').trim() || null;
+}
+
 function getAccountStore(env, storageScope = 'prod') {
   if (storageScope === 'dev') {
     if (!env.GAME_DATA_DEV) {
@@ -225,6 +242,95 @@ async function loadOwnerCraftRequestContext(env, interaction) {
     requesterAccount,
     request,
   };
+}
+
+async function handleOrganizationClaimComponent(env, interaction) {
+  const parsed = parseOrganizationClaimActionCustomId(interaction?.data?.custom_id);
+  if (!parsed || parsed.action === 'status') {
+    return jsonResponse(interactionMessagePayload('This action is no longer available.'), { status: 200 });
+  }
+
+  const reviewerUserId = getOrganizationClaimReviewerDiscordUserId(env);
+  const interactionUserId = String(interaction?.member?.user?.id ?? interaction?.user?.id ?? '').trim();
+  if (!reviewerUserId || interactionUserId !== reviewerUserId) {
+    return jsonResponse(interactionMessagePayload('Only the designated reviewer can use this action.'), { status: 200 });
+  }
+
+  const accountStore = getAccountStore(env, parsed.storageScope);
+  const claimRequest = await readOrganizationClaimRequest(accountStore, parsed.sid, parsed.accountId);
+  if (!claimRequest) {
+    return jsonResponse(interactionMessagePayload('This claim request could not be found.'), { status: 200 });
+  }
+
+  if (claimRequest.status !== 'pending') {
+    return jsonResponse(
+      interactionUpdateMessage(buildOrganizationClaimResolvedDmPayload(env, claimRequest, claimRequest.status)),
+    );
+  }
+
+  if (parsed.action !== 'approve' && parsed.action !== 'reject') {
+    return jsonResponse(interactionMessagePayload('Unknown claim action.'), { status: 200 });
+  }
+
+  try {
+    if (parsed.action === 'approve') {
+      const orgRecord = await readOrganizationRecord(accountStore, parsed.sid);
+      if (orgRecord) {
+        await writeOrganizationRecord(accountStore, {
+          ...orgRecord,
+          claimed: true,
+          claimedByAccountId: parsed.accountId,
+          updatedAt: toIsoNow(),
+        });
+      }
+    }
+
+    await writeOrganizationClaimRequest(accountStore, {
+      ...claimRequest,
+      status: parsed.action === 'approve' ? 'approved' : 'rejected',
+      updatedAt: toIsoNow(),
+    });
+
+    return jsonResponse(
+      interactionUpdateMessage(
+        buildOrganizationClaimResolvedDmPayload(env, claimRequest, parsed.action === 'approve' ? 'approved' : 'rejected'),
+      ),
+    );
+  } catch (error) {
+    return jsonResponse(
+      interactionMessagePayload(error instanceof Error ? error.message : 'The claim request could not be updated.'),
+      { status: 200 },
+    );
+  }
+}
+
+async function handleInternalOrganizationClaimCreated(request, env) {
+  if (!isAuthorizedInternalRequest(request, env)) {
+    return textResponse('Unauthorized.', { status: 401 });
+  }
+
+  const payload = await readJsonRequestBody(request);
+  const claimData = payload?.claimData ?? null;
+  const currentOwnerName = payload?.currentOwnerName ?? null;
+
+  if (!claimData?.sid || !claimData?.accountId) {
+    return jsonResponse({ ok: false, message: 'Invalid claim notification payload.' }, { status: 400 });
+  }
+
+  const reviewerUserId = getOrganizationClaimReviewerDiscordUserId(env);
+  if (!reviewerUserId) {
+    return jsonResponse({ ok: false, message: 'No reviewer Discord user ID configured.' }, { status: 503 });
+  }
+
+  try {
+    await notifyOrganizationClaimReviewer(env, reviewerUserId, claimData, currentOwnerName);
+    return jsonResponse({ ok: true });
+  } catch (error) {
+    return jsonResponse(
+      { ok: false, message: error instanceof Error ? error.message : 'Reviewer notification failed.' },
+      { status: 500 },
+    );
+  }
 }
 
 async function handleCraftRequestComponent(env, interaction) {
@@ -450,6 +556,10 @@ async function handleInteraction(env, interaction) {
   }
 
   if (interaction.type === DISCORD_INTERACTION_TYPE_MESSAGE_COMPONENT) {
+    const customId = String(interaction?.data?.custom_id ?? '');
+    if (customId.startsWith('orgclaim:')) {
+      return handleOrganizationClaimComponent(env, interaction);
+    }
     return handleCraftRequestComponent(env, interaction);
   }
 
@@ -502,6 +612,10 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/internal/craft-request-status-changed') {
       return handleInternalCraftRequestStatusChanged(request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/organization-claim-created') {
+      return handleInternalOrganizationClaimCreated(request, env);
     }
 
     if (request.method !== 'POST') {

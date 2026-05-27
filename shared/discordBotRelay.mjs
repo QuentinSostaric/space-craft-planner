@@ -130,6 +130,34 @@ export async function notifyCraftRequestOwnerViaWorker(
   return true;
 }
 
+export async function notifyOrganizationClaimReviewerViaWorker(
+  env,
+  claimData,
+  currentOwnerName = null,
+  { fetchImpl = fetch } = {},
+) {
+  const workerUrl = getDiscordBotWorkerUrl(env);
+  const internalToken = getDiscordBotInternalToken(env);
+  if (!workerUrl || !internalToken) {
+    return false;
+  }
+
+  const response = await fetchImpl(`${workerUrl}/internal/organization-claim-created`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${internalToken}`,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({ claimData, currentOwnerName }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord bot worker claim notification failed (${response.status}).`);
+  }
+
+  return true;
+}
+
 export async function syncCraftRequestStatusViaWorker(
   env,
   request,

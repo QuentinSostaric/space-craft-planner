@@ -79,6 +79,7 @@ import {
 } from '../../shared/craftRequestService.mjs';
 import {
   notifyCraftRequestOwnerViaWorker,
+  notifyOrganizationClaimReviewerViaWorker,
   resolveAppBaseUrlFromRequest,
   resolveCraftRequestStorageScope,
   syncCraftRequestStatusViaWorker,
@@ -918,25 +919,24 @@ export async function handleOrganizationClaimRequest(request, env, sid, executio
   try {
     const accountStore = getAccountStore(request, env);
     const account = await ensureAccountForSession(accountStore, session);
-    const reviewerEmail = getOrganizationClaimReviewerEmail(env);
-    const nextAccount = await claimAccountOrganization(accountStore, account, sid, {
-      reviewerEmail,
-    });
+    const nextAccount = await claimAccountOrganization(accountStore, account, sid, {});
     const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
-    if (claimRequest?.claimRequestStatus === 'pending' && reviewerEmail) {
+    if (claimRequest?.claimRequestStatus === 'pending') {
       runBackgroundTask(
         executionContext,
         () =>
-          notifyOrganizationClaimRequest(env, {
+          notifyOrganizationClaimReviewerViaWorker(env, {
             sid: claimRequest.sid,
-            organizationName: claimRequest.name,
             accountId: nextAccount.accountId,
-            requestedByDiscordDisplayName: nextAccount.profile.displayName,
-            requestedByDiscordUsername: nextAccount.profile.username,
+            organizationName: claimRequest.name,
+            storageScope: resolveCraftRequestStorageScope(request, env),
+            requestedByDiscordId: nextAccount.profile?.id ?? null,
+            requestedByDiscordDisplayName: nextAccount.profile?.displayName ?? null,
+            requestedByDiscordUsername: nextAccount.profile?.username ?? null,
             requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
-            reviewerEmail,
+            requestedByRsiDisplayName: nextAccount.rsi?.displayName ?? nextAccount.rsi?.handle ?? null,
             submittedAt: claimRequest.claimRequestSubmittedAt,
-          }),
+          }, null),
         'organization-claim-review-notify',
       );
     }

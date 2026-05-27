@@ -20,7 +20,8 @@
     "discord:bot:register:guild": "node workers/discord-bot/scripts/register-commands.mjs guild",
     "discord:bot:register:global": "node workers/discord-bot/scripts/register-commands.mjs global",
     "build": "npm run build --workspace client",
-    "claims:org": "node scripts/manageOrganizationClaims.mjs"
+    "claims:org": "node scripts/manageOrganizationClaims.mjs",
+    "planner:purge-goals": "node scripts/purgePlannerGoals.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.908.0"
