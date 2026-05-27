@@ -1711,7 +1711,7 @@ export function AccountPage() {
 
       {urlAuthError && (
         <Alert severity="error" variant="outlined">
-          {t('Discord authentication failed.', 'La connexion Discord a echoue.', 'Discord-Anmeldung ist fehlgeschlagen.')} {urlAuthError}
+          {t('Authentication failed.', 'Echec de l\'authentification.', 'Authentifizierung ist fehlgeschlagen.')} {urlAuthError}
         </Alert>
       )}
 

@@ -495,6 +495,11 @@ export async function handleCitizenIdCallbackRequest(request, env) {
       error instanceof Error && error.message
         ? error.message
         : 'citizenid_oauth_failed';
+    // "Already been redeemed" means the sync succeeded on a prior attempt (e.g. edge/browser retry).
+    // Treat it as a transparent success rather than surfacing a confusing error to the user.
+    if (message.toLowerCase().includes('already been redeemed')) {
+      return redirectResponse(returnTo, { cookies: [expiredStateCookie] });
+    }
     return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, message), {
       cookies: [expiredStateCookie],
     });
