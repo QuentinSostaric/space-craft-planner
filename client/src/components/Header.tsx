@@ -39,6 +39,7 @@ import { getMissionContractName, isPlaceholderResource } from '../utils/crafting
 import { useScLog } from '../hooks/ScLogSyncContext';
 
 import { useAuth } from '../auth/AuthContext';
+import { trackEvent } from '../analytics/posthog';
 import type { Blueprint, MissionContract, MissionRewardFactionGroup, Resource } from '../types';
 
 const MONTH_NAMES = {
@@ -127,12 +128,19 @@ export function Header() {
       if (watcher.running) {
         watcher.stop();
         watcher.setAutoStart(false);
+        trackEvent('log_watcher_stopped');
+        trackEvent('log_sync_disabled');
       } else if (livePath) {
         await watcher.start(livePath);
         watcher.setAutoStart(true);
+        trackEvent('log_watcher_started');
+        trackEvent('log_sync_enabled');
       }
     } catch (err: unknown) {
       setWatcherError(err instanceof Error ? err.message : 'Failed to toggle watcher.');
+      trackEvent('log_sync_error', {
+        error_message: err instanceof Error ? err.message.slice(0, 240) : 'Failed to toggle watcher.',
+      });
     }
   };
 
@@ -392,7 +400,11 @@ export function Header() {
           {!isDesktop && (
             <Button
               component="a"
-              href={getDesktopInstallerUrl()}
+            href={getDesktopInstallerUrl()}
+            onClick={() => {
+              trackEvent('download_clicked', { download_target: 'desktop_app' });
+              trackEvent('desktop_latest_installer_clicked');
+            }}
               size="small"
               variant="outlined"
               startIcon={<DownloadOutlinedIcon sx={{ fontSize: 13 }} />}

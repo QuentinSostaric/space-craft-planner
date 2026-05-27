@@ -53,6 +53,7 @@ import type { GameIconName } from './ui/GameIcon';
 import { FONT_HEADING } from '../theme';
 import { toSlug } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
+import { trackEvent } from '../analytics/posthog';
 
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
 
@@ -1043,7 +1044,12 @@ export function BlueprintGrid() {
                         priority={index < initialCount}
                         onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
                         onToggleFavorite={toggleFavorite}
-                        onToggleInventory={toggleInventory}
+                onToggleInventory={(blueprintId) => {
+                  trackEvent('blueprint_inventory_cta_clicked', {
+                    action: inventoryIdSet.has(blueprintId) ? 'remove' : 'add',
+                  });
+                  toggleInventory(blueprintId);
+                }}
                       />
                     ))}
                   </Box>

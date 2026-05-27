@@ -30,6 +30,7 @@ import { AppUpdateSnackbar } from './components/AppUpdateSnackbar';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { AppUpdateContext, useAppUpdateState } from './hooks/useAppUpdate';
 import { useCraft } from './store/CraftContext';
+import { AnalyticsProvider, setAnalyticsContext, trackEvent, trackPageView } from './analytics/posthog';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
 import { mainViewFromPathname, navigateToPath } from './utils/slug';
@@ -576,8 +577,23 @@ function ComparisonModalFallback() {
 }
 
 function MainContent({ mainView }: { mainView: MainView }) {
-  const { activeBlueprint, ensureMissionRewardsLoaded } = useCraft();
+  const {
+    activeBlueprint,
+    activeChannel,
+    ensureMissionRewardsLoaded,
+    inventoryIds,
+    goals,
+    plannerTodoItems,
+    plannerResourceRequirements,
+  } = useCraft();
+  const { lang } = useI18n();
   const ensureMissionRewardsLoadedRef = useRef(ensureMissionRewardsLoaded);
+  const previousInventoryCountRef = useRef<number | null>(null);
+  const previousPlannerGoalCountRef = useRef<number | null>(null);
+  const previousPlannerTodoCountRef = useRef<number | null>(null);
+  const previousPlannerResourceCountRef = useRef<number | null>(null);
+  const previousChannelRef = useRef<string | null>(null);
+  const previousLanguageRef = useRef<string | null>(null);
   useEffect(() => { ensureMissionRewardsLoadedRef.current = ensureMissionRewardsLoaded; });
 
   useEffect(() => {
@@ -585,6 +601,92 @@ function MainContent({ mainView }: { mainView: MainView }) {
       void ensureMissionRewardsLoadedRef.current();
     }
   }, [mainView]);
+
+  const plannerResourceRequirementCount = Object.keys(plannerResourceRequirements).length;
+
+  useEffect(() => {
+    setAnalyticsContext({ language: lang, channel: String(activeChannel) });
+  }, [activeChannel, lang]);
+
+  useEffect(() => {
+    if (previousLanguageRef.current !== null && previousLanguageRef.current !== lang) {
+      trackEvent('language_changed', { language: lang, previous_language: previousLanguageRef.current });
+    }
+    previousLanguageRef.current = lang;
+  }, [lang]);
+
+  useEffect(() => {
+    if (previousChannelRef.current !== null && previousChannelRef.current !== activeChannel) {
+      trackEvent('channel_changed', { channel: String(activeChannel), previous_channel: previousChannelRef.current });
+    }
+    previousChannelRef.current = String(activeChannel);
+  }, [activeChannel]);
+
+  useEffect(() => {
+    trackPageView(mainView);
+    if (mainView === 'account') {
+      trackEvent('account_page_opened');
+    }
+  }, [mainView]);
+
+  useEffect(() => {
+    if (!activeBlueprint) {
+      return;
+    }
+
+    trackEvent('blueprint_opened', {
+      blueprint_category: String(activeBlueprint.category ?? 'unknown'),
+      blueprint_manufacturer: String(activeBlueprint.manufacturer ?? 'unknown'),
+      blueprint_has_details: 'slots' in activeBlueprint,
+    });
+  }, [activeBlueprint]);
+
+  useEffect(() => {
+    const count = inventoryIds.length;
+    if (previousInventoryCountRef.current !== null && previousInventoryCountRef.current !== count) {
+      trackEvent(count > previousInventoryCountRef.current ? 'inventory_item_added' : 'inventory_item_removed', {
+        inventory_count: count,
+        inventory_delta: Math.abs(count - previousInventoryCountRef.current),
+      });
+    }
+    previousInventoryCountRef.current = count;
+  }, [inventoryIds.length]);
+
+  useEffect(() => {
+    const count = goals.length;
+    if (previousPlannerGoalCountRef.current !== null && previousPlannerGoalCountRef.current !== count) {
+      trackEvent(count > previousPlannerGoalCountRef.current ? 'planner_item_added' : 'planner_item_removed', {
+        planner_source: 'goal',
+        planner_count: count,
+        planner_delta: Math.abs(count - previousPlannerGoalCountRef.current),
+      });
+    }
+    previousPlannerGoalCountRef.current = count;
+  }, [goals.length]);
+
+  useEffect(() => {
+    const count = plannerTodoItems.length;
+    if (previousPlannerTodoCountRef.current !== null && previousPlannerTodoCountRef.current !== count) {
+      trackEvent(count > previousPlannerTodoCountRef.current ? 'planner_item_added' : 'planner_item_removed', {
+        planner_source: 'todo',
+        planner_count: count,
+        planner_delta: Math.abs(count - previousPlannerTodoCountRef.current),
+      });
+    }
+    previousPlannerTodoCountRef.current = count;
+  }, [plannerTodoItems.length]);
+
+  useEffect(() => {
+    const count = plannerResourceRequirementCount;
+    if (previousPlannerResourceCountRef.current !== null && previousPlannerResourceCountRef.current !== count) {
+      trackEvent(count > previousPlannerResourceCountRef.current ? 'planner_item_added' : 'planner_item_removed', {
+        planner_source: 'resource_requirement',
+        planner_count: count,
+        planner_delta: Math.abs(count - previousPlannerResourceCountRef.current),
+      });
+    }
+    previousPlannerResourceCountRef.current = count;
+  }, [plannerResourceRequirementCount]);
 
   const resolvedView: ResolvedMainView =
     mainView === 'missions'
@@ -874,7 +976,7 @@ function AppUpdateProviderInner() {
   );
 }
 
-function AppContent() {
+function AppContentInner() {
   const [themeMode, setThemeMode] = useTheme();
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
   const themeModeCtx = useMemo(
@@ -938,6 +1040,14 @@ function AppContent() {
       </I18nProvider>
     </ThemeProvider>
     </ThemeModeContext.Provider>
+  );
+}
+
+function AppContent() {
+  return (
+    <AnalyticsProvider>
+      <AppContentInner />
+    </AnalyticsProvider>
   );
 }
 

@@ -71,6 +71,7 @@ import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { Button } from './ui/Button';
 import { FONT_DISPLAY, FONT_MONO } from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
+import { trackEvent } from '../analytics/posthog';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { SyncBlueprintsButton } from './ScLogSyncDialog';
 import { CitizenIdIcon, CitizenIdSignInButton } from './CitizenIdBrand';
@@ -1209,6 +1210,10 @@ export function AccountPage() {
       ]);
       setResourceBatchDialogOpen(false);
       setResourceBatchRows([]);
+      trackEvent('inventory_item_added', {
+        inventory_source: 'resource_batch',
+        inventory_delta: normalizedEntries.length,
+      });
       setResourceCollectionNotice(
         t(
           `${normalizedEntries.length} resource entries added to your account inventory.`,

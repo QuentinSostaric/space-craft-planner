@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { isTauriRuntime } from '../services/apiBaseUrl';
+import { trackEvent } from '../analytics/posthog';
 
 export type UpdateMode = 'web' | 'desktop';
 export type UpdateStatus = 'available' | 'downloading' | 'error';
@@ -59,6 +60,7 @@ export function useAppUpdateState(): AppUpdateState {
 
     async function detectUpdate() {
       if (isTauriRuntime()) {
+        trackEvent('tauri_update_check_started');
         try {
           const { check } = await import('@tauri-apps/plugin-updater');
           const nextUpdate = await check();
@@ -67,6 +69,7 @@ export function useAppUpdateState(): AppUpdateState {
             setMode('desktop');
             setAvailableVersion(nextUpdate.version);
             setStatus('available');
+            trackEvent('tauri_update_available', { available_version: nextUpdate.version });
           }
         } catch (e) {
           console.error('[updater] check failed:', e);
@@ -121,6 +124,7 @@ export function useAppUpdateState(): AppUpdateState {
 
     const update = desktopUpdateRef.current;
     if (!update) return;
+    trackEvent('tauri_update_check_started');
 
     setStatus('downloading');
     setDownloaded(0);
@@ -131,6 +135,7 @@ export function useAppUpdateState(): AppUpdateState {
         if (event.event === 'Started') { setContentLength(event.data.contentLength ?? null); setDownloaded(0); }
         if (event.event === 'Progress') { setDownloaded((c) => c + event.data.chunkLength); }
       });
+      trackEvent('tauri_update_installed', { available_version: availableVersion ?? undefined });
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     } catch (e) {
@@ -139,7 +144,7 @@ export function useAppUpdateState(): AppUpdateState {
       console.error('[updater] install failed:', e);
       setError(msg || 'Unable to install the update.');
     }
-  }, [mode]);
+  }, [availableVersion, mode]);
 
   return { mode, status, availableVersion, downloaded, contentLength, error, triggerUpdate };
 }

@@ -24,6 +24,7 @@ import { useLocalPersist } from '../hooks/useLocalPersist';
 import { LS_KEYS } from '../types';
 import { Button } from './ui/Button';
 import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { trackEvent } from '../analytics/posthog';
 
 const NOTE_TAGS = ['note', 'mining', 'craft', 'route', 'missions', 'economy'];
 
@@ -328,6 +329,10 @@ export function PlannerPage() {
     try {
       await navigator.clipboard.writeText(activeNote.body);
       setCopied(true);
+      trackEvent('planner_exported', {
+        export_target: 'clipboard',
+        note_chars: activeNote.body.length,
+      });
       setTimeout(() => setCopied(false), 1400);
     } catch {
       // no-op

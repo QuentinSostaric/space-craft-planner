@@ -24,13 +24,20 @@ let client: PostHog | null = null;
 let initialized = false;
 let contextProperties: AnalyticsProperties = {};
 
-function getEnvValue(name: string): string {
-  const value = import.meta.env[name];
-  return typeof value === 'string' ? value.trim() : '';
+function isAnalyticsEnabled(): boolean {
+  return Boolean(getPostHogToken()) && getPostHogEnabled() === 'true';
 }
 
-function isAnalyticsEnabled(): boolean {
-  return Boolean(getEnvValue('VITE_POSTHOG_TOKEN')) && getEnvValue('VITE_POSTHOG_ENABLED') === 'true';
+function getPostHogToken(): string {
+  return (import.meta.env.VITE_POSTHOG_TOKEN ?? '').trim();
+}
+
+function getPostHogEnabled(): string {
+  return (import.meta.env.VITE_POSTHOG_ENABLED ?? '').trim();
+}
+
+function getPostHogHost(): string {
+  return (import.meta.env.VITE_POSTHOG_HOST ?? '').trim() || 'https://eu.i.posthog.com';
 }
 
 function getAppVersion(): string {
@@ -85,8 +92,8 @@ function getClient(): PostHog | null {
   }
 
   initialized = true;
-  posthog.init(getEnvValue('VITE_POSTHOG_TOKEN'), {
-    api_host: getEnvValue('VITE_POSTHOG_HOST') || 'https://eu.i.posthog.com',
+  posthog.init(getPostHogToken(), {
+    api_host: getPostHogHost(),
     defaults: '2026-01-30',
     capture_pageview: 'history_change',
     person_profiles: 'identified_only',

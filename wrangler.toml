@@ -3,6 +3,10 @@ compatibility_date = "2024-09-23"
 
 pages_build_output_dir = "client/dist"
 
+[vars]
+VITE_POSTHOG_ENABLED = "true"
+VITE_POSTHOG_HOST = "https://eu.i.posthog.com"
+
 [[r2_buckets]]
 binding = "GAME_DATA_PROD"
 bucket_name = "sc-craft-game-data"

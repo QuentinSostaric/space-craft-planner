@@ -16,6 +16,7 @@ client/dist/
 .env.local
 client/.env
 client/.env.local
+client/.env.*.local
 
 # Cloudflare Pages dev vars
 .dev.vars
