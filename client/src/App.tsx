@@ -144,6 +144,19 @@ const LazyDatasetChangelogView = lazy(() =>
   })),
 );
 
+const LazyPrivacyView = lazy(() =>
+  import('./components/PrivacyPolicyPage').then(({ PrivacyPolicyPage }) => ({
+    default: function PrivacyView() {
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <PrivacyPolicyPage />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
 type ResolvedMainView =
   | 'blueprints'
   | 'workspace'
@@ -152,7 +165,8 @@ type ResolvedMainView =
   | 'organizations'
   | 'planner'
   | 'changelog'
-  | 'account';
+  | 'account'
+  | 'privacy';
 
 function BlueprintGridFallback() {
   return (
@@ -585,6 +599,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? 'changelog'
       : mainView === 'account'
         ? 'account'
+      : mainView === 'privacy'
+        ? 'privacy'
         : activeBlueprint
           ? 'workspace'
           : 'blueprints';
@@ -602,6 +618,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? LazyDatasetChangelogView
       : resolvedView === 'account'
         ? LazyAccountView
+      : resolvedView === 'privacy'
+        ? LazyPrivacyView
         : resolvedView === 'workspace'
           ? LazyWorkspaceView
           : LazyBlueprintsView;

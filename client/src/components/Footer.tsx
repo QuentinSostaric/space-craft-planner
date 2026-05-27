@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import { useI18n } from '../i18n/I18nContext';
+import { navigateToPath } from '../utils/slug';
 
 export function Footer() {
   const { t } = useI18n();
@@ -58,6 +59,14 @@ export function Footer() {
             @ThSamon
           </Link>
         </Typography>
+        <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
+        <Link
+          href="/privacy"
+          sx={{ fontSize: 'inherit' }}
+          onClick={(e) => { e.preventDefault(); navigateToPath('/privacy'); }}
+        >
+          {t('Privacy Policy', 'Politique de confidentialité', 'Datenschutzerklärung')}
+        </Link>
       </Box>
     </Box>
   );

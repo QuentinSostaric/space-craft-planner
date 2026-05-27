@@ -26,7 +26,8 @@ export type MainView =
   | 'organizations'
   | 'planner'
   | 'changelog'
-  | 'account';
+  | 'account'
+  | 'privacy';
 
 const DESKTOP_WIDTH = 84;
 const DESKTOP_ICON_SIZE = 20;
