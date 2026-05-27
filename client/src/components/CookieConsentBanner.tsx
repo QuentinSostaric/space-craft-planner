@@ -32,12 +32,12 @@ function writeStorage(key: string, value: string): void {
 }
 
 function readConsent(): boolean {
-  if (isTauriRuntime()) return true;
   return readStorage(LS_KEYS.COOKIE_CONSENT) === '1';
 }
 
 export function CookieConsentBanner() {
   const { t } = useI18n();
+  const isDesktop = isTauriRuntime();
   const [dismissed, setDismissed] = useState(readConsent);
 
   if (dismissed) return null;
@@ -69,11 +69,17 @@ export function CookieConsentBanner() {
       }}
     >
       <Typography variant="body2" sx={{ flex: 1, minWidth: 220, color: 'text.secondary' }}>
-        {t(
-          'This site uses strictly necessary cookies for authentication only. No tracking or advertising cookies are used.',
-          "Ce site utilise uniquement des cookies strictement nécessaires à l'authentification. Aucun cookie de suivi ou publicitaire n'est utilisé.",
-          'Diese Website verwendet ausschließlich für die Authentifizierung notwendige Cookies. Es werden keine Tracking- oder Werbe-Cookies verwendet.',
-        )}
+        {isDesktop
+          ? t(
+              'This app stores your authentication credentials securely on your device and uses local storage for your preferences. No tracking or advertising data is collected.',
+              "Cette application stocke vos identifiants d'authentification de manière sécurisée sur votre appareil et utilise le stockage local pour vos préférences. Aucune donnée de suivi ou publicitaire n'est collectée.",
+              'Diese App speichert Ihre Anmeldedaten sicher auf Ihrem Gerät und verwendet lokalen Speicher für Ihre Einstellungen. Es werden keine Tracking- oder Werbedaten gesammelt.',
+            )
+          : t(
+              'This site uses strictly necessary cookies for authentication only. No tracking or advertising cookies are used.',
+              "Ce site utilise uniquement des cookies strictement nécessaires à l'authentification. Aucun cookie de suivi ou publicitaire n'est utilisé.",
+              'Diese Website verwendet ausschließlich für die Authentifizierung notwendige Cookies. Es werden keine Tracking- oder Werbe-Cookies verwendet.',
+            )}
       </Typography>
       <Button
         variant="contained"

@@ -108,34 +108,34 @@ fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
     match token {
         Some(value) if !value.trim().is_empty() => {
             let value = value.trim();
-            let keyring_ok = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER)
-                .and_then(|entry| entry.set_password(value))
-                .is_ok();
-            if keyring_ok {
-                // Keyring succeeded — purge any stale fallback file from a prior keyring-less session
-                if let Some(path) = desktop_session_path() {
-                    let _ = std::fs::remove_file(path);
-                }
-            } else {
-                // Keyring unavailable — persist to a plain file as fallback
-                let path = desktop_session_path()
-                    .ok_or_else(|| "Unable to resolve session file path.".to_string())?;
-                if let Some(parent) = path.parent() {
-                    std::fs::create_dir_all(parent)
-                        .map_err(|e| format!("Unable to create session directory: {e}"))?;
-                }
-                std::fs::write(&path, value)
-                    .map_err(|e| format!("Unable to save desktop session: {e}"))?;
-                // Restrict file access to the current user only
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    let _ = std::fs::set_permissions(
-                        &path,
-                        std::fs::Permissions::from_mode(0o600),
-                    );
-                }
+
+            // Always write the file first — it is the guaranteed fallback.
+            // Some keyring backends (e.g. unstable Linux daemons) return Ok(()) without
+            // actually persisting the credential, so relying on keyring alone risks losing
+            // the session on the next restart.
+            let path = desktop_session_path()
+                .ok_or_else(|| "Unable to resolve session file path.".to_string())?;
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("Unable to create session directory: {e}"))?;
             }
+            std::fs::write(&path, value)
+                .map_err(|e| format!("Unable to save desktop session: {e}"))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(
+                    &path,
+                    std::fs::Permissions::from_mode(0o600),
+                );
+            }
+
+            // Additionally store in the OS keyring when available (belt-and-suspenders).
+            // Failures are silently tolerated — the file write above is sufficient.
+            if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+                let _ = entry.set_password(value);
+            }
+
             Ok(())
         }
         _ => {
