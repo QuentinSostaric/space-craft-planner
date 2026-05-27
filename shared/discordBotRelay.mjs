@@ -73,7 +73,7 @@ export function resolveCraftRequestStorageScope(request, env = null) {
       '',
   ).toLowerCase();
   if (branch) {
-    return branch === 'main' ? 'prod' : 'dev';
+    return branch === 'main' || branch === 'production' || branch === 'prod' ? 'prod' : 'dev';
   }
 
   const appBaseUrl = resolveAppBaseUrlFromRequest(request, env);
