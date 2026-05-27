@@ -4,3 +4,5 @@ DISCORD_BOT_TOKEN=<discord-bot-token>
 DISCORD_BOT_INTERNAL_TOKEN=<shared-secret-between-site-and-bot-worker>
 DISCORD_GUILD_ID=<discord-guild-id-for-fast-dev-registration>
 APP_BASE_URL=http://localhost:5173
+# Discord user ID of the person who reviews organization claim requests (Settings > Advanced > Developer Mode > right-click your name > Copy User ID)
+ORGANIZATION_CLAIM_REVIEWER_DISCORD_USER_ID=<your-discord-user-id>
