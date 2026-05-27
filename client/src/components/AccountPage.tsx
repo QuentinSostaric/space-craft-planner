@@ -3246,7 +3246,7 @@ export function AccountPage() {
             >
               {/* Desktop: Star Citizen installations */}
               {isDesktop && (
-                <Paper variant="outlined" sx={{ p: 2.5 }}>
+                <Paper variant="outlined" sx={{ p: 2.5, gridColumn: { md: '1 / -1' } }}>
                   <Stack spacing={2}>
                     <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
                       {t('Star Citizen installations', 'Installations Star Citizen', 'Star Citizen Installationen')}
@@ -3573,6 +3573,7 @@ export function AccountPage() {
                   p: 2.5,
                   borderColor: alpha(theme.palette.error.main, 0.25),
                   backgroundColor: alpha(theme.palette.error.main, 0.03),
+                  gridColumn: { md: '1 / -1' },
                 }}
               >
                 <Stack spacing={1.5}>
