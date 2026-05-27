@@ -211,10 +211,16 @@ export async function upsertOrganizationMetadata(store, metadata, { now } = {}) 
   const nextRecord = {
     ...(existingRecord ?? createDefaultOrganizationRecord(normalizedMetadata, { now: timestamp })),
     ...normalizedMetadata,
+    // Always prefer fresh member count from Citizen iD or RSI scraping over stale stored value.
+    // The old "freeze if lastLiveSyncAt is set" guard was for the retired Star Citizen API roster
+    // sync — Citizen iD is now the authoritative source and must always win.
     memberCount:
-      existingRecord?.lastLiveSyncAt || (existingRecord?.memberSnapshot?.length ?? 0) > 0
-        ? existingRecord.memberCount
-        : normalizedMetadata.members ?? existingRecord?.memberCount ?? 0,
+      normalizedMetadata.members != null
+        ? normalizedMetadata.members
+        : existingRecord?.memberCount ?? 0,
+    lastLiveSyncAt: timestamp,
+    staleAt: new Date(Date.parse(timestamp) + ORGANIZATION_SNAPSHOT_STALE_MS).toISOString(),
+    syncStatus: 'fresh',
     updatedAt: timestamp,
   };
 

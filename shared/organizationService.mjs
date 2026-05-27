@@ -31,6 +31,49 @@ function normalizeComparableText(value) {
   return normalizeText(value).toLowerCase();
 }
 
+/**
+ * Enrich Citizen iD organization memberships with rank/stars/memberCount from RSI profile
+ * scraping when Citizen iD JWT claims don't expose those fields (common with string-only claims).
+ * Falls back to the original array silently if scraping fails.
+ */
+async function enrichOrganizationsWithRsiProfile(handle, organizations, { fetchImpl = fetch } = {}) {
+  const needsEnrichment = organizations.some(
+    (org) => org.rank == null || org.stars == null || org.members == null,
+  );
+  if (!needsEnrichment) {
+    return organizations;
+  }
+
+  let scrapedBySid;
+  try {
+    const profile = await scrapeRsiProfileByHandle(handle, { fetchImpl });
+    const scrapedOrgs = [
+      profile.organization
+        ? { ...profile.organization, rank: profile.rank, stars: profile.stars }
+        : null,
+      ...(profile.affiliations ?? []),
+    ].filter(Boolean);
+    scrapedBySid = new Map(
+      scrapedOrgs
+        .map((org) => [normalizeOrganizationSid(org.sid), org])
+        .filter(([sid]) => sid != null),
+    );
+  } catch {
+    return organizations;
+  }
+
+  return organizations.map((org) => {
+    const scraped = scrapedBySid.get(normalizeOrganizationSid(org.sid));
+    if (!scraped) return org;
+    return {
+      ...org,
+      rank: org.rank ?? scraped.rank ?? null,
+      stars: org.stars ?? scraped.stars ?? null,
+      members: org.members ?? scraped.members ?? null,
+    };
+  });
+}
+
 function isSnapshotFreshForMembership(record, nowMs = Date.now()) {
   const staleAt = normalizeIsoTimestamp(record?.staleAt);
   return Boolean(
@@ -208,15 +251,23 @@ function normalizeExternalOrganizationRef(organization, { source = 'manual', sta
   };
 }
 
-async function syncExternalVerifiedOrganizations(store, account, organizations = []) {
+async function syncExternalVerifiedOrganizations(store, account, organizations = [], { fetchImpl = fetch } = {}) {
   if (!account?.rsi?.handle || !Array.isArray(organizations) || organizations.length === 0) {
     return account;
   }
 
+  // Citizen iD JWT claims often carry only SID strings with no rank/stars/memberCount.
+  // Fall back to RSI profile scraping to fill in those gaps before persisting.
+  const enrichedOrganizations = await enrichOrganizationsWithRsiProfile(
+    account.rsi.handle,
+    organizations,
+    { fetchImpl },
+  );
+
   let nextRefs = account.organizations ?? [];
   let nextIgnoredOrganizationSids = account.ignoredOrganizationSids ?? [];
 
-  for (const organization of organizations) {
+  for (const organization of enrichedOrganizations) {
     const normalizedRef = normalizeExternalOrganizationRef(organization, {
       source: organization.source === 'profile-main' ? 'profile-main' : 'manual',
       status: organization.status === 'observed' ? 'observed' : 'verified_member',
@@ -486,8 +537,8 @@ export async function syncAndDecorateAccountOrganizations(
   return decorateAccountOrganizations(nextAccount, organizationRecordsBySid, claimRequestsBySid);
 }
 
-export async function syncCitizenIdAccountOrganizations(store, account, organizations = []) {
-  const nextAccount = await syncExternalVerifiedOrganizations(store, account, organizations);
+export async function syncCitizenIdAccountOrganizations(store, account, organizations = [], { fetchImpl = fetch } = {}) {
+  const nextAccount = await syncExternalVerifiedOrganizations(store, account, organizations, { fetchImpl });
   return decorateAccountOrganizationsFromStore(store, nextAccount);
 }
 
