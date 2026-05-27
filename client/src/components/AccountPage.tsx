@@ -2621,226 +2621,138 @@ export function AccountPage() {
 
           {/* ── My Orgs Tab ── */}
           {activeTab === 'orgs' && (
-            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-              <Stack spacing={2.25}>
-                <Stack
-                  direction={{ xs: 'column', md: 'row' }}
-                  spacing={1.5}
-                  justifyContent="space-between"
-                  alignItems={{ xs: 'flex-start', md: 'flex-start' }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography
-                      variant="overline"
-                      sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}
-                    >
-                      {t('Organizations', 'Organisations', 'Organisationen')}
-                    </Typography>
-                    <Typography variant="h5" sx={{ mt: 0.35 }}>
-                      {t('Organizations linked to your account', 'Organisations liees a ton compte', 'Mit deinem Konto verknüpfte Organisationen')}
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 760 }}>
-                      {t(
-                        'Your main RSI organization is imported automatically. Add any extra organization by SID or full URL when you need it.',
-                        'Ton organisation RSI principale est importee automatiquement. Ajoute ensuite les autres organisations par SID ou lien complet seulement si tu en as besoin.',
-                        'Deine Haupt-RSI-Organisation wird automatisch importiert. Weitere Organisationen kannst du bei Bedarf per SID oder vollem Link hinzufügen.',
-                      )}
-                    </Typography>
-                  </Box>
-
-                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                    <Chip
-                      label={t(
-                        linkedOrganizations.length === 1 ? '1 organization linked' : `${linkedOrganizations.length} organizations linked`,
-                        linkedOrganizations.length === 1 ? '1 organisation liee' : `${linkedOrganizations.length} organisations liees`,
-                        linkedOrganizations.length === 1 ? '1 Organisation verknüpft' : `${linkedOrganizations.length} Organisationen verknüpft`,
-                      )}
-                      size="small"
-                      variant="outlined"
-                    />
-                    {canManageOrganizations && (
-                      <Chip
-                        label={t('RSI linked', 'RSI lie', 'RSI verknüpft')}
-                        size="small"
-                        color="info"
-                        variant="outlined"
-                      />
-                    )}
-                  </Stack>
-                </Stack>
-
-                {!canManageOrganizations && (
-                  <Alert severity="info" variant="outlined">
+            <Stack spacing={2.5}>
+              {/* Header */}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                spacing={1.5}
+                useFlexGap
+                flexWrap="wrap"
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
+                    {t('Organizations', 'Organisations', 'Organisationen')}
+                  </Typography>
+                  <Typography variant="h5" sx={{ mt: 0.35 }}>
+                    {t('My organizations', 'Mes organisations', 'Meine Organisationen')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, maxWidth: 620 }}>
                     {t(
-                      'Link an RSI account first to import and manage organizations.',
-                      'Lie d abord un compte RSI pour importer et gerer les organisations.',
-                      'Verknüpfe zuerst ein RSI-Konto, um Organisationen zu importieren und zu verwalten.',
+                      'RSI organizations linked to your account. Sync via Citizen iD to import automatically.',
+                      'Organisations RSI liees a ton compte. Synchronise via Citizen iD pour importer automatiquement.',
+                      'RSI-Organisationen deines Kontos. Synchronisiere über Citizen iD für automatischen Import.',
                     )}
-                  </Alert>
-                )}
-
-                {organizationError && (
-                  <Alert severity="error" variant="outlined">
-                    {organizationError}
-                  </Alert>
-                )}
-
-                {organizationNotice && (
-                  <Alert severity="success" variant="outlined">
-                    {organizationNotice}
-                  </Alert>
-                )}
-
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: { xs: 1.5, md: 1.75 },
-                    borderColor: alpha(theme.palette.success.main, 0.22),
-                    backgroundColor: alpha(theme.palette.success.main, 0.05),
-                  }}
-                >
-                  <Stack
-                    direction={{ xs: 'column', md: 'row' }}
-                    spacing={1.5}
-                    alignItems={{ xs: 'stretch', md: 'center' }}
-                    justifyContent="space-between"
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {t('Automatic organization sync', 'Synchro automatique des organisations', 'Automatische Organisationssynchronisierung')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
-                        {t(
-                          'Citizen iD imports every public RSI organization exposed by your account. Re-sync after changing org visibility or granting new Citizen iD scopes.',
-                          'Citizen iD importe chaque organisation RSI publique exposee par ton compte. Relance la synchro apres avoir change la visibilite des orgs ou accepte de nouveaux scopes Citizen iD.',
-                          'Citizen iD importiert jede oeffentliche RSI-Organisation, die dein Konto freigibt. Synchronisiere erneut, wenn du die Org-Sichtbarkeit oder Citizen iD Scopes geaendert hast.',
-                        )}
-                      </Typography>
-                    </Box>
-                    <CitizenIdSignInButton
-                      environment={citizenIdBrandEnvironment}
-                      onClick={() => { handleCitizenIdRsiLink('/account'); }}
-                      disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
-                      sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                    />
-                  </Stack>
-                  {!citizenIdRsiLinkEnabled && (
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>
-                      {t(
-                        'Citizen iD sync is not configured in this environment yet.',
-                        'La synchro Citizen iD n est pas encore configuree dans cet environnement.',
-                        'Citizen iD Sync ist in dieser Umgebung noch nicht konfiguriert.',
-                      )}
-                    </Typography>
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}>
+                  <Chip
+                    label={t(
+                      linkedOrganizations.length === 1 ? '1 organization' : `${linkedOrganizations.length} organizations`,
+                      linkedOrganizations.length === 1 ? '1 organisation' : `${linkedOrganizations.length} organisations`,
+                      linkedOrganizations.length === 1 ? '1 Organisation' : `${linkedOrganizations.length} Organisationen`,
+                    )}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {canManageOrganizations && (
+                    <Chip label={t('RSI linked', 'RSI lie', 'RSI verknüpft')} size="small" color="info" variant="outlined" />
                   )}
-                </Paper>
+                </Stack>
+              </Stack>
 
+              {/* Error/notice banners */}
+              {organizationError && (
+                <Alert severity="error" variant="outlined">
+                  {organizationError}
+                </Alert>
+              )}
+              {organizationNotice && (
+                <Alert severity="success" variant="outlined">
+                  {organizationNotice}
+                </Alert>
+              )}
+
+              {/* No RSI link — CTA to Settings */}
+              {!canManageOrganizations && (
                 <Paper
                   variant="outlined"
                   sx={{
-                    p: { xs: 1.5, md: 1.75 },
-                    borderColor: alpha(theme.palette.primary.main, 0.16),
-                    backgroundColor: alpha(theme.palette.background.default, 0.22),
+                    p: { xs: 2.5, md: 3 },
+                    textAlign: 'center',
+                    borderColor: alpha(theme.palette.info.main, 0.25),
+                    backgroundColor: alpha(theme.palette.info.main, 0.03),
                   }}
                 >
-                  <Stack spacing={1.5}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {t('Manual fallback', 'Fallback manuel', 'Manueller Fallback')}
+                  <Typography variant="h6" sx={{ mb: 0.75 }}>
+                    {t('Link your RSI account first', 'Lie ton compte RSI d abord', 'Verknüpfe zuerst dein RSI-Konto')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 500, mx: 'auto', mb: 2.5 }}>
+                    {t(
+                      'Go to Settings → RSI Account to link your RSI handle. Once linked, your main organization will be imported automatically.',
+                      'Va dans Paramètres → Compte RSI pour lier ton handle RSI. Une fois lié, ton organisation principale sera importée automatiquement.',
+                      'Gehe zu Einstellungen → RSI-Konto, um deinen RSI-Handle zu verknüpfen. Danach wird deine Hauptorganisation automatisch importiert.',
+                    )}
+                  </Typography>
+                  <Button variant="secondary" onClick={() => setActiveTab('settings')}>
+                    {t('Go to Settings', 'Aller dans Paramètres', 'Zu Einstellungen')}
+                  </Button>
+                </Paper>
+              )}
+
+              {/* RSI linked */}
+              {canManageOrganizations && (
+                <>
+                  {/* Empty state — only here is the "Sign in with Citizen iD" button appropriate */}
+                  {linkedOrganizations.length === 0 && (
+                    <Box
+                      sx={{
+                        py: 5,
+                        px: 2,
+                        textAlign: 'center',
+                        borderRadius: 2,
+                        border: `1px dashed ${theme.palette.divider}`,
+                        backgroundColor: alpha(theme.palette.background.default, 0.35),
+                      }}
+                    >
+                      <Typography variant="h6" sx={{ mb: 0.75 }}>
+                        {t('No organizations yet', 'Aucune organisation pour le moment', 'Noch keine Organisationen')}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.35 }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 500, mx: 'auto', mb: 2.5 }}>
                         {t(
-                          'Use this only when an organization is public on RSI but was not returned by Citizen iD.',
-                          'Utilise ceci uniquement quand une organisation est publique sur RSI mais n a pas ete renvoyee par Citizen iD.',
-                          'Nutze dies nur, wenn eine Organisation auf RSI oeffentlich ist, aber nicht von Citizen iD zurueckgegeben wurde.',
+                          'Sign in with Citizen iD to import your public RSI organizations automatically.',
+                          'Connecte-toi avec Citizen iD pour importer automatiquement tes organisations RSI publiques.',
+                          'Melde dich mit Citizen iD an, um deine öffentlichen RSI-Organisationen automatisch zu importieren.',
                         )}
                       </Typography>
-                    </Box>
-
-                    <Stack
-                      direction={{ xs: 'column', lg: 'row' }}
-                      spacing={1.25}
-                      alignItems={{ xs: 'stretch', lg: 'stretch' }}
-                      sx={{ width: '100%' }}
-                    >
-                      <TextField
-                        label={t('Organization SID or URL', 'SID ou URL d organisation', 'Organisations-SID oder URL')}
-                        value={organizationSidInput}
-                        onChange={(event) => setOrganizationSidInput(event.target.value)}
-                        placeholder="PROTECTORA"
-                        fullWidth
-                        size="small"
-                        disabled={!canManageOrganizations || organizationAddBusy}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <Tooltip
-                                title={t(
-                                  'Accepts either a SID like PROTECTORA or a full RSI org link such as https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                  'Accepte soit un SID comme PROTECTORA, soit un lien RSI complet comme https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                  'Akzeptiert entweder eine SID wie PROTECTORA oder einen vollständigen RSI-Link wie https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                )}
-                              >
-                                <Box
-                                  component="span"
-                                  sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    color: 'text.secondary',
-                                    cursor: 'help',
-                                  }}
-                                >
-                                  <InfoOutlinedIcon fontSize="small" />
-                                </Box>
-                              </Tooltip>
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      <Button
-                        variant="secondary"
-                        onClick={() => { void handleAddOrganization(); }}
-                        disabled={!canManageOrganizations || organizationAddBusy || !normalizeOrganizationSidInput(organizationSidInput)}
-                        style={{ whiteSpace: 'nowrap', minWidth: 176, flexShrink: 0, alignSelf: 'stretch' }}
-                      >
-                        {organizationAddBusy
-                          ? t('Adding...', 'Ajout...', 'Füge hinzu...')
-                          : t('Add fallback org', 'Ajouter l org fallback', 'Fallback-Org hinzufuegen')}
-                      </Button>
-                    </Stack>
-                  </Stack>
-                </Paper>
-
-                {linkedOrganizations.length === 0 ? (
-                  <Box
-                    sx={{
-                      py: 3,
-                      px: 2,
-                      textAlign: 'center',
-                      borderRadius: 2,
-                      border: `1px dashed ${theme.palette.divider}`,
-                      backgroundColor: alpha(theme.palette.background.default, 0.35),
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ mb: 0.75 }}>
-                      {t('No organizations linked yet', 'Aucune organisation liee pour le moment', 'Noch keine Organisationen verknüpft')}
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
-                      {t(
-                        'Connect or re-sync with Citizen iD to import public RSI organizations automatically. The SID form above stays available as a fallback.',
-                        'Connecte ou resynchronise avec Citizen iD pour importer automatiquement les organisations RSI publiques. Le formulaire SID ci-dessus reste disponible comme fallback.',
-                        'Verbinde oder synchronisiere erneut mit Citizen iD, um oeffentliche RSI-Organisationen automatisch zu importieren. Das SID-Formular oben bleibt als Fallback verfuegbar.',
+                      {citizenIdRsiLinkEnabled ? (
+                        <CitizenIdSignInButton
+                          environment={citizenIdBrandEnvironment}
+                          onClick={() => { handleCitizenIdRsiLink('/account'); }}
+                          disabled={rsiAction.busy}
+                        />
+                      ) : (
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {t(
+                            'Citizen iD sync is not configured in this environment yet.',
+                            'La synchro Citizen iD n est pas encore configuree dans cet environnement.',
+                            'Citizen iD Sync ist in dieser Umgebung noch nicht konfiguriert.',
+                          )}
+                        </Typography>
                       )}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr',
-                      gap: 1.5,
-                    }}
-                  >
+                    </Box>
+                  )}
+
+                  {/* Org list */}
+                  {linkedOrganizations.length > 0 && (
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr',
+                        gap: 1.5,
+                      }}
+                    >
                     {linkedOrganizations.map((organization) => {
                       const lastSyncLabel = formatAbsoluteDate(organization.lastLiveSyncAt);
                       const lastVerifiedLabel = formatAbsoluteDate(organization.lastVerifiedAt);
@@ -3230,8 +3142,117 @@ export function AccountPage() {
                     })}
                   </Box>
                 )}
-              </Stack>
-            </Paper>
+
+                  {/* Actions panel: re-sync + manual fallback */}
+                  <Paper variant="outlined" sx={{ p: { xs: 1.75, md: 2 } }}>
+                    <Stack spacing={2}>
+                      <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em', lineHeight: 1 }}>
+                        {t('Actions', 'Actions', 'Aktionen')}
+                      </Typography>
+
+                      {/* Citizen iD re-sync — avoids "Sign in" label when already linked */}
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1.5}
+                        alignItems={{ xs: 'stretch', sm: 'center' }}
+                        justifyContent="space-between"
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {t('Sync with Citizen iD', 'Synchroniser avec Citizen iD', 'Mit Citizen iD synchronisieren')}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {t(
+                              'Re-run after changing org visibility or granting new Citizen iD scopes.',
+                              'Relance apres avoir change la visibilite des orgs ou accepte de nouveaux scopes Citizen iD.',
+                              'Erneut ausführen nach Änderung der Org-Sichtbarkeit oder neuer Citizen iD Scopes.',
+                            )}
+                          </Typography>
+                        </Box>
+                        <Button
+                          variant="secondary"
+                          icon={<CitizenIdIcon environment={citizenIdBrandEnvironment} size={16} variant="light" />}
+                          onClick={() => { handleCitizenIdRsiLink('/account'); }}
+                          disabled={rsiAction.busy || !citizenIdRsiLinkEnabled}
+                          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          {rsiAction.busy
+                            ? t('Syncing...', 'Synchronisation...', 'Synchronisiere...')
+                            : t('Re-sync organizations', 'Re-synchroniser les organisations', 'Organisationen neu synchronisieren')}
+                        </Button>
+                      </Stack>
+
+                      <Divider />
+
+                      {/* Manual fallback */}
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.35 }}>
+                          {t('Manual fallback', 'Fallback manuel', 'Manueller Fallback')}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1.25 }}>
+                          {t(
+                            'Use this only when an organization is public on RSI but was not returned by Citizen iD.',
+                            'Utilise ceci uniquement quand une organisation est publique sur RSI mais n a pas ete renvoyee par Citizen iD.',
+                            'Nutze dies nur, wenn eine Organisation auf RSI öffentlich ist, aber nicht von Citizen iD zurückgegeben wurde.',
+                          )}
+                        </Typography>
+                        <Stack
+                          direction={{ xs: 'column', lg: 'row' }}
+                          spacing={1.25}
+                          alignItems={{ xs: 'stretch', lg: 'stretch' }}
+                          sx={{ width: '100%' }}
+                        >
+                          <TextField
+                            label={t('Organization SID or URL', 'SID ou URL d organisation', 'Organisations-SID oder URL')}
+                            value={organizationSidInput}
+                            onChange={(event) => setOrganizationSidInput(event.target.value)}
+                            placeholder="PROTECTORA"
+                            fullWidth
+                            size="small"
+                            disabled={organizationAddBusy}
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <Tooltip
+                                    title={t(
+                                      'Accepts either a SID like PROTECTORA or a full RSI org link such as https://robertsspaceindustries.com/en/orgs/PROTECTORA',
+                                      'Accepte soit un SID comme PROTECTORA, soit un lien RSI complet comme https://robertsspaceindustries.com/en/orgs/PROTECTORA',
+                                      'Akzeptiert entweder eine SID wie PROTECTORA oder einen vollständigen RSI-Link wie https://robertsspaceindustries.com/en/orgs/PROTECTORA',
+                                    )}
+                                  >
+                                    <Box
+                                      component="span"
+                                      sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        color: 'text.secondary',
+                                        cursor: 'help',
+                                      }}
+                                    >
+                                      <InfoOutlinedIcon fontSize="small" />
+                                    </Box>
+                                  </Tooltip>
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={() => { void handleAddOrganization(); }}
+                            disabled={organizationAddBusy || !normalizeOrganizationSidInput(organizationSidInput)}
+                            style={{ whiteSpace: 'nowrap', minWidth: 0, flexShrink: 0, alignSelf: 'stretch' }}
+                          >
+                            {organizationAddBusy
+                              ? t('Adding...', 'Ajout...', 'Füge hinzu...')
+                              : t('Add org', 'Ajouter', 'Hinzufügen')}
+                          </Button>
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </>
+              )}
+            </Stack>
           )}
 
           {/* ── Settings Tab ── */}
