@@ -72,7 +72,7 @@ import { Button } from './ui/Button';
 import { FONT_DISPLAY, FONT_MONO } from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
-import { SyncBlueprintsButton } from './ScLogSyncDialog';
+import { ScLogSyncResult, SyncBlueprintsButton } from './ScLogSyncDialog';
 import { CitizenIdIcon, CitizenIdSignInButton } from './CitizenIdBrand';
 import Switch from '@mui/material/Switch';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
@@ -2267,6 +2267,8 @@ export function AccountPage() {
                     )}
                   </Stack>
                 </Stack>
+
+                {isDesktop && <ScLogSyncResult />}
 
                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                   <Chip

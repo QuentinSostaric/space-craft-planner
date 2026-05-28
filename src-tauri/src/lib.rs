@@ -634,6 +634,18 @@ fn extract_blueprints_from_lines<'a>(
 ) -> Vec<String> {
     let mut new_names = Vec::new();
     for line in lines {
+        // Skip HUD notification queue-dump lines: these look like
+        //   <timestamp>    "Schémas reçu : Name: " [N]
+        // and repeat every time the notification queue is rendered (30–60×
+        // per blueprint per session). Real log events always have the form
+        //   <timestamp> [Notice/Error/Warning/Trace] ...
+        // so we skip any line whose content after the timestamp opener is not
+        // a log-level bracket.
+        if let Some(after_ts) = line.split_once("> ") {
+            if !after_ts.1.starts_with('[') {
+                continue;
+            }
+        }
         if let Some(caps) = re.captures(line) {
             let name = caps
                 .get(1)
