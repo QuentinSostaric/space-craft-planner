@@ -1,6 +1,6 @@
 import { PostHogProvider } from '@posthog/react';
 import posthog, { type PostHog } from 'posthog-js';
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 
 type AnalyticsValue = string | number | boolean | null | undefined;
@@ -12,6 +12,12 @@ interface AnalyticsContextValue {
   trackPageView: (pageName: string, properties?: AnalyticsProperties) => void;
 }
 
+interface PostHogConfig {
+  enabled: boolean;
+  token: string;
+  host: string;
+}
+
 declare const __APP_VERSION__: string;
 
 const AnalyticsContext = createContext<AnalyticsContextValue>({
@@ -20,24 +26,54 @@ const AnalyticsContext = createContext<AnalyticsContextValue>({
   trackPageView: () => {},
 });
 
+const DEFAULT_POSTHOG_HOST = 'https://eu.i.posthog.com';
+const MAX_QUEUED_EVENTS = 50;
+
 let client: PostHog | null = null;
 let initialized = false;
+let initializationComplete = false;
 let contextProperties: AnalyticsProperties = {};
+let queuedEvents: Array<{ name: string; properties?: AnalyticsProperties }> = [];
 
-function isAnalyticsEnabled(): boolean {
-  return Boolean(getPostHogToken()) && getPostHogEnabled() === 'true';
+function getBuildConfig(): PostHogConfig | null {
+  const token = (import.meta.env.VITE_POSTHOG_TOKEN ?? '').trim();
+  const enabled = (import.meta.env.VITE_POSTHOG_ENABLED ?? '').trim();
+  const host = (import.meta.env.VITE_POSTHOG_HOST ?? '').trim() || DEFAULT_POSTHOG_HOST;
+
+  if (!token || enabled !== 'true') {
+    return null;
+  }
+
+  return { enabled: true, token, host };
 }
 
-function getPostHogToken(): string {
-  return (import.meta.env.VITE_POSTHOG_TOKEN ?? '').trim();
+async function getRuntimeConfig(): Promise<PostHogConfig | null> {
+  try {
+    const response = await fetch('/api/public-config', { cache: 'no-store' });
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json() as {
+      posthog?: { enabled?: unknown; token?: unknown; host?: unknown };
+    };
+    const token = typeof payload.posthog?.token === 'string' ? payload.posthog.token.trim() : '';
+    const host = typeof payload.posthog?.host === 'string' && payload.posthog.host.trim()
+      ? payload.posthog.host.trim()
+      : DEFAULT_POSTHOG_HOST;
+
+    if (payload.posthog?.enabled !== true || !token) {
+      return null;
+    }
+
+    return { enabled: true, token, host };
+  } catch {
+    return null;
+  }
 }
 
-function getPostHogEnabled(): string {
-  return (import.meta.env.VITE_POSTHOG_ENABLED ?? '').trim();
-}
-
-function getPostHogHost(): string {
-  return (import.meta.env.VITE_POSTHOG_HOST ?? '').trim() || 'https://eu.i.posthog.com';
+async function loadConfig(): Promise<PostHogConfig | null> {
+  return getBuildConfig() ?? await getRuntimeConfig();
 }
 
 function getAppVersion(): string {
@@ -82,18 +118,36 @@ function getCommonProperties(): AnalyticsProperties {
   };
 }
 
-function getClient(): PostHog | null {
-  if (!isAnalyticsEnabled()) {
-    return null;
+function capture(name: string, properties?: AnalyticsProperties): void {
+  if (!client) {
+    return;
   }
 
+  try {
+    client.capture(name, {
+      ...getCommonProperties(),
+      ...sanitizeProperties(properties),
+    });
+  } catch {
+    // Analytics must never affect app behavior.
+  }
+}
+
+async function initializeClient(): Promise<PostHog | null> {
   if (initialized) {
     return client;
   }
 
   initialized = true;
-  posthog.init(getPostHogToken(), {
-    api_host: getPostHogHost(),
+  const config = await loadConfig();
+  if (!config?.enabled) {
+    initializationComplete = true;
+    queuedEvents = [];
+    return null;
+  }
+
+  posthog.init(config.token, {
+    api_host: config.host,
     defaults: '2026-01-30',
     capture_pageview: 'history_change',
     person_profiles: 'identified_only',
@@ -104,6 +158,8 @@ function getClient(): PostHog | null {
     autocapture: false,
   });
   client = posthog;
+  initializationComplete = true;
+  queuedEvents.splice(0).forEach((event) => capture(event.name, event.properties));
   return client;
 }
 
@@ -129,18 +185,13 @@ export function setAnalyticsContext(properties: AnalyticsProperties): void {
 }
 
 export function trackEvent(name: string, properties?: AnalyticsProperties): void {
-  const analyticsClient = getClient();
-  if (!analyticsClient) {
+  if (client) {
+    capture(name, properties);
     return;
   }
 
-  try {
-    analyticsClient.capture(name, {
-      ...getCommonProperties(),
-      ...sanitizeProperties(properties),
-    });
-  } catch {
-    // Analytics must never affect app behavior.
+  if (!initializationComplete && queuedEvents.length < MAX_QUEUED_EVENTS) {
+    queuedEvents.push({ name, properties });
   }
 }
 
@@ -157,13 +208,26 @@ export function useAnalytics(): AnalyticsContextValue {
 }
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
-  const analyticsClient = useMemo(() => getClient(), []);
+  const [analyticsClient, setAnalyticsClient] = useState<PostHog | null>(client);
   const enabled = Boolean(analyticsClient);
   const value = useMemo<AnalyticsContextValue>(() => ({
     enabled,
     trackEvent,
     trackPageView,
   }), [enabled]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void initializeClient().then((nextClient) => {
+      if (!cancelled) {
+        setAnalyticsClient(nextClient);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
