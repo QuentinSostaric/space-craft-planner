@@ -94,12 +94,15 @@ export function useScLogSync(): ScLogSyncState {
       });
       const knownNames = rememberScLogBlueprintNames(scope, foundNames);
 
-      const nameToId = new Map(blueprints.map((b) => [b.name, b.id]));
+      // Case-insensitive, whitespace-normalised lookup so minor formatting
+      // differences between the game log and the dataset don't silently drop blueprints.
+      const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+      const nameToId = new Map(blueprints.map((b) => [normalize(b.name), b.id]));
       const matchedIds: string[] = [];
       const unmatchedNames: string[] = [];
 
       for (const name of knownNames) {
-        const id = nameToId.get(name);
+        const id = nameToId.get(normalize(name));
         if (id) {
           matchedIds.push(id);
         } else {

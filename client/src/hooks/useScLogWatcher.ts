@@ -83,9 +83,10 @@ export function useScLogWatcher(): ScLogWatcherState {
       const currentUser = userRef.current;
       if (!currentUser) return;
 
-      // Map display names → blueprint IDs
-      const nameToId = new Map(blueprintsRef.current.map((b) => [b.name, b.id]));
-      const newIds = names.map((n) => nameToId.get(n)).filter(Boolean) as string[];
+      // Case-insensitive, whitespace-normalised lookup (matches useScLogSync behaviour)
+      const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+      const nameToId = new Map(blueprintsRef.current.map((b) => [normalize(b.name), b.id]));
+      const newIds = names.map((n) => nameToId.get(normalize(n))).filter(Boolean) as string[];
       if (!newIds.length) return;
 
       // Merge into existing inventory (never replace, only add)
