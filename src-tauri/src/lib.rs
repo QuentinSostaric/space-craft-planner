@@ -620,8 +620,10 @@ fn collect_log_lines(channel_path: &Path) -> Vec<String> {
 }
 
 fn build_blueprint_regex() -> Regex {
-    // Handles English and French game client notifications
-    Regex::new(r"(?:Received Blueprint: (.+?):|Sch[eé]mas? re[cç]us? : (.+?):)")
+    // (?i) — case-insensitive in case game client varies capitalisation.
+    // Flexible \s*:\s* handles both English ("Blueprint: Name:") and French
+    // ("reçus : Nom:") colon spacing in one capture group.
+    Regex::new(r"(?i)(?:Received Blueprint|Sch[eé]mas? re[cç]us?)\s*:\s*(.+?)\s*:")
         .expect("invalid blueprint regex")
 }
 
@@ -635,7 +637,6 @@ fn extract_blueprints_from_lines<'a>(
         if let Some(caps) = re.captures(line) {
             let name = caps
                 .get(1)
-                .or_else(|| caps.get(2))
                 .map(|m| m.as_str().trim().to_string())
                 .unwrap_or_default();
             if !name.is_empty() && seen.insert(name.clone()) {
@@ -662,6 +663,30 @@ fn scan_blueprints_from_logs(channel_path: String) -> Result<Vec<String>, String
         extract_blueprints_from_lines(lines.iter().map(String::as_str), &re, &mut seen);
 
     Ok(blueprints)
+}
+
+/// Debug command: returns every raw log line that matched the blueprint regex,
+/// paired with the extracted name, so UI can surface unmatched names for diagnosis.
+#[tauri::command]
+fn scan_raw_blueprint_lines(
+    channel_path: String,
+) -> Result<Vec<(String, String)>, String> {
+    let path = PathBuf::from(&channel_path);
+    if !path.is_dir() {
+        return Err(format!("Path not found: {channel_path}"));
+    }
+    let re = build_blueprint_regex();
+    let lines = collect_log_lines(&path);
+    let matches = lines
+        .into_iter()
+        .filter_map(|line| {
+            re.captures(&line).and_then(|caps| {
+                let name = caps.get(1)?.as_str().trim().to_string();
+                if name.is_empty() { None } else { Some((line, name)) }
+            })
+        })
+        .collect();
+    Ok(matches)
 }
 
 // ─── Real-time watcher ────────────────────────────────────────────────────────
@@ -848,6 +873,7 @@ pub fn run() {
             clear_desktop_auth_session,
             detect_sc_install_paths,
             scan_blueprints_from_logs,
+            scan_raw_blueprint_lines,
             start_log_watcher,
             stop_log_watcher,
             get_watcher_status,
@@ -941,5 +967,41 @@ mod tests {
                 "Nom Pluriel".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn blueprint_regex_is_case_insensitive() {
+        let re = build_blueprint_regex();
+        let lines = [
+            // Lower-case prefix variant
+            "<2026-05-25T12:00:00.000Z> received blueprint: Lower Case Name: acquired",
+            // Mixed-case French variant
+            "<2026-05-25T12:01:00.000Z> SCHÉMA REÇU : NOM MAJUSCULE: acquis",
+            // Schema/Schemas unaccented ASCII (some regions)
+            "<2026-05-25T12:02:00.000Z> Schemas recus : Unaccented: acquis",
+        ];
+        let mut seen = HashSet::new();
+        let blueprints = extract_blueprints_from_lines(lines.iter().copied(), &re, &mut seen);
+
+        assert_eq!(blueprints.len(), 3);
+        assert!(blueprints.contains(&"Lower Case Name".to_string()));
+        assert!(blueprints.contains(&"NOM MAJUSCULE".to_string()));
+        assert!(blueprints.contains(&"Unaccented".to_string()));
+    }
+
+    #[test]
+    fn blueprint_regex_handles_flexible_colon_spacing() {
+        let re = build_blueprint_regex();
+        // Extra spaces around the separator colon
+        let lines = [
+            "<2026-05-25T12:00:00.000Z> Received Blueprint : Spaced Colon: acquired",
+            "<2026-05-25T12:01:00.000Z> Schéma reçu:No Space French: acquis",
+        ];
+        let mut seen = HashSet::new();
+        let blueprints = extract_blueprints_from_lines(lines.iter().copied(), &re, &mut seen);
+
+        assert_eq!(blueprints.len(), 2);
+        assert!(blueprints.contains(&"Spaced Colon".to_string()));
+        assert!(blueprints.contains(&"No Space French".to_string()));
     }
 }
