@@ -1192,6 +1192,13 @@ function getRsiHandleIndexKey(handle) {
     throw new Error('RSI handle is required to build the handle index key.');
   }
 
+  // Defence in depth: RSI handles are restricted to [A-Za-z0-9_], so a value
+  // containing anything else (e.g. "/" or ".." that could redirect the object
+  // key to another R2 prefix) is rejected rather than used to build a key.
+  if (!/^[a-z0-9_-]+$/.test(normalizedHandle)) {
+    throw new Error('RSI handle contains unsupported characters.');
+  }
+
   return `accounts-indexes/rsi-handles/${normalizedHandle}.json`;
 }
 

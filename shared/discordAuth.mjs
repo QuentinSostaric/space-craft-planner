@@ -13,9 +13,29 @@ const SESSION_VERSION = 2;
 const DEFAULT_RETURN_TO = '/';
 const DEFAULT_DISCORD_SCOPES = ['identify'];
 
-// Allowed desktop app origins for cross-origin auth flows
-// http://localhost covers Tauri dev mode (webview at http://localhost:5173)
-const DESKTOP_ALLOWED_ORIGINS = ['https://tauri.localhost', 'http://localhost'];
+// Allowed desktop app origins for cross-origin auth flows.
+// Matched on exact protocol + hostname only (any port is allowed for the Tauri
+// dev webview served at http://localhost:5173). Prefix/substring matching must
+// NOT be used here: it would treat hostile hosts such as
+// http://localhost.attacker.com or https://tauri.localhost.attacker.com as
+// trusted, enabling an open redirect on the OAuth callback.
+const DESKTOP_ALLOWED_HOSTS = [
+  { protocol: 'https:', hostname: 'tauri.localhost' },
+  { protocol: 'http:', hostname: 'localhost' },
+];
+
+function isAllowedDesktopUrl(value) {
+  let url;
+  try {
+    url = new URL(String(value ?? '').trim());
+  } catch {
+    return false;
+  }
+
+  return DESKTOP_ALLOWED_HOSTS.some(
+    (allowed) => url.protocol === allowed.protocol && url.hostname === allowed.hostname,
+  );
+}
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -218,14 +238,11 @@ export function parseCookieHeader(cookieHeader) {
 export function isDesktopRequest(request) {
   const referer = request?.headers?.get?.('Referer') ?? '';
   const origin = request?.headers?.get?.('Origin') ?? '';
-  return DESKTOP_ALLOWED_ORIGINS.some(
-    (o) => referer.startsWith(o) || origin.startsWith(o),
-  );
+  return isAllowedDesktopUrl(origin) || isAllowedDesktopUrl(referer);
 }
 
 export function isDesktopReturnTo(value) {
-  const candidate = String(value ?? '').trim();
-  return DESKTOP_ALLOWED_ORIGINS.some((origin) => candidate.startsWith(origin));
+  return isAllowedDesktopUrl(value);
 }
 
 export function sanitizeReturnTo(value) {
@@ -235,8 +252,8 @@ export function sanitizeReturnTo(value) {
 
   const candidate = String(value).trim();
 
-  // Allow desktop app origins as absolute return URLs
-  if (DESKTOP_ALLOWED_ORIGINS.some((origin) => candidate.startsWith(origin))) {
+  // Allow desktop app origins as absolute return URLs (exact host match only).
+  if (isAllowedDesktopUrl(candidate)) {
     return candidate;
   }
 
