@@ -25,6 +25,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { AppGlyph } from './ui/AppGlyph';
 import { Panel } from './ui/Panel';
 import { useCraft } from '../store/CraftContext';
+import { useFilters } from '../store/FilterContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
@@ -182,6 +183,14 @@ export function BlueprintExplorer() {
     activeBlueprint,
     activeDataset,
     setActiveBlueprint,
+    inventoryIds,
+    blueprints,
+    missionRewards,
+    missionRewardsLoading,
+    ensureMissionRewardsLoaded,
+    ensureShipComponentsLoaded,
+  } = useCraft();
+  const {
     categoryFilter,
     setCategoryFilter,
     searchQuery,
@@ -228,13 +237,7 @@ export function BlueprintExplorer() {
     setAcquisitionStandingFilter,
     blueprintSort,
     setBlueprintSort,
-    inventoryIds,
-    blueprints,
-    missionRewards,
-    missionRewardsLoading,
-    ensureMissionRewardsLoaded,
-    ensureShipComponentsLoaded,
-  } = useCraft();
+  } = useFilters();
   const { lang, t } = useI18n();
   const theme = useTheme();
   const { user } = useAuth();

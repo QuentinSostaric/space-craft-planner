@@ -21,6 +21,7 @@ import StarIcon from '@mui/icons-material/Star';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 
 import { useCraft, DEFAULT_INVENTORY_IDS } from '../store/CraftContext';
+import { useFilters } from '../store/FilterContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { CategoryBadge } from './ui/Badge';
@@ -586,6 +587,16 @@ export function BlueprintGrid() {
   const {
     activeBlueprint,
     setActiveBlueprint,
+    favoriteIds,
+    inventoryIds,
+    toggleFavorite,
+    toggleInventory,
+    blueprints: allBlueprints,
+    missionRewards,
+    missionRewardsLoading,
+    activeDataset,
+  } = useCraft();
+  const {
     categoryFilter,
     searchQuery,
     librarySegment,
@@ -609,15 +620,7 @@ export function BlueprintGrid() {
     acquisitionScaleFilter,
     acquisitionStandingFilter,
     blueprintSort,
-    favoriteIds,
-    inventoryIds,
-    toggleFavorite,
-    toggleInventory,
-    blueprints: allBlueprints,
-    missionRewards,
-    missionRewardsLoading,
-    activeDataset,
-  } = useCraft();
+  } = useFilters();
   const { t } = useI18n();
   const { user } = useAuth();
   const isDesktop = isTauriRuntime();
