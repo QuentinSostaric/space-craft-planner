@@ -318,6 +318,11 @@ export const BlueprintCard = memo(function BlueprintCard({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        // CSS-level virtualization: the browser skips layout/paint for cards
+        // scrolled off-screen. contain-intrinsic-size reserves an estimated box
+        // so the scrollbar stays stable ('auto' reuses the last measured size).
+        contentVisibility: 'auto',
+        containIntrinsicSize: 'auto 340px',
         borderColor: isActive ? 'primary.main' : (isInInventory ? alpha(theme.palette.primary.main, 0.42) : 'ui.border'),
         backgroundColor: 'ui.surface',
         transition: 'border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease',
