@@ -127,7 +127,10 @@ function getDiscordPublicKey(env) {
       { name: 'Ed25519' },
       false,
       ['verify'],
-    );
+    ).catch((error) => {
+      discordPublicKeyPromise = null;
+      throw error;
+    });
   }
 
   return discordPublicKeyPromise;
@@ -275,14 +278,19 @@ async function handleOrganizationClaimComponent(env, interaction) {
   try {
     if (parsed.action === 'approve') {
       const orgRecord = await readOrganizationRecord(accountStore, parsed.sid);
-      if (orgRecord) {
-        await writeOrganizationRecord(accountStore, {
-          ...orgRecord,
-          claimed: true,
-          claimedByAccountId: parsed.accountId,
-          updatedAt: toIsoNow(),
-        });
+      if (orgRecord?.claimed && orgRecord.claimedByAccountId !== parsed.accountId) {
+        return jsonResponse(
+          interactionMessagePayload('This organization has already been claimed by another account.'),
+          { status: 200 },
+        );
       }
+      await writeOrganizationRecord(accountStore, {
+        ...(orgRecord ?? {}),
+        sid: parsed.sid,
+        claimed: true,
+        claimedByAccountId: parsed.accountId,
+        updatedAt: toIsoNow(),
+      });
     }
 
     await writeOrganizationClaimRequest(accountStore, {
@@ -594,11 +602,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === 'GET' && url.pathname === '/') {
-      return jsonResponse(buildHealthPayload(env));
-    }
-
-    if (request.method === 'GET' && url.pathname === '/health') {
+    if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
       return jsonResponse(buildHealthPayload(env));
     }
 

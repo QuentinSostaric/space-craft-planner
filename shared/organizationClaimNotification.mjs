@@ -1,7 +1,9 @@
+import { readProcessEnv } from './normalize.mjs';
+
 function normalizeWebhookUrl(env) {
   return String(
     env?.ORGANIZATION_CLAIM_REVIEW_WEBHOOK_URL ??
-    process.env.ORGANIZATION_CLAIM_REVIEW_WEBHOOK_URL ??
+    readProcessEnv('ORGANIZATION_CLAIM_REVIEW_WEBHOOK_URL') ??
     '',
   ).trim();
 }
@@ -24,7 +26,7 @@ export async function notifyOrganizationClaimRequest(env, claimRequest, { fetchI
     `Submitted at: ${claimRequest.submittedAt}`,
   ];
 
-  await fetchImpl(webhookUrl, {
+  const response = await fetchImpl(webhookUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -36,6 +38,11 @@ export async function notifyOrganizationClaimRequest(env, claimRequest, { fetchI
       claimRequest,
     }),
   });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Organization claim webhook notification failed (${response.status}): ${text}`);
+  }
 
   return true;
 }
