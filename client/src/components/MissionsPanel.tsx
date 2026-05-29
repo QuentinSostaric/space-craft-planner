@@ -1387,7 +1387,7 @@ function MissionDetail({
               <BlueprintCard
                 key={blueprint.id}
                 blueprint={blueprint}
-                activeBlueprintId={null}
+                isActive={false}
                 isFavorite={favoriteIds.includes(blueprint.id)}
                 isInInventory={inventoryIds.includes(blueprint.id)}
                 resources={resources}

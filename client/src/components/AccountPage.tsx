@@ -2390,7 +2390,7 @@ export function AccountPage() {
                           <BlueprintCard
                             key={entry.key}
                             blueprint={entry.blueprint}
-                            activeBlueprintId={activeBlueprint?.id ?? null}
+                            isActive={activeBlueprint?.id === entry.blueprint.id}
                             isFavorite={entry.isFavorite}
                             isInInventory={entry.isInInventory}
                             organizationShareAction={entry.isInInventory

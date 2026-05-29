@@ -1063,7 +1063,7 @@ function OrganizationDetail({
                           <BlueprintCard
                             key={row.key}
                             blueprint={row.blueprint}
-                            activeBlueprintId={activeBlueprint?.id ?? null}
+                            isActive={activeBlueprint?.id === row.blueprint.id}
                             isFavorite={favoriteIdSet.has(row.blueprint.id)}
                             isInInventory={inventoryIdSet.has(row.blueprint.id)}
                             extraQuickActions={extraQuickActions}

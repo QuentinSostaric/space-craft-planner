@@ -1,5 +1,5 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { memo, startTransition, useMemo, useState, type ReactNode } from 'react';
+import { memo, startTransition, useCallback, useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
@@ -267,7 +267,7 @@ export interface BlueprintCardQuickAction {
 
 export const BlueprintCard = memo(function BlueprintCard({
   blueprint,
-  activeBlueprintId,
+  isActive,
   isFavorite,
   isInInventory,
   isObtainable,
@@ -281,7 +281,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   onAddToPlanner,
 }: {
   blueprint: Blueprint;
-  activeBlueprintId: string | null;
+  isActive: boolean;
   isFavorite: boolean;
   isInInventory: boolean;
   isObtainable?: boolean;
@@ -302,7 +302,6 @@ export const BlueprintCard = memo(function BlueprintCard({
   onToggleInventory?: (blueprintId: string) => void;
   onAddToPlanner?: (blueprintId: string) => void;
 }) {
-  const isActive = activeBlueprintId === blueprint.id;
   const { t, lang } = useI18n();
   const theme = useTheme();
   const { url: thumbUrl, mode: thumbMode } = resolveThumb(blueprint);
@@ -565,7 +564,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   );
 }, (prev, next) =>
   prev.blueprint === next.blueprint &&
-  prev.activeBlueprintId === next.activeBlueprintId &&
+  prev.isActive === next.isActive &&
   prev.isFavorite === next.isFavorite &&
   prev.isInInventory === next.isInInventory &&
   prev.isObtainable === next.isObtainable &&
@@ -633,6 +632,28 @@ export function BlueprintGrid() {
   const allShipComponents = activeDataset.shipComponents?.entries ?? [];
   const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   const inventoryIdSet = useMemo(() => new Set(inventoryIds), [inventoryIds]);
+
+  // Defer the (potentially large) blueprint/ship-component filtering off the
+  // keystroke path: the search input stays responsive while the expensive
+  // filter+sort runs at lower priority on the deferred query.
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // Stable callbacks so the memoised BlueprintCard isn't invalidated on every
+  // grid render (e.g. each keystroke). The inventory handler only changes when
+  // the inventory set itself changes.
+  const handleSelectBlueprint = useCallback(
+    (bp: Blueprint | null) => startTransition(() => setActiveBlueprint(bp)),
+    [setActiveBlueprint],
+  );
+  const handleToggleInventory = useCallback(
+    (blueprintId: string) => {
+      trackEvent('blueprint_inventory_cta_clicked', {
+        action: inventoryIdSet.has(blueprintId) ? 'remove' : 'add',
+      });
+      toggleInventory(blueprintId);
+    },
+    [inventoryIdSet, toggleInventory],
+  );
 
   // Stabilized sets for the filteredBlueprints memo: only change when the
   // corresponding library segment is active, preventing a full grid reset
@@ -792,8 +813,8 @@ export function BlueprintGrid() {
     }
 
     // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearchQuery.trim()) {
+      const q = deferredSearchQuery.toLowerCase();
       list = list.filter((bp) => getBlueprintSearchHaystack(bp).includes(q));
     }
 
@@ -855,7 +876,7 @@ export function BlueprintGrid() {
     materialFilter,
     obtainableIds,
     rarityFilter,
-    searchQuery,
+    deferredSearchQuery,
     slotCountFilter,
     weaponTypeFilter,
   ]);
@@ -919,8 +940,8 @@ export function BlueprintGrid() {
       );
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearchQuery.trim()) {
+      const q = deferredSearchQuery.toLowerCase();
       list = list.filter((component) => getShipComponentSearchHaystack(component).includes(q));
     }
 
@@ -934,7 +955,7 @@ export function BlueprintGrid() {
     allShipComponents,
     manufacturerCanonicalMap,
     manufacturerFilter,
-    searchQuery,
+    deferredSearchQuery,
     shipComponentFamilyFilter,
     shipComponentFiltersBlocked,
     shipComponentGradeFilter,
@@ -1036,20 +1057,15 @@ export function BlueprintGrid() {
                       <BlueprintCard
                         key={blueprint.id}
                         blueprint={blueprint}
-                        activeBlueprintId={activeBlueprint?.id ?? null}
+                        isActive={activeBlueprint?.id === blueprint.id}
                         isFavorite={favoriteIdSet.has(blueprint.id)}
                         isInInventory={inventoryIdSet.has(blueprint.id)}
                         isObtainable={obtainableIds.has(blueprint.id)}
                         resources={resources}
                         priority={index < initialCount}
-                        onSelect={(bp) => startTransition(() => setActiveBlueprint(bp))}
+                        onSelect={handleSelectBlueprint}
                         onToggleFavorite={toggleFavorite}
-                onToggleInventory={(blueprintId) => {
-                  trackEvent('blueprint_inventory_cta_clicked', {
-                    action: inventoryIdSet.has(blueprintId) ? 'remove' : 'add',
-                  });
-                  toggleInventory(blueprintId);
-                }}
+                        onToggleInventory={handleToggleInventory}
                       />
                     ))}
                   </Box>
