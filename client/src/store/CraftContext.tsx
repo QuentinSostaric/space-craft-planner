@@ -257,6 +257,11 @@ interface CraftState {
 
 const CraftContext = createContext<CraftState | null>(null);
 
+// Legacy goal migration: map old Quality string codes to numeric scores.
+// Module-scoped so it has a stable identity (it was previously redeclared on
+// every render, forcing an eslint-disable on the migration useMemo deps).
+const LEGACY_QUALITY_VALUE: Record<string, number> = { CMR: 1000, CMP: 500, CMS: 300 };
+
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary): number {
   const buildA = Number(a.buildNumber ?? 0);
   const buildB = Number(b.buildNumber ?? 0);
@@ -592,7 +597,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   );
   // Migrate legacy goals: coerce qualityScore to number, normalize slot assignments
   // (old data may have stored Quality strings like "CMR" instead of numeric values)
-  const LEGACY_QUALITY_VALUE: Record<string, number> = { CMR: 1000, CMP: 500, CMS: 300 };
   const localGoals = useMemo(
     () => rawGoals.map((g) => ({
       ...g,
@@ -604,7 +608,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         ]),
       ),
     })),
-    [rawGoals], // eslint-disable-line react-hooks/exhaustive-deps
+    [rawGoals],
   );
   const localPlannerResourceRequirements = useMemo(
     () => normalizePlannerResourceRequirements(rawPlannerResourceRequirements),

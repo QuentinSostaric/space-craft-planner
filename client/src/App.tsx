@@ -737,6 +737,39 @@ function MainContent({ mainView }: { mainView: MainView }) {
   );
 }
 
+// Shared layout for the app shell (header / nav rail / main grid). Defined at
+// module scope so the object identity is stable across renders and the layout
+// is declared once instead of being duplicated across every loading/error/ready
+// branch of AppShell.
+const APP_SHELL_GRID_SX = {
+  display: 'grid',
+  gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
+  gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
+  gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
+  height: '100dvh',
+  overflow: 'hidden',
+} as const;
+
+const APP_SHELL_MAIN_SX = {
+  gridArea: 'main',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+} as const;
+
+// Views not listed here (blueprints, privacy) navigate to the site root, matching
+// the previous nested-ternary behaviour.
+const MAIN_VIEW_PATHS: Partial<Record<MainView, string>> = {
+  missions: '/missions',
+  resources: '/resources',
+  organizations: '/organizations',
+  planner: '/planner',
+  changelog: '/changelog',
+  account: '/account',
+};
+
 function AppShell() {
   const {
     activeDataset,
@@ -781,39 +814,19 @@ function AppShell() {
       : mainView;
 
   const handleChangeView = useCallback((view: MainView) => {
-      const nextView = !user && view === 'organizations' ? 'account' : view;
-      const path =
-      nextView === 'missions'
-        ? '/missions'
-        : nextView === 'resources'
-          ? '/resources'
-        : nextView === 'organizations'
-          ? '/organizations'
-        : nextView === 'planner'
-            ? '/planner'
-          : nextView === 'changelog'
-            ? '/changelog'
-          : nextView === 'account'
-            ? '/account'
-            : '/';
+    const nextView = !user && view === 'organizations' ? 'account' : view;
+    const path = MAIN_VIEW_PATHS[nextView] ?? '/';
     navigateToPath(path, { mainView: nextView });
   }, [user]);
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{
-        display: 'grid',
-        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
-        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
-        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
-        height: '100dvh',
-        overflow: 'hidden',
-      }}>
+      <Box sx={APP_SHELL_GRID_SX}>
         <Box sx={{ gridArea: 'header' }}>
           <Header />
           <LinearProgress sx={{ height: 2 }} />
         </Box>
-        <Box component="main" id="main-content" sx={{ gridArea: 'main', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box component="main" id="main-content" sx={APP_SHELL_MAIN_SX}>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
               <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
@@ -838,14 +851,7 @@ function AppShell() {
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={{
-        display: 'grid',
-        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
-        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
-        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
-        height: '100dvh',
-        overflow: 'hidden',
-      }}>
+      <Box sx={APP_SHELL_GRID_SX}>
         <Box sx={{ gridArea: 'header' }}>
           <Header />
           <LinearProgress sx={{ height: 2 }} />
@@ -856,7 +862,7 @@ function AppShell() {
         <Box
           component="main"
           id="main-content"
-          sx={{ gridArea: 'main', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          sx={APP_SHELL_MAIN_SX}
           aria-live="polite"
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -885,18 +891,11 @@ function AppShell() {
   }
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={{
-        display: 'grid',
-        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
-        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
-        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
-        height: '100dvh',
-        overflow: 'hidden',
-      }}>
+      <Box sx={APP_SHELL_GRID_SX}>
         <Box sx={{ gridArea: 'header' }}>
           <Header />
         </Box>
-        <Box component="main" id="main-content" sx={{ gridArea: 'main', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Box component="main" id="main-content" sx={APP_SHELL_MAIN_SX}>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
               <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
@@ -920,14 +919,7 @@ function AppShell() {
   }
   return (
     <Box
-      sx={{
-        display: 'grid',
-        gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
-        gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
-        gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
-        height: '100dvh',
-        overflow: 'hidden',
-      }}
+      sx={APP_SHELL_GRID_SX}
     >
       <Box sx={{ gridArea: 'header' }}>
         <Header />
