@@ -21,15 +21,12 @@ import {
   scrapeRsiProfileByHandle,
 } from './rsiLink.mjs';
 import {
+  normalizeComparableText,
   normalizeIsoTimestamp,
   normalizeOrganizationSid,
   normalizeText,
   toIsoNow,
 } from './normalize.mjs';
-
-function normalizeComparableText(value) {
-  return normalizeText(value).toLowerCase();
-}
 
 /**
  * Enrich Citizen iD organization memberships with rank/stars/memberCount from RSI profile

@@ -196,9 +196,15 @@ export function parseCraftRequestActionCustomId(value) {
   };
 }
 
+function normalizeCraftRequestScopes(request) {
+  return {
+    storageScope: normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod',
+    datasetScope: normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live',
+  };
+}
+
 function buildCraftRequestButtons(request) {
-  const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
-  const datasetScope = normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
+  const { storageScope, datasetScope } = normalizeCraftRequestScopes(request);
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -221,8 +227,7 @@ function buildCraftRequestButtons(request) {
 }
 
 function buildDisabledCraftRequestButtons(request, disabledLabel) {
-  const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
-  const datasetScope = normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
+  const { storageScope, datasetScope } = normalizeCraftRequestScopes(request);
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,
@@ -240,8 +245,7 @@ function buildDisabledCraftRequestButtons(request, disabledLabel) {
 }
 
 function buildAcceptedCraftRequestButtons(request) {
-  const storageScope = normalizeText(request?.storageScope).toLowerCase() === 'dev' ? 'dev' : 'prod';
-  const datasetScope = normalizeText(request?.datasetScope).toLowerCase() === 'ptu' ? 'ptu' : 'live';
+  const { storageScope, datasetScope } = normalizeCraftRequestScopes(request);
   return [
     {
       type: DISCORD_COMPONENT_TYPE_ACTION_ROW,

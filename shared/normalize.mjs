@@ -57,3 +57,7 @@ export function readProcessEnv(name) {
     ? process.env[name]
     : undefined;
 }
+
+export function normalizeComparableText(value) {
+  return normalizeText(value).toLowerCase();
+}

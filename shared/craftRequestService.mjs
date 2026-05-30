@@ -7,14 +7,11 @@ import {
 import { readOrganizationRecord } from './organizationStorage.mjs';
 import {
   normalizeBaseUrl,
+  normalizeComparableText,
   normalizeOrganizationSid,
   normalizeText,
   toIsoNow,
 } from './normalize.mjs';
-
-function normalizeComparableText(value) {
-  return normalizeText(value).toLowerCase();
-}
 
 function normalizeStorageScope(value) {
   const input = normalizeText(value).toLowerCase();
