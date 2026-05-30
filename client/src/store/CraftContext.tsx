@@ -9,14 +9,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { FilterProvider, useFilters } from './FilterContext';
 import { useAuth } from '../auth/AuthContext';
 import { itemSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import type {
   AppMode,
   Blueprint,
-  BlueprintSort,
-  CategoryFilter,
-  CraftTimeBucket,
   ComparisonItem,
   CraftGoal,
   DatasetChannel,
@@ -25,8 +23,6 @@ import type {
   DismantlingData,
   GameDataset,
   ItemStats,
-  LegalityFilter,
-  LibrarySegment,
   MaterialSlotQuantityUnit,
   MaterialSources,
   MissionContract,
@@ -34,13 +30,10 @@ import type {
   PlannerResourceRequirements,
   PlannerTodoItem,
   PlannerTodoSource,
-  RarityFilter,
   ResourceMethod,
   ResourceInsight,
   ResourceProgress,
   ShipComponentsDataset,
-  SlotCountFilter,
-  StandingBucket,
 } from '../types';
 import { COMPARISON_COLORS, LS_KEYS } from '../types';
 import {
@@ -134,50 +127,6 @@ interface CraftState {
   changelogLoading: boolean;
   datasetLoading: boolean;
   datasetError: string | null;
-  categoryFilter: CategoryFilter;
-  searchQuery: string;
-  librarySegment: LibrarySegment;
-  manufacturerFilter: string | null;
-  shipComponentFamilyFilter: string | null;
-  shipComponentProfileFilter: string | null;
-  shipComponentSizeFilter: string | null;
-  shipComponentGradeFilter: string | null;
-  legalityFilter: LegalityFilter;
-  locationFilter: string | null;
-  materialFilter: string | null;
-  rarityFilter: RarityFilter;
-  slotCountFilter: SlotCountFilter;
-  craftTimeFilter: CraftTimeBucket;
-  weaponTypeFilter: string | null;
-  ammoTypeFilter: string | null;
-  ammoFlavorFilter: string | null;
-  armorTypeFilter: string | null;
-  armorSlotFilter: string | null;
-  acquisitionEmployerFilter: string | null;
-  acquisitionScaleFilter: string | null;
-  acquisitionStandingFilter: StandingBucket;
-  blueprintSort: BlueprintSort;
-  setLibrarySegment: (segment: LibrarySegment) => void;
-  setManufacturerFilter: (manufacturer: string | null) => void;
-  setShipComponentFamilyFilter: (family: string | null) => void;
-  setShipComponentProfileFilter: (profile: string | null) => void;
-  setShipComponentSizeFilter: (size: string | null) => void;
-  setShipComponentGradeFilter: (grade: string | null) => void;
-  setLegalityFilter: (legality: LegalityFilter) => void;
-  setLocationFilter: (location: string | null) => void;
-  setMaterialFilter: (material: string | null) => void;
-  setRarityFilter: (rarity: RarityFilter) => void;
-  setSlotCountFilter: (count: SlotCountFilter) => void;
-  setCraftTimeFilter: (bucket: CraftTimeBucket) => void;
-  setWeaponTypeFilter: (weaponType: string | null) => void;
-  setAmmoTypeFilter: (ammoType: string | null) => void;
-  setAmmoFlavorFilter: (ammoFlavor: string | null) => void;
-  setArmorTypeFilter: (armorType: string | null) => void;
-  setArmorSlotFilter: (armorSlot: string | null) => void;
-  setAcquisitionEmployerFilter: (employer: string | null) => void;
-  setAcquisitionScaleFilter: (scale: string | null) => void;
-  setAcquisitionStandingFilter: (bucket: StandingBucket) => void;
-  setBlueprintSort: (sort: BlueprintSort) => void;
   favoriteIds: string[];
   inventoryIds: string[];
   slotAssignments: Record<string, number | undefined>;
@@ -199,8 +148,6 @@ interface CraftState {
   ensureShipComponentsLoaded: (datasetId?: string) => Promise<void>;
   ensureChangelogLoaded: (datasetId?: string) => Promise<void>;
   ensureBlueprintDetailLoaded: (blueprintId: string, datasetId?: string) => Promise<void>;
-  setCategoryFilter: (cat: CategoryFilter) => void;
-  setSearchQuery: (q: string) => void;
   toggleFavorite: (blueprintId: string) => void;
   toggleInventory: (blueprintId: string) => void;
   replaceLocalBlueprintCollections: (nextState: {
@@ -545,29 +492,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   const [activeBlueprint, setActiveBlueprintRaw] = useState<Blueprint | null>(null);
   // Slug from URL on initial mount — resolved once blueprints load
   const pendingSlugRef = useRef<string | null>(itemSlugFromPathname(window.location.pathname));
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [librarySegment, setLibrarySegment] = useState<LibrarySegment>('obtainable');
-  const [manufacturerFilter, setManufacturerFilter] = useState<string | null>(null);
-  const [shipComponentFamilyFilter, setShipComponentFamilyFilter] = useState<string | null>(null);
-  const [shipComponentProfileFilter, setShipComponentProfileFilter] = useState<string | null>(null);
-  const [shipComponentSizeFilter, setShipComponentSizeFilter] = useState<string | null>(null);
-  const [shipComponentGradeFilter, setShipComponentGradeFilter] = useState<string | null>(null);
-  const [legalityFilter, setLegalityFilter] = useState<LegalityFilter>('all');
-  const [locationFilter, setLocationFilter] = useState<string | null>(null);
-  const [materialFilter, setMaterialFilter] = useState<string | null>(null);
-  const [rarityFilter, setRarityFilter] = useState<RarityFilter>('all');
-  const [slotCountFilter, setSlotCountFilter] = useState<SlotCountFilter>('all');
-  const [craftTimeFilter, setCraftTimeFilter] = useState<CraftTimeBucket>('all');
-  const [weaponTypeFilter, setWeaponTypeFilter] = useState<string | null>(null);
-  const [ammoTypeFilter, setAmmoTypeFilter] = useState<string | null>(null);
-  const [ammoFlavorFilter, setAmmoFlavorFilter] = useState<string | null>(null);
-  const [armorTypeFilter, setArmorTypeFilter] = useState<string | null>(null);
-  const [armorSlotFilter, setArmorSlotFilter] = useState<string | null>(null);
-  const [acquisitionEmployerFilter, setAcquisitionEmployerFilter] = useState<string | null>(null);
-  const [acquisitionScaleFilter, setAcquisitionScaleFilter] = useState<string | null>(null);
-  const [acquisitionStandingFilter, setAcquisitionStandingFilter] = useState<StandingBucket>('all');
-  const [blueprintSort, setBlueprintSort] = useState<BlueprintSort>('name-asc');
   const [slotAssignments, setSlotAssignments] = useState<Record<string, number | undefined>>({});
   const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
   const [comparisonOpen, setComparisonOpen] = useState(false);
@@ -1915,50 +1839,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         changelogLoading,
         datasetLoading,
         datasetError,
-        categoryFilter,
-        searchQuery,
-        librarySegment,
-        manufacturerFilter,
-        shipComponentFamilyFilter,
-        shipComponentProfileFilter,
-        shipComponentSizeFilter,
-        shipComponentGradeFilter,
-        legalityFilter,
-        locationFilter,
-        materialFilter,
-        rarityFilter,
-        slotCountFilter,
-        craftTimeFilter,
-        weaponTypeFilter,
-        ammoTypeFilter,
-        ammoFlavorFilter,
-        armorTypeFilter,
-        armorSlotFilter,
-        acquisitionEmployerFilter,
-        acquisitionScaleFilter,
-        acquisitionStandingFilter,
-        blueprintSort,
-        setLibrarySegment,
-        setManufacturerFilter,
-        setShipComponentFamilyFilter,
-        setShipComponentProfileFilter,
-        setShipComponentSizeFilter,
-        setShipComponentGradeFilter,
-        setLegalityFilter,
-        setLocationFilter,
-        setMaterialFilter,
-        setRarityFilter,
-        setSlotCountFilter,
-        setCraftTimeFilter,
-        setWeaponTypeFilter,
-        setAmmoTypeFilter,
-        setAmmoFlavorFilter,
-        setArmorTypeFilter,
-        setArmorSlotFilter,
-        setAcquisitionEmployerFilter,
-        setAcquisitionScaleFilter,
-        setAcquisitionStandingFilter,
-        setBlueprintSort,
         favoriteIds,
         inventoryIds,
         slotAssignments,
@@ -1980,8 +1860,6 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         ensureShipComponentsLoaded,
         ensureChangelogLoaded,
         ensureBlueprintDetailLoaded,
-        setCategoryFilter,
-        setSearchQuery,
         toggleFavorite,
         toggleInventory,
         replaceLocalBlueprintCollections,
@@ -2010,7 +1888,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
         closeComparison,
       }}
     >
-      {children}
+      <FilterProvider>{children}</FilterProvider>
     </CraftContext.Provider>
   );
 }
@@ -2025,7 +1903,8 @@ export function useCraft(): CraftState {
 }
 
 export function useFilteredBlueprints(): Blueprint[] {
-  const { blueprints, categoryFilter, searchQuery, favoriteIds, missionRewards } = useCraft();
+  const { blueprints, favoriteIds, missionRewards } = useCraft();
+  const { categoryFilter, searchQuery } = useFilters();
 
   return useMemo(
     () => {
