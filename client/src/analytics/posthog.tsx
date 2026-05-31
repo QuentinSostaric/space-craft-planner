@@ -170,6 +170,12 @@ async function initializeClient(): Promise<PostHog | null> {
     mask_all_element_attributes: true,
     capture_pageleave: true,
     autocapture: false,
+    // Disable extras that pull recognisably-named scripts/requests
+    // (dead-clicks-autocapture.js, heatmaps, web-perf) which tracker
+    // block lists flag even through a first-party proxy.
+    capture_dead_clicks: false,
+    capture_heatmaps: false,
+    capture_performance: false,
   });
   client = posthog;
   initializationComplete = true;
