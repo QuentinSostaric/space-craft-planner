@@ -1,7 +1,7 @@
 import { PostHogProvider } from '@posthog/react';
 import posthog, { type PostHog } from 'posthog-js';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { isTauriRuntime } from '../services/apiBaseUrl';
+import { getApiUrl, isTauriRuntime } from '../services/apiBaseUrl';
 
 type AnalyticsValue = string | number | boolean | null | undefined;
 export type AnalyticsProperties = Record<string, AnalyticsValue>;
@@ -80,6 +80,19 @@ function getAppVersion(): string {
   return typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
 }
 
+// Route ingestion through our first-party /ingest proxy so tracker blockers
+// don't drop the events. In Tauri the relative path has no host, so resolve it
+// against the hosted API origin instead.
+function getProxiedApiHost(): string {
+  return isTauriRuntime() ? getApiUrl('/ingest') : `${window.location.origin}/ingest`;
+}
+
+// PostHog can't infer the app URL once api_host points at the proxy, so derive
+// the UI host (eu.posthog.com) from the configured ingestion host (eu.i.posthog.com).
+function getUiHost(ingestionHost: string): string {
+  return ingestionHost.replace('.i.posthog.com', '.posthog.com');
+}
+
 function getPlatform(): string {
   if (!isTauriRuntime()) {
     return 'web';
@@ -147,7 +160,8 @@ async function initializeClient(): Promise<PostHog | null> {
   }
 
   posthog.init(config.token, {
-    api_host: config.host,
+    api_host: getProxiedApiHost(),
+    ui_host: getUiHost(config.host),
     defaults: '2026-01-30',
     capture_pageview: 'history_change',
     person_profiles: 'identified_only',
