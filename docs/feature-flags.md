@@ -44,6 +44,41 @@ attaches non-PII person properties usable as release conditions:
 Anonymous (logged-out) users still receive percentage rollouts, but only
 property-based targeting requires a login.
 
+## Server-side gating (blocker-proof)
+
+Tracker blockers drop PostHog's `/flags` request, so for a meaningful share of
+users the client SDK can't load flags — they fall back to defaults. Two pieces
+address this on the server (Cloudflare Functions):
+
+- **`functions/_shared/featureFlags.js`** — evaluates flags on the edge via
+  PostHog's decide endpoint using the project token (no personal API key). Use
+  `isServerFlagEnabled(env, key, { distinctId })` to **gate a beta API
+  endpoint** so the decision can't be bypassed client-side:
+  ```js
+  import { isServerFlagEnabled } from '../../_shared/featureFlags.js';
+  import { readSessionFromRequest } from '../../../shared/discordAuth.mjs';
+
+  const session = await readSessionFromRequest(request, env);
+  if (!(await isServerFlagEnabled(env, 'planner-v2', { distinctId: session?.user?.id }))) {
+    return errorResponse(404, 'Not found');
+  }
+  ```
+- **`GET /api/auth/feature-flags`** — returns server-evaluated flags for the
+  logged-in user from a first-party path blockers don't touch. The client
+  (`ServerFlagsContext`) consumes it and `useFlag` prefers it, so logged-in
+  users get correct flags even with an adblocker. Resolution order in `useFlag`:
+  **server value → PostHog client → static default**.
+
+Consistency: the server evaluates with `distinct_id = user.id`, matching the
+client `posthog.identify(user.id)`, so percentage rollouts bucket users the same
+on both sides. Anonymous users have no server distinct id, so they keep the
+client/default resolution. Property-based targeting server-side currently passes
+no person properties — add them (from the account record) if a flag must target
+e.g. `is_admin` on the backend.
+
+Requires `POSTHOG_TOKEN` (or `VITE_POSTHOG_TOKEN`) and `POSTHOG_ENABLED=true` in
+the Functions environment — the same values already used by `/api/public-config`.
+
 ## Rolling out
 
 In the PostHog flag, ramp the rollout percentage: **5% → 25% → 100%**, watching

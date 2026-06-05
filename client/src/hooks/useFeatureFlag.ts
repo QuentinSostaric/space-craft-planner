@@ -1,16 +1,27 @@
+import { useContext } from 'react';
 import { useFeatureFlagEnabled, useFeatureFlagVariantKey } from '@posthog/react';
 import { remoteFlagDefault, type RemoteFlagKey } from '../utils/featureFlags';
+import { ServerFlagsContext } from './ServerFlagsContext';
 
 /**
- * Reactive boolean feature flag backed by PostHog.
+ * Reactive boolean feature flag.
  *
- * Falls back to the registry default in `REMOTE_FLAGS` whenever PostHog is
- * disabled (analytics consent refused) or its definitions haven't loaded yet
- * (e.g. offline desktop boot), so the result is always deterministic.
+ * Resolution order, most to least authoritative:
+ *  1. Server-evaluated value (blocker-proof, set for logged-in users).
+ *  2. PostHog client SDK value (may be blocked by trackers / not yet loaded).
+ *  3. The registry default in `REMOTE_FLAGS`.
+ *
+ * This guarantees a deterministic result even when analytics is disabled
+ * (consent refused) or PostHog is unreachable (offline desktop, adblocker).
  */
 export function useFlag(key: RemoteFlagKey): boolean {
-  const value = useFeatureFlagEnabled(key);
-  return value ?? remoteFlagDefault(key);
+  const serverFlags = useContext(ServerFlagsContext);
+  const clientValue = useFeatureFlagEnabled(key);
+
+  if (key in serverFlags) {
+    return serverFlags[key];
+  }
+  return clientValue ?? remoteFlagDefault(key);
 }
 
 /**
