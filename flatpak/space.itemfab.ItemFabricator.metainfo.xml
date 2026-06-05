@@ -25,14 +25,9 @@
   <url type="homepage">https://itemfab.space</url>
   <url type="bugtracker">https://github.com/QuentinSostaric/space-craft-planner/issues</url>
 
-  <!--
-    Flathub REQUIRES at least one screenshot served over HTTPS.
-    Replace the URL below with a real screenshot (e.g. a raw GitHub asset)
-    before submitting to Flathub, otherwise the appstream validation fails.
-  -->
   <screenshots>
     <screenshot type="default">
-      <caption>Item Fabricator main window</caption>
+      <caption>Browse craftable blueprints and plan your builds</caption>
       <image>https://raw.githubusercontent.com/QuentinSostaric/space-craft-planner/main/docs/screenshot-main.png</image>
     </screenshot>
   </screenshots>
@@ -40,6 +35,6 @@
   <content_rating type="oars-1.1" />
 
   <releases>
-    <release version="2.1.4" date="2026-06-05" />
+    <release version="2.1.4" date="2026-05-27" />
   </releases>
 </component>
