@@ -68,3 +68,8 @@ src-tauri/signing.key.pub
 # AI assistant context (local only)
 AGENTS.md
 CLAUDE.md
+
+# Local Flatpak build artifacts
+flatpak/build-dir/
+flatpak/repo/
+flatpak/.flatpak-builder/
