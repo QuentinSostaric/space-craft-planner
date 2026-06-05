@@ -30,7 +30,7 @@ import { loc, useI18n } from '../i18n/I18nContext';
 import { useAuth } from '../auth/AuthContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { SyncBlueprintsButton } from './ScLogSyncDialog';
-import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
+import { useFlag } from '../hooks/useFeatureFlag';
 import {
   buildShipComponentCardModel,
   isDisplayableShipComponent,
@@ -179,6 +179,7 @@ function getShipComponentFamilyLabel(value: string, lang: Lang): string {
 }
 
 export function BlueprintExplorer() {
+  const shipComponentBlueprintsEnabled = useFlag('ship-component-blueprints');
   const {
     activeBlueprint,
     activeDataset,
@@ -314,10 +315,10 @@ export function BlueprintExplorer() {
 
   const shipComponents = useMemo(
     () =>
-      ENABLE_SHIP_COMPONENT_BLUEPRINTS
+      shipComponentBlueprintsEnabled
         ? (activeDataset.shipComponents?.entries ?? []).filter(isDisplayableShipComponent)
         : [],
-    [activeDataset.shipComponents],
+    [activeDataset.shipComponents, shipComponentBlueprintsEnabled],
   );
 
   const shipComponentFamilies = useMemo(() => {
@@ -381,7 +382,7 @@ export function BlueprintExplorer() {
   }, [shipComponents]);
 
   const shipComponentFiltersEnabled =
-    ENABLE_SHIP_COMPONENT_BLUEPRINTS && shipComponents.length > 0;
+    shipComponentBlueprintsEnabled && shipComponents.length > 0;
 
   const locations = useMemo(() => {
     if (!missionRewards) return [];
@@ -527,10 +528,10 @@ export function BlueprintExplorer() {
   }, [ensureMissionRewardsLoaded, requiresMissionRewards]);
 
   useEffect(() => {
-    if (ENABLE_SHIP_COMPONENT_BLUEPRINTS && activeDataset.hasShipComponents) {
+    if (shipComponentBlueprintsEnabled && activeDataset.hasShipComponents) {
       void ensureShipComponentsLoaded();
     }
-  }, [activeDataset.hasShipComponents, ensureShipComponentsLoaded]);
+  }, [activeDataset.hasShipComponents, ensureShipComponentsLoaded, shipComponentBlueprintsEnabled]);
 
   /* ─────────────────────────────────────────────────────────── render ── */
   return (

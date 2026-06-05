@@ -42,7 +42,7 @@ import {
   buildShipComponentCardModel,
   isDisplayableShipComponent,
 } from '../utils/shipComponents';
-import { ENABLE_SHIP_COMPONENT_BLUEPRINTS } from '../utils/featureFlags';
+import { useFlag } from '../hooks/useFeatureFlag';
 import type {
   AcquisitionGraphEntry,
   Blueprint,
@@ -589,6 +589,7 @@ export const BlueprintCard = memo(function BlueprintCard({
 );
 
 export function BlueprintGrid() {
+  const shipComponentBlueprintsEnabled = useFlag('ship-component-blueprints');
   const {
     activeBlueprint,
     setActiveBlueprint,
@@ -896,7 +897,7 @@ export function BlueprintGrid() {
     });
 
   const shipComponentFiltersBlocked =
-    !ENABLE_SHIP_COMPONENT_BLUEPRINTS;
+    !shipComponentBlueprintsEnabled;
 
   const filteredShipComponents = useMemo(() => {
     if (shipComponentFiltersBlocked) {

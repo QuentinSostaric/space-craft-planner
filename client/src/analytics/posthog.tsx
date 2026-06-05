@@ -204,6 +204,36 @@ export function setAnalyticsContext(properties: AnalyticsProperties): void {
   };
 }
 
+// Bind the current PostHog identity to a stable user id and attach person
+// properties used for feature-flag targeting. No-ops when analytics is
+// disabled. Reloads flags so any identity-targeted flags resolve immediately.
+export function identifyUser(distinctId: string, properties?: AnalyticsProperties): void {
+  if (!client || !distinctId) {
+    return;
+  }
+
+  try {
+    client.identify(distinctId, sanitizeProperties(properties));
+    client.reloadFeatureFlags();
+  } catch {
+    // Analytics must never affect app behavior.
+  }
+}
+
+// Drop the identified person (logout) and fall back to an anonymous id.
+export function resetIdentity(): void {
+  if (!client) {
+    return;
+  }
+
+  try {
+    client.reset();
+    client.reloadFeatureFlags();
+  } catch {
+    // Analytics must never affect app behavior.
+  }
+}
+
 export function trackEvent(name: string, properties?: AnalyticsProperties): void {
   if (client) {
     capture(name, properties);

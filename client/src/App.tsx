@@ -31,6 +31,7 @@ import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { AppUpdateContext, useAppUpdateState } from './hooks/useAppUpdate';
 import { useCraft } from './store/CraftContext';
 import { AnalyticsProvider, setAnalyticsContext, trackEvent, trackPageView } from './analytics/posthog';
+import { AnalyticsIdentitySync } from './analytics/AnalyticsIdentitySync';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { MainView } from './components/NavRail';
 import { mainViewFromPathname, navigateToPath } from './utils/slug';
@@ -1023,6 +1024,7 @@ function AppContentInner() {
       }} />
       <I18nProvider>
         <AuthProvider>
+          <AnalyticsIdentitySync />
           <CraftProvider>
             <ScLogProvider>
               <AppUpdateProviderInner />
