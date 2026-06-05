@@ -6,13 +6,13 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
-import { getDesktopInstallerUrl, isTauriRuntime } from '../services/apiBaseUrl';
+import { isTauriRuntime } from '../services/apiBaseUrl';
 import { CitizenIdIcon, CitizenIdSignInButton } from './CitizenIdBrand';
+import { DesktopDownloadButton } from './DesktopDownloadButton';
 
 export function OnboardingDialog() {
   const {
@@ -158,14 +158,10 @@ export function OnboardingDialog() {
         )}
         {step === 'desktop' && (
           <>
-            <Button
-              component="a"
-              href={getDesktopInstallerUrl()}
+            <DesktopDownloadButton
+              label={t('Download app', 'Telecharger l app', 'App herunterladen')}
               variant="contained"
-              startIcon={<DownloadOutlinedIcon />}
-            >
-              {t('Download app', 'Telecharger l app', 'App herunterladen')}
-            </Button>
+            />
             <Button variant="outlined" onClick={() => { void markCompleted(); }} disabled={busy}>
               {t('Done', 'Terminer', 'Fertig')}
             </Button>

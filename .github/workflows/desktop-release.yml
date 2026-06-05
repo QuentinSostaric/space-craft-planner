@@ -16,6 +16,8 @@ jobs:
           - platform: windows-latest
             args: --target x86_64-pc-windows-msvc --bundles nsis
           - platform: ubuntu-24.04
+            # appimage = direct download + auto-updater; deb = source the Flathub
+            # buildbot unpacks to build the Flatpak. Keep both. See docs/desktop-release.md.
             args: --bundles appimage,deb
 
     runs-on: ${{ matrix.platform }}

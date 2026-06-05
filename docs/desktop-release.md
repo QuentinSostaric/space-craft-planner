@@ -37,8 +37,14 @@ git push origin v1.11.0
 The `Desktop Release` workflow runs on `v*` tags, manually, and when a GitHub release is published. It builds and uploads release assets for:
 
 - Windows: NSIS installer `.exe`
-- Linux: AppImage and Debian package
+- Linux: AppImage (direct download + auto-updater) and Debian package `.deb`
 - Tauri updater artifacts: `latest.json`, update archives and signatures
+
+Both Linux artifacts are intentional and not redundant: the **AppImage** is the
+direct download and the only Linux format the auto-updater supports, while the
+**`.deb`** is the source the Flathub buildbot unpacks to build the Flatpak (see
+[Flathub distribution](#flathub-distribution)). Tauri does not produce a Flatpak
+itself, so do not remove either target.
 
 The release asset names use:
 
@@ -69,6 +75,51 @@ TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 ```
 
 The current updater key has a password, so both secrets are required. The public key is committed in `src-tauri/tauri.conf.json`; the private key and password must never be committed. Local generated values currently exist at `.tmp/tauri-updater-private.key` and `.tmp/tauri-updater-password.txt` for transferring into the GitHub secrets.
+
+## Flathub distribution
+
+The Linux Flatpak is published on Flathub from a separate repository
+(`github.com/flathub/space.itemfab.ItemFabricator`), **not** from this repo's CI.
+The source files we maintain here live in `flatpak/`:
+
+- `space.itemfab.ItemFabricator.yml` — flatpak-builder manifest
+- `space.itemfab.ItemFabricator.metainfo.xml` — AppStream MetaInfo (name, summary,
+  screenshots, release history)
+- `space.itemfab.ItemFabricator.desktop` — desktop entry
+
+The Flatpak uses a **dedicated app-id** `space.itemfab.ItemFabricator`. The
+Windows/AppImage builds keep `space.itemfab.desktop` (Flathub rejects app-ids
+ending in `.desktop`), so existing users are unaffected. The manifest builds the
+Flatpak by unpacking the released `.deb` (the official Tauri approach).
+
+### Build & validate locally
+
+```bash
+flatpak install -y flathub org.gnome.Platform//47 org.gnome.Sdk//47 org.flatpak.Builder
+cd flatpak
+flatpak run org.flatpak.Builder --force-clean --user --install --repo=repo \
+  build-dir space.itemfab.ItemFabricator.yml
+flatpak run space.itemfab.ItemFabricator
+# Linting / validation expected by Flathub:
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream space.itemfab.ItemFabricator.metainfo.xml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest space.itemfab.ItemFabricator.yml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder builddir build-dir
+```
+
+### Per-release update
+
+1. Publish the GitHub release (the workflow uploads the `.deb`).
+2. In `flatpak/space.itemfab.ItemFabricator.yml`, set the `.deb` source `url` to the
+   release asset and update `sha256` (`sha256sum <the-deb-file>`).
+3. Add a `<release>` entry in `space.itemfab.ItemFabricator.metainfo.xml`.
+4. Open a PR in the Flathub app repo with the updated manifest (this can be
+   automated later with `flatpak-external-data-checker`).
+
+### Initial submission
+
+Fork `github.com/flathub/flathub`, branch off `new-pr`, add the manifest, and open a
+PR against `new-pr`. Domain ownership of `itemfab.space` is verified by Flathub
+(website or DNS) to publish under the `space.itemfab.*` namespace.
 
 ## API base URL
 
