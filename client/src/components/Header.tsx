@@ -15,6 +15,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import SearchIcon from '@mui/icons-material/Search';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import { alpha } from '@mui/material/styles';
@@ -26,8 +27,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useThemeMode } from '../hooks/ThemeContext';
 import { useAppUpdate } from '../hooks/useAppUpdate';
-import { isTauriRuntime } from '../services/apiBaseUrl';
-import { DesktopDownloadButton } from './DesktopDownloadButton';
+import { getDesktopInstallerUrl, isTauriRuntime } from '../services/apiBaseUrl';
 import { FONT_MONO, FONT_BODY, FONT_HEADING } from '../theme';
 import {
   missionPathFromSlug,
@@ -398,15 +398,17 @@ export function Header() {
 
           {/* Desktop app download CTA — web only */}
           {!isDesktop && (
-            <DesktopDownloadButton
-              label={t('Desktop app', 'App desktop', 'Desktop-App')}
-              aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
+            <Button
+              component="a"
+            href={getDesktopInstallerUrl()}
+            onClick={() => {
+              trackEvent('download_clicked', { download_target: 'desktop_app' });
+              trackEvent('desktop_latest_installer_clicked');
+            }}
               size="small"
               variant="outlined"
-              onDownload={(target) => {
-                trackEvent('download_clicked', { download_target: 'desktop_app', format: target });
-                trackEvent('desktop_latest_installer_clicked');
-              }}
+              startIcon={<DownloadOutlinedIcon sx={{ fontSize: 13 }} />}
+              aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
               sx={{
                 display: { xs: 'none', md: 'flex' },
                 height: 28,
@@ -419,7 +421,9 @@ export function Header() {
                 flexShrink: 0,
                 '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
               }}
-            />
+            >
+              {t('Desktop app', 'App desktop', 'Desktop-App')}
+            </Button>
           )}
 
           {/* Live watcher toggle — desktop only */}

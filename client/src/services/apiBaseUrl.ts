@@ -23,45 +23,20 @@ export function getApiCredentials(): RequestCredentials {
   return runtimeApiBaseUrl ? 'include' : 'same-origin';
 }
 
-export type DesktopPlatform = 'windows' | 'linux' | 'macos';
-
-/** Flathub app-id of the Linux Flatpak (see flatpak/). */
-export const FLATHUB_APP_ID = 'space.itemfab.ItemFabricator';
-
-export function getDetectedPlatform(): DesktopPlatform | null {
-  if (typeof navigator === 'undefined') return null;
+export function getDesktopInstallerUrl(): string {
   const uaData = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
+  let platform: string | null = null;
   if (uaData?.platform) {
     const p = uaData.platform.toLowerCase();
-    if (p === 'windows' || p === 'linux' || p === 'macos') return p as DesktopPlatform;
+    if (p === 'windows' || p === 'linux' || p === 'macos') platform = p;
   }
-  const ua = navigator.userAgent;
-  if (/windows/i.test(ua)) return 'windows';
-  if (/macintosh|mac os x/i.test(ua)) return 'macos';
-  if (/linux|x11/i.test(ua)) return 'linux';
-  return null;
-}
-
-/**
- * URL of the latest installer for the detected (or given) platform. On Linux,
- * pass `format: 'appimage'` to pin the AppImage (the `.deb` is reserved as the
- * Flathub Flatpak source, not for direct download).
- */
-export function getDesktopInstallerUrl(options?: { platform?: DesktopPlatform | null; format?: 'appimage' }): string {
-  const platform = options?.platform === undefined ? getDetectedPlatform() : options.platform;
-  const params = new URLSearchParams();
-  if (platform) params.set('platform', platform);
-  if (options?.format) params.set('format', options.format);
-  const query = params.toString();
-  return getApiUrl(`/api/desktop/latest-installer${query ? `?${query}` : ''}`);
-}
-
-/**
- * `appstream://` URI that opens the system software center (GNOME Software /
- * Zorin "Software", Discover, …) on the Flatpak's page so the user can install it.
- */
-export function getFlatpakInstallUri(): string {
-  return `appstream://${FLATHUB_APP_ID}`;
+  if (!platform) {
+    const ua = navigator.userAgent;
+    if (/windows/i.test(ua)) platform = 'windows';
+    else if (/macintosh|mac os x/i.test(ua)) platform = 'macos';
+    else if (/linux|x11/i.test(ua)) platform = 'linux';
+  }
+  return getApiUrl(`/api/desktop/latest-installer${platform ? `?platform=${platform}` : ''}`);
 }
 
 export async function fetchTauriApiJson<T>(path: string): Promise<T | null> {
