@@ -3,6 +3,14 @@ title = "Item Fabricator secret scanning"
 [extend]
 useDefault = true
 
+[allowlist]
+description = "Public, non-secret identifiers (e.g. the Flathub app-id)"
+regexTarget = "line"
+regexes = [
+  # FLATHUB_APP_ID is the public Flatpak/Flathub application id, not a secret.
+  '''FLATHUB_APP_ID\s*=''',
+]
+
 [[rules]]
 id = "hardcoded-oauth-client-id"
 description = "Hardcoded OAuth or API client ID"
