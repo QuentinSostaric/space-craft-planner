@@ -8,7 +8,7 @@
 # (sha256sum <the-deb-file>), and add a <release> entry in the metainfo.xml.
 id: space.itemfab.ItemFabricator
 runtime: org.gnome.Platform
-runtime-version: '47' # GNOME runtime ships webkit2gtk-4.1 used by Tauri
+runtime-version: '50' # GNOME runtime ships webkit2gtk-4.1 used by Tauri
 sdk: org.gnome.Sdk
 command: item-fabricator
 
