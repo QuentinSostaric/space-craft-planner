@@ -17,6 +17,7 @@ import {
   deleteOwnedOrganization,
   fetchAuthSession,
   fetchCurrentAccount,
+  getCitizenIdLoginUrl,
   getCitizenIdRsiLinkUrl,
   fetchOrganizationSharedBlueprints,
   fetchOrganizationSharedResources,
@@ -73,6 +74,7 @@ interface AuthState {
   loading: boolean;
   user: AuthenticatedUser | null;
   provider: 'discord' | null;
+  citizenIdLoginEnabled: boolean;
   citizenIdRsiLinkEnabled: boolean;
   citizenIdBrandEnvironment: 'production' | 'unstable';
   account: StoredAccount | null;
@@ -89,6 +91,7 @@ interface AuthState {
   refreshSession: () => Promise<void>;
   flushPendingMutations: () => Promise<void>;
   loginWithDiscord: (returnTo?: string) => void;
+  loginWithCitizenId: (returnTo?: string) => void;
   logout: () => Promise<void>;
   syncAccountState: (snapshot: AccountStateSnapshot, options?: { flushAfterMs?: number }) => Promise<void>;
   queueAccountStateUpdate: (
@@ -1182,6 +1185,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.assign(getDiscordLoginUrl(effectiveReturnTo));
   }, [refreshSession]);
 
+  const loginWithCitizenId = useCallback((returnTo?: string) => {
+    if (isTauriRuntime()) {
+      setAuthError(null);
+      void startDesktopOAuth('citizenid')
+        .then(() => refreshSession())
+        .catch((error) => {
+          setAuthError(error instanceof Error ? error.message : 'Citizen iD authentication failed.');
+        });
+      return;
+    }
+
+    // Tauri needs an absolute return URL; web login must stay relative so the
+    // server accepts the requested page instead of falling back to "/".
+    const effectiveReturnTo = isTauriRuntime()
+      ? `${window.location.origin}${returnTo ?? '/'}`
+      : (returnTo ?? getCurrentReturnTo());
+    window.location.assign(getCitizenIdLoginUrl(effectiveReturnTo));
+  }, [refreshSession]);
+
   const logout = useCallback(async () => {
     await logoutAuthSession();
     await clearDesktopAuthSession();
@@ -1557,6 +1579,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       user: session.user,
       provider: session.provider,
+      citizenIdLoginEnabled: Boolean(session.citizenIdLoginEnabled),
       citizenIdRsiLinkEnabled: Boolean(session.citizenIdRsiLinkEnabled),
       citizenIdBrandEnvironment: session.citizenIdBrandEnvironment === 'unstable' ? 'unstable' : 'production',
       account,
@@ -1573,6 +1596,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshSession,
       flushPendingMutations,
       loginWithDiscord,
+      loginWithCitizenId,
       logout,
       syncAccountState,
       queueAccountStateUpdate,
@@ -1614,6 +1638,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loadOrganizationSharedBlueprintsBinding,
       loading,
       loginWithDiscord,
+      loginWithCitizenId,
       logout,
       optimisticState,
       pendingMutations.length,
@@ -1628,6 +1653,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session.enabled,
       session.provider,
       session.citizenIdBrandEnvironment,
+      session.citizenIdLoginEnabled,
       session.citizenIdRsiLinkEnabled,
       session.user,
       setOrganizationBlueprintSharingBinding,

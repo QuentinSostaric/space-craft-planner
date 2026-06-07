@@ -19,6 +19,7 @@ export interface AuthSessionResponse {
   enabled: boolean;
   provider: 'discord' | null;
   user: AuthenticatedUser | null;
+  citizenIdLoginEnabled?: boolean;
   citizenIdRsiLinkEnabled?: boolean;
   citizenIdBrandEnvironment?: 'production' | 'unstable';
 }
@@ -562,7 +563,7 @@ export function getDiscordLoginUrl(returnTo?: string): string {
   return getApiUrl(suffix ? `/api/auth/discord/login?${suffix}` : '/api/auth/discord/login');
 }
 
-export function getCitizenIdRsiLinkUrl(returnTo?: string): string {
+export function getCitizenIdLoginUrl(returnTo?: string): string {
   const params = new URLSearchParams();
   if (returnTo) {
     params.set('returnTo', returnTo);
@@ -571,6 +572,10 @@ export function getCitizenIdRsiLinkUrl(returnTo?: string): string {
   const suffix = params.toString();
   return getApiUrl(suffix ? `/api/auth/citizenid/login?${suffix}` : '/api/auth/citizenid/login');
 }
+
+// Citizen iD is now the primary sign-in provider; re-running the same flow while
+// already authenticated simply refreshes the linked RSI profile/organizations.
+export const getCitizenIdRsiLinkUrl = getCitizenIdLoginUrl;
 
 export function getDiscordBotInviteUrl(): string {
   return getApiUrl('/api/auth/discord/bot-invite');

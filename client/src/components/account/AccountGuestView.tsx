@@ -30,7 +30,6 @@ import accountScreenOne from '../../assets/account_1.png';
 import accountScreenTwo from '../../assets/account_2.png';
 import accountScreenThree from '../../assets/account_3.png';
 import discordSymbol from '../../assets/discord-symbol.svg';
-import discordWordmark from '../../assets/discord-wordmark.svg';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface AccountGuestViewProps {
@@ -60,11 +59,11 @@ export function AccountGuestView({
 
   const accountJourneySteps = [
     {
-      title: t('Authenticate once with Discord', 'Authentifie-toi une fois avec Discord', 'Melde dich einmal mit Discord an'),
+      title: t('Authenticate once with Citizen iD', 'Authentifie-toi une fois avec Citizen iD', 'Melde dich einmal mit Citizen iD an'),
       body: t(
-        'Discord is the entry point for the account layer. Right after login, the app can detect local favorites or inventory and propose a safe cloud import.',
-        'Discord est la porte d entree du compte. Juste apres la connexion, l appli peut detecter les favoris ou l inventaire locaux et proposer un import cloud securise.',
-        'Discord ist der Einstiegspunkt fur die Kontoebene. Direkt nach der Anmeldung kann die App lokale Favoriten oder Inventare erkennen und einen sicheren Cloud-Import anbieten.',
+        'Citizen iD is the entry point for the account layer. Your Citizen iD profile must have a linked Discord account. Right after login, the app can detect local favorites or inventory and propose a safe cloud import.',
+        'Citizen iD est la porte d entree du compte. Ton profil Citizen iD doit avoir un compte Discord lie. Juste apres la connexion, l appli peut detecter les favoris ou l inventaire locaux et proposer un import cloud securise.',
+        'Citizen iD ist der Einstiegspunkt fur die Kontoebene. Dein Citizen iD-Profil muss ein verknupftes Discord-Konto haben. Direkt nach der Anmeldung kann die App lokale Favoriten oder Inventare erkennen und einen sicheren Cloud-Import anbieten.',
       ),
       icon: <VerifiedUserOutlinedIcon fontSize="small" />,
     },
@@ -198,15 +197,25 @@ export function AccountGuestView({
                 </Box>
 
                 <Box
-                  component="img"
-                  src={discordWordmark}
-                  alt="Discord"
                   sx={{
-                    width: { xs: 132, md: 188 },
-                    opacity: 0.95,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 2,
+                    py: 1,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.32)}`,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                    color: 'primary.main',
+                    whiteSpace: 'nowrap',
                     filter: `drop-shadow(0 12px 26px ${alpha(theme.palette.primary.main, 0.22)})`,
                   }}
-                />
+                >
+                  <VerifiedUserOutlinedIcon fontSize="small" />
+                  <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '0.02em' }}>
+                    Citizen iD
+                  </Typography>
+                </Box>
               </Stack>
 
               <Box
@@ -258,9 +267,9 @@ export function AccountGuestView({
               {!enabled && (
                 <Alert severity="warning" variant="outlined">
                   {t(
-                    'Discord OAuth is not configured in the current environment yet, so the login call-to-action is temporarily disabled.',
-                    'Le OAuth Discord n est pas encore configure dans cet environnement, donc le bouton de connexion est temporairement desactive.',
-                    'Discord OAuth ist in dieser Umgebung noch nicht konfiguriert, daher ist die Login-Aktion vorubergehend deaktiviert.',
+                    'Citizen iD OAuth is not configured in the current environment yet, so the login call-to-action is temporarily disabled.',
+                    'Le OAuth Citizen iD n est pas encore configure dans cet environnement, donc le bouton de connexion est temporairement desactive.',
+                    'Citizen iD OAuth ist in dieser Umgebung noch nicht konfiguriert, daher ist die Login-Aktion vorubergehend deaktiviert.',
                   )}
                 </Alert>
               )}
@@ -270,7 +279,7 @@ export function AccountGuestView({
                   variant="contained"
                   disableElevation
                   disabled={!enabled}
-                  startIcon={discordIcon}
+                  startIcon={<VerifiedUserOutlinedIcon fontSize="small" />}
                   onClick={onLogin}
                   sx={{
                     minHeight: 48,
@@ -278,13 +287,9 @@ export function AccountGuestView({
                     borderRadius: 2,
                     textTransform: 'none',
                     fontWeight: 700,
-                    backgroundColor: '#5865F2',
-                    '&:hover': {
-                      backgroundColor: '#4752C4',
-                    },
                   }}
                 >
-                  {t('Continue with Discord', 'Continuer avec Discord', 'Mit Discord fortfahren')}
+                  {t('Continue with Citizen iD', 'Continuer avec Citizen iD', 'Mit Citizen iD fortfahren')}
                 </MuiButton>
                 <MuiButton
                   variant="outlined"

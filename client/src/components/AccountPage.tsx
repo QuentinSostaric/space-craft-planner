@@ -203,6 +203,7 @@ export function AccountPage() {
     enabled,
     loading,
     user,
+    citizenIdLoginEnabled,
     citizenIdRsiLinkEnabled,
     citizenIdBrandEnvironment,
     account,
@@ -211,7 +212,7 @@ export function AccountPage() {
     syncError,
     authError: desktopAuthError,
     copyLiveDataToPtu,
-    loginWithDiscord,
+    loginWithCitizenId,
     logout,
     deleteAccount,
     syncAccountState,
@@ -3640,8 +3641,8 @@ export function AccountPage() {
         </>
       ) : (
         <AccountGuestView
-          enabled={enabled}
-          onLogin={() => { loginWithDiscord('/account'); }}
+          enabled={enabled && citizenIdLoginEnabled}
+          onLogin={() => { loginWithCitizenId('/account'); }}
           onInviteBot={openDiscordBotInvite}
         />
       )}

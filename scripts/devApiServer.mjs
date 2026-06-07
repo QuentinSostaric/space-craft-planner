@@ -25,12 +25,14 @@ import {
   buildCitizenIdAuthorizationUrl,
   buildCitizenIdCallbackErrorRedirect,
   buildExpiredCitizenIdStateCookie,
+  CitizenIdDiscordLinkRequiredError,
   createCitizenIdStateCookie,
   exchangeCitizenIdCode,
   getCitizenIdBrandEnvironment,
   isCitizenIdAuthConfigured,
   readCitizenIdStateFromCookies,
   resolveCitizenIdAccountData,
+  resolveCitizenIdDiscordUser,
 } from '../shared/citizenIdAuth.mjs';
 import {
   appendDesktopCallbackParams,
@@ -383,6 +385,7 @@ async function handleAuthSession(request, response) {
     200,
     {
       ...buildAuthSessionPayload(process.env, session),
+      citizenIdLoginEnabled: isCitizenIdAuthConfigured(process.env),
       citizenIdRsiLinkEnabled: isCitizenIdAuthConfigured(process.env),
       citizenIdBrandEnvironment: getCitizenIdBrandEnvironment(process.env),
     },
@@ -412,6 +415,26 @@ async function ensureAccountForSession(session) {
   }
 
   return upsertDiscordAccount(accountStore, session.user);
+}
+
+// Best-effort linking of RSI profile + organizations from a Citizen iD token.
+// RSI verification is optional (only a linked Discord account is required to
+// sign in), so failures here must never block authentication.
+async function linkCitizenIdAccountDataBestEffort(accountId, user, tokenPayload) {
+  try {
+    const { rsiLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, process.env);
+    let account = rsiLink
+      ? await saveRsiAccountLink(accountStore, accountId, rsiLink, user)
+      : null;
+    if (organizations.length > 0) {
+      const base = account ?? await ensureAccountForSession({ accountId, user });
+      account = await syncCitizenIdAccountOrganizations(accountStore, base, organizations);
+    }
+    return account;
+  } catch (error) {
+    console.error('[citizenid-login-link]', error);
+    return null;
+  }
 }
 
 async function handleDiscordLogin(request, response, url) {
@@ -531,13 +554,6 @@ async function handleDiscordCallback(request, response, url) {
 }
 
 async function handleCitizenIdLogin(request, response, url) {
-  if (!isDesktopRequest({ headers: { get: (name) => request.headers[String(name).toLowerCase()] } }) && !isDesktopOAuthRequest(url)) {
-    sendError(response, 403, 'Citizen iD linking is only available from the desktop app in dev.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
   if (!isCitizenIdAuthConfigured(process.env)) {
     sendError(response, 503, 'Citizen iD auth is not configured.', {
       'Cache-Control': 'no-store',
@@ -545,28 +561,13 @@ async function handleCitizenIdLogin(request, response, url) {
     return;
   }
 
-  const session = await requireAuthenticatedSession(request);
   if (isDesktopOAuthRequest(url)) {
-    if (!session) {
-      sendError(response, 401, 'Authentication required.', {
-        'Cache-Control': 'no-store',
-      });
-      return;
-    }
     const state = await createDesktopOAuthState(accountStore, process.env, {
       flow: 'citizenid',
       callbackUrl: url.searchParams.get('desktopCallback'),
-      session,
     });
     const authorizationUrl = buildCitizenIdAuthorizationUrl(url.toString(), process.env, state);
     sendRedirect(response, authorizationUrl);
-    return;
-  }
-
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
     return;
   }
 
@@ -592,35 +593,24 @@ async function handleCitizenIdCallback(request, response, url) {
   const oauthState = await readCitizenIdStateFromCookies(request.headers.cookie, process.env);
   const returnTo = oauthState?.returnTo ?? '/';
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(url.toString(), process.env);
+  const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), url.toString(), process.env);
   const desktopState = isDesktopOAuthState(state)
     ? await consumeDesktopOAuthState(accountStore, process.env, state, 'citizenid')
     : null;
 
   if (desktopState) {
-    if (!desktopState.session?.user?.id || !desktopState.session?.accountId) {
-      sendRedirect(response, appendDesktopCallbackParams(desktopState.callbackUrl, {
-        flow: 'citizenid',
-        error: 'Authentication required.',
-      }));
-      return;
-    }
-
     try {
       const tokenPayload = await exchangeCitizenIdCode(url.toString(), process.env, code);
-      const { rsiLink: verifiedLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, process.env);
-      await ensureAccountForSession(desktopState.session);
-      const account = await saveRsiAccountLink(
-        accountStore,
-        desktopState.session.accountId,
-        verifiedLink,
-        desktopState.session.user,
-      );
-      if (organizations.length > 0) {
-        await syncCitizenIdAccountOrganizations(accountStore, account, organizations);
-      }
+      const user = resolveCitizenIdDiscordUser(tokenPayload);
+      const account = await upsertDiscordAccount(accountStore, user);
+      await linkCitizenIdAccountDataBestEffort(account.accountId, user, tokenPayload);
       const exchangeCode = await createDesktopExchangeCode(accountStore, {
         flow: 'citizenid',
-        session: desktopState.session,
+        session: {
+          provider: 'discord',
+          user,
+          accountId: account.accountId,
+        },
       });
       sendRedirect(response, appendDesktopCallbackParams(desktopState.callbackUrl, {
         flow: 'citizenid',
@@ -637,43 +627,36 @@ async function handleCitizenIdCallback(request, response, url) {
 
   if (!code || !state || !oauthState || oauthState.nonce !== state) {
     sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
-      'Set-Cookie': expiredStateCookie,
-    });
-    return;
-  }
-
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, 'Authentication required.'), {
-      'Set-Cookie': expiredStateCookie,
+      'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
     });
     return;
   }
 
   try {
     const tokenPayload = await exchangeCitizenIdCode(url.toString(), process.env, code);
-    const { rsiLink: verifiedLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, process.env);
-    await ensureAccountForSession(session);
-    const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
-    if (organizations.length > 0) {
-      await syncCitizenIdAccountOrganizations(accountStore, account, organizations);
-    }
+    const user = resolveCitizenIdDiscordUser(tokenPayload);
+    const account = await upsertDiscordAccount(accountStore, user);
+    await linkCitizenIdAccountDataBestEffort(account.accountId, user, tokenPayload);
+    const sessionCookie = await createSessionCookie(
+      request,
+      process.env,
+      user,
+      account.accountId,
+      { crossSite: isDesktopReturnTo(returnTo) },
+    );
 
     sendRedirect(response, returnTo, {
-      'Set-Cookie': expiredStateCookie,
+      'Set-Cookie': [sessionCookie, expiredStateCookie],
     });
   } catch (error) {
     const message =
-      error instanceof Error && error.message
+      error instanceof CitizenIdDiscordLinkRequiredError
         ? error.message
-        : 'citizenid_oauth_failed';
-    // "Already been redeemed" means the sync succeeded on a prior attempt (e.g. browser retry).
-    if (message.toLowerCase().includes('already been redeemed')) {
-      sendRedirect(response, returnTo, { 'Set-Cookie': expiredStateCookie });
-      return;
-    }
+        : error instanceof Error && error.message
+          ? error.message
+          : 'citizenid_oauth_failed';
     sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, message), {
-      'Set-Cookie': expiredStateCookie,
+      'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
     });
   }
 }

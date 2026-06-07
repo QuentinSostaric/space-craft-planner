@@ -17,10 +17,27 @@ const CITIZENID_STATE_COOKIE_NAME = 'sc_craft_citizenid_oauth_state';
 const CITIZENID_STATE_COOKIE_MAX_AGE = 60 * 10;
 const DEFAULT_CITIZENID_SCOPES = [
   'openid',
+  'profile',
+  'discord.profile',
   'rsi.profile',
   'rsi.orgs.primary',
   'rsi.orgs.public',
 ];
+
+/**
+ * Thrown when a Citizen iD profile authenticates successfully but has no linked
+ * Discord account. The app keys accounts on the Discord identity, so a linked
+ * Discord account is mandatory to sign in.
+ */
+export class CitizenIdDiscordLinkRequiredError extends Error {
+  constructor(
+    message = 'No Discord account is linked to this Citizen iD profile. Link Discord in Citizen iD, then sign in again.',
+  ) {
+    super(message);
+    this.name = 'CitizenIdDiscordLinkRequiredError';
+    this.code = 'discord_not_linked';
+  }
+}
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -410,6 +427,55 @@ export function extractCitizenIdRsiProfileFromClaims(claims) {
     verifiedAt: new Date().toISOString(),
     verificationProvider: 'citizenid',
   });
+}
+
+/**
+ * Builds the app's Discord-shaped user object from a Citizen iD token's Discord
+ * claims (`urn:user:discord:*`, available with the `discord.profile` scope).
+ * Returns null when no linked Discord account is present in the claims.
+ */
+export function extractCitizenIdDiscordUser(claims) {
+  if (!claims || typeof claims !== 'object') {
+    return null;
+  }
+
+  const discordId = normalizeText(claims['urn:user:discord:accountId']);
+  if (!discordId) {
+    return null;
+  }
+
+  const discordUsername = normalizeText(claims['urn:user:discord:username']) || null;
+  const avatarUrl = normalizeText(claims['urn:user:discord:avatar:url']) || null;
+  const displayName =
+    discordUsername ||
+    normalizeText(claims.name) ||
+    normalizeText(claims.preferred_username) ||
+    'Discord user';
+
+  return {
+    id: String(discordId),
+    username: discordUsername || displayName,
+    globalName: null,
+    discriminator: null,
+    avatarUrl,
+    displayName,
+  };
+}
+
+/**
+ * Resolves the linked Discord identity from a Citizen iD token response.
+ * Throws {@link CitizenIdDiscordLinkRequiredError} when none is linked.
+ */
+export function resolveCitizenIdDiscordUser(tokenPayload) {
+  const user = getCitizenIdTokenClaims(tokenPayload)
+    .map((claims) => extractCitizenIdDiscordUser(claims))
+    .find(Boolean) ?? null;
+
+  if (!user) {
+    throw new CitizenIdDiscordLinkRequiredError();
+  }
+
+  return user;
 }
 
 function normalizeCitizenIdOrganizationMetadataPayload(payload, fallbackSid = null) {
