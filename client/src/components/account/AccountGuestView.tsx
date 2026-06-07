@@ -30,22 +30,36 @@ import accountScreenOne from '../../assets/account_1.png';
 import accountScreenTwo from '../../assets/account_2.png';
 import accountScreenThree from '../../assets/account_3.png';
 import discordSymbol from '../../assets/discord-symbol.svg';
+import citizenIdLogoProd from '../../assets/citizenid/prod-logo-light.png';
+import citizenIdIconProd from '../../assets/citizenid/prod-icon-light.png';
+import citizenIdLogoDev from '../../assets/citizenid/dev-logo-light.png';
+import citizenIdIconDev from '../../assets/citizenid/dev-icon-light.png';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface AccountGuestViewProps {
   enabled: boolean;
+  brandEnvironment: 'production' | 'unstable';
   onLogin: () => void;
   onInviteBot: () => void;
 }
 
 export function AccountGuestView({
   enabled,
+  brandEnvironment,
   onLogin,
   onInviteBot,
 }: AccountGuestViewProps) {
   const { t } = useI18n();
   const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
+
+  // Official Citizen iD brand assets. Light variants are mandated for the dark
+  // gray (#212126) sign-in surface. Production uses the orange-star assets; dev/
+  // staging environments must use the red-star "unstable" assets per the brand
+  // guidelines. Assets must never be recolored, distorted, or shadowed.
+  const isUnstable = brandEnvironment === 'unstable';
+  const citizenIdLogo = isUnstable ? citizenIdLogoDev : citizenIdLogoProd;
+  const citizenIdIcon = isUnstable ? citizenIdIconDev : citizenIdIconProd;
 
   const discordIcon = (
     <Box
@@ -197,25 +211,16 @@ export function AccountGuestView({
                 </Box>
 
                 <Box
+                  component="img"
+                  src={citizenIdLogo}
+                  alt="Citizen iD"
                   sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    px: 2,
-                    py: 1,
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.32)}`,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    color: 'primary.main',
-                    whiteSpace: 'nowrap',
-                    filter: `drop-shadow(0 12px 26px ${alpha(theme.palette.primary.main, 0.22)})`,
+                    height: { xs: 32, md: 44 },
+                    width: 'auto',
+                    display: 'block',
+                    flexShrink: 0,
                   }}
-                >
-                  <VerifiedUserOutlinedIcon fontSize="small" />
-                  <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '0.02em' }}>
-                    Citizen iD
-                  </Typography>
-                </Box>
+                />
               </Stack>
 
               <Box
@@ -279,7 +284,15 @@ export function AccountGuestView({
                   variant="contained"
                   disableElevation
                   disabled={!enabled}
-                  startIcon={<VerifiedUserOutlinedIcon fontSize="small" />}
+                  startIcon={
+                    <Box
+                      component="img"
+                      src={citizenIdIcon}
+                      alt=""
+                      aria-hidden="true"
+                      sx={{ width: 24, height: 24, display: 'block' }}
+                    />
+                  }
                   onClick={onLogin}
                   sx={{
                     minHeight: 48,
@@ -287,9 +300,20 @@ export function AccountGuestView({
                     borderRadius: 2,
                     textTransform: 'none',
                     fontWeight: 700,
+                    // Brand-approved combination: gray #212126 surface + light icon + #F0F0F0 text.
+                    backgroundColor: '#212126',
+                    color: '#F0F0F0',
+                    border: '1px solid #2d2d33',
+                    '&:hover': {
+                      backgroundColor: '#0E0E0F',
+                    },
+                    '&.Mui-disabled': {
+                      backgroundColor: alpha('#212126', 0.5),
+                      color: alpha('#F0F0F0', 0.5),
+                    },
                   }}
                 >
-                  {t('Continue with Citizen iD', 'Continuer avec Citizen iD', 'Mit Citizen iD fortfahren')}
+                  {t('Sign in with Citizen iD', 'Se connecter avec Citizen iD', 'Mit Citizen iD anmelden')}
                 </MuiButton>
                 <MuiButton
                   variant="outlined"

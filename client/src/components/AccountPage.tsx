@@ -3642,6 +3642,7 @@ export function AccountPage() {
       ) : (
         <AccountGuestView
           enabled={enabled && citizenIdLoginEnabled}
+          brandEnvironment={citizenIdBrandEnvironment}
           onLogin={() => { loginWithCitizenId('/account'); }}
           onInviteBot={openDiscordBotInvite}
         />
