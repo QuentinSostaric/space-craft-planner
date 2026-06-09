@@ -49,6 +49,7 @@ import {
   isRsiLinkRateLimited,
   normalizeAccountDatasetScope,
   readAccountRecord,
+  readAccountSessionEpoch,
   readScopedAccountRecord,
   saveAccountInventoryResources,
   saveAccountOnboardingState,
@@ -95,6 +96,16 @@ function noStoreJson(payload, init = {}) {
   return jsonResponse(payload, { ...init, headers });
 }
 
+function generateCspNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
 function redirectResponse(location, { status = 302, headers = {}, cookies = [] } = {}) {
   const responseHeaders = new Headers(headers);
   responseHeaders.set('Cache-Control', 'no-store');
@@ -106,8 +117,16 @@ function redirectResponse(location, { status = 302, headers = {}, cookies = [] }
   // Return an HTML page with a JS redirect instead so the browser initiates the navigation itself.
   if (isDesktopReturnTo(location)) {
     const target = JSON.stringify(location);
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><script>window.location.replace(${target});\x3c/script></head><body></body></html>`;
+    const nonce = generateCspNonce();
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><script nonce="${nonce}">window.location.replace(${target});\x3c/script></head><body></body></html>`;
     responseHeaders.set('Content-Type', 'text/html;charset=utf-8');
+    // Lock this inline-script page down to exactly its own nonce so it cannot be
+    // abused as an HTML/script-injection surface, and so it doesn't depend on the
+    // permissive global fallback CSP.
+    responseHeaders.set(
+      'Content-Security-Policy',
+      `default-src 'none'; script-src 'nonce-${nonce}'; base-uri 'none'; frame-ancestors 'none'`,
+    );
     return new Response(html, { status: 200, headers: responseHeaders });
   }
 
@@ -386,8 +405,10 @@ export async function handleDiscordCallbackRequest(request, env) {
     const tokenPayload = await exchangeDiscordCode(request, env, code);
     const user = await fetchDiscordUserProfile(tokenPayload.access_token);
     const account = await upsertDiscordAccount(accountStore, user);
+    const sessionEpoch = await readAccountSessionEpoch(accountStore, account.accountId);
     const sessionCookie = await createSessionCookie(request, env, user, account.accountId, {
       crossSite: isDesktopReturnTo(returnTo),
+      sessionEpoch,
     });
 
     return redirectResponse(returnTo, {
@@ -489,8 +510,10 @@ export async function handleCitizenIdCallbackRequest(request, env) {
     const user = resolveCitizenIdDiscordUser(tokenPayload);
     const account = await upsertDiscordAccount(accountStore, user);
     await linkCitizenIdAccountDataBestEffort(accountStore, account.accountId, user, tokenPayload, env);
+    const sessionEpoch = await readAccountSessionEpoch(accountStore, account.accountId);
     const sessionCookie = await createSessionCookie(request, env, user, account.accountId, {
       crossSite: isDesktopReturnTo(returnTo),
+      sessionEpoch,
     });
 
     return redirectResponse(returnTo, {

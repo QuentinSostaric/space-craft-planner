@@ -1,4 +1,7 @@
-const DESKTOP_ALLOWED_ORIGINS = new Set(['https://tauri.localhost', 'http://tauri.localhost']);
+// Packaged desktop builds serve the webview over https://tauri.localhost. The
+// plaintext http:// variant is intentionally excluded: it must never be a
+// credentialed CORS origin.
+const DESKTOP_ALLOWED_ORIGINS = new Set(['https://tauri.localhost']);
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',

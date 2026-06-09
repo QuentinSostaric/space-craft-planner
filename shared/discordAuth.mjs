@@ -1,3 +1,5 @@
+import { readAccountSessionEpoch } from './accountStorage.mjs';
+
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/oauth2/authorize';
 const DISCORD_TOKEN_URL = 'https://discord.com/api/v10/oauth2/token';
 const DISCORD_USER_URL = 'https://discord.com/api/v10/users/@me';
@@ -365,7 +367,9 @@ export async function readOauthStateFromCookies(cookieHeader, env) {
 }
 
 export async function createSessionCookie(requestOrUrl, env, user, accountId, options = {}) {
-  const signedPayload = await createSessionToken(env, user, accountId);
+  const signedPayload = await createSessionToken(env, user, accountId, {
+    sessionEpoch: options.sessionEpoch,
+  });
   const publicOrigin = getPublicOrigin(requestOrUrl, env);
   const isSecure =
     normalizeBoolean(env?.AUTH_COOKIE_SECURE) ||
@@ -381,7 +385,7 @@ export async function createSessionCookie(requestOrUrl, env, user, accountId, op
   });
 }
 
-export async function createSessionToken(env, user, accountId) {
+export async function createSessionToken(env, user, accountId, { sessionEpoch = 0 } = {}) {
   const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
   if (!sessionSecret) {
     throw new Error('AUTH_SESSION_SECRET is required to create auth sessions.');
@@ -393,6 +397,7 @@ export async function createSessionToken(env, user, accountId) {
     provider: 'discord',
     issuedAt: now,
     expiresAt: now + SESSION_COOKIE_MAX_AGE * 1000,
+    sessionEpoch: Number.isFinite(Number(sessionEpoch)) ? Math.max(0, Math.floor(Number(sessionEpoch))) : 0,
     user,
     accountId: String(accountId ?? buildAccountIdFromDiscordUser(user?.id) ?? '').trim(),
   };
@@ -412,6 +417,7 @@ export async function createDesktopSessionToken(store, env, user, accountId) {
   const now = Date.now();
   const sessionId = generateNonce();
   const normalizedAccountId = String(accountId ?? buildAccountIdFromDiscordUser(user?.id) ?? '').trim();
+  const sessionEpoch = await readAccountSessionEpoch(store, normalizedAccountId);
   const payload = {
     v: SESSION_VERSION,
     tokenType: 'desktop',
@@ -419,6 +425,7 @@ export async function createDesktopSessionToken(store, env, user, accountId) {
     sid: sessionId,
     issuedAt: now,
     expiresAt: now + DESKTOP_SESSION_MAX_AGE * 1000,
+    sessionEpoch,
     user,
     accountId: normalizedAccountId,
   };
@@ -504,16 +511,36 @@ async function readSessionFromSignedValue(value, env, store = null) {
     return null;
   }
 
+  const resolvedAccountId =
+    String(payload.accountId ?? buildAccountIdFromDiscordUser(payload.user?.id) ?? '').trim() || null;
+
+  // Session-epoch revocation: a token is rejected once its embedded epoch falls
+  // behind the account's stored epoch (bumped on account deletion / forced
+  // sign-out). Only enforced when a store is available; storage errors fail open
+  // so a transient R2 outage cannot mass-invalidate live sessions.
+  if (store && resolvedAccountId) {
+    try {
+      const currentEpoch = await readAccountSessionEpoch(store, resolvedAccountId);
+      const tokenEpoch = Number.isFinite(Number(payload.sessionEpoch))
+        ? Math.floor(Number(payload.sessionEpoch))
+        : 0;
+      if (tokenEpoch < currentEpoch) {
+        return null;
+      }
+    } catch {
+      // Fail open on storage errors.
+    }
+  }
+
   return {
     ...payload,
-    accountId:
-      String(payload.accountId ?? buildAccountIdFromDiscordUser(payload.user?.id) ?? '').trim() || null,
+    accountId: resolvedAccountId,
   };
 }
 
-export async function readSessionFromCookies(cookieHeader, env) {
+export async function readSessionFromCookies(cookieHeader, env, store = null) {
   const cookies = parseCookieHeader(cookieHeader);
-  return readSessionFromSignedValue(cookies[SESSION_COOKIE_NAME], env);
+  return readSessionFromSignedValue(cookies[SESSION_COOKIE_NAME], env, store);
 }
 
 export async function readSessionFromBearerToken(authorizationHeader, env, store = null) {
@@ -524,7 +551,7 @@ export async function readSessionFromBearerToken(authorizationHeader, env, store
 export async function readSessionFromRequest(request, env, store = null) {
   return (
     await readSessionFromBearerToken(request?.headers?.get?.('Authorization'), env, store) ??
-    await readSessionFromCookies(request?.headers?.get?.('cookie'), env)
+    await readSessionFromCookies(request?.headers?.get?.('cookie'), env, store)
   );
 }
 

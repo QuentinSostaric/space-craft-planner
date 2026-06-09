@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://eu-assets.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost https://itemfab.space https://eu.i.posthog.com https://eu-assets.i.posthog.com; form-action 'self'"
     }
   },
   "bundle": {

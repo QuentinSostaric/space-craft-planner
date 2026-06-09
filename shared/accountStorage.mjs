@@ -953,6 +953,60 @@ export function getAccountScopeObjectKey(accountId, datasetScope = 'live') {
   return `account-scopes/${normalizeAccountDatasetScope(datasetScope)}/${normalizedAccountId}.json`;
 }
 
+// ─── Session epoch (revocation) ────────────────────────────────────────────────
+//
+// A monotonically increasing per-account counter stored *outside* the account
+// record so it survives account deletion. Every issued session token embeds the
+// epoch that was current when it was minted; a session is rejected once its
+// embedded epoch falls behind the stored value. Bumping the epoch therefore
+// revokes every outstanding token for that account (used on account deletion),
+// and — because the counter outlives the deleted account record — a stale token
+// can no longer resurrect a deleted account on its next request.
+export function getAccountSessionEpochKey(accountId) {
+  const normalizedAccountId = String(accountId ?? '').trim();
+  if (!normalizedAccountId) {
+    throw new Error('Account id is required to build the session epoch key.');
+  }
+
+  // Account ids are server-derived (`discord_<numeric id>`); reject anything that
+  // could redirect the object key to another R2 prefix.
+  if (!/^[A-Za-z0-9_.-]+$/.test(normalizedAccountId)) {
+    throw new Error('Account id contains unsupported characters.');
+  }
+
+  return `auth/session-epochs/${normalizedAccountId}.json`;
+}
+
+export async function readAccountSessionEpoch(store, accountId) {
+  if (typeof store?.readJson !== 'function') {
+    return 0;
+  }
+
+  let key;
+  try {
+    key = getAccountSessionEpochKey(accountId);
+  } catch {
+    return 0;
+  }
+
+  const payload = await store.readJson(key);
+  const epoch = Number(payload?.epoch);
+  return Number.isFinite(epoch) && epoch > 0 ? Math.floor(epoch) : 0;
+}
+
+export async function bumpAccountSessionEpoch(store, accountId) {
+  if (typeof store?.writeJson !== 'function') {
+    return 0;
+  }
+
+  const next = (await readAccountSessionEpoch(store, accountId)) + 1;
+  await store.writeJson(getAccountSessionEpochKey(accountId), {
+    epoch: next,
+    updatedAt: toIsoNow(),
+  });
+  return next;
+}
+
 function createEmptyAccountScopeRecord(accountId, datasetScope = 'live', { now } = {}) {
   const timestamp = now ?? toIsoNow();
   return {
@@ -2022,4 +2076,9 @@ export async function deleteAccountRecord(store, accountId, fallbackProfile = nu
   }
 
   await store.deleteObject(getAccountObjectKey(accountId));
+
+  // Revoke every outstanding session for this account. The epoch record lives
+  // outside the deleted account data, so a stale token can neither pass
+  // verification nor resurrect the account on a subsequent request.
+  await bumpAccountSessionEpoch(store, accountId);
 }
