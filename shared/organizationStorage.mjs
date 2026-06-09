@@ -1,38 +1,15 @@
 import {
   isObject,
   normalizeIsoTimestamp,
+  normalizeNumber,
   normalizeOrganizationSid,
+  normalizeStringArray,
   toIsoNow,
 } from './normalize.mjs';
 
 const ORGANIZATION_RECORD_VERSION = 3;
 export const ORGANIZATION_LIVE_SYNC_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export const ORGANIZATION_SNAPSHOT_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-
-function normalizeStringArray(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const seen = new Set();
-  const normalized = [];
-  for (const entry of value) {
-    const next = String(entry ?? '').trim();
-    if (!next || seen.has(next)) {
-      continue;
-    }
-
-    seen.add(next);
-    normalized.push(next);
-  }
-
-  return normalized;
-}
-
-function normalizeNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
 
 function normalizeHttpsUrl(value) {
   const input = String(value ?? '').trim();

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -84,7 +85,7 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ResourceAssetCard({
+export const ResourceAssetCard = memo(function ResourceAssetCard({
   resource,
   insight,
   onOpen,
@@ -319,4 +320,4 @@ export function ResourceAssetCard({
       ) : null}
     </Card>
   );
-}
+});

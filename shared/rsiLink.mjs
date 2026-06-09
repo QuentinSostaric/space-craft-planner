@@ -1,5 +1,6 @@
 import {
   isObject,
+  normalizeNumber,
   normalizeOrganizationSid,
   normalizeText,
 } from './normalize.mjs';
@@ -11,11 +12,6 @@ function normalizeComparableText(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-}
-
-function normalizeNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }
 
 function normalizeRsiVerificationProvider(value) {

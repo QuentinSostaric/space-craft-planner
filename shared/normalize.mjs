@@ -10,6 +10,31 @@ export function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+export function normalizeNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+export function normalizeStringArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalized = [];
+  for (const entry of value) {
+    const next = String(entry ?? '').trim();
+    if (!next || seen.has(next)) {
+      continue;
+    }
+
+    seen.add(next);
+    normalized.push(next);
+  }
+
+  return normalized;
+}
+
 export function toIsoNow() {
   return new Date().toISOString();
 }

@@ -978,51 +978,58 @@ function AppContentInner() {
     [themeMode, setThemeMode],
   );
 
+  // Stable across renders that don't change the theme, so MUI doesn't re-inject
+  // the global stylesheet on every AppContentInner render.
+  const globalStyles = useMemo(
+    () => ({
+      html: { height: '100%' },
+      body: {
+        height: '100dvh',
+        margin: 0,
+        padding: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      },
+      '#root': {
+        flex: 1,
+        minHeight: 0,
+        height: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      },
+      '*': {
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${theme.palette.ui.borderStrong} ${theme.palette.ui.surface1}`,
+      },
+      '*::-webkit-scrollbar': {
+        width: '10px',
+        height: '10px',
+      },
+      '*::-webkit-scrollbar-track': {
+        backgroundColor: theme.palette.ui.surface1,
+      },
+      '*::-webkit-scrollbar-thumb': {
+        backgroundColor: theme.palette.ui.borderStrong,
+        borderRadius: '999px',
+        border: `2px solid ${theme.palette.ui.surface1}`,
+      },
+      '*::-webkit-scrollbar-thumb:hover': {
+        backgroundColor: theme.palette.primary.main,
+      },
+      '*::-webkit-scrollbar-corner': {
+        backgroundColor: theme.palette.ui.surface1,
+      },
+    }),
+    [theme],
+  );
+
   return (
     <ThemeModeContext.Provider value={themeModeCtx}>
     <ThemeProvider theme={theme}>
       <CssBaseline enableColorScheme />
-      <GlobalStyles styles={{
-        html: { height: '100%' },
-        body: {
-          height: '100dvh',
-          margin: 0,
-          padding: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        },
-        '#root': {
-          flex: 1,
-          minHeight: 0,
-          height: '100dvh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        },
-        '*': {
-          scrollbarWidth: 'thin',
-          scrollbarColor: `${theme.palette.ui.borderStrong} ${theme.palette.ui.surface1}`,
-        },
-        '*::-webkit-scrollbar': {
-          width: '10px',
-          height: '10px',
-        },
-        '*::-webkit-scrollbar-track': {
-          backgroundColor: theme.palette.ui.surface1,
-        },
-        '*::-webkit-scrollbar-thumb': {
-          backgroundColor: theme.palette.ui.borderStrong,
-          borderRadius: '999px',
-          border: `2px solid ${theme.palette.ui.surface1}`,
-        },
-        '*::-webkit-scrollbar-thumb:hover': {
-          backgroundColor: theme.palette.primary.main,
-        },
-        '*::-webkit-scrollbar-corner': {
-          backgroundColor: theme.palette.ui.surface1,
-        },
-      }} />
+      <GlobalStyles styles={globalStyles} />
       <I18nProvider>
         <AuthProvider>
           <AnalyticsIdentitySync />

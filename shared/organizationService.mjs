@@ -1,8 +1,7 @@
 import {
-  findAccountIdsSharingOrganizationBlueprints,
-  findAccountIdsSharingOrganizationResources,
   readAccountIdByRsiHandle,
   readAccountRecord,
+  readOrganizationScopedShareAccountIds,
   readScopedAccountRecord,
   saveAccountOrganizations,
   writeAccountRecord,
@@ -905,7 +904,9 @@ export async function buildOrganizationSharedBlueprints(store, account, sid, opt
   const legacySharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
     ? organizationRecord.sharedAccountIds
     : [];
-  const scopedSharedAccountIds = await findAccountIdsSharingOrganizationBlueprints(
+  // Use the index maintained incrementally on every account write instead of
+  // scanning (and reading) every account record on this read path.
+  const scopedSharedAccountIds = await readOrganizationScopedShareAccountIds(
     store,
     normalizedSid,
     datasetScope,
@@ -1050,7 +1051,9 @@ export async function buildOrganizationSharedResources(store, account, sid, opti
   const legacySharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
     ? organizationRecord.sharedAccountIds
     : [];
-  const scopedSharedAccountIds = await findAccountIdsSharingOrganizationResources(
+  // Use the index maintained incrementally on every account write instead of
+  // scanning (and reading) every account record on this read path.
+  const scopedSharedAccountIds = await readOrganizationScopedShareAccountIds(
     store,
     normalizedSid,
     datasetScope,

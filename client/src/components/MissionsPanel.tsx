@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { memo, startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { alpha, useTheme } from '@mui/material/styles';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -176,16 +176,31 @@ function MissionActivityIcon({
 }
 
 function dedupeMissionBlueprints(contract: MissionContract, blueprints: Blueprint[]): Blueprint[] {
-  const seen = new Set<string>();
-  const blueprintById = new Map(blueprints.map((bp) => [bp.id, bp]));
-  const results: Blueprint[] = [];
+  const neededIds = new Set(contract.rewardedBlueprints.map((rewarded) => rewarded.id));
+  if (neededIds.size === 0) {
+    return [];
+  }
 
+  // Index only the blueprints this contract actually rewards, rather than
+  // materializing a Map of the entire catalog just to resolve a handful of ids.
+  const neededById = new Map<string, Blueprint>();
+  for (const blueprint of blueprints) {
+    if (neededIds.has(blueprint.id)) {
+      neededById.set(blueprint.id, blueprint);
+      if (neededById.size === neededIds.size) {
+        break;
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const results: Blueprint[] = [];
   for (const rewardedBlueprint of contract.rewardedBlueprints) {
     if (seen.has(rewardedBlueprint.id)) {
       continue;
     }
     seen.add(rewardedBlueprint.id);
-    const blueprint = blueprintById.get(rewardedBlueprint.id);
+    const blueprint = neededById.get(rewardedBlueprint.id);
     if (blueprint) {
       results.push(blueprint);
     }
@@ -478,14 +493,14 @@ function MissionsFilterBar({
   );
 }
 
-function ContractRow({
+const ContractRow = memo(function ContractRow({
   contract,
   group,
   onOpen,
 }: {
   contract: MissionContract;
   group: MissionRewardFactionGroup;
-  onOpen: () => void;
+  onOpen: (contract: MissionContract, group: MissionRewardFactionGroup) => void;
 }) {
   const { lang, t } = useI18n();
   const theme = useTheme();
@@ -500,7 +515,7 @@ function ContractRow({
   return (
     <Box
       component="tr"
-      onClick={onOpen}
+      onClick={() => onOpen(contract, group)}
       sx={{
         cursor: 'pointer',
         display: 'grid',
@@ -554,23 +569,22 @@ function ContractRow({
       </Box>
     </Box>
   );
-}
+});
 
-function ContractCard({
+const ContractCard = memo(function ContractCard({
   contract,
   group,
   onBlueprintClick,
-  href,
   onOpen,
 }: {
   contract: MissionContract;
   group: MissionRewardFactionGroup;
   onBlueprintClick: (blueprintId: string) => void;
-  href: string;
-  onOpen: () => void;
+  onOpen: (contract: MissionContract, group: MissionRewardFactionGroup) => void;
 }) {
   const { lang, t } = useI18n();
   const theme = useTheme();
+  const href = missionPathFromSlug(getMissionSlug(contract, group));
   const factionType = group.faction?.factionType?.toLowerCase() ?? '';
   const isUnlawful = factionType === 'unlawful';
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
@@ -617,7 +631,7 @@ function ContractCard({
         onClick={(event) => {
           if (!shouldHandleInternalLinkClick(event)) return;
           event.preventDefault();
-          onOpen();
+          onOpen(contract, group);
         }}
         sx={{
           position: 'absolute',
@@ -957,7 +971,7 @@ function ContractCard({
       )}
     </Card>
   );
-}
+});
 
 function MissionHero({
   contract,
@@ -1686,6 +1700,17 @@ export function MissionsPanel() {
     }
   }, [blueprints, setActiveBlueprint]);
 
+  // Stable across renders so memoized ContractCard/ContractRow don't re-render
+  // the whole visible list when the panel re-renders for unrelated reasons.
+  const handleSelectContract = useCallback(
+    (contract: MissionContract, group: MissionRewardFactionGroup) => {
+      const missionSlug = getMissionSlug(contract, group);
+      startTransition(() => setSelectedMissionSlug(missionSlug));
+      navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
+    },
+    [setSelectedMissionSlug],
+  );
+
   const factionsLoading = factionContractsLoadingIds.size > 0;
 
   if (missionRewardsLoading) {
@@ -1878,12 +1903,7 @@ export function MissionsPanel() {
                       contract={contract}
                       group={group}
                       onBlueprintClick={handleBlueprintClick}
-                      href={missionPathFromSlug(getMissionSlug(contract, group))}
-                      onOpen={() => {
-                        const missionSlug = getMissionSlug(contract, group);
-                        startTransition(() => setSelectedMissionSlug(missionSlug));
-                        navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
-                      }}
+                      onOpen={handleSelectContract}
                     />
                   ))}
                 </Box>
@@ -1900,11 +1920,7 @@ export function MissionsPanel() {
                         key={getContractKey(contract)}
                         contract={contract}
                         group={group}
-                        onOpen={() => {
-                          const missionSlug = getMissionSlug(contract, group);
-                          startTransition(() => setSelectedMissionSlug(missionSlug));
-                          navigateToPath(missionPathFromSlug(missionSlug), { missionSlug, mainView: 'missions' });
-                        }}
+                        onOpen={handleSelectContract}
                       />
                     ))}
                   </Box>

@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { FilterProvider, useFilters } from './FilterContext';
+import { FilterProvider } from './FilterContext';
 import { useAuth } from '../auth/AuthContext';
 import { itemSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import type {
@@ -1818,76 +1818,100 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [blueprints]);
 
+  // Memoize the context value so its identity only changes when one of the
+  // underlying state slices changes — not on every CraftProvider render (e.g.
+  // when an ancestor re-renders). The action callbacks below are all useCallback
+  // wrapped and the setters come from useState/useLocalPersist, so they are
+  // referentially stable and don't churn this memo.
+  const contextValue = useMemo<CraftState>(
+    () => ({
+      appMode,
+      setAppMode,
+      changelogOpen,
+      setChangelogOpen,
+      dismantlingData,
+      materialSources,
+      activeBlueprint,
+      blueprints,
+      activeDataset,
+      availableDatasets,
+      activeChannel,
+      missionRewards: activeMissionRewards,
+      missionRewardsLoading,
+      missionRewardsError,
+      resourceDataLoading,
+      changelogLoading,
+      datasetLoading,
+      datasetError,
+      favoriteIds,
+      inventoryIds,
+      slotAssignments,
+      goals,
+      plannerTodoItems,
+      plannerResourceRequirements,
+      resourceProgress,
+      comparisonItems,
+      comparisonOpen,
+      setActiveBlueprint,
+      setActiveDatasetChannel,
+      setActiveDatasetId,
+      refreshDatasets,
+      ensureMissionRewardsLoaded,
+      ensureFactionContractsLoaded,
+      factionContractsByFactionId,
+      factionContractsLoadingIds,
+      ensureResourceDataLoaded,
+      ensureShipComponentsLoaded,
+      ensureChangelogLoaded,
+      ensureBlueprintDetailLoaded,
+      toggleFavorite,
+      toggleInventory,
+      replaceLocalBlueprintCollections,
+      assignQuality,
+      clearAssignments,
+      addGoal,
+      ensureGoal,
+      removeGoal,
+      updateGoalQuantity,
+      updateGoal,
+      addPlannerTodoItem,
+      updatePlannerTodoItem,
+      togglePlannerTodoItem,
+      removePlannerTodoItem,
+      clearCompletedPlannerTodoItems,
+      selectGoalBlueprint,
+      addPlannerResourceRequirement,
+      clearPlannerResourceRequirement,
+      setResourceCollected,
+      setResourceMethod,
+      resetResourceProgress,
+      addToComparison,
+      removeFromComparison,
+      clearComparison,
+      openComparison,
+      closeComparison,
+    }),
+    [
+      appMode, setAppMode, changelogOpen, setChangelogOpen, dismantlingData, materialSources,
+      activeBlueprint, blueprints, activeDataset, availableDatasets, activeChannel,
+      activeMissionRewards, missionRewardsLoading, missionRewardsError, resourceDataLoading,
+      changelogLoading, datasetLoading, datasetError, favoriteIds, inventoryIds, slotAssignments,
+      goals, plannerTodoItems, plannerResourceRequirements, resourceProgress, comparisonItems,
+      comparisonOpen, setActiveBlueprint, setActiveDatasetChannel, setActiveDatasetId, refreshDatasets,
+      ensureMissionRewardsLoaded, ensureFactionContractsLoaded, factionContractsByFactionId,
+      factionContractsLoadingIds, ensureResourceDataLoaded, ensureShipComponentsLoaded,
+      ensureChangelogLoaded, ensureBlueprintDetailLoaded, toggleFavorite, toggleInventory,
+      replaceLocalBlueprintCollections, assignQuality, clearAssignments, addGoal, ensureGoal,
+      removeGoal, updateGoalQuantity, updateGoal, addPlannerTodoItem, updatePlannerTodoItem,
+      togglePlannerTodoItem, removePlannerTodoItem, clearCompletedPlannerTodoItems, selectGoalBlueprint,
+      addPlannerResourceRequirement, clearPlannerResourceRequirement, setResourceCollected,
+      setResourceMethod, resetResourceProgress, addToComparison, removeFromComparison, clearComparison,
+      openComparison, closeComparison,
+    ],
+  );
+
   return (
-    <CraftContext.Provider
-      value={{
-        appMode,
-        setAppMode,
-        changelogOpen,
-        setChangelogOpen,
-        dismantlingData,
-        materialSources,
-        activeBlueprint,
-        blueprints,
-        activeDataset,
-        availableDatasets,
-        activeChannel,
-        missionRewards: activeMissionRewards,
-        missionRewardsLoading,
-        missionRewardsError,
-        resourceDataLoading,
-        changelogLoading,
-        datasetLoading,
-        datasetError,
-        favoriteIds,
-        inventoryIds,
-        slotAssignments,
-        goals,
-        plannerTodoItems,
-        plannerResourceRequirements,
-        resourceProgress,
-        comparisonItems,
-        comparisonOpen,
-        setActiveBlueprint,
-        setActiveDatasetChannel,
-        setActiveDatasetId,
-        refreshDatasets,
-        ensureMissionRewardsLoaded,
-        ensureFactionContractsLoaded,
-        factionContractsByFactionId,
-        factionContractsLoadingIds,
-        ensureResourceDataLoaded,
-        ensureShipComponentsLoaded,
-        ensureChangelogLoaded,
-        ensureBlueprintDetailLoaded,
-        toggleFavorite,
-        toggleInventory,
-        replaceLocalBlueprintCollections,
-        assignQuality,
-        clearAssignments,
-        addGoal,
-        ensureGoal,
-        removeGoal,
-        updateGoalQuantity,
-        updateGoal,
-        addPlannerTodoItem,
-        updatePlannerTodoItem,
-        togglePlannerTodoItem,
-        removePlannerTodoItem,
-        clearCompletedPlannerTodoItems,
-        selectGoalBlueprint,
-        addPlannerResourceRequirement,
-        clearPlannerResourceRequirement,
-        setResourceCollected,
-        setResourceMethod,
-        resetResourceProgress,
-        addToComparison,
-        removeFromComparison,
-        clearComparison,
-        openComparison,
-        closeComparison,
-      }}
-    >
+    <CraftContext.Provider value={contextValue}>
       <FilterProvider>{children}</FilterProvider>
     </CraftContext.Provider>
   );
@@ -1900,46 +1924,4 @@ export function useCraft(): CraftState {
   }
 
   return context;
-}
-
-export function useFilteredBlueprints(): Blueprint[] {
-  const { blueprints, favoriteIds, missionRewards } = useCraft();
-  const { categoryFilter, searchQuery } = useFilters();
-
-  return useMemo(
-    () => {
-      let obtainableIds: Set<string> | null = null;
-      if (categoryFilter === 'obtainable') {
-        obtainableIds = new Set<string>();
-        for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
-          obtainableIds.add(entry.blueprint.id);
-        }
-      }
-
-      return blueprints.filter((blueprint) => {
-        if (categoryFilter === 'favorites') {
-          return favoriteIds.includes(blueprint.id);
-        }
-
-        if (categoryFilter === 'obtainable') {
-          return obtainableIds!.has(blueprint.id);
-        }
-
-        if (categoryFilter !== 'all' && blueprint.category !== categoryFilter) {
-          return false;
-        }
-
-        if (searchQuery.trim()) {
-          const normalizedQuery = searchQuery.toLowerCase();
-          return (
-            blueprint.name.toLowerCase().includes(normalizedQuery) ||
-            blueprint.manufacturer.toLowerCase().includes(normalizedQuery)
-          );
-        }
-
-        return true;
-      }).sort((a, b) => a.name.localeCompare(b.name));
-    },
-    [blueprints, categoryFilter, searchQuery, favoriteIds, missionRewards],
-  );
 }

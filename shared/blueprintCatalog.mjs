@@ -1,9 +1,7 @@
+import { normalizeText } from './normalize.mjs';
+
 const MAX_LIMIT = 120;
 const DEFAULT_LIMIT = 60;
-
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
 
 function normalizeLower(value) {
   return normalizeText(value).toLowerCase();

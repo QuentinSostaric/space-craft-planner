@@ -134,13 +134,24 @@ function blueprintGetColumns(containerWidth: number): number {
   return 1;
 }
 
+// Search haystacks are derived from immutable dataset entities, so cache them by
+// object identity. Without this, every (deferred) keystroke rebuilds the haystack
+// string — with several array allocations — for the entire catalog.
+const blueprintHaystackCache = new WeakMap<Blueprint, string>();
+const shipComponentHaystackCache = new WeakMap<ShipComponentEntry, string>();
+
 function getBlueprintSearchHaystack(blueprint: Blueprint): string {
+  const cached = blueprintHaystackCache.get(blueprint);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const factText = (blueprint.identity?.descriptionFacts ?? [])
     .flatMap((fact) => [fact.label, fact.value])
     .filter(Boolean)
     .join(' ');
 
-  return [
+  const haystack = [
     blueprint.name,
     blueprint.manufacturer,
     blueprint.category,
@@ -158,9 +169,17 @@ function getBlueprintSearchHaystack(blueprint: Blueprint): string {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+
+  blueprintHaystackCache.set(blueprint, haystack);
+  return haystack;
 }
 
 function getShipComponentSearchHaystack(component: ShipComponentEntry): string {
+  const cached = shipComponentHaystackCache.get(component);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const factText = (component.descriptionFacts ?? [])
     .flatMap((fact) => [fact.label, fact.value])
     .filter(Boolean)
@@ -170,7 +189,7 @@ function getShipComponentSearchHaystack(component: ShipComponentEntry): string {
     .map((metric) => metric.value)
     .join(' ');
 
-  return [
+  const haystack = [
     component.name,
     component.manufacturer,
     component.family,
@@ -185,6 +204,9 @@ function getShipComponentSearchHaystack(component: ShipComponentEntry): string {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+
+  shipComponentHaystackCache.set(component, haystack);
+  return haystack;
 }
 
 function compareText(left: string | null | undefined, right: string | null | undefined): number {

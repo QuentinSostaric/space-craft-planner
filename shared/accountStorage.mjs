@@ -9,6 +9,7 @@ import {
   isObject,
   normalizeIsoTimestamp,
   normalizeOrganizationSid,
+  normalizeStringArray,
   toIsoNow,
 } from './normalize.mjs';
 
@@ -59,26 +60,6 @@ function pickLatestIsoTimestamp(left, right) {
   return Date.parse(normalizedLeft) >= Date.parse(normalizedRight)
     ? normalizedLeft
     : normalizedRight;
-}
-
-function normalizeStringArray(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const seen = new Set();
-  const normalized = [];
-  for (const entry of value) {
-    const next = String(entry ?? '').trim();
-    if (!next || seen.has(next)) {
-      continue;
-    }
-
-    seen.add(next);
-    normalized.push(next);
-  }
-
-  return normalized;
 }
 
 function sortStringArray(value) {
@@ -1538,6 +1519,9 @@ export function createS3AccountStore(client, bucketName) {
   };
 }
 
+// Full-scan rebuild of the scoped blueprint-share index. This is O(N accounts)
+// and is NOT for the request hot path (reads use the incrementally maintained
+// `readOrganizationScopedShareAccountIds`); keep it for one-shot backfills.
 export async function findAccountIdsSharingOrganizationBlueprints(store, sid, datasetScope = 'live') {
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid || typeof store?.listJsonKeys !== 'function') {

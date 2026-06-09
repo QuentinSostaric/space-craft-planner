@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 import { LS_KEYS, type Lang } from '../types';
 import { GERMAN_FALLBACKS } from './de';
@@ -30,8 +30,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return en;
   }, [lang]);
 
+  const value = useMemo<I18nState>(() => ({ lang, setLang, t }), [lang, setLang, t]);
+
   return (
-    <I18nContext.Provider value={{ lang, setLang, t }}>
+    <I18nContext.Provider value={value}>
       {children}
     </I18nContext.Provider>
   );

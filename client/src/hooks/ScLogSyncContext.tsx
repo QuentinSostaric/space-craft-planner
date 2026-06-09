@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { useScLogSync, type ScLogSyncState } from './useScLogSync';
 import { useScLogWatcher, type ScLogWatcherState } from './useScLogWatcher';
 
@@ -20,8 +20,10 @@ export function ScLogProvider({ children }: { children: ReactNode }) {
     }
   }, [watcher.autoStartEnabled, sync.installPaths?.live, watcher.running, watcher.start]);
 
+  const value = useMemo<ScLogContextValue>(() => ({ sync, watcher }), [sync, watcher]);
+
   return (
-    <ScLogContext.Provider value={{ sync, watcher }}>
+    <ScLogContext.Provider value={value}>
       {children}
     </ScLogContext.Provider>
   );
