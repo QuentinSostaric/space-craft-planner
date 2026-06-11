@@ -3,16 +3,21 @@ import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import Badge from '@mui/material/Badge';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FlagIcon from '@mui/icons-material/Flag';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import DifferenceOutlinedIcon from '@mui/icons-material/DifferenceOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
@@ -165,14 +170,16 @@ function MobileNavItem({
         position: 'relative',
         color: active ? 'primary.main' : 'text.secondary',
         backgroundColor: active ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+        // The bar sits at the bottom of the screen, so the active indicator
+        // hugs its top edge.
         '&::after': {
           content: '""',
           position: 'absolute',
           left: 8,
           right: 8,
-          bottom: 0,
+          top: 0,
           height: 2,
-          borderRadius: '2px 2px 0 0',
+          borderRadius: '0 0 2px 2px',
           backgroundColor: 'primary.main',
           opacity: active ? 1 : 0,
           transform: active ? 'scaleX(1)' : 'scaleX(0.6)',
@@ -207,15 +214,15 @@ function MobileNavItem({
 export function NavRail({ mainView, onChangeView }: NavRailProps) {
   const { t } = useI18n();
   const { user, account } = useAuth();
-  const { goals, plannerResourceRequirements, plannerTodoItems } = useCraft();
+  const { plannerTodoItems } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  // Only open tasks: an actionable number, unlike the old goals+tasks+resources
+  // aggregate whose meaning was impossible to read from the badge alone.
   const plannerBadgeCount = useMemo(
-    () =>
-      goals.length
-      + plannerTodoItems.filter((todo) => !todo.completed).length
-      + Object.values(plannerResourceRequirements).filter((requirement) => Number(requirement?.quantity ?? 0) > 0).length,
-    [goals.length, plannerResourceRequirements, plannerTodoItems],
+    () => plannerTodoItems.filter((todo) => !todo.completed).length,
+    [plannerTodoItems],
   );
   const pendingIncomingCraftRequestCount = useMemo(
     () =>
@@ -238,7 +245,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={pendingIncomingCraftRequestCount}
           color="error"
           invisible={pendingIncomingCraftRequestCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
+          sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', fontWeight: 700 } }}
         >
           {user ? (
             <Avatar
@@ -262,6 +269,8 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
       ),
     [pendingIncomingCraftRequestCount, user],
   );
+  // Bottom bar keeps the 4 core destinations + account; secondary views live in
+  // the "More" overflow menu so each tab keeps a comfortable touch target.
   const mobileItems = [
     {
       key: 'blueprints',
@@ -288,24 +297,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
       onNavigate: goToResources,
     },
     {
-      key: 'changelog',
-      active: mainView === 'changelog',
-      label: t('Changelog', 'Changelog'),
-      icon: <DifferenceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      href: '/changelog',
-      onNavigate: goToChangelog,
-    },
-    ...(canAccessOrganizations
-      ? [{
-          key: 'organizations',
-          active: mainView === 'organizations',
-          label: t('Organizations', 'Organisations', 'Organisationen'),
-          icon: <GroupsOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-          href: '/organizations',
-          onNavigate: goToOrganizations,
-        }]
-      : []),
-    {
       key: 'planner',
       active: mainView === 'planner',
       label: t('Planner', 'Planificateur'),
@@ -314,7 +305,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={plannerBadgeCount}
           color="primary"
           invisible={plannerBadgeCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
+          sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', fontWeight: 700 } }}
         >
           <AssignmentIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
         </Badge>
@@ -322,15 +313,34 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
       href: '/planner',
       onNavigate: goToPlanner,
     },
+  ];
+
+  const moreItems = [
     {
       key: 'account',
       active: mainView === 'account',
       label: t('Account', 'Compte', 'Konto'),
       icon: accountIcon(MOBILE_ICON_SIZE),
-      href: '/account',
       onNavigate: goToAccount,
     },
+    {
+      key: 'changelog',
+      active: mainView === 'changelog',
+      label: t('Changelog', 'Changelog'),
+      icon: <DifferenceOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      onNavigate: goToChangelog,
+    },
+    ...(canAccessOrganizations
+      ? [{
+          key: 'organizations',
+          active: mainView === 'organizations',
+          label: t('Organizations', 'Organisations', 'Organisationen'),
+          icon: <GroupsOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+          onNavigate: goToOrganizations,
+        }]
+      : []),
   ];
+  const moreActive = moreItems.some((item) => item.active);
 
   if (isCompactLayout) {
     return (
@@ -340,9 +350,10 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
         sx={{
           width: '100%',
           backgroundColor: 'background.paper',
-          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
           display: 'grid',
-          gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${mobileItems.length + 1}, minmax(0, 1fr))`,
+          pb: 'env(safe-area-inset-bottom)',
         }}
       >
         <Box sx={{ display: 'contents' }}>
@@ -356,6 +367,78 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
               onNavigate={item.onNavigate}
             />
           ))}
+          <ButtonBase
+            onClick={(event) => setMoreAnchor(event.currentTarget)}
+            aria-haspopup="menu"
+            aria-expanded={moreAnchor ? 'true' : undefined}
+            aria-label={t('More', 'Plus', 'Mehr')}
+            sx={{
+              minWidth: 0,
+              minHeight: 58,
+              px: 0.5,
+              py: 0.75,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 0.45,
+              position: 'relative',
+              color: moreActive ? 'primary.main' : 'text.secondary',
+              backgroundColor: moreActive ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                left: 8,
+                right: 8,
+                top: 0,
+                height: 2,
+                borderRadius: '0 0 2px 2px',
+                backgroundColor: 'primary.main',
+                opacity: moreActive ? 1 : 0,
+                transition: 'opacity 160ms ease',
+              },
+            }}
+          >
+            <Badge
+              variant="dot"
+              color="error"
+              invisible={pendingIncomingCraftRequestCount === 0}
+            >
+              <MoreHorizIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
+            </Badge>
+            <Typography
+              sx={{
+                fontFamily: FONT_BODY,
+                fontWeight: 600,
+                fontSize: MOBILE_LABEL_FONT_SIZE,
+                lineHeight: 1.1,
+                letterSpacing: '0.01em',
+              }}
+            >
+              {t('More', 'Plus', 'Mehr')}
+            </Typography>
+          </ButtonBase>
+          <Menu
+            anchorEl={moreAnchor}
+            open={Boolean(moreAnchor)}
+            onClose={() => setMoreAnchor(null)}
+            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          >
+            {moreItems.map((item) => (
+              <MenuItem
+                key={item.key}
+                selected={item.active}
+                onClick={() => {
+                  setMoreAnchor(null);
+                  item.onNavigate();
+                }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText>{item.label}</ListItemText>
+              </MenuItem>
+            ))}
+          </Menu>
         </Box>
       </Box>
     );
@@ -447,7 +530,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
                 badgeContent={plannerBadgeCount}
                 color="primary"
                 invisible={plannerBadgeCount === 0}
-                sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
+                sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', fontWeight: 700 } }}
               >
                 <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
               </Badge>

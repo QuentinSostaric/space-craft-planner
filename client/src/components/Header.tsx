@@ -28,7 +28,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { useThemeMode } from '../hooks/ThemeContext';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { getDesktopInstallerUrl, isTauriRuntime } from '../services/apiBaseUrl';
-import { FONT_MONO, FONT_BODY, FONT_HEADING } from '../theme';
+import { FONT_MONO, FONT_BODY, FONT_HEADING, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
 import {
   missionPathFromSlug,
   missionSlugFromContract,
@@ -325,45 +325,42 @@ export function Header() {
               <ToggleButton
                 value="live"
                 disabled={!availableChannels.has('live')}
-                sx={{ px: 1.25, fontSize: '0.7rem', fontWeight: 700, fontFamily: FONT_MONO, gap: 0.75 }}
+                sx={{ px: 1.25, fontSize: TEXT_LABEL, fontWeight: 700, fontFamily: FONT_MONO, gap: 0.75 }}
               >
-                <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', display: 'inline-block', animation: 'if-pulse-ring 1.6s infinite', flexShrink: 0 }} />
+                {/* Static dot: the channel is a stable setting, not live activity */}
+                <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', display: 'inline-block', flexShrink: 0 }} />
                 LIVE
               </ToggleButton>
-              <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')} sx={{ px: 1.25, fontSize: '0.7rem', fontWeight: 700, fontFamily: FONT_MONO }}>
+              <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')} sx={{ px: 1.25, fontSize: TEXT_LABEL, fontWeight: 700, fontFamily: FONT_MONO }}>
                 PTU
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
 
-          {/* LIVE: build version + date pill */}
+          {/* LIVE: dataset freshness, demoted to a quiet version stamp + tooltip —
+              it's trust information consulted rarely, not primary chrome. */}
           {activeChannel === 'live' && (
-            <Box
-              sx={{
-                display: { xs: 'none', md: 'flex' },
-                alignItems: 'center',
-                gap: 0.75,
-                height: 34,
-                px: 1.5,
-                borderRadius: 1.5,
-                backgroundColor: 'ui.surface2',
-                border: '1px solid',
-                borderColor: 'ui.border',
-                flexShrink: 0,
-              }}
+            <Tooltip
+              title={`${t('Game build', 'Build du jeu')} ${liveVersion ?? t('Latest', 'Dernier')}${liveDate ? ` · ${liveDate}` : ''}`}
             >
-              <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
-                Build
-              </Typography>
-              <Typography component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.78rem', color: 'text.primary', whiteSpace: 'nowrap' }}>
-                {liveVersion ?? t('Latest', 'Dernier')}
-              </Typography>
-              {liveDate && (
-                <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', color: 'primary.light', whiteSpace: 'nowrap', opacity: 0.85 }}>
-                  · {liveDate}
+              <Box
+                sx={{
+                  display: { xs: 'none', md: 'inline-flex' },
+                  alignItems: 'center',
+                  gap: 0.75,
+                  height: 34,
+                  px: 0.75,
+                  flexShrink: 0,
+                  cursor: 'default',
+                }}
+                aria-label={`${t('Game build', 'Build du jeu')} ${liveVersion ?? t('Latest', 'Dernier')}${liveDate ? ` · ${liveDate}` : ''}`}
+              >
+                <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', flexShrink: 0 }} />
+                <Typography component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 600, fontSize: TEXT_LABEL, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                  {liveVersion ?? t('Latest', 'Dernier')}
                 </Typography>
-              )}
-            </Box>
+              </Box>
+            </Tooltip>
           )}
 
           {/* PTU: dataset selector */}
@@ -412,7 +409,7 @@ export function Header() {
               sx={{
                 display: { xs: 'none', md: 'flex' },
                 height: 28,
-                fontSize: '0.7rem',
+                fontSize: TEXT_LABEL,
                 fontFamily: FONT_MONO,
                 fontWeight: 700,
                 letterSpacing: '0.04em',
@@ -485,7 +482,7 @@ export function Header() {
                   sx={{
                     fontFamily: FONT_MONO,
                     fontWeight: 700,
-                    fontSize: '0.68rem',
+                    fontSize: TEXT_LABEL_SM,
                     letterSpacing: '0.06em',
                     color: watcher.running ? 'success.main' : 'text.secondary',
                     userSelect: 'none',
@@ -509,7 +506,7 @@ export function Header() {
                 sx={{
                   display: { xs: 'none', md: 'flex' },
                   height: 28,
-                  fontSize: '0.7rem',
+                  fontSize: TEXT_LABEL,
                   fontFamily: FONT_MONO,
                   fontWeight: 700,
                   letterSpacing: '0.04em',
@@ -544,7 +541,7 @@ export function Header() {
             aria-label={t('Language', 'Langue')}
             sx={{
               height: 34,
-              '& .MuiToggleButton-root': { px: { xs: 0.75, md: 1 }, fontSize: '0.6875rem', fontWeight: 700, fontFamily: FONT_MONO, letterSpacing: '0.04em', minWidth: { xs: 30, md: 38 } },
+              '& .MuiToggleButton-root': { px: { xs: 0.75, md: 1 }, fontSize: TEXT_LABEL_SM, fontWeight: 700, fontFamily: FONT_MONO, letterSpacing: '0.04em', minWidth: { xs: 30, md: 38 } },
             }}
           >
             <ToggleButton value="en">EN</ToggleButton>
