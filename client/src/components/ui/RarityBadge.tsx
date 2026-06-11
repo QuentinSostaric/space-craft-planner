@@ -2,19 +2,31 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { Rarity } from '../../types';
+import { useI18n } from '../../i18n/I18nContext';
+
+// Badge language: PillBadge (left border, sharp corners) is reserved for
+// categorical identity (rarity, acquisition scale). Everything else uses the
+// rounded outlined chips from ui/Badge.tsx.
 
 export function RarityBadge({ rarity }: { rarity: Rarity }) {
   const theme = useTheme();
-  
+  const { t } = useI18n();
+
   const colors: Record<Rarity, string> = {
     legendary: theme.palette.warning.main,
     rare: theme.palette.primary.main,
     common: theme.palette.text.secondary,
   };
 
+  const labels: Record<Rarity, string> = {
+    legendary: t('Legendary', 'Légendaire', 'Legendär'),
+    rare: t('Rare', 'Rare', 'Selten'),
+    common: t('Common', 'Commune', 'Gewöhnlich'),
+  };
+
   return (
     <PillBadge
-      label={rarity.toUpperCase()}
+      label={labels[rarity]}
       color={colors[rarity]}
     />
   );

@@ -28,43 +28,11 @@ import { MaterialSourcesSection } from './item-workspace/MaterialSourcesSection'
 import { AcquisitionSection } from './item-workspace/AcquisitionSection';
 import { DismantleSection } from './item-workspace/DismantleSection';
 import { BlueprintOverview } from './item-workspace/BlueprintOverview';
-import { FONT_BODY, FONT_MONO } from '../theme';
+import { RarityBadge } from './ui/RarityBadge';
+import { FONT_BODY, FONT_MONO, TEXT_LABEL_SM } from '../theme';
 import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '../utils/slug';
 
 type WorkspaceTabId = 'fabrication' | 'missions' | 'dismantle';
-
-function RarityChip({ rarity }: { rarity: string | null | undefined }) {
-  const rarityMap: Record<string, { label: string; color: string }> = {
-    legendary: { label: 'Légendaire', color: '#F4B740' },
-    rare: { label: 'Rare', color: '#818CF8' },
-    common: { label: 'Commune', color: '#94A3B8' },
-  };
-  const info = rarity ? rarityMap[rarity] : null;
-  if (!info) return null;
-  const glyph = rarity === 'legendary' ? '◆◆◆' : rarity === 'rare' ? '◆◆' : '◆';
-  return (
-    <Box
-      component="span"
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 0.75,
-        px: 1,
-        py: 0.25,
-        borderRadius: 1,
-        border: `1px solid ${alpha(info.color, 0.45)}`,
-        backgroundColor: alpha(info.color, 0.1),
-        color: info.color,
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        fontFamily: FONT_BODY,
-      }}
-    >
-      <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: '0.625rem' }} aria-hidden="true">{glyph}</Box>
-      {info.label}
-    </Box>
-  );
-}
 
 export function ItemWorkspace() {
   const {
@@ -242,13 +210,13 @@ export function ItemWorkspace() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {/* Badges row */}
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
-              <RarityChip rarity={activeBlueprint.rarity} />
+              {activeBlueprint.rarity && <RarityBadge rarity={activeBlueprint.rarity} />}
               {activeBlueprint.category && (
                 <Chip
                   label={activeBlueprint.category}
                   size="small"
                   variant="outlined"
-                  sx={{ borderRadius: 1, fontSize: '0.6875rem', height: 22 }}
+                  sx={{ borderRadius: 1, fontSize: TEXT_LABEL_SM, height: 22 }}
                 />
               )}
               {acquisitionEntry && (
@@ -260,7 +228,7 @@ export function ItemWorkspace() {
                   sx={{
                     height: 22,
                     borderRadius: 1,
-                    fontSize: '0.6875rem',
+                    fontSize: TEXT_LABEL_SM,
                     color: 'primary.main',
                     borderColor: (th) => alpha(th.palette.primary.main, 0.45),
                     backgroundColor: (th) => alpha(th.palette.primary.main, 0.08),
@@ -273,7 +241,7 @@ export function ItemWorkspace() {
                   label={`${activeBlueprint.slots.length} ${t('slots', 'slots')}`}
                   size="small"
                   variant="outlined"
-                  sx={{ height: 22, borderRadius: 1, fontSize: '0.6875rem' }}
+                  sx={{ height: 22, borderRadius: 1, fontSize: TEXT_LABEL_SM }}
                 />
               )}
             </Box>
@@ -297,7 +265,7 @@ export function ItemWorkspace() {
             <Typography
               sx={{
                 fontFamily: FONT_MONO,
-                fontSize: '0.6875rem',
+                fontSize: TEXT_LABEL_SM,
                 color: 'text.disabled',
                 letterSpacing: '0.02em',
                 mt: -0.5,
