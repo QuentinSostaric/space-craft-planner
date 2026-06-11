@@ -6,7 +6,7 @@ import { CATEGORY_LABELS } from '../../types';
 import { loc, useI18n } from '../../i18n/I18nContext';
 import { GameIcon } from './GameIcon';
 import type { GameIconName } from './GameIcon';
-import { FONT_MONO } from '../../theme';
+import { FONT_MONO, TEXT_LABEL} from '../../theme';
 
 // ─── Quality badge ────────────────────────────────────────────────────────────
 interface QualityBadgeProps { qualityValue: number; size?: 'sm' | 'md' }
@@ -22,7 +22,7 @@ export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
       aria-label={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
       sx={{
         fontFamily: FONT_MONO,
-        fontSize: '0.75rem',
+        fontSize: TEXT_LABEL,
         height: size === 'sm' ? 20 : 24,
         px: size === 'sm' ? 0.5 : 1,
         borderColor: 'divider',
@@ -46,7 +46,7 @@ export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProp
       aria-label={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
       sx={{
         fontFamily: FONT_MONO,
-        fontSize: '0.75rem',
+        fontSize: TEXT_LABEL,
         height: size === 'sm' ? 20 : 24,
         px: size === 'sm' ? 0.5 : 1,
         borderColor: 'divider',
@@ -157,7 +157,7 @@ export function Badge({ children, variant = 'default' }: BadgeProps) {
         borderColor: current.border,
         backgroundColor: alpha(current.color, 0.03),
         fontWeight: 600,
-        fontSize: '0.75rem',
+        fontSize: TEXT_LABEL,
         height: 22,
       }}
     />

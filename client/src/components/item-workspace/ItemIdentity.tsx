@@ -21,7 +21,7 @@ import { Button } from '../ui/Button';
 import { AppGlyph } from '../ui/AppGlyph';
 import { CategoryBadge } from '../ui/Badge';
 import { RarityBadge } from '../ui/RarityBadge';
-import { FONT_HEADING } from '../../theme';
+import { FONT_HEADING, TEXT_LABEL} from '../../theme';
 
 interface ItemIdentityProps {
   blueprint: Blueprint;
@@ -196,7 +196,7 @@ function DataRow({
           color: 'text.secondary',
           fontWeight: 500,
           lineHeight: 1.15,
-          fontSize: '0.75rem',
+          fontSize: TEXT_LABEL,
         }}
       >
         {label}
@@ -396,7 +396,7 @@ export function ItemIdentity({
                 color: 'text.secondary',
                 textTransform: 'uppercase',
                 letterSpacing: '0.14em',
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
               }}
             >
               {shortName ?? t('Blueprint dossier', 'Dossier blueprint')}
@@ -441,7 +441,6 @@ export function ItemIdentity({
                 width: '100%',
                 gap: 0.65,
                 px: 1,
-                textTransform: 'uppercase',
                 fontFamily: FONT_HEADING,
                 fontSize: '0.78rem',
                 fontWeight: 800,
@@ -479,7 +478,6 @@ export function ItemIdentity({
                 minHeight: 38,
                 width: '100%',
                 gap: 0.6,
-                textTransform: 'uppercase',
                 fontFamily: FONT_HEADING,
                 fontSize: '0.76rem',
                 fontWeight: 800,
@@ -532,7 +530,7 @@ export function ItemIdentity({
                 sx={{
                   color: 'text.secondary',
                   fontWeight: 500,
-                  fontSize: '0.75rem',
+                  fontSize: TEXT_LABEL,
                 }}
               >
                 {t('Technical Tags', 'Tags techniques')}

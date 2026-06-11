@@ -23,7 +23,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 import { LS_KEYS } from '../types';
 import { Button } from './ui/Button';
-import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../theme';
 import { trackEvent } from '../analytics/posthog';
 
 const NOTE_TAGS = ['note', 'mining', 'craft', 'route', 'missions', 'economy'];
@@ -90,10 +90,10 @@ function InlineMd({ text }: { text: string }) {
           </Box>
         );
         if (tok.type === 'ref-bp') return (
-          <Chip key={i} label={`@bp:${tok.id}`} size="small" variant="outlined" sx={{ mx: 0.25, height: 18, fontSize: '0.75rem', fontFamily: FONT_MONO, cursor: 'default' }} />
+          <Chip key={i} label={`@bp:${tok.id}`} size="small" variant="outlined" sx={{ mx: 0.25, height: 18, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, cursor: 'default' }} />
         );
         if (tok.type === 'ref-res') return (
-          <Chip key={i} label={`@res:${tok.id}`} size="small" variant="outlined" color="secondary" sx={{ mx: 0.25, height: 18, fontSize: '0.75rem', fontFamily: FONT_MONO, cursor: 'default' }} />
+          <Chip key={i} label={`@res:${tok.id}`} size="small" variant="outlined" color="secondary" sx={{ mx: 0.25, height: 18, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, cursor: 'default' }} />
         );
         return null;
       })}
@@ -264,13 +264,13 @@ function NoteListItem({ note, active, onClick }: { note: PlannerNote; active: bo
         {preview}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        <Chip label={note.tag} size="small" sx={{ height: 16, fontSize: '0.6875rem', '& .MuiChip-label': { px: 0.75 } }} />
+        <Chip label={note.tag} size="small" sx={{ height: 16, fontSize: TEXT_LABEL_SM, '& .MuiChip-label': { px: 0.75 } }} />
         {taskTotal > 0 && (
-          <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+          <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
             {taskDone}/{taskTotal}
           </Typography>
         )}
-        <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', ml: 'auto' }}>
+        <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', ml: 'auto' }}>
           {new Date(note.updatedAt).toLocaleDateString()}
         </Typography>
       </Box>
@@ -352,7 +352,6 @@ export function PlannerPage() {
               fontFamily: FONT_DISPLAY,
               fontWeight: 700,
               fontSize: { xs: '1.9rem', md: '2.2rem' },
-              textTransform: 'uppercase',
               lineHeight: 1,
               letterSpacing: '-0.015em',
             }}
@@ -415,7 +414,7 @@ export function PlannerPage() {
 
           {pinned.length > 0 && (
             <>
-              <Typography sx={{ px: 0.5, pt: 0.5, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.disabled' }}>
+              <Typography sx={{ px: 0.5, pt: 0.5, fontSize: TEXT_LABEL_SM, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary' }}>
                 {t('Pinned', 'Épinglées')}
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -428,7 +427,7 @@ export function PlannerPage() {
 
           {others.length > 0 && (
             <>
-              <Typography sx={{ px: 0.5, pt: pinned.length > 0 ? 0.5 : 0, fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.disabled' }}>
+              <Typography sx={{ px: 0.5, pt: pinned.length > 0 ? 0.5 : 0, fontSize: TEXT_LABEL_SM, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary' }}>
                 {t('Notes', 'Autres')}
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -484,7 +483,7 @@ export function PlannerPage() {
                     }}
                     aria-label={t('Note title', 'Titre de la note')}
                   />
-                  <Chip label={activeNote.tag} size="small" sx={{ height: 18, fontSize: '0.6875rem', flexShrink: 0, '& .MuiChip-label': { px: 0.75 } }} />
+                  <Chip label={activeNote.tag} size="small" sx={{ height: 18, fontSize: TEXT_LABEL_SM, flexShrink: 0, '& .MuiChip-label': { px: 0.75 } }} />
                 </Box>
                 <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
                   <Button
@@ -510,7 +509,7 @@ export function PlannerPage() {
                     size="small"
                     onChange={(_e, val) => { if (val) setMode(val as 'preview' | 'edit'); }}
                     aria-label={t('Edit mode', 'Mode édition')}
-                    sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.35, fontSize: '0.75rem', textTransform: 'none' } }}
+                    sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.35, fontSize: TEXT_LABEL, textTransform: 'none' } }}
                   >
                     <ToggleButton value="preview" aria-label={t('Preview', 'Aperçu')}>
                       <VisibilityOutlinedIcon sx={{ fontSize: '0.8rem', mr: 0.35 }} />
@@ -535,14 +534,14 @@ export function PlannerPage() {
 
               {/* Meta bar */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 0.75, borderBottom: `1px solid ${theme.palette.ui.border}`, backgroundColor: alpha(theme.palette.background.default, 0.4) }}>
-                <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
                   {new Date(activeNote.updatedAt).toLocaleString()}
                 </Typography>
-                <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
                   {activeNote.body.length} {t('chars', 'car.')}
                 </Typography>
                 {taskTotal > 0 && (
-                  <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                  <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
                     {taskDone}/{taskTotal} {t('tasks', 'tâches')}
                   </Typography>
                 )}
@@ -595,18 +594,18 @@ export function PlannerPage() {
                   flexWrap: 'wrap',
                 }}
               >
-                <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled', fontFamily: FONT_MONO }}>
+                <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
                   {t('Markdown:', 'Markdown :')} **{t('bold', 'gras')}** _{t('italic', 'italique')}_ `{t('code', 'code')}` # {t('heading', 'titre')} - [ ] {t('task', 'tâche')} @bp:id @res:id
                 </Typography>
                 <Select
                   size="small"
                   value={activeNote.tag}
                   onChange={(e) => update(activeNote.id, { tag: e.target.value })}
-                  sx={{ height: 24, fontSize: '0.75rem', fontFamily: FONT_MONO, '& .MuiSelect-select': { py: '1px', px: 0.75 } }}
+                  sx={{ height: 24, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, '& .MuiSelect-select': { py: '1px', px: 0.75 } }}
                   aria-label={t('Tag', 'Tag')}
                 >
                   {NOTE_TAGS.map((tag) => (
-                    <MenuItem key={tag} value={tag} sx={{ fontSize: '0.75rem', fontFamily: FONT_MONO }}>
+                    <MenuItem key={tag} value={tag} sx={{ fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}>
                       {tag}
                     </MenuItem>
                   ))}

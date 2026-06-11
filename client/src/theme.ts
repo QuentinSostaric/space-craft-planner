@@ -232,7 +232,7 @@ export const createAppTheme = (mode: ThemeMode) => {
       body1:  { fontFamily: FONT_BODY, fontSize: '0.9063rem', lineHeight: 1.55 },
       body2:  { fontFamily: FONT_BODY, fontSize: '0.8125rem', lineHeight: 1.5 },
       button: { fontFamily: FONT_BODY, fontWeight: 600, letterSpacing: '0.01em', textTransform: 'none' },
-      caption: { fontFamily: FONT_MONO, fontSize: '0.75rem', letterSpacing: '0.02em' },
+      caption: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL, letterSpacing: '0.02em' },
       overline: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.06em', textTransform: 'uppercase' },
     },
 
@@ -408,7 +408,7 @@ export const createAppTheme = (mode: ThemeMode) => {
           root: {
             borderRadius: 4,
             fontWeight: 600,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             fontFamily: FONT_BODY,
           },
         },
@@ -476,7 +476,7 @@ export const createAppTheme = (mode: ThemeMode) => {
           valueLabel: {
             backgroundColor: p.surface3,
             color: p.text,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             fontFamily: FONT_MONO,
             fontWeight: 700,
           },
@@ -490,7 +490,7 @@ export const createAppTheme = (mode: ThemeMode) => {
             backgroundColor: p.surface3,
             color: p.text,
             border: `1px solid ${p.borderStrong}`,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             fontFamily: FONT_BODY,
             borderRadius: 6,
           },

@@ -21,7 +21,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { FONT_BODY } from '../theme';
+import { FONT_BODY, TEXT_LABEL_SM} from '../theme';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
@@ -37,8 +37,8 @@ export type MainView =
 const DESKTOP_WIDTH = 84;
 const DESKTOP_ICON_SIZE = 20;
 const MOBILE_ICON_SIZE = 20;
-const DESKTOP_LABEL_FONT_SIZE = '0.6875rem'; // 11px — readable, not tiny
-const MOBILE_LABEL_FONT_SIZE = '0.6875rem';
+const DESKTOP_LABEL_FONT_SIZE = TEXT_LABEL_SM; // 11px — readable, not tiny
+const MOBILE_LABEL_FONT_SIZE = TEXT_LABEL_SM;
 
 interface NavRailProps {
   mainView: MainView;
@@ -245,7 +245,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={pendingIncomingCraftRequestCount}
           color="error"
           invisible={pendingIncomingCraftRequestCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', fontWeight: 700 } }}
+          sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
         >
           {user ? (
             <Avatar
@@ -305,7 +305,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={plannerBadgeCount}
           color="primary"
           invisible={plannerBadgeCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', fontWeight: 700 } }}
+          sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
         >
           <AssignmentIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
         </Badge>
@@ -530,7 +530,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
                 badgeContent={plannerBadgeCount}
                 color="primary"
                 invisible={plannerBadgeCount === 0}
-                sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', fontWeight: 700 } }}
+                sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
               >
                 <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
               </Badge>

@@ -32,7 +32,7 @@ import type { AggregatedResource, ResourceMethod, ResourceProgress } from '../..
 import { ResourceMethodDetail } from './ResourceMethodDetail';
 import { AppGlyph } from '../ui/AppGlyph';
 import { ResourceIcon } from '../ui/ResourceIcon';
-import { FONT_MONO } from '../../theme';
+import { FONT_MONO, TEXT_LABEL} from '../../theme';
 
 const DEFAULT_PROGRESS: ResourceProgress = { collected: 0, method: null };
 
@@ -163,7 +163,7 @@ export const ResourceRow = memo(function ResourceRow({
               size="small"
               variant="outlined"
               sx={{
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
                 height: 18,
                 color: 'warning.main',
                 borderColor: alpha(theme.palette.warning.main, 0.3),
@@ -176,7 +176,7 @@ export const ResourceRow = memo(function ResourceRow({
               size="small"
               variant="outlined"
               onDelete={() => clearPlannerResourceRequirement(resource.resourceName)}
-              sx={{ fontSize: '0.75rem', height: 18 }}
+              sx={{ fontSize: TEXT_LABEL, height: 18 }}
             />
           )}
           <Typography
@@ -218,11 +218,9 @@ export const ResourceRow = memo(function ResourceRow({
           aria-label={t('Collection method', 'Méthode de collecte')}
           sx={{
             '& .MuiToggleButton-root': {
-              fontSize: '0.75rem',
+              fontSize: TEXT_LABEL,
               py: 0.25,
               px: 1,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
             },
           }}
         >
@@ -259,7 +257,7 @@ export const ResourceRow = memo(function ResourceRow({
                   width: 52,
                   textAlign: 'right',
                   padding: '3px 6px',
-                  fontSize: '0.75rem',
+                  fontSize: TEXT_LABEL,
                   fontFamily: 'monospace',
                 },
               },
@@ -300,9 +298,7 @@ export const ResourceRow = memo(function ResourceRow({
               sx={{
                 fontWeight: 600,
                 color: 'text.secondary',
-                fontSize: '0.75rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                fontSize: TEXT_LABEL,
               }}
             >
               {method === 'mission'

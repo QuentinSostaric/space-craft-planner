@@ -13,7 +13,7 @@ import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import { loc, useI18n } from '../../../i18n/I18nContext';
 import { NUMERIC_ITEM_STAT_KEYS, STAT_LABELS, STAT_LOWER_IS_BETTER, STAT_UNITS } from '../../../types';
 import type { ItemCategory, ItemStats, NumericItemStatKey } from '../../../types';
-import { FONT_HEADING, FONT_MONO } from '../../../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../../../theme';
 
 export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { baseStats: ItemStats; category?: ItemCategory }; projectedStats: ItemStats }) {
   const { lang, t } = useI18n();
@@ -46,10 +46,8 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
   const headerCellSx = {
     color: 'text.secondary',
     fontFamily: FONT_HEADING,
-    fontSize: { xs: '0.75rem', sm: '0.8rem' },
+    fontSize: { xs: TEXT_LABEL, sm: '0.8rem' },
     fontWeight: 700,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
     borderBottom: `1px solid ${theme.palette.divider}`,
     backgroundColor: alpha(theme.palette.background.default, 0.38),
     px: { xs: 0.45, sm: 0.9 },
@@ -58,7 +56,7 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
   } as const;
   const valueCellSx = {
     fontFamily: FONT_MONO,
-    fontSize: { xs: '0.75rem', sm: '0.8rem' },
+    fontSize: { xs: TEXT_LABEL, sm: '0.8rem' },
     fontWeight: 800,
     px: { xs: 0.45, sm: 0.9 },
     py: { xs: 0.8, sm: 0.95 },
@@ -76,7 +74,6 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
             fontFamily: FONT_HEADING,
             fontSize: '.9rem',
             lineHeight: 1,
-            textTransform: 'uppercase',
           }}
         >
           {t('Combined Modifiers', 'Modificateurs combines')}
@@ -156,9 +153,8 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
                       sx={{
                         fontFamily: FONT_HEADING,
                         fontWeight: 700,
-                        fontSize: { xs: '0.75rem', sm: '0.92rem' },
+                        fontSize: { xs: TEXT_LABEL, sm: '0.92rem' },
                         lineHeight: { xs: 1.05, sm: 1 },
-                        textTransform: 'uppercase',
                         textAlign: 'left',
                         overflow: 'hidden',
                         textOverflow: { xs: 'clip', sm: 'ellipsis' },

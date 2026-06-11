@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { Rarity } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
+import { TEXT_LABEL } from '../../theme';
 
 // Badge language: PillBadge (left border, sharp corners) is reserved for
 // categorical identity (rarity, acquisition scale). Everything else uses the
@@ -65,7 +66,7 @@ function PillBadge({ label, color }: { label: string; color: string }) {
       <Typography
         variant="caption"
         sx={{
-          fontSize: '0.75rem',
+          fontSize: TEXT_LABEL,
           fontWeight: 700,
           letterSpacing: '0.12em',
           color,

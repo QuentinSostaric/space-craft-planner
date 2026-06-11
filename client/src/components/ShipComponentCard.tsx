@@ -15,7 +15,7 @@ import {
 import { Badge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import type { GameIconName } from './ui/GameIcon';
-import { FONT_HEADING } from '../theme';
+import { FONT_HEADING, TEXT_LABEL, TEXT_LABEL_SM} from '../theme';
 
 const SHIP_COMPONENT_ICON_MAP: Record<ShipComponentCardProfileKey, GameIconName> = {
   scanner: 'radars',
@@ -188,7 +188,7 @@ export const ShipComponentCard = memo(function ShipComponentCard({
             variant="caption"
             sx={{
               color: 'secondary.main',
-              fontSize: '0.75rem',
+              fontSize: TEXT_LABEL,
               fontWeight: 500,
               mt: 0.5,
               display: 'block',
@@ -227,7 +227,7 @@ export const ShipComponentCard = memo(function ShipComponentCard({
                     display: 'block',
                     color: 'text.secondary',
                     fontWeight: 500,
-                    fontSize: '0.6875rem',
+                    fontSize: TEXT_LABEL_SM,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',

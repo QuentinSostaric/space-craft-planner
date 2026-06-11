@@ -6,7 +6,7 @@ import { useI18n } from '../../../i18n/I18nContext';
 import { summarizeAssignedQualities } from '../../../utils/crafting';
 import type { AggregatedResource, Resource } from '../../../types';
 import { ResourceIcon } from '../../ui/ResourceIcon';
-import { FONT_HEADING, FONT_MONO } from '../../../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../../../theme';
 
 function normalizeResourceKey(value: string) {
   return value
@@ -111,7 +111,7 @@ export function ResourceSummary({
                 </Typography>
                 <Typography
                   variant="caption"
-                  sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75rem' }}
+                  sx={{ display: 'block', color: 'text.secondary', fontSize: TEXT_LABEL }}
                 >
                   {summarizeAssignedQualities(
                     entry.assignedQualityValues,
@@ -125,7 +125,7 @@ export function ResourceSummary({
                 variant="caption"
                 sx={{
                   fontFamily: FONT_MONO,
-                  fontSize: '0.75rem',
+                  fontSize: TEXT_LABEL,
                   ml: 0.5,
                   flexShrink: 0,
                   color: 'text.primary',

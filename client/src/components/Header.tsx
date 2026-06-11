@@ -376,7 +376,7 @@ export function Header() {
                 height: 34,
                 minWidth: 180,
                 maxWidth: 240,
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
                 fontFamily: FONT_MONO,
                 backgroundColor: 'ui.surface2',
                 '& .MuiSelect-select': { py: '6px', px: 1.25 },
@@ -385,7 +385,7 @@ export function Header() {
               {ptuDatasets.map((ds) => {
                 const date = formatDatasetBuildDate(ds.buildDateStamp, ds.importedAt, lang);
                 return (
-                  <MenuItem key={ds.datasetId} value={ds.datasetId} sx={{ fontSize: '0.75rem', fontFamily: FONT_MONO }}>
+                  <MenuItem key={ds.datasetId} value={ds.datasetId} sx={{ fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}>
                     {ds.version}{date ? ` · ${date}` : ''}
                   </MenuItem>
                 );

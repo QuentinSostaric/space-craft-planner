@@ -23,7 +23,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import { useCraft } from '../../store/CraftContext';
 import type { PlannerTodoItem, PlannerTodoSource } from '../../types';
-import { FONT_HEADING } from '../../theme';
+import { FONT_HEADING, TEXT_LABEL, TEXT_LABEL_SM} from '../../theme';
 import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 import { toSlug } from '../../utils/slug';
 
@@ -286,9 +286,7 @@ export function PlannerTodoBoard() {
             sx={{
               '& .MuiToggleButton-root': {
                 px: 1.2,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
                 fontWeight: 700,
                 fontFamily: FONT_HEADING,
               },
@@ -414,9 +412,7 @@ export function PlannerTodoBoard() {
           sx={{
             '& .MuiToggleButton-root': {
               px: 1,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              fontSize: '0.6875rem',
+              fontSize: TEXT_LABEL_SM,
               fontWeight: 700,
               fontFamily: FONT_HEADING,
             },

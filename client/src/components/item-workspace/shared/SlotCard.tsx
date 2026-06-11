@@ -24,7 +24,7 @@ import {
   isPlaceholderResourceSlot,
   isResourceSlot,
 } from '../../../utils/crafting';
-import { FONT_DISPLAY, FONT_MONO } from '../../../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../../../theme';
 
 const CAT_ICON: Record<ItemCategory, GameIconName> = {
   'fps-weapon': 'weapons',
@@ -174,7 +174,7 @@ export function SlotCard({
               mt: 0.25,
               display: 'block',
               color: 'text.secondary',
-              fontSize: '0.75rem',
+              fontSize: TEXT_LABEL,
               lineHeight: 1.2,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -189,7 +189,7 @@ export function SlotCard({
               display: 'block',
               mt: 0.15,
               color: 'text.disabled',
-              fontSize: '0.75rem',
+              fontSize: TEXT_LABEL,
               lineHeight: 1.15,
             }}
           >
@@ -200,7 +200,7 @@ export function SlotCard({
 
       <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
         <Box sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'space-between', mb: 0.3 }}>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: TEXT_LABEL }}>
             {t('Quality', 'Qualite')}
           </Typography>
           <Typography variant="caption" sx={{ color: isAssigned ? 'primary.light' : 'text.disabled', fontWeight: 800 }}>
@@ -286,7 +286,7 @@ export function SlotCard({
         >
           {isAssigned ? currentQuality : '–'}
         </Typography>
-        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', letterSpacing: '0.04em' }}>
+        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', letterSpacing: '0.04em' }}>
           {isAssigned ? (currentQuality >= 500 ? `+${qualityPercent - 50}%` : `${qualityPercent - 50}%`) : ''}
         </Typography>
       </Box>
@@ -322,7 +322,7 @@ export function SlotCard({
                 `Valeur qualité pour ${requirementName}`,
                 `Qualitätswert für ${requirementName}`,
               ),
-              style: { width: 50, textAlign: 'center', padding: '2px 4px', fontSize: '0.75rem', fontFamily: FONT_MONO },
+              style: { width: 50, textAlign: 'center', padding: '2px 4px', fontSize: TEXT_LABEL, fontFamily: FONT_MONO },
             },
           }}
           sx={{
@@ -333,7 +333,7 @@ export function SlotCard({
             },
           }}
         />
-        <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+        <Typography variant="caption" sx={{ fontSize: TEXT_LABEL, color: 'text.secondary', whiteSpace: 'nowrap' }}>
           {formatSlotQuantity(slot)}
         </Typography>
         {slot.quantityMultiplier != null && (
@@ -341,7 +341,7 @@ export function SlotCard({
             label={`x${slot.quantityMultiplier}`}
             size="small"
             variant="outlined"
-            sx={{ fontSize: '0.75rem', height: 20 }}
+            sx={{ fontSize: TEXT_LABEL, height: 20 }}
           />
         )}
         {slot.minQuality != null && slot.minQuality > 0 && (
@@ -353,7 +353,7 @@ export function SlotCard({
               height: 20,
               color: 'warning.main',
               borderColor: alpha(theme.palette.warning.main, 0.35),
-              '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 800 },
+              '& .MuiChip-label': { fontSize: TEXT_LABEL, fontWeight: 800 },
             }}
           />
         )}
@@ -382,7 +382,7 @@ export function SlotCard({
           }}
         >
           <InventoryIcon sx={{ fontSize: '0.85rem', color: 'text.disabled', flexShrink: 0 }} />
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.75rem', flexShrink: 0 }}>
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: TEXT_LABEL, flexShrink: 0 }}>
             {t('Inventory lot', 'Lot d\'inventaire')}
           </Typography>
           <Select
@@ -399,18 +399,18 @@ export function SlotCard({
               ml: 'auto',
               minWidth: 140,
               height: 24,
-              fontSize: '0.75rem',
+              fontSize: TEXT_LABEL,
               fontFamily: FONT_MONO,
               '& .MuiSelect-select': { py: '2px', px: 1 },
               backgroundColor: alpha(theme.palette.background.default, 0.3),
             }}
             aria-label={t('Select inventory lot', 'Sélectionner un lot d\'inventaire')}
           >
-            <MenuItem value="" sx={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'text.disabled' }}>
+            <MenuItem value="" sx={{ fontSize: TEXT_LABEL, fontStyle: 'italic', color: 'text.disabled' }}>
               — {t('Manual', 'Manuel')} —
             </MenuItem>
             {inventoryLots.map((lot) => (
-              <MenuItem key={lot.id} value={lot.id} sx={{ fontSize: '0.75rem', fontFamily: FONT_MONO }}>
+              <MenuItem key={lot.id} value={lot.id} sx={{ fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}>
                 {lot.qty}× Q{lot.quality}
               </MenuItem>
             ))}

@@ -29,7 +29,7 @@ import { AcquisitionSection } from './item-workspace/AcquisitionSection';
 import { DismantleSection } from './item-workspace/DismantleSection';
 import { BlueprintOverview } from './item-workspace/BlueprintOverview';
 import { RarityBadge } from './ui/RarityBadge';
-import { FONT_BODY, FONT_MONO, TEXT_LABEL_SM } from '../theme';
+import { FONT_BODY, FONT_MONO, TEXT_LABEL_SM, TEXT_LABEL} from '../theme';
 import { missionPathFromSlug, missionSlugFromContract, navigateToPath } from '../utils/slug';
 
 type WorkspaceTabId = 'fabrication' | 'missions' | 'dismantle';
@@ -144,7 +144,7 @@ export function ItemWorkspace() {
           underline="hover"
           sx={{
             color: 'text.disabled',
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             cursor: 'pointer',
             background: 'none',
             border: 'none',
@@ -153,7 +153,7 @@ export function ItemWorkspace() {
         >
           {t('Blueprints', 'Blueprints')}
         </Link>
-        <Typography sx={{ color: 'text.primary', fontSize: '0.75rem', fontWeight: 550 }}>
+        <Typography sx={{ color: 'text.primary', fontSize: TEXT_LABEL, fontWeight: 550 }}>
           {activeBlueprint.name}
         </Typography>
       </Breadcrumbs>

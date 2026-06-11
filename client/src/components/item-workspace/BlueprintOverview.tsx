@@ -10,7 +10,7 @@ import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import type { AcquisitionGraphEntry, AggregatedResource, Blueprint, ItemStats } from '../../types';
-import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../../theme';
 
 interface BlueprintOverviewProps {
   blueprint: Blueprint;
@@ -181,9 +181,7 @@ function OverviewMetric({
           variant="caption"
           sx={{
             color: 'text.secondary',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             lineHeight: 1,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -229,7 +227,7 @@ function OverviewMetric({
           sx={{
             color: alpha(theme.palette.text.primary, 0.62),
             fontFamily: FONT_MONO,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             lineHeight: 1.25,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
