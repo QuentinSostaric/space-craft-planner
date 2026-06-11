@@ -21,7 +21,7 @@ function ConfidenceBadge({ level }: { level: string }) {
       variant="outlined"
       sx={{
         fontFamily: FONT_MONO,
-        fontSize: '0.7rem',
+        fontSize: '0.75rem',
         height: 20,
       }}
 
@@ -97,7 +97,7 @@ export function DismantlingPanel() {
             textAlign: 'center', 
             backgroundColor: theme.palette.ui.surface1 
           }}>
-            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', textTransform: 'uppercase', mb: 0.5, fontSize: '0.7rem' }}>
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', textTransform: 'uppercase', mb: 0.5, fontSize: '0.75rem' }}>
               {stat.label}
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.light' }}>
@@ -157,7 +157,7 @@ export function DismantlingPanel() {
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {observedFields.map((field) => (
-                      <Chip key={field} label={field} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                      <Chip key={field} label={field} size="small" variant="outlined" sx={{ fontSize: '0.75rem' }} />
                     ))}
                   </Box>
                 </Box>

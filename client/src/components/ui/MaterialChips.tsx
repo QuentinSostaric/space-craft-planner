@@ -9,6 +9,11 @@ import {
   getSlotQuantityValue,
   isResourceSlot,
 } from '../../utils/crafting';
+import { TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
+
+function slugifyResourceName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 
 interface MaterialChipsProps {
   slots: MaterialSlot[];
@@ -31,13 +36,14 @@ export function MaterialChips({ slots, resources, resourceIds, maxVisible = 3 }:
 
   const aggregated = useMemo(() => {
     const map = new Map<string, AggregatedItem>();
+    const resourcesById = new Map(resources.map((r) => [r.id, r]));
 
     const resourceSlots = slots.filter(isResourceSlot);
 
     if (resourceSlots.length > 0) {
       for (const slot of resourceSlots) {
         const existing = map.get(slot.requiredResource);
-        const res = resources.find((r) => r.id === slot.requiredResource.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
+        const res = resourcesById.get(slugifyResourceName(slot.requiredResource));
         if (existing && existing.total !== null) {
           existing.total += getSlotQuantityValue(slot);
           existing.quantityUnit =
@@ -53,7 +59,7 @@ export function MaterialChips({ slots, resources, resourceIds, maxVisible = 3 }:
       }
     } else if (resourceIds && resourceIds.length > 0) {
       for (const id of resourceIds) {
-        const res = resources.find((r) => r.id === id);
+        const res = resourcesById.get(id);
         map.set(id, {
           name: res?.name ?? id,
           total: null,
@@ -77,14 +83,12 @@ export function MaterialChips({ slots, resources, resourceIds, maxVisible = 3 }:
       <Typography
         variant="caption"
         sx={{
-          fontSize: '0.65rem',
-          color: 'text.disabled',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-          fontWeight: 700,
+          fontSize: TEXT_LABEL_SM,
+          color: 'text.secondary',
+          fontWeight: 600,
         }}
       >
-        {t('Required Materials', 'Matériaux requis')}
+        {t('Required materials', 'Matériaux requis')}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         {visible.map((mat) => (
@@ -114,11 +118,9 @@ export function MaterialChips({ slots, resources, resourceIds, maxVisible = 3 }:
             <Typography
               variant="caption"
               sx={{
-                fontSize: '0.72rem',
+                fontSize: TEXT_LABEL,
                 fontWeight: 600,
                 color: 'text.primary',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
               }}
             >
               {mat.name}
@@ -144,7 +146,7 @@ export function MaterialChips({ slots, resources, resourceIds, maxVisible = 3 }:
           >
             <Typography
               variant="caption"
-              sx={{ fontSize: '.6rem', color: 'text.secondary', fontWeight: 700 }}
+              sx={{ fontSize: TEXT_LABEL_SM, color: 'text.secondary', fontWeight: 700 }}
             >
               +{overflow}
             </Typography>

@@ -826,7 +826,7 @@ function OrganizationDetail({
                                   label={`×${formatResourceQuantity(row.quantity, row.quantityUnit, lang, 'compact')}`}
                                   size="small"
                                   variant="outlined"
-                                  sx={{ fontFamily: FONT_MONO, fontSize: '0.72rem', height: 22, '& .MuiChip-label': { px: 0.75 } }}
+                                  sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', height: 22, '& .MuiChip-label': { px: 0.75 } }}
                                 />
                                 {row.quality != null && qualityTone ? (
                                   <Chip
@@ -834,7 +834,7 @@ function OrganizationDetail({
                                     size="small"
                                     sx={{
                                       fontFamily: FONT_MONO,
-                                      fontSize: '0.72rem',
+                                      fontSize: '0.75rem',
                                       height: 22,
                                       bgcolor: alpha(qualityTone, 0.15),
                                       color: qualityTone,

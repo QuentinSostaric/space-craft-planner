@@ -443,7 +443,7 @@ function AcquisitionMissionCard({
               bgcolor: isUnlawful ? alpha(theme.palette.warning.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
               color: isUnlawful ? 'warning.main' : 'primary.main',
               fontFamily: FONT_MONO,
-              fontSize: '0.625rem',
+              fontSize: '0.6875rem',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -485,7 +485,7 @@ function AcquisitionMissionCard({
                 bgcolor: alpha(factionColor, 0.1),
                 border: `1px solid ${alpha(factionColor, 0.3)}`,
                 fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
+                fontSize: '0.6875rem',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
@@ -546,7 +546,7 @@ function AcquisitionMissionCard({
             <Typography
               sx={{
                 fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
+                fontSize: '0.6875rem',
                 color: 'text.disabled',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',

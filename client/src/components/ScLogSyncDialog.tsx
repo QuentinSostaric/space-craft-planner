@@ -75,7 +75,7 @@ export function SyncBlueprintsButton({
           sx={{
             fontFamily: FONT_MONO,
             fontWeight: 700,
-            fontSize: '0.7rem',
+            fontSize: '0.75rem',
             letterSpacing: '0.03em',
             whiteSpace: 'nowrap',
             flexShrink: 0,

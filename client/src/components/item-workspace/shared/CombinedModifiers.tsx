@@ -156,7 +156,7 @@ export function CombinedModifiers({ blueprint, projectedStats }: { blueprint: { 
                       sx={{
                         fontFamily: FONT_HEADING,
                         fontWeight: 700,
-                        fontSize: { xs: '0.72rem', sm: '0.92rem' },
+                        fontSize: { xs: '0.75rem', sm: '0.92rem' },
                         lineHeight: { xs: 1.05, sm: 1 },
                         textTransform: 'uppercase',
                         textAlign: 'left',

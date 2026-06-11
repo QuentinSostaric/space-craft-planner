@@ -211,7 +211,7 @@ export function MaterialSourcesSection({
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.68rem' }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.6875rem' }}>
               {t('Qty', 'Qte')}
             </Typography>
             <TextField

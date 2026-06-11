@@ -172,15 +172,14 @@ export const ShipComponentCard = memo(function ShipComponentCard({
               fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: '1.1rem',
-              lineHeight: 1.1,
+              lineHeight: 1.2,
               color: 'text.primary',
-              textTransform: 'uppercase',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
-              minHeight: '2.2em',
+              minHeight: '2.4em',
             }}
           >
             {component.name ?? t('Unknown component', 'Composant inconnu', 'Unbekannte Komponente')}
@@ -190,9 +189,7 @@ export const ShipComponentCard = memo(function ShipComponentCard({
             sx={{
               color: 'secondary.main',
               fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              fontWeight: 600,
+              fontWeight: 500,
               mt: 0.5,
               display: 'block',
               overflow: 'hidden',
@@ -200,7 +197,7 @@ export const ShipComponentCard = memo(function ShipComponentCard({
               whiteSpace: 'nowrap',
             }}
           >
-            {manufacturerLabel} // {typeLabel}
+            {manufacturerLabel} · {typeLabel}
           </Typography>
         </Box>
 
@@ -229,10 +226,8 @@ export const ShipComponentCard = memo(function ShipComponentCard({
                   sx={{
                     display: 'block',
                     color: 'text.secondary',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    fontWeight: 600,
-                    fontSize: '0.62rem',
+                    fontWeight: 500,
+                    fontSize: '0.6875rem',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',

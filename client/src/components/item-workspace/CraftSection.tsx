@@ -131,9 +131,8 @@ function FieldRow({ label, value }: { label: string; value: string }) {
         variant="caption"
         sx={{
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          fontSize: '0.72rem',
+          fontWeight: 500,
+          fontSize: '0.75rem',
           py: 0.65,
           borderBottom: `1px solid ${theme.palette.ui.border}`,
           display: 'flex',
@@ -219,7 +218,7 @@ export function CraftSection({
   const gradeChipSx = {
     height: 22,
     fontFamily: FONT_MONO,
-    fontSize: '0.72rem',
+    fontSize: '0.75rem',
     fontWeight: 700,
     backgroundColor: alpha(gradeColor, 0.14),
     color: gradeColor,
@@ -345,9 +344,8 @@ export function CraftSection({
                     variant="caption"
                     sx={{
                       color: 'text.secondary',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.1em',
-                      fontSize: '0.72rem',
+                      fontWeight: 500,
+                      fontSize: '0.75rem',
                       display: 'block',
                       mb: 0.75,
                     }}
@@ -400,15 +398,15 @@ export function CraftSection({
                         {row.label}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', color: 'text.disabled' }}>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', color: 'text.disabled' }}>
                           {formatStatValue(row.key, row.baseVal)}
                         </Typography>
-                        <ArrowForwardIcon sx={{ fontSize: '0.6rem', color: 'text.disabled' }} />
+                        <ArrowForwardIcon sx={{ fontSize: '0.6875rem', color: 'text.disabled' }} />
                         <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'text.primary' }}>
                           {formatStatValue(row.key, row.finalVal)}
                         </Typography>
                         {!row.isNeutral && (
-                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', fontWeight: 700, color: deltaColor }}>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', fontWeight: 700, color: deltaColor }}>
                             {deltaStr}
                           </Typography>
                         )}

@@ -1781,14 +1781,14 @@ export function AccountPage() {
                       size="small"
                       color="success"
                       variant="outlined"
-                      sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem' }}
+                      sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem' }}
                     />
                   )}
                   <Chip
                     label={t('Discord linked', 'Discord lié', 'Discord verknüpft')}
                     size="small"
                     variant="outlined"
-                    sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem' }}
+                    sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem' }}
                   />
                   {account?.createdAt && (
                     <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_MONO }}>
@@ -2111,7 +2111,7 @@ export function AccountPage() {
                                   color: 'text.secondary',
                                   '& .MuiChip-label': {
                                     px: 0.75,
-                                    fontSize: '0.68rem',
+                                    fontSize: '0.6875rem',
                                     lineHeight: 1,
                                   },
                                   '& .MuiChip-icon': {
@@ -3281,16 +3281,16 @@ export function AccountPage() {
 
                     {/* Auto-detected paths */}
                     <Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.6875rem' }}>
                         {t('Detected', 'Détectées', 'Erkannt')}
                       </Typography>
                       <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                         {sync.installPaths?.live ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>LIVE</MuiButton>
+                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', minWidth: 56, py: 0.25 }}>LIVE</MuiButton>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                               <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
-                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.75rem' }}>
                                 {sync.installPaths.live}
                               </Typography>
                             </Box>
@@ -3304,10 +3304,10 @@ export function AccountPage() {
                         )}
                         {sync.installPaths?.ptu && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>PTU</MuiButton>
+                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', minWidth: 56, py: 0.25 }}>PTU</MuiButton>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                               <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
-                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.75rem' }}>
                                 {sync.installPaths.ptu}
                               </Typography>
                             </Box>
@@ -3319,16 +3319,16 @@ export function AccountPage() {
                     {/* Custom paths */}
                     {customPaths.length > 0 && (
                       <Box>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.6875rem' }}>
                           {t('Custom', 'Personnalisées', 'Benutzerdefiniert')}
                         </Typography>
                         <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                           {customPaths.map((cp) => (
                             <Box key={cp.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>{cp.label}</MuiButton>
+                              <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', minWidth: 56, py: 0.25 }}>{cp.label}</MuiButton>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                                 <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
-                                <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.75rem' }}>
                                   {cp.path}
                                 </Typography>
                               </Box>
@@ -3347,7 +3347,7 @@ export function AccountPage() {
 
                     {/* Add custom path */}
                     <Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem', display: 'block', mb: 0.75 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.6875rem', display: 'block', mb: 0.75 }}>
                         {t('Add installation', 'Ajouter une installation', 'Installation hinzufügen')}
                       </Typography>
                       <Stack direction="row" spacing={1} sx={{ mb: 0.75 }}>
@@ -3357,7 +3357,7 @@ export function AccountPage() {
                             size="small"
                             variant={customPathLabel === label ? 'contained' : 'outlined'}
                             onClick={() => setCustomPathLabel(label)}
-                            sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', px: 0.75, py: 0.25, minWidth: 0 }}
+                            sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', px: 0.75, py: 0.25, minWidth: 0 }}
                           >
                             {label}
                           </MuiButton>
@@ -3396,7 +3396,7 @@ export function AccountPage() {
                             {t('Watch LIVE logs in real-time', 'Surveiller les logs LIVE en temps réel', 'LIVE-Logs in Echtzeit überwachen')}
                           </Typography>
                         </Box>
-                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.75rem' }}>
                           {t(
                             'Detects new blueprints instantly when received in-game.',
                             'Détecte les nouveaux blueprints instantanément en jeu.',
@@ -3418,7 +3418,7 @@ export function AccountPage() {
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {t('Launch at Windows startup', 'Lancer au démarrage de Windows', 'Bei Windows-Start starten')}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.75rem' }}>
                           {t(
                             'Start automatically when Windows boots so the watcher is always active.',
                             'Démarre automatiquement au démarrage de Windows.',

@@ -22,7 +22,7 @@ export function Footer() {
     >
       <Typography
         variant="body2"
-        sx={{ fontSize: '.65rem', color: 'text.secondary', lineHeight: 1.5 }}
+        sx={{ fontSize: '0.6875rem', color: 'text.secondary', lineHeight: 1.5 }}
       >
         {t(
           'This is an unofficial Star Citizen fan site, not affiliated with the Cloud Imperium group of companies. All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.',
@@ -36,7 +36,7 @@ export function Footer() {
           'sont des marques deposees de Cloud Imperium Rights LLC.',
         )}
       </Typography>
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: '.65rem', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: '0.6875rem', flexWrap: 'wrap' }}>
         <Link
           href="https://robertsspaceindustries.com"
           target="_blank"

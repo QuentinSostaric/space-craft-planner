@@ -863,7 +863,7 @@ function ResourcePreviewPanel({
                     noWrap
                     sx={{
                       fontFamily: FONT_MONO,
-                      fontSize: '0.65rem',
+                      fontSize: '0.6875rem',
                       color: 'text.disabled',
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',
@@ -1405,7 +1405,7 @@ function ResourceBlueprintUsageSection({
               exclusive
               onChange={(_event, value) => value && setCategoryFilter(value)}
               size="small"
-              sx={{ flexWrap: 'wrap', '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.72rem' } }}
+              sx={{ flexWrap: 'wrap', '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.75rem' } }}
             >
               <ToggleButton value="all">{t('All', 'Toutes')}</ToggleButton>
               {categoryOptions.map((category) => (
@@ -2205,7 +2205,7 @@ export function ResourcesPage() {
                                   size="small"
                                   variant="outlined"
                                   label={formatMaterialSourceMethod(method, lang)}
-                                  sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem' } }}
+                                  sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.6875rem' } }}
                                 />
                               ))}
                             </Stack>

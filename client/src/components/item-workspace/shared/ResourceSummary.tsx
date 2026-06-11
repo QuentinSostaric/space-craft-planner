@@ -111,7 +111,7 @@ export function ResourceSummary({
                 </Typography>
                 <Typography
                   variant="caption"
-                  sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}
+                  sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75rem' }}
                 >
                   {summarizeAssignedQualities(
                     entry.assignedQualityValues,
@@ -125,7 +125,7 @@ export function ResourceSummary({
                 variant="caption"
                 sx={{
                   fontFamily: FONT_MONO,
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   ml: 0.5,
                   flexShrink: 0,
                   color: 'text.primary',

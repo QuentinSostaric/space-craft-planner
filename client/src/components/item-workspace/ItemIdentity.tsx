@@ -8,7 +8,6 @@ import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
@@ -159,7 +158,6 @@ function SectionPanel({
             {label}
           </Typography>
         </Box>
-        <ExpandMoreIcon sx={{ color: 'text.secondary', opacity: 0.8, fontSize: '1rem' }} />
       </Box>
       <Box sx={{ p: 1.25 }}>{children}</Box>
     </Paper>
@@ -196,8 +194,7 @@ function DataRow({
         variant="caption"
         sx={{
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
+          fontWeight: 500,
           lineHeight: 1.15,
           fontSize: '0.75rem',
         }}
@@ -534,8 +531,7 @@ export function ItemIdentity({
                 variant="caption"
                 sx={{
                   color: 'text.secondary',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
+                  fontWeight: 500,
                   fontSize: '0.75rem',
                 }}
               >

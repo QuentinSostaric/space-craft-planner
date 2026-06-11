@@ -534,7 +534,7 @@ const ContractRow = memo(function ContractRow({
         <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'text.primary' }}>
           {contractName}
         </Typography>
-        <Typography noWrap sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
+        <Typography noWrap sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
           {employerName}{primaryLocation ? ` · ${primaryLocation}` : ''}
         </Typography>
       </Box>
@@ -546,7 +546,7 @@ const ContractRow = memo(function ContractRow({
             {formatScaleLabel(scale, lang)}
           </Typography>
         )}
-        <Typography sx={{ fontSize: '0.72rem', color: isLawful ? 'success.main' : 'warning.main' }}>
+        <Typography sx={{ fontSize: '0.75rem', color: isLawful ? 'success.main' : 'warning.main' }}>
           {isLawful ? t('Lawful', 'Légal') : t('Unlawful', 'Illégal')}
         </Typography>
       </Box>
@@ -714,7 +714,7 @@ const ContractCard = memo(function ContractCard({
               bgcolor: isUnlawful ? alpha(theme.palette.warning.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
               color: isUnlawful ? 'warning.main' : 'primary.main',
               fontFamily: FONT_MONO,
-              fontSize: '0.625rem',
+              fontSize: '0.6875rem',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -803,7 +803,7 @@ const ContractCard = memo(function ContractCard({
             <Typography
               sx={{
                 fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
+                fontSize: '0.6875rem',
                 color: 'text.disabled',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
@@ -937,7 +937,7 @@ const ContractCard = memo(function ContractCard({
                       noWrap
                       sx={{
                         fontFamily: FONT_MONO,
-                        fontSize: '0.625rem',
+                        fontSize: '0.6875rem',
                         color: 'text.disabled',
                         flexShrink: 0,
                         maxWidth: 64,
@@ -1223,7 +1223,7 @@ function MissionDetail({
                               textTransform: 'uppercase',
                               letterSpacing: '0.08em',
                               color: 'primary.light',
-                              fontSize: '0.7rem',
+                              fontSize: '0.75rem',
                             }}
                           >
                             {scope.displayName ?? scope.scopeName}
@@ -1867,7 +1867,7 @@ export function MissionsPanel() {
               size="small"
               onChange={(_e, val) => { if (val) setMissionView(val as 'cards' | 'rows'); }}
               aria-label={t('View mode', 'Mode vue')}
-              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: '0.72rem', textTransform: 'none' } }}
+              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: '0.75rem', textTransform: 'none' } }}
             >
               <ToggleButton value="cards">{t('Cards', 'Cartes')}</ToggleButton>
               <ToggleButton value="rows">{t('Rows', 'Lignes')}</ToggleButton>
