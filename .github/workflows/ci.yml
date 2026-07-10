@@ -6,14 +6,35 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  dependency-review:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
 
-      - uses: actions/setup-node@v4
+  build:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24.14.0'
           cache: 'npm'
@@ -21,8 +42,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: npm audit (high/critical)
+        run: npm audit --audit-level=high
+
+      - name: Validate repository configuration
+        run: npm run config:check
+
+      - name: Compile Cloudflare applications without deploying
+        run: npm run cloudflare:check
+
       - name: Type check
-        run: cd client && npx tsc --noEmit
+        run: npm exec --workspace client -- tsc --noEmit
 
       - name: Build
         run: npm run build
+
+  cargo-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-06-30
+        with:
+          toolchain: stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@c7eb1735f09259a5035e8e5d44b1406b1cddc0fb # v2.83.0
+        with:
+          tool: cargo-audit@0.22.0
+
+      - name: Run cargo audit
+        run: cargo audit --file Cargo.lock
+        working-directory: ./src-tauri

@@ -15,8 +15,10 @@
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "discord:bot:dev": "npx --yes wrangler@4.94.0 dev --config workers/discord-bot/wrangler.toml --port 8790",
-    "discord:bot:deploy": "npx --yes wrangler@4.94.0 deploy --config workers/discord-bot/wrangler.toml",
+    "config:check": "node scripts/validateConfiguration.mjs",
+    "cloudflare:check": "wrangler pages functions build functions --project-directory . --outdir .tmp/ci-pages --compatibility-date 2024-09-23 && wrangler deploy --dry-run --config workers/discord-bot/wrangler.toml --outdir .tmp/ci-wrangler-bot",
+    "discord:bot:dev": "wrangler dev --config workers/discord-bot/wrangler.toml --port 8790",
+    "discord:bot:deploy": "wrangler deploy --config workers/discord-bot/wrangler.toml",
     "discord:bot:register:guild": "node workers/discord-bot/scripts/register-commands.mjs guild",
     "discord:bot:register:global": "node workers/discord-bot/scripts/register-commands.mjs global",
     "build": "npm run build --workspace client",
@@ -28,7 +30,8 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "wrangler": "4.110.0"
   },
   "engines": {
     "node": ">=24 <25"

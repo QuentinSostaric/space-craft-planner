@@ -116,7 +116,7 @@ The bot lives in [`workers/discord-bot`](./workers/discord-bot).
 ### Install
 
 ```bash
-npm install
+npm ci
 ```
 
 ### Local Dev
@@ -179,7 +179,11 @@ The Pages app deploys through the Cloudflare Pages Git integration:
 - pushes to `main` create preview deployments
 - pushes to `production` update production
 
-Secrets and runtime bindings are configured in Cloudflare, not in GitHub.
+Secrets and runtime bindings are configured in Cloudflare, not in GitHub. The Discord Worker
+configuration deliberately omits the non-secret account identifier. Export
+`CLOUDFLARE_ACCOUNT_ID` in the deploy shell (or use a Wrangler login scoped to the intended
+account); keep API tokens out of tracked files and limit them to the target account and Worker.
+See [`docs/supply-chain.md`](./docs/supply-chain.md) for the reproducibility and CI controls.
 
 ## Scripts
 
@@ -187,9 +191,11 @@ Secrets and runtime bindings are configured in Cloudflare, not in GitHub.
 | --- | --- |
 | `npm run dev` | Vite dev server plus local API server |
 | `npm run build` | Type-check and build the client |
+| `npm run config:check` | Validate lockfiles, workflow pins and public configuration without loading secrets |
+| `npm run cloudflare:check` | Compile Pages Functions and the Discord Worker without deploying |
 | `npm run claims:org` | Review manual organization claim requests from R2 |
-| `npm run discord:bot:dev` | Run the Discord bot Worker locally through `npx wrangler` |
-| `npm run discord:bot:deploy` | Deploy the Discord bot Worker through `npx wrangler` |
+| `npm run discord:bot:dev` | Run the Discord bot Worker with the lockfile-pinned Wrangler CLI |
+| `npm run discord:bot:deploy` | Deploy the Discord bot Worker with the lockfile-pinned Wrangler CLI |
 | `npm run discord:bot:register:guild` | Register slash commands in one Discord guild |
 | `npm run discord:bot:register:global` | Register slash commands globally |
 
