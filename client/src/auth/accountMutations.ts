@@ -1049,18 +1049,22 @@ export function writePersistedAccountMutations(
   storageKey: string,
   mutations: PersistedAccountMutation[],
 ): void {
-  if (mutations.length === 0) {
-    window.localStorage.removeItem(storageKey);
-    return;
-  }
+  try {
+    if (mutations.length === 0) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
 
-  window.localStorage.setItem(
-    storageKey,
-    JSON.stringify({
-      version: MUTATION_STORAGE_VERSION,
-      mutations,
-    }),
-  );
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: MUTATION_STORAGE_VERSION,
+        mutations,
+      }),
+    );
+  } catch {
+    // The in-memory queue remains authoritative if storage is unavailable or full.
+  }
 }
 
 export function coalescePersistedMutations(

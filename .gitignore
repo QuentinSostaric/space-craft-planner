@@ -6,7 +6,6 @@ dist/
 client/dist/
 /src-tauri/target/
 /src-tauri/gen/
-/src-tauri/Cargo.lock
 /client/public/itemfabricator_version.json
 .playwright-cli/
 
