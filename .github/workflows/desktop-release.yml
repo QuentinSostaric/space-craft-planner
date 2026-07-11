@@ -65,20 +65,25 @@ jobs:
       - name: Validate repository configuration
         run: npm run config:check
 
-      - name: Validate required updater signing secrets
+      - name: Validate updater signing secrets (optional)
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          missing=0
-          for name in TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "::error::$name is not configured."
-              missing=1
-            fi
-          done
-          exit "$missing"
+          has_key=0
+          has_pwd=0
+          if [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then has_key=1; fi
+          if [[ -n "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]]; then has_pwd=1; fi
+          
+          if (( has_key != has_pwd )); then
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD must be configured together. Skipping signing."
+            echo "SIGN_ENABLED=false" >> "$GITHUB_ENV"
+          elif (( has_key == 1 )); then
+            echo "SIGN_ENABLED=true" >> "$GITHUB_ENV"
+          else
+            echo "SIGN_ENABLED=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Configure Windows Authenticode signing
         if: runner.os == 'Windows'
