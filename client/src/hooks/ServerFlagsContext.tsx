@@ -15,6 +15,9 @@ export function ServerFlagsProvider({ children }: { children: ReactNode }) {
   // keyed on the user id.
   useEffect(() => {
     let cancelled = false;
+    // Never expose flags evaluated for the previous identity while the next
+    // request is in flight (or after logout when the network is unavailable).
+    setFlags({});
     void fetchServerFlags().then((next) => {
       if (!cancelled) {
         setFlags(next);

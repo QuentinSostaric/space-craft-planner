@@ -64,6 +64,7 @@ import {
   isResourceSlot,
 } from '../utils/crafting';
 import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
+import { sanitizeExternalHttpsUrl } from '../utils/urlSafety';
 import { AccountGuestView } from './account/AccountGuestView';
 import { CraftRequestsPanel } from './account/CraftRequestsPanel';
 import { BlueprintCard } from './BlueprintGrid';
@@ -2764,6 +2765,7 @@ export function AccountPage() {
                       const lastVerifiedLabel = formatAbsoluteDate(organization.lastVerifiedAt);
                       const claimRequestSubmittedLabel = formatAbsoluteDate(organization.claimRequestSubmittedAt);
                       const organizationImage = organization.image ?? organization.logo ?? undefined;
+                      const organizationUrl = sanitizeExternalHttpsUrl(organization.url);
                       const hasPendingClaimRequest = organization.claimRequestStatus === 'pending';
                       const organizationStatusLabel =
                         organization.status === 'verified_admin'
@@ -2843,8 +2845,8 @@ export function AccountPage() {
                                     {organization.name.charAt(0).toUpperCase()}
                                   </Avatar>
                                   <Box sx={{ minWidth: 0 }}>
-                                    {organization.url ? (
-                                      <Link href={organization.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
+                                    {organizationUrl ? (
+                                      <Link href={organizationUrl} target="_blank" rel="noopener noreferrer" underline="hover" color="inherit">
                                         <Typography variant="subtitle1" sx={{ lineHeight: 1.2, fontWeight: 700 }}>
                                           {organization.name}
                                         </Typography>

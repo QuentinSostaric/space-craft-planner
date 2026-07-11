@@ -279,6 +279,19 @@ function releaseFlushLock(lockKey: string, ownerId: string): void {
   }
 }
 
+function clearMutationStorage(storageKey: string | null, lockKey: string | null): void {
+  try {
+    if (storageKey) {
+      window.localStorage.removeItem(storageKey);
+    }
+    if (lockKey) {
+      window.localStorage.removeItem(lockKey);
+    }
+  } catch {
+    // In-memory auth state is still cleared when browser storage is unavailable.
+  }
+}
+
 function isAccountDatasetScopeReady(
   account: StoredAccount | null,
   datasetScope: AccountDatasetScope,
@@ -328,6 +341,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const serverAccountRef = useRef<StoredAccount | null>(null);
   const syncStatusRef = useRef<AccountSyncStatus>('idle');
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const sessionRefreshIdRef = useRef(0);
+  const accountRefreshIdRef = useRef(0);
 
   const mutationStorageKey = useMemo(
     () =>
@@ -421,16 +436,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   >(() => {});
 
   const refreshSession = useCallback(async () => {
+    const refreshId = ++sessionRefreshIdRef.current;
+    accountRefreshIdRef.current += 1;
     setLoading(true);
     try {
       const nextSession = await fetchAuthSession();
+      if (refreshId !== sessionRefreshIdRef.current) {
+        return;
+      }
+
       setSession(nextSession);
       if (nextSession.user) {
         try {
           const nextAccount = await fetchCurrentAccount(accountDatasetScope);
+          if (refreshId !== sessionRefreshIdRef.current) {
+            return;
+          }
           setServerAccount(nextAccount);
         } catch {
-          setServerAccount(null);
+          if (refreshId === sessionRefreshIdRef.current) {
+            setServerAccount(null);
+          }
         }
       } else {
         setServerAccount(null);
@@ -439,25 +465,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSyncError(null);
       }
     } catch {
+      if (refreshId !== sessionRefreshIdRef.current) {
+        return;
+      }
+
+      // Authentication checks fail closed: never leave a previous user's
+      // private account visible after the session can no longer be verified.
+      setSession((current) => ({ ...current, user: null }));
+      setServerAccount(null);
+      setPendingMutations([]);
+      setSyncStatus('idle');
       // Network/CORS failure — in the desktop app, always show the login button
       // since the server-side env vars are always configured in production.
       if (isTauriRuntime()) {
         setSession({ enabled: true, provider: 'discord', user: null });
       }
     } finally {
-      setLoading(false);
+      if (refreshId === sessionRefreshIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [accountDatasetScope]);
 
   const refreshAccountSilently = useCallback(async () => {
     if (!session.user) {
+      accountRefreshIdRef.current += 1;
       setServerAccount(null);
       return;
     }
 
+    const refreshId = ++accountRefreshIdRef.current;
     try {
       const nextAccount = await fetchCurrentAccount(accountDatasetScope);
-      setServerAccount(nextAccount);
+      if (refreshId === accountRefreshIdRef.current) {
+        setServerAccount(nextAccount);
+      }
     } catch {
       // Keep the optimistic account on silent refresh failures.
     }
@@ -1205,10 +1247,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
+    sessionRefreshIdRef.current += 1;
+    accountRefreshIdRef.current += 1;
     await logoutAuthSession();
-    await clearDesktopAuthSession();
-    await refreshSession();
-  }, [refreshSession]);
+    try {
+      await clearDesktopAuthSession();
+    } finally {
+      clearMutationStorage(mutationStorageKey, mutationLockKey);
+      pendingMutationsRef.current = [];
+      setPendingMutations([]);
+      setServerAccount(null);
+      await refreshSession();
+    }
+  }, [mutationLockKey, mutationStorageKey, refreshSession]);
 
   const copyLiveDataToPtu = useCallback<AuthState['copyLiveDataToPtu']>(async () => {
     await flushPendingMutationsRef.current();
@@ -1260,8 +1311,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     await deleteCurrentAccount();
+    clearMutationStorage(mutationStorageKey, mutationLockKey);
+    pendingMutationsRef.current = [];
+    setPendingMutations([]);
+    setServerAccount(null);
     await refreshSession();
-  }, [refreshSession]);
+  }, [mutationLockKey, mutationStorageKey, refreshSession]);
 
   const linkRsiAccount = useCallback(async (handle: string, code: string) => {
     const nextAccount = await verifyAndLinkRsiAccount(handle, code);

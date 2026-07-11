@@ -21,6 +21,7 @@
     "discord:bot:deploy": "wrangler deploy --config workers/discord-bot/wrangler.toml",
     "discord:bot:register:guild": "node workers/discord-bot/scripts/register-commands.mjs guild",
     "discord:bot:register:global": "node workers/discord-bot/scripts/register-commands.mjs global",
+    "test": "node --test tests/*.test.mjs",
     "build": "npm run build --workspace client",
     "claims:org": "node scripts/manageOrganizationClaims.mjs",
     "planner:purge-goals": "node scripts/purgePlannerGoals.mjs"

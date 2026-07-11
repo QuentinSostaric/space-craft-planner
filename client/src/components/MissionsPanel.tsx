@@ -52,6 +52,7 @@ import {
 } from '../utils/crafting';
 import { missionPathFromSlug, missionSlugFromContract, missionSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
+import { sanitizeExternalHttpsUrl } from '../utils/urlSafety';
 import type {
   Blueprint,
   MissionContract,
@@ -1121,6 +1122,7 @@ function MissionDetail({
   const { contract, group } = selection;
   const employer = getMissionEmployer(contract, group);
   const employerAssetUrl = getMissionEmployerAssetUrl(employer);
+  const employerSourceUrl = sanitizeExternalHttpsUrl(employer?.sourcePageUrl);
   const localities = getMissionLocalities(contract);
   const missionBlueprints = useMemo(() => dedupeMissionBlueprints(contract, blueprints), [contract, blueprints]);
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
@@ -1170,18 +1172,18 @@ function MissionDetail({
                       )}
                       <Typography variant="body2">{employer?.displayName ?? group.contractorDisplayName}</Typography>
                     </Stack>
-                    {employer?.sourcePageUrl && (
+                    {employerSourceUrl && (
                       <Link
-                        href={employer.sourcePageUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      underline="hover"
-                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TEXT_LABEL }}
-                    >
-                      {t('Open source page', 'Ouvrir la source')}
-                      <OpenInNewIcon sx={{ fontSize: '0.9rem' }} />
-                    </Link>
-                  )}
+                        href={employerSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="hover"
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TEXT_LABEL }}
+                      >
+                        {t('Open source page', 'Ouvrir la source')}
+                        <OpenInNewIcon sx={{ fontSize: '0.9rem' }} />
+                      </Link>
+                    )}
                 </Stack>
               }
             />

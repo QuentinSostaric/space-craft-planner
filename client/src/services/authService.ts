@@ -5,6 +5,7 @@ import type {
   ResourceProgress,
 } from '../types';
 import { fetchTauriApi, getApiCredentials, getApiUrl } from './apiBaseUrl';
+import { sanitizeAppReturnTo } from '../utils/urlSafety';
 
 export interface AuthenticatedUser {
   id: string;
@@ -556,7 +557,7 @@ export async function respondToOrganizationCraftRequestsBulk(
 export function getDiscordLoginUrl(returnTo?: string): string {
   const params = new URLSearchParams();
   if (returnTo) {
-    params.set('returnTo', returnTo);
+    params.set('returnTo', sanitizeAppReturnTo(returnTo));
   }
 
   const suffix = params.toString();
@@ -566,7 +567,7 @@ export function getDiscordLoginUrl(returnTo?: string): string {
 export function getCitizenIdLoginUrl(returnTo?: string): string {
   const params = new URLSearchParams();
   if (returnTo) {
-    params.set('returnTo', returnTo);
+    params.set('returnTo', sanitizeAppReturnTo(returnTo));
   }
 
   const suffix = params.toString();

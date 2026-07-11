@@ -1,4 +1,5 @@
 import { fetchTauriApiJson, getApiCredentials, getApiUrl } from './apiBaseUrl';
+import { normalizeBooleanRecord } from '../utils/dataValidation';
 
 const FEATURE_FLAGS_PATH = '/api/auth/feature-flags';
 
@@ -14,7 +15,7 @@ export async function fetchServerFlags(): Promise<Record<string, boolean>> {
   try {
     const tauriPayload = await fetchTauriApiJson<FeatureFlagsResponse>(FEATURE_FLAGS_PATH);
     if (tauriPayload) {
-      return tauriPayload.flags ?? {};
+      return normalizeBooleanRecord(tauriPayload.flags);
     }
 
     const response = await fetch(getApiUrl(FEATURE_FLAGS_PATH), {
@@ -26,7 +27,7 @@ export async function fetchServerFlags(): Promise<Record<string, boolean>> {
     }
 
     const payload = (await response.json()) as FeatureFlagsResponse;
-    return payload.flags ?? {};
+    return normalizeBooleanRecord(payload.flags);
   } catch {
     return {};
   }
