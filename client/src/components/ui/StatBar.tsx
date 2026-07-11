@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme, alpha } from '@mui/material/styles';
+import { TEXT_LABEL } from '../../theme';
 
 interface StatBarProps {
   label: string;
@@ -28,11 +29,9 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           width: 80,
           flexShrink: 0,
-          fontSize: '0.75rem',
+          fontSize: TEXT_LABEL,
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          fontWeight: 600,
+          fontWeight: 500,
         }}
       >
         {label}
@@ -64,7 +63,7 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           minWidth: 45,
           textAlign: 'right',
-          fontSize: '0.75rem',
+          fontSize: TEXT_LABEL,
           color: 'primary.main',
           fontWeight: 700,
         }}

@@ -8,7 +8,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
-import { FONT_MONO } from '../theme';
+import { FONT_MONO, TEXT_LABEL} from '../theme';
 
 function ConfidenceBadge({ level }: { level: string }) {
   const color = level === 'high' ? 'success' : level === 'medium' ? 'warning' : 'error';
@@ -21,7 +21,7 @@ function ConfidenceBadge({ level }: { level: string }) {
       variant="outlined"
       sx={{
         fontFamily: FONT_MONO,
-        fontSize: '0.7rem',
+        fontSize: TEXT_LABEL,
         height: 20,
       }}
 
@@ -51,7 +51,7 @@ export function DismantlingPanel() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 1 }}>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 700, letterSpacing: '-0.012em' }}>
         {t('Dismantling', 'Demontage')}
       </Typography>
 
@@ -67,7 +67,7 @@ export function DismantlingPanel() {
               <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                 {activeBlueprint.name}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {activeBlueprint.manufacturer}
               </Typography>
             </Box>
@@ -97,7 +97,7 @@ export function DismantlingPanel() {
             textAlign: 'center', 
             backgroundColor: theme.palette.ui.surface1 
           }}>
-            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', textTransform: 'uppercase', mb: 0.5, fontSize: '0.7rem' }}>
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 0.5, fontSize: TEXT_LABEL }}>
               {stat.label}
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.light' }}>
@@ -152,12 +152,12 @@ export function DismantlingPanel() {
               </Typography>
               {observedFields.length > 0 && (
                 <Box>
-                  <Typography variant="caption" sx={{ textTransform: 'uppercase', color: 'text.disabled', display: 'block', mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                     {t('Observed runtime result fields:', 'Champs observes dans les resultats runtime :')}
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {observedFields.map((field) => (
-                      <Chip key={field} label={field} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                      <Chip key={field} label={field} size="small" variant="outlined" sx={{ fontSize: TEXT_LABEL }} />
                     ))}
                   </Box>
                 </Box>

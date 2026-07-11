@@ -30,7 +30,7 @@ import type {
   MissionContract,
   MissionRewardsData,
 } from '../../types';
-import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../../theme';
 
 interface AcquisitionSectionProps {
   entry: AcquisitionGraphEntry | null;
@@ -425,7 +425,7 @@ function AcquisitionMissionCard({
               sx={{
                 fontFamily: FONT_HEADING,
                 fontWeight: 600,
-                fontSize: '0.8125rem',
+                fontSize: TEXT_LABEL_LG,
                 color: 'text.secondary',
                 minWidth: 0,
               }}
@@ -443,7 +443,7 @@ function AcquisitionMissionCard({
               bgcolor: isUnlawful ? alpha(theme.palette.warning.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
               color: isUnlawful ? 'warning.main' : 'primary.main',
               fontFamily: FONT_MONO,
-              fontSize: '0.625rem',
+              fontSize: TEXT_LABEL_SM,
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -485,7 +485,7 @@ function AcquisitionMissionCard({
                 bgcolor: alpha(factionColor, 0.1),
                 border: `1px solid ${alpha(factionColor, 0.3)}`,
                 fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
+                fontSize: TEXT_LABEL_SM,
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
@@ -503,7 +503,7 @@ function AcquisitionMissionCard({
               ) : (
                 <PlaceOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
               )}
-              <Typography noWrap sx={{ fontSize: '0.8125rem', color: 'text.secondary', minWidth: 0 }}>
+              <Typography noWrap sx={{ fontSize: TEXT_LABEL_LG, color: 'text.secondary', minWidth: 0 }}>
                 {primaryLocation}
               </Typography>
             </Box>
@@ -546,10 +546,8 @@ function AcquisitionMissionCard({
             <Typography
               sx={{
                 fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
-                color: 'text.disabled',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
+                fontSize: TEXT_LABEL_SM,
+                color: 'text.secondary',
               }}
             >
               {fact.label}
@@ -559,7 +557,7 @@ function AcquisitionMissionCard({
               sx={{
                 fontFamily: FONT_HEADING,
                 fontWeight: 700,
-                fontSize: '0.8125rem',
+                fontSize: TEXT_LABEL_LG,
                 color: 'text.primary',
               }}
             >
@@ -574,7 +572,7 @@ function AcquisitionMissionCard({
         <Box sx={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid', borderColor: 'ui.border', flex: 1, minHeight: 0 }}>
           {/* Pool header */}
           <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {t('Pool', 'Pool')} · {blueprintCount} {t('blueprints', 'blueprints')}
             </Typography>
             {dropChance > 0 && (
@@ -597,7 +595,7 @@ function AcquisitionMissionCard({
                     }}
                   />
                 </Box>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'primary.main', fontWeight: 600 }}>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'primary.main', fontWeight: 600 }}>
                   {formatProbabilityPercent(dropChance)}
                 </Typography>
               </Box>
@@ -655,7 +653,7 @@ function AcquisitionMissionCard({
                   <Typography
                     noWrap
                     sx={{
-                      fontSize: '0.8125rem',
+                      fontSize: TEXT_LABEL_LG,
                       fontWeight: isActive ? 700 : 500,
                       color: isActive ? 'primary.light' : 'text.primary',
                       minWidth: 0,
@@ -667,7 +665,7 @@ function AcquisitionMissionCard({
                     <Typography
                       sx={{
                         fontFamily: FONT_MONO,
-                        fontSize: '0.6875rem',
+                        fontSize: TEXT_LABEL_SM,
                         color: 'primary.main',
                         fontWeight: 600,
                         flexShrink: 0,
@@ -780,7 +778,6 @@ export function AcquisitionSection({
                     fontSize: { xs: '1.45rem', md: '1.65rem' },
                       fontWeight: 800,
                       lineHeight: 0.92,
-                      textTransform: 'uppercase',
                     }}
                   >
                     {entry.contractCount} {t('contracts', 'contrats')}
@@ -789,9 +786,7 @@ export function AcquisitionSection({
                     variant="caption"
                     sx={{
                       color: 'text.secondary',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.1em',
-                      fontSize: '0.75rem',
+                      fontSize: TEXT_LABEL,
                     }}
                   >
                     {entry.factionCount} {t('factions', 'factions')} / {entry.localityCount} {t('localities', 'localites')}
@@ -830,7 +825,7 @@ export function AcquisitionSection({
                             <StarCitizenLicensedIcon name={getLocationIconName(locality)!} size={13} dimmed />
                           ) : undefined
                         }
-                        sx={{ fontSize: '0.75rem', height: 20 }}
+                        sx={{ fontSize: TEXT_LABEL, height: 20 }}
                       />
                     ))}
                   </Box>
@@ -853,9 +848,7 @@ export function AcquisitionSection({
                   variant="caption"
                   sx={{
                     color: alpha(theme.palette.text.primary, 0.62),
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    fontSize: '0.75rem',
+                    fontSize: TEXT_LABEL,
                   }}
                 >
                   {t('Drop score', 'Score drop')}
@@ -871,7 +864,7 @@ export function AcquisitionSection({
                 >
                   {entry.dropScore > 0 ? formatProbabilityPercent(entry.dropScore) : '-'}
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL }}>
                   {t('Best linked chance', 'Meilleure chance liee')}
                 </Typography>
               </Paper>

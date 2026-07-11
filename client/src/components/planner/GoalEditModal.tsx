@@ -24,7 +24,7 @@ import {
   isResourceSlot,
 } from '../../utils/crafting';
 import type { CraftGoal, MaterialSlot } from '../../types';
-import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../../theme';
 
 interface GoalEditModalProps {
   goal: CraftGoal;
@@ -109,7 +109,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
                     {formatSlotQuantity(slot)}
                   </Typography>
                   {slot.minQuality != null && slot.minQuality > 0 && (
-                    <Chip label={`Min ${slot.minQuality}`} size="small" variant="outlined" sx={{ fontSize: '0.75rem', height: 20, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
+                    <Chip label={`Min ${slot.minQuality}`} size="small" variant="outlined" sx={{ fontSize: TEXT_LABEL, height: 20, color: 'warning.main', borderColor: 'rgba(251,191,36,.25)' }} />
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

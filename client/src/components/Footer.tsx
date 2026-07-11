@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import { useI18n } from '../i18n/I18nContext';
 import { navigateToPath } from '../utils/slug';
+import { TEXT_LABEL_SM } from '../theme';
 
 export function Footer() {
   const { t } = useI18n();
@@ -22,7 +23,7 @@ export function Footer() {
     >
       <Typography
         variant="body2"
-        sx={{ fontSize: '.65rem', color: 'text.secondary', lineHeight: 1.5 }}
+        sx={{ fontSize: TEXT_LABEL_SM, color: 'text.secondary', lineHeight: 1.5 }}
       >
         {t(
           'This is an unofficial Star Citizen fan site, not affiliated with the Cloud Imperium group of companies. All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.',
@@ -36,7 +37,7 @@ export function Footer() {
           'sont des marques deposees de Cloud Imperium Rights LLC.',
         )}
       </Typography>
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: '.65rem', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: TEXT_LABEL_SM, flexWrap: 'wrap' }}>
         <Link
           href="https://robertsspaceindustries.com"
           target="_blank"

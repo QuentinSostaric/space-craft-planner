@@ -15,7 +15,7 @@ import {
   STAT_PERCENT_KEYS,
 } from '../../../types';
 import type { Blueprint, ItemStats, NumericItemStatKey } from '../../../types';
-import { FONT_HEADING } from '../../../theme';
+import { FONT_HEADING, TEXT_LABEL} from '../../../theme';
 
 const WEAPON_METRICS: NumericItemStatKey[] = [
   'damage',
@@ -249,7 +249,7 @@ export function StatImpactRadar({
               aria-label={`${metric.label}: ${stateLabel}`}
               sx={{
                 height: 22,
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
                 color: metric.isNeutral
                   ? 'text.secondary'
                   : metric.isImproved

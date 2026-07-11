@@ -560,8 +560,6 @@ export function CraftRequestsPanel({
                             sx={{
                               display: 'block',
                               color: 'text.secondary',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.1em',
                               mb: 0.5,
                             }}
                           >
@@ -584,7 +582,7 @@ export function CraftRequestsPanel({
                           variant="outlined"
                           sx={{ p: 1, backgroundColor: alpha(theme.palette.background.paper, 0.35) }}
                         >
-                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                             {direction === 'incoming'
                               ? t('Requester', 'Demandeur', 'Anfragender')
                               : t('Crafter', 'Crafteur', 'Crafter')}
@@ -601,7 +599,7 @@ export function CraftRequestsPanel({
                           variant="outlined"
                           sx={{ p: 1, backgroundColor: alpha(theme.palette.background.paper, 0.35) }}
                         >
-                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                             {t('Organization', 'Organisation', 'Organisation')}
                           </Typography>
                           <Typography variant="body2" sx={{ mt: 0.35, fontWeight: 700 }} noWrap>
@@ -616,7 +614,7 @@ export function CraftRequestsPanel({
                           variant="outlined"
                           sx={{ p: 1, backgroundColor: alpha(theme.palette.background.paper, 0.35) }}
                         >
-                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                             {timelineTitle}
                           </Typography>
                           <Typography variant="body2" sx={{ mt: 0.35, fontWeight: 700 }}>

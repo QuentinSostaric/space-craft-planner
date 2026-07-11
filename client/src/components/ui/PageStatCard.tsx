@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
-import { FONT_DISPLAY } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
 export function PageStatCard({
   label,
@@ -31,17 +31,6 @@ export function PageStatCard({
         backgroundColor: 'ui.surface',
         position: 'relative',
         overflow: 'hidden',
-        // Left accent strip
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 2,
-          backgroundColor: 'primary.main',
-          opacity: 0.55,
-        },
       }}
     >
       <Typography
@@ -49,9 +38,9 @@ export function PageStatCard({
         sx={{
           display: 'block',
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: { xs: '0.1em', md: '0.12em' },
-          fontSize: '0.75rem',
+          fontWeight: 500,
+          fontSize: TEXT_LABEL,
+          letterSpacing: 0,
           mb: { xs: 0.5, md: 0.75 },
         }}
       >
@@ -78,11 +67,11 @@ export function PageStatCard({
         <Typography
           sx={{
             mt: 0.5,
-            fontSize: '0.6875rem',
-            color: trend ? (trend.startsWith('+') ? 'success.main' : 'error.main') : 'text.disabled',
+            fontSize: TEXT_LABEL_SM,
+            color: trend ? (trend.startsWith('+') ? 'success.main' : 'error.main') : 'text.secondary',
           }}
         >
-          {trend && <Box component="span" sx={{ fontFamily: 'FONT_MONO', fontWeight: 700, mr: 0.5 }}>{trend}</Box>}
+          {trend && <Box component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, mr: 0.5 }}>{trend}</Box>}
           {hint}
         </Typography>
       )}

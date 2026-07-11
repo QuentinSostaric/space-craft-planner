@@ -51,6 +51,7 @@ import type {
   SlotCountFilter,
   StandingBucket,
 } from '../types';
+import { TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
 
 type LocalizedOption = { label: LocalizedString };
 
@@ -573,7 +574,7 @@ export function BlueprintExplorer() {
             },
           },
           '& .MuiTypography-caption': {
-            fontSize: { xs: '0.75rem', md: '0.75rem' },
+            fontSize: { xs: TEXT_LABEL, md: TEXT_LABEL },
             letterSpacing: '0.08em',
             mb: 0.25,
           },
@@ -749,7 +750,7 @@ export function BlueprintExplorer() {
                 borderRadius: '50%',
                 bgcolor: 'primary.main',
                 color: 'primary.contrastText',
-                fontSize: '0.65rem',
+                fontSize: TEXT_LABEL_SM,
                 fontWeight: 700,
                 lineHeight: 1,
               }}
@@ -901,7 +902,7 @@ export function BlueprintExplorer() {
               slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
             />
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', ml: 0.25 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL, ml: 0.25 }}>
                 {t('Legality', 'Légalité')}
               </Typography>
               <ToggleButtonGroup

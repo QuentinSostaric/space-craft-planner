@@ -27,14 +27,16 @@ Example payload:
 
 ## Release flow
 
-Create one GitHub release per version by pushing a tag:
+Create one GitHub release per version and publish it. For example:
 
 ```bash
 git tag v1.11.0
 git push origin v1.11.0
+# Then publish a GitHub Release for v1.11.0 in GitHub.
 ```
 
-The `Desktop Release` workflow runs on `v*` tags, manually, and when a GitHub release is published. It builds and uploads release assets for:
+The `Desktop Release` workflow runs when a GitHub release is published or when an authorized
+maintainer starts it manually. It builds and uploads release assets for:
 
 - Windows: NSIS installer `.exe`
 - Linux: AppImage
@@ -69,6 +71,11 @@ TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 ```
 
 The current updater key has a password, so both secrets are required. The public key is committed in `src-tauri/tauri.conf.json`; the private key and password must never be committed. Local generated values currently exist at `.tmp/tauri-updater-private.key` and `.tmp/tauri-updater-password.txt` for transferring into the GitHub secrets.
+
+The release workflow fails closed when either updater-signing secret is absent. Windows
+Authenticode signing remains optional, but `WINDOWS_CERTIFICATE` and
+`WINDOWS_CERTIFICATE_PASSWORD` must either both be configured or both be absent. GitHub Actions
+are pinned to immutable commits; see [`supply-chain.md`](./supply-chain.md) for the upgrade policy.
 
 ## API base URL
 

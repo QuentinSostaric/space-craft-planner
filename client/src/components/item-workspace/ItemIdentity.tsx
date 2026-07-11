@@ -8,7 +8,6 @@ import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
 import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
@@ -22,7 +21,7 @@ import { Button } from '../ui/Button';
 import { AppGlyph } from '../ui/AppGlyph';
 import { CategoryBadge } from '../ui/Badge';
 import { RarityBadge } from '../ui/RarityBadge';
-import { FONT_HEADING } from '../../theme';
+import { FONT_HEADING, TEXT_LABEL} from '../../theme';
 
 interface ItemIdentityProps {
   blueprint: Blueprint;
@@ -159,7 +158,6 @@ function SectionPanel({
             {label}
           </Typography>
         </Box>
-        <ExpandMoreIcon sx={{ color: 'text.secondary', opacity: 0.8, fontSize: '1rem' }} />
       </Box>
       <Box sx={{ p: 1.25 }}>{children}</Box>
     </Paper>
@@ -196,10 +194,9 @@ function DataRow({
         variant="caption"
         sx={{
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
+          fontWeight: 500,
           lineHeight: 1.15,
-          fontSize: '0.75rem',
+          fontSize: TEXT_LABEL,
         }}
       >
         {label}
@@ -399,7 +396,7 @@ export function ItemIdentity({
                 color: 'text.secondary',
                 textTransform: 'uppercase',
                 letterSpacing: '0.14em',
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
               }}
             >
               {shortName ?? t('Blueprint dossier', 'Dossier blueprint')}
@@ -444,7 +441,6 @@ export function ItemIdentity({
                 width: '100%',
                 gap: 0.65,
                 px: 1,
-                textTransform: 'uppercase',
                 fontFamily: FONT_HEADING,
                 fontSize: '0.78rem',
                 fontWeight: 800,
@@ -482,7 +478,6 @@ export function ItemIdentity({
                 minHeight: 38,
                 width: '100%',
                 gap: 0.6,
-                textTransform: 'uppercase',
                 fontFamily: FONT_HEADING,
                 fontSize: '0.76rem',
                 fontWeight: 800,
@@ -534,9 +529,8 @@ export function ItemIdentity({
                 variant="caption"
                 sx={{
                   color: 'text.secondary',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  fontSize: TEXT_LABEL,
                 }}
               >
                 {t('Technical Tags', 'Tags techniques')}

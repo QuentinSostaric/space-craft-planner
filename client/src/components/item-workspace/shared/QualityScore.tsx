@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { useI18n } from '../../../i18n/I18nContext';
-import { FONT_MONO } from '../../../theme';
+import { FONT_MONO, TEXT_LABEL} from '../../../theme';
 
 export function QualityScore({ score }: { score: number }) {
   const { t } = useI18n();
@@ -38,7 +38,7 @@ export function QualityScore({ score }: { score: number }) {
         </Typography>
       </Box>
       <Box>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em', display: 'block' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL, display: 'block' }}>
           {t('Build index', 'Indice de build')}
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: 700, color: tierColor, fontSize: '0.85rem' }}>

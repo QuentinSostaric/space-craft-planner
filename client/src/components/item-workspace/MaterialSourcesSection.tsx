@@ -35,7 +35,7 @@ import {
   StarCitizenLicensedIcon,
   getMaterialProviderIconName,
 } from '../ui/StarCitizenLicensedIcon';
-import { FONT_HEADING, FONT_MONO } from '../../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../../theme';
 
 function normalizeResourceKey(value: string) {
   return value
@@ -98,8 +98,6 @@ function CompactFact({
         sx={{
           display: 'block',
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
           mb: 0.3,
         }}
       >
@@ -184,9 +182,7 @@ export function MaterialSourcesSection({
             variant="caption"
             sx={{
               color: 'text.secondary',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              fontSize: '0.75rem',
+              fontSize: TEXT_LABEL,
               lineHeight: 1.15,
             }}
           >
@@ -211,7 +207,7 @@ export function MaterialSourcesSection({
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '.68rem' }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: TEXT_LABEL_SM }}>
               {t('Qty', 'Qte')}
             </Typography>
             <TextField
@@ -347,7 +343,6 @@ export function MaterialSourcesSection({
                         fontWeight: 700,
                         fontSize: '1.08rem',
                         lineHeight: 1,
-                        textTransform: 'uppercase',
                       }}
                     >
                       {resourceEntry.resourceName}
@@ -387,8 +382,6 @@ export function MaterialSourcesSection({
                       sx={{
                         display: 'block',
                         color: 'text.secondary',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.12em',
                         mb: 0.3,
                       }}
                     >
@@ -464,8 +457,6 @@ export function MaterialSourcesSection({
                           variant="caption"
                           sx={{
                             color: 'text.secondary',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.12em',
                           }}
                         >
                           {t('Planner qty', 'Qte planner')}

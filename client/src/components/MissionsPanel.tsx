@@ -52,6 +52,7 @@ import {
 } from '../utils/crafting';
 import { missionPathFromSlug, missionSlugFromContract, missionSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
+import { sanitizeExternalHttpsUrl } from '../utils/urlSafety';
 import type {
   Blueprint,
   MissionContract,
@@ -63,7 +64,7 @@ import type {
   LocalizedString,
   StandingBucket,
 } from '../types';
-import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
 
 const FONT_HEADING = FONT_DISPLAY;
 
@@ -274,8 +275,6 @@ function MissionFact({
           variant="caption"
           sx={{
             color: 'text.secondary',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
             display: 'block',
           }}
         >
@@ -418,7 +417,7 @@ function MissionsFilterBar({
         />
         <FormControl
           size="small"
-          sx={{ minWidth: { xs: '100%', sm: 210 }, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' } }}
+          sx={{ minWidth: { xs: '100%', sm: 210 }, '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL } }}
         >
           <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)} inputProps={{ 'aria-label': t('Sort missions', 'Trier les missions') }}>
             {MISSION_SORT_OPTIONS.map((option) => (
@@ -434,7 +433,7 @@ function MissionsFilterBar({
           onChange={(_event, value) => { if (value) onLegalityChange(value); }}
           size="small"
           aria-label={t('Legality filter', 'Filtre de legalite')}
-          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: '0.75rem', px: 1.5 } }}
+          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: TEXT_LABEL, px: 1.5 } }}
         >
           <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
           <ToggleButton value="lawful" sx={{ '&.Mui-selected': { color: theme.palette.success.main } }}>
@@ -451,26 +450,26 @@ function MissionsFilterBar({
           options={employers}
           value={employerFilter}
           onChange={(_event, value) => onEmployerChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+          renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
+          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
         />
         <Autocomplete
           size="small"
           options={locations}
           value={locationFilter}
           onChange={(_event, value) => onLocationChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+          renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
+          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
         />
         <Autocomplete
           size="small"
           options={rewardBlueprints}
           value={rewardBlueprintFilter}
           onChange={(_event, value) => onRewardBlueprintChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint recompense')} sx={{ '& .MuiInputBase-root': { fontSize: '0.75rem', minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: '0.75rem' } } }}
+          renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint recompense')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
+          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
         />
-        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: '0.75rem' } }}>
+        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: TEXT_LABEL } }}>
           <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)} inputProps={{ 'aria-label': t('Standing requirement', 'Prérequis réputation') }}>
             {STANDING_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
@@ -479,7 +478,7 @@ function MissionsFilterBar({
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: '0.75rem' } }}>
+        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: TEXT_LABEL } }}>
           <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')} inputProps={{ 'aria-label': t('Resource objective filter', 'Filtre objectif ressource') }}>
             {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>
@@ -534,7 +533,7 @@ const ContractRow = memo(function ContractRow({
         <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'text.primary' }}>
           {contractName}
         </Typography>
-        <Typography noWrap sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
+        <Typography noWrap sx={{ fontSize: TEXT_LABEL, color: 'text.secondary' }}>
           {employerName}{primaryLocation ? ` · ${primaryLocation}` : ''}
         </Typography>
       </Box>
@@ -542,18 +541,18 @@ const ContractRow = memo(function ContractRow({
       {/* Scale + legality — hidden xs */}
       <Box component="td" sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: 0.25, minWidth: 0 }}>
         {scale && (
-          <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary', whiteSpace: 'nowrap' }}>
             {formatScaleLabel(scale, lang)}
           </Typography>
         )}
-        <Typography sx={{ fontSize: '0.72rem', color: isLawful ? 'success.main' : 'warning.main' }}>
+        <Typography sx={{ fontSize: TEXT_LABEL, color: isLawful ? 'success.main' : 'warning.main' }}>
           {isLawful ? t('Lawful', 'Légal') : t('Unlawful', 'Illégal')}
         </Typography>
       </Box>
 
       {/* Pool — hidden xs */}
       <Box component="td" sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+        <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary' }}>
           {blueprintCount} bp
         </Typography>
       </Box>
@@ -695,7 +694,7 @@ const ContractCard = memo(function ContractCard({
               sx={{
                 fontFamily: FONT_DISPLAY,
                 fontWeight: 600,
-                fontSize: '0.8125rem',
+                fontSize: TEXT_LABEL_LG,
                 color: 'text.secondary',
                 minWidth: 0,
               }}
@@ -714,7 +713,7 @@ const ContractCard = memo(function ContractCard({
               bgcolor: isUnlawful ? alpha(theme.palette.warning.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
               color: isUnlawful ? 'warning.main' : 'primary.main',
               fontFamily: FONT_MONO,
-              fontSize: '0.625rem',
+              fontSize: TEXT_LABEL_SM,
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -751,10 +750,10 @@ const ContractCard = memo(function ContractCard({
             ) : (
               <PlaceOutlinedIcon sx={{ fontSize: 14 }} />
             )}
-            <Typography noWrap sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+            <Typography noWrap sx={{ fontSize: TEXT_LABEL_LG, color: 'text.secondary' }}>
               {primaryLocation}
               {contract.availability.derivedScale && (
-                <Box component="span" sx={{ ml: 0.75, color: 'text.disabled', fontSize: '0.75rem' }}>
+                <Box component="span" sx={{ ml: 0.75, color: 'text.disabled', fontSize: TEXT_LABEL }}>
                   · {formatScaleLabel(contract.availability.derivedScale, lang)}
                 </Box>
               )}
@@ -803,10 +802,8 @@ const ContractCard = memo(function ContractCard({
             <Typography
               sx={{
                 fontFamily: FONT_MONO,
-                fontSize: '0.625rem',
-                color: 'text.disabled',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
+                fontSize: TEXT_LABEL_SM,
+                color: 'text.secondary',
               }}
             >
               {fact.label}
@@ -816,7 +813,7 @@ const ContractCard = memo(function ContractCard({
               sx={{
                 fontFamily: FONT_DISPLAY,
                 fontWeight: 700,
-                fontSize: '0.8125rem',
+                fontSize: TEXT_LABEL_LG,
                 color: 'text.primary',
               }}
             >
@@ -831,7 +828,7 @@ const ContractCard = memo(function ContractCard({
         <Box sx={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid', borderColor: 'ui.border', flex: 1, minHeight: 0 }}>
           {/* Pool header */}
           <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {t('Pool', 'Pool')} · {blueprintCount} {t('blueprints', 'blueprints')}
             </Typography>
             {blueprintDropChance > 0 && (
@@ -854,7 +851,7 @@ const ContractCard = memo(function ContractCard({
                     }}
                   />
                 </Box>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'primary.main', fontWeight: 600 }}>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'primary.main', fontWeight: 600 }}>
                   {formatProbabilityPercent(blueprintDropChance)}
                 </Typography>
               </Box>
@@ -923,7 +920,7 @@ const ContractCard = memo(function ContractCard({
                   <Typography
                     noWrap
                     sx={{
-                      fontSize: '0.8125rem',
+                      fontSize: TEXT_LABEL_LG,
                       fontWeight: 500,
                       color: 'text.primary',
                       minWidth: 0,
@@ -937,7 +934,7 @@ const ContractCard = memo(function ContractCard({
                       noWrap
                       sx={{
                         fontFamily: FONT_MONO,
-                        fontSize: '0.625rem',
+                        fontSize: TEXT_LABEL_SM,
                         color: 'text.disabled',
                         flexShrink: 0,
                         maxWidth: 64,
@@ -951,7 +948,7 @@ const ContractCard = memo(function ContractCard({
                     <Typography
                       sx={{
                         fontFamily: FONT_MONO,
-                        fontSize: '0.6875rem',
+                        fontSize: TEXT_LABEL_SM,
                         color: 'primary.main',
                         fontWeight: 600,
                         flexShrink: 0,
@@ -1125,6 +1122,7 @@ function MissionDetail({
   const { contract, group } = selection;
   const employer = getMissionEmployer(contract, group);
   const employerAssetUrl = getMissionEmployerAssetUrl(employer);
+  const employerSourceUrl = sanitizeExternalHttpsUrl(employer?.sourcePageUrl);
   const localities = getMissionLocalities(contract);
   const missionBlueprints = useMemo(() => dedupeMissionBlueprints(contract, blueprints), [contract, blueprints]);
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
@@ -1174,18 +1172,18 @@ function MissionDetail({
                       )}
                       <Typography variant="body2">{employer?.displayName ?? group.contractorDisplayName}</Typography>
                     </Stack>
-                    {employer?.sourcePageUrl && (
+                    {employerSourceUrl && (
                       <Link
-                        href={employer.sourcePageUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      underline="hover"
-                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}
-                    >
-                      {t('Open source page', 'Ouvrir la source')}
-                      <OpenInNewIcon sx={{ fontSize: '0.9rem' }} />
-                    </Link>
-                  )}
+                        href={employerSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="hover"
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TEXT_LABEL }}
+                      >
+                        {t('Open source page', 'Ouvrir la source')}
+                        <OpenInNewIcon sx={{ fontSize: '0.9rem' }} />
+                      </Link>
+                    )}
                 </Stack>
               }
             />
@@ -1220,10 +1218,8 @@ function MissionDetail({
                             variant="caption"
                             sx={{
                               fontWeight: 700,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
                               color: 'primary.light',
-                              fontSize: '0.7rem',
+                              fontSize: TEXT_LABEL,
                             }}
                           >
                             {scope.displayName ?? scope.scopeName}
@@ -1236,7 +1232,7 @@ function MissionDetail({
                                 key={tier.guid ?? ti}
                                 variant="body2"
                                 sx={{
-                                  fontSize: '0.75rem',
+                                  fontSize: TEXT_LABEL,
                                   color: 'text.secondary',
                                   lineHeight: 1.5,
                                 }}
@@ -1867,7 +1863,7 @@ export function MissionsPanel() {
               size="small"
               onChange={(_e, val) => { if (val) setMissionView(val as 'cards' | 'rows'); }}
               aria-label={t('View mode', 'Mode vue')}
-              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: '0.72rem', textTransform: 'none' } }}
+              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: TEXT_LABEL, textTransform: 'none' } }}
             >
               <ToggleButton value="cards">{t('Cards', 'Cartes')}</ToggleButton>
               <ToggleButton value="rows">{t('Rows', 'Lignes')}</ToggleButton>

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { requireInternalPath } from '../utils/urlSafety';
 
 export function isTauriRuntime(): boolean {
   return typeof window !== 'undefined' && Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -8,15 +9,13 @@ const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().re
 const runtimeApiBaseUrl = configuredApiBaseUrl || (isTauriRuntime() ? 'https://itemfab.space' : '');
 
 export function getApiUrl(path: string): string {
-  if (/^https?:\/\//i.test(path)) {
-    return path;
-  }
+  const safePath = requireInternalPath(path);
 
   if (!runtimeApiBaseUrl) {
-    return path;
+    return safePath;
   }
 
-  return `${runtimeApiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${runtimeApiBaseUrl}${safePath}`;
 }
 
 export function getApiCredentials(): RequestCredentials {
@@ -44,7 +43,7 @@ export async function fetchTauriApiJson<T>(path: string): Promise<T | null> {
     return null;
   }
 
-  return invoke<T>('fetch_api_json', { path });
+  return invoke<T>('fetch_api_json', { path: requireInternalPath(path) });
 }
 
 export async function fetchTauriApi<T>(path: string, init?: RequestInit): Promise<T | null> {
@@ -58,7 +57,7 @@ export async function fetchTauriApi<T>(path: string, init?: RequestInit): Promis
   }
 
   return invoke<T>('fetch_api_json', {
-    path,
+    path: requireInternalPath(path),
     method: init?.method ?? 'GET',
     body,
   });

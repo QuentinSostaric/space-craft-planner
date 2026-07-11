@@ -64,12 +64,13 @@ import {
   isResourceSlot,
 } from '../utils/crafting';
 import { navigateToPath, resourcePathFromSlug } from '../utils/slug';
+import { sanitizeExternalHttpsUrl } from '../utils/urlSafety';
 import { AccountGuestView } from './account/AccountGuestView';
 import { CraftRequestsPanel } from './account/CraftRequestsPanel';
 import { BlueprintCard } from './BlueprintGrid';
 import { ResourceAssetCard } from './resources/ResourceAssetCard';
 import { Button } from './ui/Button';
-import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
 import { trackEvent } from '../analytics/posthog';
 import { isTauriRuntime } from '../services/apiBaseUrl';
@@ -1781,14 +1782,14 @@ export function AccountPage() {
                       size="small"
                       color="success"
                       variant="outlined"
-                      sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem' }}
+                      sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}
                     />
                   )}
                   <Chip
                     label={t('Discord linked', 'Discord lié', 'Discord verknüpft')}
                     size="small"
                     variant="outlined"
-                    sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem' }}
+                    sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}
                   />
                   {account?.createdAt && (
                     <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_MONO }}>
@@ -2111,7 +2112,7 @@ export function AccountPage() {
                                   color: 'text.secondary',
                                   '& .MuiChip-label': {
                                     px: 0.75,
-                                    fontSize: '0.68rem',
+                                    fontSize: TEXT_LABEL_SM,
                                     lineHeight: 1,
                                   },
                                   '& .MuiChip-icon': {
@@ -2507,7 +2508,7 @@ export function AccountPage() {
                                   py: { xs: 0.65, sm: 0.8 },
                                   justifyContent: 'flex-start',
                                   textTransform: 'none',
-                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
+                                  fontSize: { xs: TEXT_LABEL, sm: '0.78rem' },
                                   fontWeight: 600,
                                   lineHeight: 1.15,
                                   borderColor: 'divider',
@@ -2557,7 +2558,7 @@ export function AccountPage() {
                                   py: { xs: 0.65, sm: 0.8 },
                                   justifyContent: 'flex-start',
                                   textTransform: 'none',
-                                  fontSize: { xs: '0.75rem', sm: '0.78rem' },
+                                  fontSize: { xs: TEXT_LABEL, sm: '0.78rem' },
                                   fontWeight: 600,
                                   lineHeight: 1.15,
                                   borderColor: 'divider',
@@ -2764,6 +2765,7 @@ export function AccountPage() {
                       const lastVerifiedLabel = formatAbsoluteDate(organization.lastVerifiedAt);
                       const claimRequestSubmittedLabel = formatAbsoluteDate(organization.claimRequestSubmittedAt);
                       const organizationImage = organization.image ?? organization.logo ?? undefined;
+                      const organizationUrl = sanitizeExternalHttpsUrl(organization.url);
                       const hasPendingClaimRequest = organization.claimRequestStatus === 'pending';
                       const organizationStatusLabel =
                         organization.status === 'verified_admin'
@@ -2843,8 +2845,8 @@ export function AccountPage() {
                                     {organization.name.charAt(0).toUpperCase()}
                                   </Avatar>
                                   <Box sx={{ minWidth: 0 }}>
-                                    {organization.url ? (
-                                      <Link href={organization.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
+                                    {organizationUrl ? (
+                                      <Link href={organizationUrl} target="_blank" rel="noopener noreferrer" underline="hover" color="inherit">
                                         <Typography variant="subtitle1" sx={{ lineHeight: 1.2, fontWeight: 700 }}>
                                           {organization.name}
                                         </Typography>
@@ -2918,7 +2920,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.default, 0.3),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                                     {t('Your role', 'Ton role', 'Deine Rolle')}
                                   </Typography>
                                   <Typography variant="body1" sx={{ mt: 0.55, fontWeight: 600 }}>
@@ -2934,7 +2936,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.default, 0.3),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                                     {t('Stars', 'Etoiles', 'Sterne')}
                                   </Typography>
                                   {typeof organization.stars === 'number' ? (
@@ -2970,7 +2972,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.default, 0.3),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                                     {t('Members', 'Membres', 'Mitglieder')}
                                   </Typography>
                                   <Typography variant="body1" sx={{ mt: 0.55, fontWeight: 600 }}>
@@ -2994,7 +2996,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.paper, 0.46),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                                     {t('Roster source', 'Source roster', 'Roster-Quelle')}
                                   </Typography>
                                   <Typography variant="body2" sx={{ mt: 0.55, color: 'text.secondary' }}>
@@ -3010,7 +3012,7 @@ export function AccountPage() {
                                     backgroundColor: alpha(theme.palette.background.paper, 0.46),
                                   }}
                                 >
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                                     {t('Verified role', 'Role verifie', 'Verifizierte Rolle')}
                                   </Typography>
                                   <Typography variant="body2" sx={{ mt: 0.55, color: 'text.secondary' }}>
@@ -3281,16 +3283,16 @@ export function AccountPage() {
 
                     {/* Auto-detected paths */}
                     <Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: TEXT_LABEL_SM }}>
                         {t('Detected', 'Détectées', 'Erkannt')}
                       </Typography>
                       <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                         {sync.installPaths?.live ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>LIVE</MuiButton>
+                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>LIVE</MuiButton>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                               <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
-                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: TEXT_LABEL }}>
                                 {sync.installPaths.live}
                               </Typography>
                             </Box>
@@ -3304,10 +3306,10 @@ export function AccountPage() {
                         )}
                         {sync.installPaths?.ptu && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>PTU</MuiButton>
+                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>PTU</MuiButton>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                               <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
-                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                              <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: TEXT_LABEL }}>
                                 {sync.installPaths.ptu}
                               </Typography>
                             </Box>
@@ -3319,16 +3321,16 @@ export function AccountPage() {
                     {/* Custom paths */}
                     {customPaths.length > 0 && (
                       <Box>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: TEXT_LABEL_SM }}>
                           {t('Custom', 'Personnalisées', 'Benutzerdefiniert')}
                         </Typography>
                         <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                           {customPaths.map((cp) => (
                             <Box key={cp.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: '0.65rem', minWidth: 56, py: 0.25 }}>{cp.label}</MuiButton>
+                              <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>{cp.label}</MuiButton>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                                 <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
-                                <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: TEXT_LABEL }}>
                                   {cp.path}
                                 </Typography>
                               </Box>
@@ -3347,7 +3349,7 @@ export function AccountPage() {
 
                     {/* Add custom path */}
                     <Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem', display: 'block', mb: 0.75 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: TEXT_LABEL_SM, display: 'block', mb: 0.75 }}>
                         {t('Add installation', 'Ajouter une installation', 'Installation hinzufügen')}
                       </Typography>
                       <Stack direction="row" spacing={1} sx={{ mb: 0.75 }}>
@@ -3357,7 +3359,7 @@ export function AccountPage() {
                             size="small"
                             variant={customPathLabel === label ? 'contained' : 'outlined'}
                             onClick={() => setCustomPathLabel(label)}
-                            sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', px: 0.75, py: 0.25, minWidth: 0 }}
+                            sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, px: 0.75, py: 0.25, minWidth: 0 }}
                           >
                             {label}
                           </MuiButton>
@@ -3370,7 +3372,7 @@ export function AccountPage() {
                           value={customPathInput}
                           onChange={(e) => setCustomPathInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') addCustomPath(); }}
-                          sx={{ flex: 1, '& .MuiInputBase-root': { fontSize: '0.75rem', fontFamily: FONT_MONO } }}
+                          sx={{ flex: 1, '& .MuiInputBase-root': { fontSize: TEXT_LABEL, fontFamily: FONT_MONO } }}
                         />
                         <MuiButton
                           size="small"
@@ -3396,7 +3398,7 @@ export function AccountPage() {
                             {t('Watch LIVE logs in real-time', 'Surveiller les logs LIVE en temps réel', 'LIVE-Logs in Echtzeit überwachen')}
                           </Typography>
                         </Box>
-                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: TEXT_LABEL }}>
                           {t(
                             'Detects new blueprints instantly when received in-game.',
                             'Détecte les nouveaux blueprints instantanément en jeu.',
@@ -3418,7 +3420,7 @@ export function AccountPage() {
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {t('Launch at Windows startup', 'Lancer au démarrage de Windows', 'Bei Windows-Start starten')}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: TEXT_LABEL }}>
                           {t(
                             'Start automatically when Windows boots so the watcher is always active.',
                             'Démarre automatiquement au démarrage de Windows.',
@@ -3499,7 +3501,7 @@ export function AccountPage() {
                           <Box
                             component="span"
                             sx={{
-                              fontSize: '0.75rem',
+                              fontSize: TEXT_LABEL,
                               fontWeight: 500,
                               lineHeight: 1.25,
                               color: 'text.secondary',
@@ -3681,7 +3683,7 @@ export function AccountPage() {
                 }}
               >
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                     {t('Inventory to import', 'Inventaire a importer', 'Zu importierendes Inventar')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
@@ -3689,7 +3691,7 @@ export function AccountPage() {
                   </Typography>
                 </Paper>
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                     {t('Favorites to import', 'Favoris a importer', 'Zu importierende Favoriten')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
@@ -3697,7 +3699,7 @@ export function AccountPage() {
                   </Typography>
                 </Paper>
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                     {t('Resources to import', 'Ressources a importer', 'Zu importierende Ressourcen')}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 0.5 }}>
@@ -4624,7 +4626,7 @@ export function AccountPage() {
               }}
             >
               <Stack spacing={1.5}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                   {t('Verification code', 'Code de verification', 'Verifizierungscode')}
                 </Typography>
                 <Typography

@@ -66,7 +66,16 @@ export const FONT_BODY    = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe 
 export const FONT_MONO    = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 
 // legacy alias used by unmigrated components
+// DEPRECATED 2026-06: migrate usages to FONT_DISPLAY, then delete (along with
+// the brand_legacy and ui.surface1 palette aliases below).
 export const FONT_HEADING = FONT_DISPLAY;
+
+// ─── Micro-text scale ─────────────────────────────────────────────────────────
+// The only three sizes allowed below body2. 11px (TEXT_LABEL_SM) is the absolute
+// floor for any rendered text — never hardcode a smaller font size in components.
+export const TEXT_LABEL_LG = '0.8125rem'; // 13px — prominent labels
+export const TEXT_LABEL    = '0.75rem';   // 12px — data labels, meta, chips
+export const TEXT_LABEL_SM = '0.6875rem'; // 11px — eyebrows, fine print (floor)
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const ACCENT_DARK  = '#818CF8';
@@ -135,6 +144,12 @@ export const createAppTheme = (mode: ThemeMode) => {
       error:   { main: p.danger },
       warning: { main: p.warn },
       success: { main: p.success },
+      // Explicit info so MUI's default light-blue never leaks into the palette
+      // (used by Badge variant="info" and ScaleBadge).
+      info: {
+        main: isDark ? '#6BB6FF' : '#1E6FE3',
+        light: isDark ? '#93C5FD' : '#60A5FA',
+      },
       background: {
         default: p.bg,
         paper:   p.bgElev,
@@ -155,6 +170,7 @@ export const createAppTheme = (mode: ThemeMode) => {
         blue:         isDark ? '#6BB6FF' : '#1E6FE3',
         blueLight:    isDark ? '#93C5FD' : '#60A5FA',
       },
+      // DEPRECATED 2026-06: see FONT_HEADING note — resorb before it re-diverges.
       brand_legacy: {
         violet:       p.accent,
         violetLight:  p.accentHover,
@@ -177,16 +193,29 @@ export const createAppTheme = (mode: ThemeMode) => {
       borderRadius: 6,
     },
 
-    shadows: [
-      'none',
-      '0 1px 2px rgba(0,0,0,0.25)',
-      '0 2px 4px rgba(0,0,0,0.28)',
-      '0 3px 6px rgba(0,0,0,0.30)',
-      '0 6px 18px rgba(0,0,0,0.35)',
-      '0 10px 28px rgba(0,0,0,0.40)',
-      '0 18px 40px rgba(0,0,0,0.45)',
-      ...Array(18).fill('none'),
-    ] as Shadows,
+    // Shadows are calibrated per mode: the dark values are far too heavy on a
+    // light background, so light mode gets a much softer ramp.
+    shadows: (isDark
+      ? [
+          'none',
+          '0 1px 2px rgba(0,0,0,0.25)',
+          '0 2px 4px rgba(0,0,0,0.28)',
+          '0 3px 6px rgba(0,0,0,0.30)',
+          '0 6px 18px rgba(0,0,0,0.35)',
+          '0 10px 28px rgba(0,0,0,0.40)',
+          '0 18px 40px rgba(0,0,0,0.45)',
+          ...Array(18).fill('none'),
+        ]
+      : [
+          'none',
+          '0 1px 2px rgba(20,17,46,0.06)',
+          '0 2px 4px rgba(20,17,46,0.07)',
+          '0 3px 6px rgba(20,17,46,0.08)',
+          '0 6px 18px rgba(20,17,46,0.10)',
+          '0 10px 28px rgba(20,17,46,0.12)',
+          '0 18px 40px rgba(20,17,46,0.14)',
+          ...Array(18).fill('none'),
+        ]) as Shadows,
 
     typography: {
       fontFamily: FONT_BODY,
@@ -203,8 +232,8 @@ export const createAppTheme = (mode: ThemeMode) => {
       body1:  { fontFamily: FONT_BODY, fontSize: '0.9063rem', lineHeight: 1.55 },
       body2:  { fontFamily: FONT_BODY, fontSize: '0.8125rem', lineHeight: 1.5 },
       button: { fontFamily: FONT_BODY, fontWeight: 600, letterSpacing: '0.01em', textTransform: 'none' },
-      caption: { fontFamily: FONT_MONO, fontSize: '0.75rem', letterSpacing: '0.02em' },
-      overline: { fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' },
+      caption: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL, letterSpacing: '0.02em' },
+      overline: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.06em', textTransform: 'uppercase' },
     },
 
     components: {
@@ -251,6 +280,14 @@ export const createAppTheme = (mode: ThemeMode) => {
             100% { box-shadow: 0 0 0 6px transparent; }
           }
           .if-appear { animation: if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both; }
+          @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after {
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+              transition-duration: 0.01ms !important;
+            }
+          }
         `,
       },
 
@@ -371,7 +408,7 @@ export const createAppTheme = (mode: ThemeMode) => {
           root: {
             borderRadius: 4,
             fontWeight: 600,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             fontFamily: FONT_BODY,
           },
         },
@@ -434,12 +471,12 @@ export const createAppTheme = (mode: ThemeMode) => {
             '&.Mui-focusVisible': { boxShadow: `0 2px 8px rgba(0,0,0,0.35), 0 0 0 6px ${alpha(p.accent, 0.28)}` },
           },
           mark: { display: 'none' },
-          markLabel: { fontSize: '0.6875rem', fontFamily: FONT_MONO, color: p.textTertiary, top: 28 },
+          markLabel: { fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO, color: p.textSecondary, top: 28 },
           markLabelActive: { color: p.textSecondary },
           valueLabel: {
             backgroundColor: p.surface3,
             color: p.text,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             fontFamily: FONT_MONO,
             fontWeight: 700,
           },
@@ -453,7 +490,7 @@ export const createAppTheme = (mode: ThemeMode) => {
             backgroundColor: p.surface3,
             color: p.text,
             border: `1px solid ${p.borderStrong}`,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             fontFamily: FONT_BODY,
             borderRadius: 6,
           },

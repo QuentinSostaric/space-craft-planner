@@ -36,7 +36,7 @@ import { BlueprintCard, type BlueprintCardQuickAction } from './BlueprintGrid';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { ResourceIcon } from './ui/ResourceIcon';
 import { Panel } from './ui/Panel';
-import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
 import { CitizenIdSignInButton, type CitizenIdBrandEnvironment } from './CitizenIdBrand';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -464,7 +464,7 @@ function OrganizationDetail({
           onClick={(e: React.MouseEvent) => { e.preventDefault(); onBack(); }}
           sx={{
             fontFamily: FONT_MONO,
-            fontSize: '0.75rem',
+            fontSize: TEXT_LABEL,
             color: 'text.secondary',
             textDecoration: 'none',
             cursor: 'pointer',
@@ -473,8 +473,8 @@ function OrganizationDetail({
         >
           {t('Organizations', 'Organisations', 'Organisationen')}
         </Typography>
-        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', color: 'text.disabled' }}>/</Typography>
-        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.75rem', color: 'text.primary' }}>
+        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.disabled' }}>/</Typography>
+        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.primary' }}>
           {organization.name}
         </Typography>
       </Stack>
@@ -528,7 +528,7 @@ function OrganizationDetail({
               <Typography
                 sx={{
                   fontFamily: FONT_MONO,
-                  fontSize: '0.75rem',
+                  fontSize: TEXT_LABEL,
                   color: 'text.secondary',
                   letterSpacing: '0.06em',
                 }}
@@ -544,7 +544,7 @@ function OrganizationDetail({
                 size="small"
                 sx={{
                   height: 20,
-                  fontSize: '0.6875rem',
+                  fontSize: TEXT_LABEL_SM,
                   fontFamily: FONT_MONO,
                   backgroundColor: alpha(roleBadgeColor, 0.15),
                   color: roleBadgeColor,
@@ -558,7 +558,7 @@ function OrganizationDetail({
                   size="small"
                   color="warning"
                   variant="outlined"
-                  sx={{ height: 20, fontSize: '0.6875rem', fontFamily: FONT_MONO, '& .MuiChip-label': { px: 1 } }}
+                  sx={{ height: 20, fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO, '& .MuiChip-label': { px: 1 } }}
                 />
               )}
             </Stack>
@@ -567,7 +567,7 @@ function OrganizationDetail({
           {/* Stats */}
           <Stack direction="row" spacing={3} sx={{ flexShrink: 0 }}>
             <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.25 }}>
+              <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', mb: 0.25 }}>
                 {t('Resources', 'Ressources', 'Ressourcen')}
               </Typography>
               <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1.5rem', lineHeight: 1, color: 'text.primary' }}>
@@ -575,7 +575,7 @@ function OrganizationDetail({
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.25 }}>
+              <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', mb: 0.25 }}>
                 {t('Blueprints', 'Blueprints', 'Blueprints')}
               </Typography>
               <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1.5rem', lineHeight: 1, color: 'text.primary' }}>
@@ -777,7 +777,7 @@ function OrganizationDetail({
                             <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.2 }} noWrap>
                               {rows[0].resourceName}
                             </Typography>
-                            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.secondary' }}>
+                            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary' }}>
                               {rows.length} {t('lot', 'lot')}{rows.length > 1 ? 's' : ''}{' '}·{' '}
                               {t('total', 'total')} ×{totalQty}{isScu ? ' SCU' : ''}
                             </Typography>
@@ -808,16 +808,16 @@ function OrganizationDetail({
                                 <Avatar
                                   src={row.ownerImage ?? undefined}
                                   alt={row.ownerHandle}
-                                  sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: alpha(orgColor, 0.2), color: orgColor }}
+                                  sx={{ width: 28, height: 28, fontSize: TEXT_LABEL, bgcolor: alpha(orgColor, 0.2), color: orgColor }}
                                 >
                                   {row.ownerHandle.charAt(0).toUpperCase()}
                                 </Avatar>
                                 <Box sx={{ minWidth: 0 }}>
-                                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.8125rem', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: TEXT_LABEL_LG, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {row.ownerDisplay || row.ownerHandle}
                                   </Typography>
                                   {row.ownerRank && (
-                                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {row.ownerHandle} · {row.ownerRank}
                                     </Typography>
                                   )}
@@ -826,7 +826,7 @@ function OrganizationDetail({
                                   label={`×${formatResourceQuantity(row.quantity, row.quantityUnit, lang, 'compact')}`}
                                   size="small"
                                   variant="outlined"
-                                  sx={{ fontFamily: FONT_MONO, fontSize: '0.72rem', height: 22, '& .MuiChip-label': { px: 0.75 } }}
+                                  sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, height: 22, '& .MuiChip-label': { px: 0.75 } }}
                                 />
                                 {row.quality != null && qualityTone ? (
                                   <Chip
@@ -834,7 +834,7 @@ function OrganizationDetail({
                                     size="small"
                                     sx={{
                                       fontFamily: FONT_MONO,
-                                      fontSize: '0.72rem',
+                                      fontSize: TEXT_LABEL,
                                       height: 22,
                                       bgcolor: alpha(qualityTone, 0.15),
                                       color: qualityTone,
@@ -1153,7 +1153,7 @@ function OrganizationDetail({
                           sx={{
                             fontFamily: FONT_DISPLAY,
                             fontWeight: 600,
-                            fontSize: '0.8125rem',
+                            fontSize: TEXT_LABEL_LG,
                             lineHeight: 1.3,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -1164,7 +1164,7 @@ function OrganizationDetail({
                         </Typography>
                         <Typography
                           sx={{
-                            fontSize: '0.6875rem',
+                            fontSize: TEXT_LABEL_SM,
                             color: 'text.secondary',
                             fontFamily: FONT_MONO,
                             overflow: 'hidden',
@@ -1395,7 +1395,7 @@ function OrganizationCard({
         <Typography
           sx={{
             fontFamily: FONT_MONO,
-            fontSize: '0.6875rem',
+            fontSize: TEXT_LABEL_SM,
             color: 'text.disabled',
             letterSpacing: '0.05em',
             mb: 1.5,
@@ -1416,7 +1416,7 @@ function OrganizationCard({
             size="small"
             sx={{
               height: 20,
-              fontSize: '0.6875rem',
+              fontSize: TEXT_LABEL_SM,
               fontFamily: FONT_MONO,
               backgroundColor: alpha(roleBadgeColor, 0.15),
               color: roleBadgeColor,
@@ -1428,7 +1428,7 @@ function OrganizationCard({
             variant="outlined"
             size="small"
             onClick={() => onOpen(organization)}
-            sx={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}
+            sx={{ whiteSpace: 'nowrap', fontSize: TEXT_LABEL }}
           >
             {t('Marketplace', 'Marketplace', 'Marketplace')}
           </Button>
@@ -1440,7 +1440,7 @@ function OrganizationCard({
             size="small"
             color="warning"
             variant="outlined"
-            sx={{ alignSelf: 'flex-start', mt: 1, fontSize: '0.6875rem', fontFamily: FONT_MONO, height: 20, '& .MuiChip-label': { px: 1 } }}
+            sx={{ alignSelf: 'flex-start', mt: 1, fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO, height: 20, '& .MuiChip-label': { px: 1 } }}
           />
         )}
       </Box>
@@ -1478,7 +1478,6 @@ function OrganizationList({
               fontFamily: FONT_DISPLAY,
               fontWeight: 700,
               fontSize: { xs: '1.9rem', md: '2.2rem' },
-              textTransform: 'uppercase',
               lineHeight: 1,
               letterSpacing: '-0.015em',
             }}

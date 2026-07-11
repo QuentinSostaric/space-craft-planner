@@ -92,7 +92,7 @@ import {
   resourceSlugFromPathname,
 } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
-import { FONT_DISPLAY, FONT_HEADING, FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_HEADING, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
 
 type ResourceSort = 'name-asc' | 'providers-desc' | 'missions-desc' | 'blueprints-desc';
 type ResourceFamilyFilter = 'all' | 'metal' | 'mineral' | 'crystal' | 'ice' | 'crafting-slot';
@@ -384,8 +384,6 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
         sx={{
           display: 'block',
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
           mb: 0.5,
         }}
       >
@@ -454,9 +452,7 @@ function ResourceFamilyChip({ resource }: { resource: Resource }) {
           px: 0.9,
           fontFamily: FONT_HEADING,
           fontWeight: 700,
-          fontSize: '0.75rem',
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
+          fontSize: TEXT_LABEL,
         },
       }}
     />
@@ -519,7 +515,6 @@ function ResourceMobileList({
                       fontWeight: 700,
                       fontSize: '0.98rem',
                       lineHeight: 1,
-                      textTransform: 'uppercase',
                     }}
                   >
                     {resource.name}
@@ -547,7 +542,7 @@ function ResourceMobileList({
                   variant="outlined"
                   startIcon={<PlaylistAddOutlinedIcon />}
                   onClick={() => onAddToPlanner(resource)}
-                  sx={{ flex: 1, minWidth: 0, fontSize: '0.75rem' }}
+                  sx={{ flex: 1, minWidth: 0, fontSize: TEXT_LABEL }}
                 >
                   {t('Planner', 'Planifier', 'Planer')}
                 </Button>
@@ -556,7 +551,7 @@ function ResourceMobileList({
                   variant="outlined"
                   startIcon={<Inventory2OutlinedIcon />}
                   onClick={() => onAddToInventory(resource)}
-                  sx={{ flex: 1, minWidth: 0, fontSize: '0.75rem' }}
+                  sx={{ flex: 1, minWidth: 0, fontSize: TEXT_LABEL }}
                 >
                   {t('Inventory', 'Inventaire', 'Inventar')}
                 </Button>
@@ -630,7 +625,6 @@ function ResourcePreviewPanel({
                   fontWeight: 700,
                   fontSize: '1.45rem',
                   lineHeight: 0.95,
-                  textTransform: 'uppercase',
                 }}
               >
                 {resource.name}
@@ -711,7 +705,7 @@ function ResourcePreviewPanel({
               variant="outlined"
               startIcon={<PlaylistAddOutlinedIcon />}
               onClick={() => onAddToPlanner(resource)}
-              sx={{ minWidth: 0, fontSize: '0.75rem' }}
+              sx={{ minWidth: 0, fontSize: TEXT_LABEL }}
             >
               {t('Planner', 'Planifier', 'Planer')}
             </Button>
@@ -720,7 +714,7 @@ function ResourcePreviewPanel({
               variant="outlined"
               startIcon={<Inventory2OutlinedIcon />}
               onClick={() => onAddToInventory(resource)}
-              sx={{ minWidth: 0, fontSize: '0.75rem' }}
+              sx={{ minWidth: 0, fontSize: TEXT_LABEL }}
             >
               {t('Inventory', 'Inventaire', 'Inventar')}
             </Button>
@@ -735,8 +729,6 @@ function ResourcePreviewPanel({
               fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: '0.8rem',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
             }}
           >
             {t('Best Sources', 'Meilleures sources', 'Beste Quellen')}
@@ -800,13 +792,11 @@ function ResourcePreviewPanel({
                 fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: '0.8rem',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
               }}
             >
               {t('Used In', 'Utilisée dans')}
             </Typography>
-            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
               {linkedBlueprints.length} bp
             </Typography>
           </Box>
@@ -852,7 +842,7 @@ function ResourcePreviewPanel({
                     sx={{
                       fontFamily: FONT_DISPLAY,
                       fontWeight: 600,
-                      fontSize: '0.8125rem',
+                      fontSize: TEXT_LABEL_LG,
                       lineHeight: 1.25,
                       color: 'text.primary',
                     }}
@@ -863,10 +853,8 @@ function ResourcePreviewPanel({
                     noWrap
                     sx={{
                       fontFamily: FONT_MONO,
-                      fontSize: '0.65rem',
-                      color: 'text.disabled',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
+                      fontSize: TEXT_LABEL_SM,
+                      color: 'text.secondary',
                     }}
                   >
                     {loc(CATEGORY_LABELS[blueprint.category], lang)}
@@ -998,7 +986,6 @@ function ResourceIdentityPanel({
                 fontWeight: 700,
                 fontSize: { xs: '2rem', md: '2.4rem' },
                 lineHeight: 0.95,
-                textTransform: 'uppercase',
               }}
             >
               {resource.name}
@@ -1405,7 +1392,7 @@ function ResourceBlueprintUsageSection({
               exclusive
               onChange={(_event, value) => value && setCategoryFilter(value)}
               size="small"
-              sx={{ flexWrap: 'wrap', '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.72rem' } }}
+              sx={{ flexWrap: 'wrap', '& .MuiToggleButton-root': { px: 1.25, fontSize: TEXT_LABEL } }}
             >
               <ToggleButton value="all">{t('All', 'Toutes')}</ToggleButton>
               {categoryOptions.map((category) => (
@@ -1938,10 +1925,8 @@ export function ResourcesPage() {
 
   const tableHeaderCellSx = {
     fontFamily: FONT_MONO,
-    fontSize: '0.6875rem',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase' as const,
-    color: 'text.disabled',
+    fontSize: TEXT_LABEL_SM,
+    color: 'text.secondary',
     fontWeight: 600,
     borderColor: 'ui.border',
   };
@@ -1964,7 +1949,7 @@ export function ResourcesPage() {
         <Typography
           sx={{
             fontFamily: FONT_MONO,
-            fontSize: '0.6875rem',
+            fontSize: TEXT_LABEL_SM,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: 'primary.main',
@@ -2024,7 +2009,7 @@ export function ResourcesPage() {
           placeholder={t('Search resources...', 'Rechercher des ressources...')}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          sx={{ flex: '1 1 200px', '& .MuiInputBase-root': { fontSize: '0.8125rem', height: 32 } }}
+          sx={{ flex: '1 1 200px', '& .MuiInputBase-root': { fontSize: TEXT_LABEL_LG, height: 32 } }}
           slotProps={{
             input: {
               startAdornment: (
@@ -2041,7 +2026,7 @@ export function ResourcesPage() {
           onChange={(_event, value) => value && setFamilyFilter(value)}
           size="small"
           sx={{
-            '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.75rem', height: 32 },
+            '& .MuiToggleButton-root': { px: 1.25, fontSize: TEXT_LABEL, height: 32 },
             display: { xs: 'none', md: 'inline-flex' },
           }}
         >
@@ -2057,7 +2042,7 @@ export function ResourcesPage() {
           onChange={(_event, value) => value && setSourceTypeFilter(value)}
           size="small"
           sx={{
-            '& .MuiToggleButton-root': { px: 1.25, fontSize: '0.75rem', height: 32 },
+            '& .MuiToggleButton-root': { px: 1.25, fontSize: TEXT_LABEL, height: 32 },
             display: { xs: 'none', sm: 'inline-flex' },
           }}
         >
@@ -2067,7 +2052,7 @@ export function ResourcesPage() {
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
-        <FormControl size="small" sx={{ minWidth: 140, display: { xs: 'none', lg: 'block' }, '& .MuiInputBase-root': { height: 32, fontSize: '0.8125rem' } }}>
+        <FormControl size="small" sx={{ minWidth: 140, display: { xs: 'none', lg: 'block' }, '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
           <Select value={sortBy} onChange={(event) => setSortBy(event.target.value as ResourceSort)}>
             {RESOURCE_SORT_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>{loc(option.label, lang)}</MenuItem>
@@ -2117,7 +2102,7 @@ export function ResourcesPage() {
               sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderBottom: '1px solid', borderColor: 'ui.border', bgcolor: 'background.paper' }}>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.disabled' }}>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>
                   {filteredResources.length} {t('resources', 'ressources')}
                 </Typography>
               </Box>
@@ -2205,7 +2190,7 @@ export function ResourcesPage() {
                                   size="small"
                                   variant="outlined"
                                   label={formatMaterialSourceMethod(method, lang)}
-                                  sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem' } }}
+                                  sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: TEXT_LABEL_SM } }}
                                 />
                               ))}
                             </Stack>

@@ -310,7 +310,7 @@ export async function fetchPublishedDatasetById(
   }
 
   const payload = await apiFetch<{ dataset: GameDataset | null }>(
-    `/api/game-data/public/by-id/${datasetId}`,
+    `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}`,
   );
   if (!payload.dataset) {
     throw new Error(`No published dataset for id "${datasetId}".`);
@@ -358,7 +358,7 @@ export async function fetchPublishedMissionRewardsById(
 
   const payload = normalizeMissionRewardsChunk(
     await apiFetch<DatasetMissionRewardsChunk | null>(
-      `/api/game-data/public/by-id/${datasetId}/mission-rewards`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/mission-rewards`,
     ),
   );
   return payload?.missionRewards ?? null;
@@ -414,7 +414,7 @@ export async function fetchFactionContracts(
 
   return normalizeFactionContracts(
     await apiFetch<FactionContractsChunk | null>(
-      `/api/game-data/public/by-id/${datasetId}/mission-rewards/factions/${encodeURIComponent(factionId)}`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/mission-rewards/factions/${encodeURIComponent(factionId)}`,
     ),
   );
 }
@@ -446,7 +446,7 @@ export async function fetchPublishedResourceDataById(
 
   return normalizeResourceData(
     await apiFetch<DatasetResourceDataChunk | null>(
-      `/api/game-data/public/by-id/${datasetId}/resource-data`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/resource-data`,
     ),
   );
 }
@@ -478,7 +478,7 @@ export async function fetchPublishedShipComponentsById(
 
   return normalizeShipComponents(
     await apiFetch<DatasetShipComponentsChunk | null>(
-      `/api/game-data/public/by-id/${datasetId}/ship-components`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/ship-components`,
     ),
   );
 }
@@ -510,7 +510,7 @@ export async function fetchPublishedChangelogById(
 
   const payload = normalizeChangelog(
     await apiFetch<{ datasetId: string; changelog: DatasetChangelog | null } | null>(
-      `/api/game-data/public/by-id/${datasetId}/changelog`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/changelog`,
     ),
   );
   return payload?.changelog ?? null;
@@ -522,7 +522,7 @@ export async function fetchPublishedBlueprintDetailById(
 ): Promise<Blueprint | null> {
   const payload = normalizeBlueprintDetail(
     await apiFetch<DatasetBlueprintDetailChunk | null>(
-      `/api/game-data/public/by-id/${datasetId}/blueprints/${blueprintId}`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/blueprints/${encodeURIComponent(blueprintId)}`,
     ),
   );
 
@@ -603,7 +603,7 @@ export async function fetchPublishedBlueprintCatalogPageById(
   const suffix = params.toString() ? `?${params.toString()}` : '';
   return normalizeBlueprintCatalogPage(
     await apiFetch<DatasetBlueprintCatalogPage | null>(
-      `/api/game-data/public/by-id/${datasetId}/blueprints${suffix}`,
+      `/api/game-data/public/by-id/${encodeURIComponent(datasetId)}/blueprints${suffix}`,
     ),
   );
 }

@@ -33,3 +33,38 @@ keywords = [
   "secret",
 ]
 tags = ["secret", "oauth"]
+
+[[rules]]
+id = "hardcoded-cloudflare-api-token"
+description = "Hardcoded Cloudflare API token"
+regex = '''(?i)(?:CLOUDFLARE|CF)[_-]?API[_-]?TOKEN\s*[:=]\s*["']?([0-9A-Za-z_-]{30,})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["cloudflare", "cf_api", "api_token"]
+tags = ["secret", "cloudflare"]
+
+[[rules]]
+id = "hardcoded-r2-access-key-id"
+description = "Hardcoded R2 access key ID"
+regex = '''(?i)(?:R2|AWS)[_-]?ACCESS[_-]?KEY[_-]?ID\s*[:=]\s*["']?([0-9A-Za-z_-]{16,})'''
+secretGroup = 1
+keywords = ["r2_access", "aws_access"]
+tags = ["secret", "r2"]
+
+[[rules]]
+id = "hardcoded-r2-secret-access-key"
+description = "Hardcoded R2 secret access key"
+regex = '''(?i)(?:R2|AWS)[_-]?SECRET[_-]?ACCESS[_-]?KEY\s*[:=]\s*["']?([0-9A-Za-z/+=_-]{24,})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["r2_secret", "aws_secret"]
+tags = ["secret", "r2"]
+
+[[rules]]
+id = "hardcoded-signing-material"
+description = "Hardcoded Tauri or Windows signing material"
+regex = '''(?i)(?:TAURI[_-]?SIGNING[_-]?PRIVATE[_-]?KEY|WINDOWS[_-]?CERTIFICATE)\s*[:=]\s*["']?([0-9A-Za-z/+=_-]{24,})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["tauri_signing", "windows_certificate"]
+tags = ["secret", "signing"]
