@@ -23,7 +23,7 @@ import { CraftProvider } from './store/CraftContext';
 import { ScLogProvider } from './hooks/ScLogSyncContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
-import { NavRail } from './components/NavRail';
+import { NavRail, NAV_RAIL_DESKTOP_WIDTH } from './components/NavRail';
 import { Footer } from './components/Footer';
 import { OnboardingDialog } from './components/OnboardingDialog';
 import { AppUpdateSnackbar } from './components/AppUpdateSnackbar';
@@ -746,7 +746,7 @@ function MainContent({ mainView }: { mainView: MainView }) {
 const APP_SHELL_GRID_SX = {
   display: 'grid',
   gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
-  gridTemplateColumns: { xs: '1fr', md: '84px 1fr' },
+  gridTemplateColumns: { xs: '1fr', md: `${NAV_RAIL_DESKTOP_WIDTH}px 1fr` },
   gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
   height: '100dvh',
   overflow: 'hidden',

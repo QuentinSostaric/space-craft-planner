@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
-import { FONT_DISPLAY } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO } from '../../theme';
 
 export function PageStatCard({
   label,
@@ -10,12 +10,15 @@ export function PageStatCard({
   hint,
   trend,
   icon,
+  accent,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   trend?: string;
   icon?: ReactNode;
+  /** Domain accent color for the left strip (theme.palette.domain.*). Defaults to the brand accent. */
+  accent?: string;
 }) {
   return (
     <Paper
@@ -39,8 +42,8 @@ export function PageStatCard({
           top: 0,
           bottom: 0,
           width: 2,
-          backgroundColor: 'primary.main',
-          opacity: 0.55,
+          backgroundColor: accent ?? 'primary.main',
+          opacity: accent ? 0.8 : 0.55,
         },
       }}
     >
@@ -51,7 +54,7 @@ export function PageStatCard({
           color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: { xs: '0.1em', md: '0.12em' },
-          fontSize: '0.75rem',
+          fontSize: '0.6875rem',
           mb: { xs: 0.5, md: 0.75 },
         }}
       >
@@ -61,17 +64,18 @@ export function PageStatCard({
         <Typography
           sx={{
             fontFamily: FONT_DISPLAY,
-            fontWeight: 700,
+            fontWeight: 800,
             fontSize: { xs: '1.25rem', md: '1.5rem' },
             lineHeight: 1.1,
             letterSpacing: '-0.02em',
+            fontVariantNumeric: 'tabular-nums',
             color: 'text.primary',
           }}
         >
           {value}
         </Typography>
         {icon && (
-          <Box sx={{ color: 'text.disabled', mt: 0.25, flexShrink: 0 }}>{icon}</Box>
+          <Box sx={{ color: accent ?? 'text.disabled', opacity: accent ? 0.9 : 1, mt: 0.25, flexShrink: 0 }}>{icon}</Box>
         )}
       </Box>
       {(trend || hint) && (
@@ -82,7 +86,7 @@ export function PageStatCard({
             color: trend ? (trend.startsWith('+') ? 'success.main' : 'error.main') : 'text.disabled',
           }}
         >
-          {trend && <Box component="span" sx={{ fontFamily: 'FONT_MONO', fontWeight: 700, mr: 0.5 }}>{trend}</Box>}
+          {trend && <Box component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, mr: 0.5 }}>{trend}</Box>}
           {hint}
         </Typography>
       )}

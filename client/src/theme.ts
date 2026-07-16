@@ -22,6 +22,21 @@ declare module '@mui/material/styles' {
       surface3: string;
       bgElev: string;
     };
+    /**
+     * Functional domain hues: consistent colors that encode a category of
+     * content (craft, dismantle, power, thermal…) across chips, panel
+     * accents, gauges and stat bars. Use with alpha() for soft fills.
+     */
+    domain: {
+      red: string;
+      orange: string;
+      yellow: string;
+      green: string;
+      cyan: string;
+      blue: string;
+      violet: string;
+      magenta: string;
+    };
     // legacy aliases for components not yet migrated
     brand_legacy: {
       violet: string;
@@ -49,6 +64,16 @@ declare module '@mui/material/styles' {
       surface3?: string;
       bgElev?: string;
     };
+    domain?: {
+      red?: string;
+      orange?: string;
+      yellow?: string;
+      green?: string;
+      cyan?: string;
+      blue?: string;
+      violet?: string;
+      magenta?: string;
+    };
     brand_legacy?: {
       violet?: string;
       violetLight?: string;
@@ -69,8 +94,35 @@ export const FONT_MONO    = "'JetBrains Mono', ui-monospace, SFMono-Regular, Men
 export const FONT_HEADING = FONT_DISPLAY;
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
+// Dashboard-oriented structure (dense cards, hero values, domain color coding)
+// on top of the Item Fabricator palette: navy surfaces, indigo accent.
+// palette.domain adds functional hues that encode content categories
+// (weapons red, power yellow, thermal cyan…) without touching the brand
+// colors.
 const ACCENT_DARK  = '#818CF8';
 const ACCENT_LIGHT = '#4F46E5';
+
+const DOMAIN_DARK = {
+  red:     '#F4536B',
+  orange:  '#FB8F44',
+  yellow:  '#F5D90A',
+  green:   '#31D189',
+  cyan:    '#2FC7E1',
+  blue:    '#5CA9FF',
+  violet:  '#9D8CFF',
+  magenta: '#E869B8',
+};
+
+const DOMAIN_LIGHT = {
+  red:     '#C8362E',
+  orange:  '#C2571B',
+  yellow:  '#A16207',
+  green:   '#0E9F6E',
+  cyan:    '#0E7490',
+  blue:    '#1E6FE3',
+  violet:  '#6D5BD0',
+  magenta: '#BE3D8F',
+};
 
 const PALETTE_DARK = {
   bg:    '#07121F',
@@ -91,6 +143,7 @@ const PALETTE_DARK = {
   success: '#2FCB8A',
   warn:    '#F4B740',
   danger:  '#F87171',
+  domain: DOMAIN_DARK,
 };
 
 const PALETTE_LIGHT = {
@@ -112,6 +165,7 @@ const PALETTE_LIGHT = {
   success: '#0E9F6E',
   warn:    '#C77700',
   danger:  '#C8362E',
+  domain: DOMAIN_LIGHT,
 };
 
 // ─── Create Theme ─────────────────────────────────────────────────────────────
@@ -161,6 +215,7 @@ export const createAppTheme = (mode: ThemeMode) => {
         blue:         isDark ? '#6BB6FF' : '#1E6FE3',
         blueLight:    isDark ? '#93C5FD' : '#60A5FA',
       },
+      domain: p.domain,
       ui: {
         border:       p.border,
         borderStrong: p.borderStrong,
@@ -174,7 +229,7 @@ export const createAppTheme = (mode: ThemeMode) => {
     },
 
     shape: {
-      borderRadius: 6,
+      borderRadius: 8,
     },
 
     shadows: [
@@ -203,8 +258,8 @@ export const createAppTheme = (mode: ThemeMode) => {
       body1:  { fontFamily: FONT_BODY, fontSize: '0.9063rem', lineHeight: 1.55 },
       body2:  { fontFamily: FONT_BODY, fontSize: '0.8125rem', lineHeight: 1.5 },
       button: { fontFamily: FONT_BODY, fontWeight: 600, letterSpacing: '0.01em', textTransform: 'none' },
-      caption: { fontFamily: FONT_MONO, fontSize: '0.75rem', letterSpacing: '0.02em' },
-      overline: { fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' },
+      caption: { fontFamily: FONT_MONO, fontSize: '0.75rem', letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums' },
+      overline: { fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' },
     },
 
     components: {
@@ -471,7 +526,7 @@ export const createAppTheme = (mode: ThemeMode) => {
         defaultProps: { elevation: 0 },
         styleOverrides: {
           root: {
-            borderRadius: 8,
+            borderRadius: 10,
             border: `1px solid ${p.border}`,
             backgroundColor: p.surface,
             backgroundImage: 'none',
