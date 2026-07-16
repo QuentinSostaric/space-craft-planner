@@ -816,9 +816,9 @@ export function DatasetChangelogPage() {
           gap: 1.5,
         }}
       >
-        <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} />
-        <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} />
-        <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} />
+        <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} domain="orange" />
+        <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} domain="green" />
+        <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} domain="orange" />
         <PageStatCard label={t('Stat rows', 'Lignes stats')} value={String(changeStats.statRows)} />
       </Box>
 

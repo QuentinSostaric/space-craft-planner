@@ -183,11 +183,22 @@ export function MaterialSourcesSection({
           <Typography
             variant="caption"
             sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
               color: 'text.secondary',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
               fontSize: '0.75rem',
               lineHeight: 1.15,
+              '&::before': {
+                content: '""',
+                display: 'block',
+                width: 14,
+                height: 2,
+                flexShrink: 0,
+                backgroundColor: theme.palette.domain.green,
+              },
             }}
           >
             {resources.length === 1

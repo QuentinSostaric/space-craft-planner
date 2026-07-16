@@ -1,6 +1,8 @@
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import { useTheme } from '@mui/material/styles';
+import type { Palette } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 import { FONT_DISPLAY, FONT_MONO } from '../../theme';
 
@@ -10,16 +12,21 @@ export function PageStatCard({
   hint,
   trend,
   icon,
-  accent,
+  accent: accentProp,
+  domain,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   trend?: string;
   icon?: ReactNode;
-  /** Domain accent color for the left strip (theme.palette.domain.*). Defaults to the brand accent. */
+  /** Domain accent color for the left strip (any CSS color). Defaults to the brand accent. */
   accent?: string;
+  /** Named functional hue from theme.palette.domain — preferred over raw `accent`. */
+  domain?: keyof Palette['domain'];
 }) {
+  const theme = useTheme();
+  const accent = accentProp ?? (domain ? theme.palette.domain[domain] : undefined);
   return (
     <Paper
       variant="outlined"

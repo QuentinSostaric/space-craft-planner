@@ -243,6 +243,9 @@ export function CraftSection({
             `Place a material in each slot and adjust its quality. 500 = standard.`,
             `Place un matériau dans chaque slot, ajuste sa qualité. 500 = standard.`,
           )}
+          accent={theme.palette.domain.violet}
+          heroValue={`${validAssignedCount}/${blueprint.slots.length}`}
+          heroUnit={t('slots', 'slots')}
         >
           <Stack spacing={0.65}>
             {blueprint.slots.map((slot) => (
@@ -373,6 +376,7 @@ export function CraftSection({
           eyebrow={t('Simulation', 'Simulation')}
           title={t('Expected result', 'Résultat prévu')}
           subtitle={t('Final stats update live with sliders', 'Les stats finales évoluent en direct avec les sliders')}
+          accent={theme.palette.domain.violet}
           action={
             qualityScore > 0 ? (
               <Chip

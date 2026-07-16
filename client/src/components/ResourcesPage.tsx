@@ -1992,10 +1992,10 @@ export function ResourcesPage() {
           gap: 1.5,
         }}
       >
-        <PageStatCard label={t('Resources', 'Ressources')} value={String(resourceStats.resourceCount)} />
-        <PageStatCard label={t('Systems', 'Systèmes')} value={String(resourceStats.systemCount)} />
-        <PageStatCard label={t('Mission-linked', 'Liées aux missions')} value={String(resourceStats.missionLinkedCount)} />
-        <PageStatCard label={t('Providers', 'Sources')} value={String(resourceStats.providerCount)} />
+        <PageStatCard label={t('Resources', 'Ressources')} value={String(resourceStats.resourceCount)} domain="green" />
+        <PageStatCard label={t('Systems', 'Systèmes')} value={String(resourceStats.systemCount)} domain="cyan" />
+        <PageStatCard label={t('Mission-linked', 'Liées aux missions')} value={String(resourceStats.missionLinkedCount)} domain="blue" />
+        <PageStatCard label={t('Providers', 'Sources')} value={String(resourceStats.providerCount)} domain="cyan" />
       </Box>
 
       {(inventoryNotice || inventoryError) && (

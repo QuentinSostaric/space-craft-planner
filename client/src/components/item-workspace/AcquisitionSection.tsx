@@ -584,7 +584,7 @@ function AcquisitionMissionCard({
                     width: 64,
                     height: 4,
                     borderRadius: 99,
-                    bgcolor: alpha(theme.palette.primary.main, 0.18),
+                    bgcolor: alpha(theme.palette.domain.blue, 0.18),
                     overflow: 'hidden',
                   }}
                 >
@@ -592,12 +592,12 @@ function AcquisitionMissionCard({
                     sx={{
                       height: '100%',
                       width: `${Math.min(dropChance * 100, 100)}%`,
-                      bgcolor: 'primary.main',
+                      bgcolor: theme.palette.domain.blue,
                       borderRadius: 99,
                     }}
                   />
                 </Box>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'primary.main', fontWeight: 600 }}>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: theme.palette.domain.blue, fontWeight: 600 }}>
                   {formatProbabilityPercent(dropChance)}
                 </Typography>
               </Box>
@@ -721,7 +721,8 @@ export function AcquisitionSection({
   const panelSx = {
     p: { xs: 1.4, md: 1.6 },
     border: `1px solid ${theme.palette.ui.border}`,
-    background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
+    boxShadow: `inset 2px 0 0 0 ${theme.palette.domain.blue}`,
+    background: `linear-gradient(180deg, ${alpha(theme.palette.domain.blue, 0.05)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
   };
 
   return (
@@ -761,7 +762,8 @@ export function AcquisitionSection({
             sx={{
               p: { xs: 1.25, md: 1.35 },
               border: `1px solid ${theme.palette.ui.border}`,
-              background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
+              boxShadow: `inset 2px 0 0 0 ${theme.palette.domain.blue}`,
+              background: `linear-gradient(180deg, ${alpha(theme.palette.domain.blue, 0.05)} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
             }}
           >
             <Box

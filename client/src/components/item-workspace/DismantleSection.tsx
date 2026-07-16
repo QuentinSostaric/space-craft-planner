@@ -89,7 +89,23 @@ export function DismantleSection({
       aria-label={t('Dismantling', 'Demontage')}
       sx={{ display: 'flex', flexDirection: 'column', gap: 1.35, scrollMarginTop: 18 }}
     >
-      <Typography variant="overline" sx={{ display: 'block', color: 'text.secondary' }}>
+      <Typography
+        variant="overline"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          color: 'text.secondary',
+          '&::before': {
+            content: '""',
+            display: 'block',
+            width: 14,
+            height: 2,
+            flexShrink: 0,
+            backgroundColor: (theme) => theme.palette.domain.red,
+          },
+        }}
+      >
         {t('Dismantling', 'Demontage')}
       </Typography>
 

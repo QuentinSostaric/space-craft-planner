@@ -1814,18 +1814,22 @@ export function MissionsPanel() {
             <PageStatCard
               label={t('Contracts', 'Contrats')}
               value={String(missionPageStats.contractCount)}
+              domain="blue"
             />
             <PageStatCard
               label={t('Employers', 'Employeurs')}
               value={String(missionPageStats.employerCount)}
+              domain="magenta"
             />
             <PageStatCard
               label={t('Factions', 'Factions')}
               value={String(missionPageStats.factionCount)}
+              domain="magenta"
             />
             <PageStatCard
               label={t('Rewarded blueprints', 'Blueprints récompensés')}
               value={String(missionPageStats.rewardedBlueprintCount)}
+              domain="violet"
             />
           </Box>
 
