@@ -160,7 +160,21 @@ const LazyPrivacyView = lazy(() =>
   })),
 );
 
+const LazyAcquisitionView = lazy(() =>
+  import('./components/AcquisitionPage').then(({ AcquisitionPage }) => ({
+    default: function AcquisitionView() {
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <AcquisitionPage />
+          <Footer />
+        </Box>
+      );
+    },
+  })),
+);
+
 type ResolvedMainView =
+  | 'acquisition'
   | 'blueprints'
   | 'workspace'
   | 'missions'
@@ -705,6 +719,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? 'account'
       : mainView === 'privacy'
         ? 'privacy'
+      : mainView === 'acquisition' && !activeBlueprint
+        ? 'acquisition'
         : activeBlueprint
           ? 'workspace'
           : 'blueprints';
@@ -724,6 +740,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? LazyAccountView
       : resolvedView === 'privacy'
         ? LazyPrivacyView
+      : resolvedView === 'acquisition'
+        ? LazyAcquisitionView
         : resolvedView === 'workspace'
           ? LazyWorkspaceView
           : LazyBlueprintsView;
@@ -761,9 +779,11 @@ const APP_SHELL_MAIN_SX = {
   minHeight: 0,
 } as const;
 
-// Views not listed here (blueprints, privacy) navigate to the site root, matching
+// Views not listed here (privacy) navigate to the site root, matching
 // the previous nested-ternary behaviour.
 const MAIN_VIEW_PATHS: Partial<Record<MainView, string>> = {
+  acquisition: '/',
+  blueprints: '/blueprints',
   missions: '/missions',
   resources: '/resources',
   organizations: '/organizations',

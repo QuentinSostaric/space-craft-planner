@@ -11,6 +11,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import DifferenceOutlinedIcon from '@mui/icons-material/DifferenceOutlined';
+import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -20,6 +21,7 @@ import { FONT_BODY, FONT_MONO } from '../theme';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
+  | 'acquisition'
   | 'blueprints'
   | 'missions'
   | 'resources'
@@ -239,6 +241,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
     [account?.incomingCraftRequests],
   );
 
+  const goToAcquisition = useCallback(() => onChangeView('acquisition'), [onChangeView]);
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
   const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
   const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
@@ -280,11 +283,19 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   );
   const mobileItems = [
     {
+      key: 'acquisition',
+      active: mainView === 'acquisition',
+      label: t('Acquisition', 'Obtention'),
+      icon: <TravelExploreOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      href: '/',
+      onNavigate: goToAcquisition,
+    },
+    {
       key: 'blueprints',
       active: mainView === 'blueprints',
       label: t('Blueprints', 'Blueprints'),
       icon: <DescriptionOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      href: '/',
+      href: '/blueprints',
       onNavigate: goToBlueprints,
     },
     {
@@ -411,10 +422,17 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
       >
         <NavSectionLabel>{t('Craft', 'Fabrication', 'Fertigung')}</NavSectionLabel>
         <NavItem
+          active={mainView === 'acquisition'}
+          label={t('Acquisition', 'Obtention')}
+          icon={<TravelExploreOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
+          href="/"
+          onNavigate={goToAcquisition}
+        />
+        <NavItem
           active={mainView === 'blueprints'}
           label={t('Blueprints', 'Blueprints')}
           icon={<DescriptionOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-          href="/"
+          href="/blueprints"
           onNavigate={goToBlueprints}
         />
         <NavItem

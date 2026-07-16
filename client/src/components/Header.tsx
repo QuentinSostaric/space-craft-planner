@@ -215,7 +215,7 @@ export function Header() {
         <Box
           component="a"
           href="/"
-          onClick={(e) => { e.preventDefault(); navigateToPath('/', { mainView: 'blueprints' }); }}
+          onClick={(e) => { e.preventDefault(); navigateToPath('/', { mainView: 'acquisition' }); }}
           sx={{
             display: 'flex',
             alignItems: 'center',

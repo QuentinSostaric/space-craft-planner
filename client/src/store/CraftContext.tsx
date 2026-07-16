@@ -1189,7 +1189,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     if (nextBlueprint) {
       navigateToPath(`/item/${toSlug(nextBlueprint.name)}`, { blueprintId: nextBlueprint.id });
     } else if (itemSlugFromPathname(window.location.pathname)) {
-      navigateToPath('/');
+      navigateToPath('/blueprints');
     }
   }, [activeDataset.blueprints, activeDataset.datasetId]);
 
