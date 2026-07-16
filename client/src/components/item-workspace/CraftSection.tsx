@@ -25,7 +25,7 @@ import {
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
 import { SlotCard } from './shared/SlotCard';
-import { FONT_DISPLAY, FONT_MONO } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../../theme';
 
 interface CraftSectionProps {
   blueprint: Blueprint;
@@ -131,9 +131,8 @@ function FieldRow({ label, value }: { label: string; value: string }) {
         variant="caption"
         sx={{
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          fontSize: '0.72rem',
+          fontWeight: 500,
+          fontSize: TEXT_LABEL,
           py: 0.65,
           borderBottom: `1px solid ${theme.palette.ui.border}`,
           display: 'flex',
@@ -219,7 +218,7 @@ export function CraftSection({
   const gradeChipSx = {
     height: 22,
     fontFamily: FONT_MONO,
-    fontSize: '0.72rem',
+    fontSize: TEXT_LABEL,
     fontWeight: 700,
     backgroundColor: alpha(gradeColor, 0.14),
     color: gradeColor,
@@ -273,7 +272,7 @@ export function CraftSection({
               >
                 <Stack direction="row" spacing={0.6} alignItems="center" sx={{ color: allPartsValid ? 'success.main' : 'text.disabled' }}>
                   <CheckCircleOutlineIcon sx={{ fontSize: '0.95rem' }} />
-                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                  <Typography variant="caption" sx={{ fontSize: TEXT_LABEL }}>
                     {validAssignedCount}/{blueprint.slots.length} {t('valid', 'valides')}
                   </Typography>
                 </Stack>
@@ -318,7 +317,7 @@ export function CraftSection({
             >
               <Typography
                 variant="overline"
-                sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'text.secondary', lineHeight: 1 }}
+                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.1em', color: 'text.secondary', lineHeight: 1 }}
               >
                 {t('Field Data', 'Données objet')}
               </Typography>
@@ -348,9 +347,8 @@ export function CraftSection({
                     variant="caption"
                     sx={{
                       color: 'text.secondary',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.1em',
-                      fontSize: '0.72rem',
+                      fontWeight: 500,
+                      fontSize: TEXT_LABEL,
                       display: 'block',
                       mb: 0.75,
                     }}
@@ -404,15 +402,15 @@ export function CraftSection({
                         {row.label}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', color: 'text.disabled' }}>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.disabled' }}>
                           {formatStatValue(row.key, row.baseVal)}
                         </Typography>
-                        <ArrowForwardIcon sx={{ fontSize: '0.6rem', color: 'text.disabled' }} />
+                        <ArrowForwardIcon sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled' }} />
                         <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'text.primary' }}>
                           {formatStatValue(row.key, row.finalVal)}
                         </Typography>
                         {!row.isNeutral && (
-                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.7rem', fontWeight: 700, color: deltaColor }}>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: deltaColor }}>
                             {deltaStr}
                           </Typography>
                         )}

@@ -5,7 +5,7 @@ import Tooltip from '@mui/material/Tooltip';
 import SyncIcon from '@mui/icons-material/Sync';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { FONT_MONO } from '../theme';
+import { FONT_MONO, TEXT_LABEL} from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -75,7 +75,7 @@ export function SyncBlueprintsButton({
           sx={{
             fontFamily: FONT_MONO,
             fontWeight: 700,
-            fontSize: '0.7rem',
+            fontSize: TEXT_LABEL,
             letterSpacing: '0.03em',
             whiteSpace: 'nowrap',
             flexShrink: 0,

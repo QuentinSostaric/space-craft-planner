@@ -761,11 +761,13 @@ function MainContent({ mainView }: { mainView: MainView }) {
 // module scope so the object identity is stable across renders and the layout
 // is declared once instead of being duplicated across every loading/error/ready
 // branch of AppShell.
+// On mobile the nav bar sits at the bottom of the viewport (thumb zone);
+// on md+ it is a left rail.
 const APP_SHELL_GRID_SX = {
   display: 'grid',
-  gridTemplateAreas: { xs: '"header" "rail" "main"', md: '"header header" "rail main"' },
+  gridTemplateAreas: { xs: '"header" "main" "rail"', md: '"header header" "rail main"' },
   gridTemplateColumns: { xs: '1fr', md: `${NAV_RAIL_DESKTOP_WIDTH}px 1fr` },
-  gridTemplateRows: { xs: 'auto auto 1fr', md: 'auto 1fr' },
+  gridTemplateRows: { xs: 'auto 1fr auto', md: 'auto 1fr' },
   height: '100dvh',
   overflow: 'hidden',
 } as const;

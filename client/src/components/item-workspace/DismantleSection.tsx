@@ -49,9 +49,7 @@ function DismantleFact({
         variant="caption"
         sx={{
           display: 'block',
-          color: 'text.disabled',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
+          color: 'text.secondary',
           mb: 0.4,
         }}
       >
@@ -192,7 +190,6 @@ export function DismantleSection({
                           fontWeight: 700,
                           fontSize: '1.25rem',
                           lineHeight: 1,
-                          textTransform: 'uppercase',
                         }}
                       >
                         {resource.resourceName}
@@ -223,9 +220,7 @@ export function DismantleSection({
                         variant="caption"
                         sx={{
                           display: 'block',
-                          color: 'text.disabled',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.12em',
+                          color: 'text.secondary',
                           mb: 0.4,
                         }}
                       >

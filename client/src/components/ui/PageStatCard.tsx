@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import type { Palette } from '@mui/material/styles';
 import type { ReactNode } from 'react';
-import { FONT_DISPLAY, FONT_MONO } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
 export function PageStatCard({
   label,
@@ -41,17 +41,19 @@ export function PageStatCard({
         backgroundColor: 'ui.surface',
         position: 'relative',
         overflow: 'hidden',
-        // Left accent strip
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 2,
-          backgroundColor: accent ?? 'primary.main',
-          opacity: accent ? 0.8 : 0.55,
-        },
+        // Domain accent strip — only rendered when a functional hue is given
+        ...(accent && {
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            backgroundColor: accent,
+            opacity: 0.8,
+          },
+        }),
       }}
     >
       <Typography
@@ -59,9 +61,9 @@ export function PageStatCard({
         sx={{
           display: 'block',
           color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: { xs: '0.1em', md: '0.12em' },
-          fontSize: '0.6875rem',
+          fontWeight: 500,
+          fontSize: TEXT_LABEL,
+          letterSpacing: 0,
           mb: { xs: 0.5, md: 0.75 },
         }}
       >
@@ -89,8 +91,8 @@ export function PageStatCard({
         <Typography
           sx={{
             mt: 0.5,
-            fontSize: '0.6875rem',
-            color: trend ? (trend.startsWith('+') ? 'success.main' : 'error.main') : 'text.disabled',
+            fontSize: TEXT_LABEL_SM,
+            color: trend ? (trend.startsWith('+') ? 'success.main' : 'error.main') : 'text.secondary',
           }}
         >
           {trend && <Box component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, mr: 0.5 }}>{trend}</Box>}

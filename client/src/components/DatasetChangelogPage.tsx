@@ -22,7 +22,7 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { fetchPublishedDatasetById } from '../hooks/gameDataApi';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { FONT_DISPLAY, FONT_MONO } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
 import type {
   Blueprint,
   DatasetSummary,
@@ -509,7 +509,7 @@ function DatasetSelect({
 }) {
   return (
     <FormControl size="small" sx={{ minWidth: 0, flex: 1 }}>
-      <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+      <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: TEXT_LABEL, fontWeight: 500 }}>
         {label}
       </Typography>
       <Select
@@ -627,7 +627,7 @@ function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
                 display: 'block',
                 mb: 0.45,
                 color: 'text.secondary',
-                fontSize: '0.75rem',
+                fontSize: TEXT_LABEL,
                 fontWeight: 700,
                 letterSpacing: '.1em',
                 textTransform: 'uppercase',
@@ -763,10 +763,8 @@ export function DatasetChangelogPage() {
 
   const monoHeaderSx = {
     fontFamily: FONT_MONO,
-    fontSize: '0.6875rem',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase' as const,
-    color: 'text.disabled',
+    fontSize: TEXT_LABEL_SM,
+    color: 'text.secondary',
     fontWeight: 600,
     borderColor: 'ui.border',
   };
@@ -789,7 +787,7 @@ export function DatasetChangelogPage() {
         <Typography
           sx={{
             fontFamily: FONT_MONO,
-            fontSize: '0.6875rem',
+            fontSize: TEXT_LABEL_SM,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: 'primary.main',
@@ -830,7 +828,7 @@ export function DatasetChangelogPage() {
       <Paper variant="outlined" sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'ui.border' }}>
           <Box>
-            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.disabled', mb: 0.25 }}>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.25 }}>
               {t('Comparator', 'Comparateur')}
             </Typography>
             <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
@@ -880,7 +878,7 @@ export function DatasetChangelogPage() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t('Name, type, stat or modifier…', 'Nom, type, stat ou modifier…')}
-                sx={{ flex: '1 1 200px', '& .MuiInputBase-root': { fontSize: '0.8125rem', height: 32 } }}
+                sx={{ flex: '1 1 200px', '& .MuiInputBase-root': { fontSize: TEXT_LABEL_LG, height: 32 } }}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -891,7 +889,7 @@ export function DatasetChangelogPage() {
                   },
                 }}
               />
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.8125rem' } }}>
+              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
                 <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} displayEmpty>
                   <MenuItem value="all">{t('All statuses', 'Tous statuts')}</MenuItem>
                   <MenuItem value="Added">{t('Added', 'Ajouts')}</MenuItem>
@@ -899,7 +897,7 @@ export function DatasetChangelogPage() {
                   <MenuItem value="Removed">{t('Removed', 'Retires')}</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.8125rem' } }}>
+              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
                 <Select value={domainFilter} onChange={(event) => setDomainFilter(event.target.value as DomainFilter)} displayEmpty>
                   <MenuItem value="all">{t('All domains', 'Tous domaines')}</MenuItem>
                   <MenuItem value="stats">Stats</MenuItem>
@@ -909,13 +907,13 @@ export function DatasetChangelogPage() {
                   <MenuItem value="craft">Craft</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.8125rem' } }}>
+              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
                 <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} displayEmpty>
                   <MenuItem value="all">{t('All types', 'Tous types')}</MenuItem>
                   {typeOptions.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.8125rem' } }}>
+              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
                 <Select value={impactFilter} onChange={(event) => setImpactFilter(event.target.value as ImpactFilter)} displayEmpty>
                   <MenuItem value="all">{t('All impacts', 'Tous impacts')}</MenuItem>
                   <MenuItem value="buffs">{t('Buffs', 'Buffs')}</MenuItem>
@@ -933,7 +931,7 @@ export function DatasetChangelogPage() {
         <Paper variant="outlined" sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'ui.border' }}>
             <Box>
-              <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.disabled', mb: 0.25 }}>
+              <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.25 }}>
                 {t('History', 'Historique')}
               </Typography>
               <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
@@ -944,13 +942,13 @@ export function DatasetChangelogPage() {
               <Chip
                 size="small"
                 label={`+${changeStats.added} ${t('added', 'ajoutés')}`}
-                sx={{ color: 'success.main', borderColor: 'success.main', height: 22, '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: '0.6875rem', fontWeight: 700 } }}
+                sx={{ color: 'success.main', borderColor: 'success.main', height: 22, '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
                 variant="outlined"
               />
               <Chip
                 size="small"
                 label={`~${changeStats.changed} ${t('changed', 'modifiés')}`}
-                sx={{ color: 'warning.main', borderColor: 'warning.main', height: 22, '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: '0.6875rem', fontWeight: 700 } }}
+                sx={{ color: 'warning.main', borderColor: 'warning.main', height: 22, '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
                 variant="outlined"
               />
             </Box>
@@ -988,7 +986,7 @@ export function DatasetChangelogPage() {
                       <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY }}>{row.name}</Typography>
                     </TableCell>
                     <TableCell sx={{ borderColor: 'ui.border' }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: '0.6875rem' }}>{row.type}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM }}>{row.type}</Typography>
                     </TableCell>
                     <TableCell sx={{ borderColor: 'ui.border' }}>
                       <Chip
@@ -999,7 +997,7 @@ export function DatasetChangelogPage() {
                           height: 20,
                           color: statusColor(row.status),
                           borderColor: statusColor(row.status),
-                          '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: '0.6875rem', fontWeight: 700, px: 0.75 },
+                          '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700, px: 0.75 },
                         }}
                       />
                     </TableCell>

@@ -66,7 +66,7 @@ function FactRow({ fact }: { fact: BlueprintIdentityFact }) {
     >
       <Typography
         variant="caption"
-        sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '.05em' }}
+        sx={{ color: 'text.secondary', fontWeight: 500 }}
       >
         {fact.label}
       </Typography>
@@ -102,8 +102,6 @@ function MetricTile({
         sx={{
           color: 'text.secondary',
           display: 'block',
-          textTransform: 'uppercase',
-          letterSpacing: '.05em',
         }}
       >
         {label}

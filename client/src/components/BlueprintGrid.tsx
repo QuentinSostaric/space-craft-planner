@@ -2,7 +2,6 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { memo, startTransition, useCallback, useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import CheckIcon from '@mui/icons-material/Check';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -14,7 +13,6 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupsIcon from '@mui/icons-material/Groups';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import LayersIcon from '@mui/icons-material/Layers';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import StarIcon from '@mui/icons-material/Star';
@@ -24,7 +22,6 @@ import { useCraft, DEFAULT_INVENTORY_IDS } from '../store/CraftContext';
 import { useFilters } from '../store/FilterContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { CategoryBadge } from './ui/Badge';
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { MaterialChips } from './ui/MaterialChips';
@@ -51,7 +48,7 @@ import type {
   ShipComponentEntry,
 } from '../types';
 import type { GameIconName } from './ui/GameIcon';
-import { FONT_HEADING } from '../theme';
+import { FONT_HEADING, FONT_MONO, TEXT_LABEL } from '../theme';
 import { toSlug } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 import { trackEvent } from '../analytics/posthog';
@@ -253,7 +250,7 @@ function QuickActionBtn({
         borderRadius: 1,
         px: 1.25,
         py: 0.75,
-        fontSize: '0.72rem',
+        fontSize: TEXT_LABEL,
         fontWeight: 600,
         cursor: 'pointer',
         fontFamily: 'inherit',
@@ -378,7 +375,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           sx={{
             position: 'relative',
             height: { xs: 124, sm: 132, md: 142 },
-            backgroundColor: theme.palette.mode === 'dark' ? alpha('#020817', 0.46) : alpha(theme.palette.primary.main, 0.02),
+            backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.46) : alpha(theme.palette.primary.main, 0.02),
             backgroundImage:
               theme.palette.mode === 'dark'
                 ? `linear-gradient(${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px)`
@@ -391,14 +388,13 @@ export const BlueprintCard = memo(function BlueprintCard({
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          {/* Rarity / Category Badge Overlay */}
-          <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}>
-            {blueprint.rarity ? (
+          {/* Top-left slot is reserved for rarity only, so its position stays learnable.
+              The category is already shown in the meta line under the name. */}
+          {blueprint.rarity && (
+            <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}>
               <RarityBadge rarity={blueprint.rarity} />
-            ) : (
-              <CategoryBadge category={blueprint.category} />
-            )}
-          </Box>
+            </Box>
+          )}
 
           {/* Large Image / Icon */}
           <Box sx={{ width: '100%', height: '100%', p: { xs: 1.5, md: 1.75 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -439,15 +435,14 @@ export const BlueprintCard = memo(function BlueprintCard({
                 fontFamily: FONT_HEADING,
                 fontWeight: 700,
                 fontSize: { xs: '1rem', md: '1.05rem' },
-                lineHeight: 1.1,
+                lineHeight: 1.2,
                 color: 'text.primary',
-                textTransform: 'uppercase',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
-                minHeight: '2.1em',
+                minHeight: '2.4em',
               }}
             >
               {blueprint.name}
@@ -456,10 +451,9 @@ export const BlueprintCard = memo(function BlueprintCard({
               variant="caption"
               sx={{
                 color: 'secondary.main',
-                fontSize: '0.68rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                fontWeight: 600,
+                fontSize: TEXT_LABEL,
+                fontWeight: 500,
+                letterSpacing: 0,
                 mt: 0.5,
                 display: 'block',
                 overflow: 'hidden',
@@ -467,35 +461,28 @@ export const BlueprintCard = memo(function BlueprintCard({
                 whiteSpace: 'nowrap',
               }}
             >
-              {blueprint.manufacturer} // {loc(CAT_LABEL[blueprint.category], lang)}
+              {blueprint.manufacturer} · {loc(CAT_LABEL[blueprint.category], lang)}
             </Typography>
           </Box>
 
-          {/* Footer badges */}
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}>
-            <Chip
-              icon={<AccessTimeIcon />}
-              label={formatCraftTime(blueprint.craftTimeSecs)}
-              size="small"
-              variant="outlined"
-              sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.68rem', px: 0.75 }, '& .MuiChip-icon': { fontSize: '0.75rem', ml: '5px' }, color: 'text.secondary', borderColor: 'ui.border' }}
-            />
-            <Chip
-              icon={<LayersIcon />}
-              label={`${blueprint.slotCount ?? blueprint.slots.length} slots`}
-              size="small"
-              variant="outlined"
-              sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.68rem', px: 0.75 }, '& .MuiChip-icon': { fontSize: '0.75rem', ml: '5px' }, color: 'text.secondary', borderColor: 'ui.border' }}
-            />
+          {/* Meta line — plain mono text, no chips: only badges that carry state earn a border */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mt: 0.5, color: 'text.secondary', minWidth: 0 }}>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+              <AccessTimeIcon sx={{ fontSize: 13, flexShrink: 0 }} />
+              <Typography
+                component="span"
+                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, lineHeight: 1, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+              >
+                {formatCraftTime(blueprint.craftTimeSecs)} · {blueprint.slotCount ?? blueprint.slots.length} {t('slots', 'slots')}
+              </Typography>
+            </Box>
             {isObtainable && (
-              <Chip
-                icon={<TravelExploreIcon />}
-                label="Mission"
-                size="small"
-                color="secondary"
-                variant="outlined"
-                sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.68rem', px: 0.75 }, '& .MuiChip-icon': { fontSize: '0.75rem', ml: '5px' } }}
-              />
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: 'secondary.main' }}>
+                <TravelExploreIcon sx={{ fontSize: 13, flexShrink: 0 }} />
+                <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, lineHeight: 1, whiteSpace: 'nowrap' }}>
+                  Mission
+                </Typography>
+              </Box>
             )}
           </Box>
 
@@ -519,6 +506,14 @@ export const BlueprintCard = memo(function BlueprintCard({
           py: 1.125,
           borderTop: `1px solid ${theme.palette.divider}`,
           backgroundColor: alpha(theme.palette.background.default, 0.08),
+          // On pointer devices the quick actions only appear on hover/focus to keep
+          // the resting grid quiet; space stays reserved so the layout never shifts.
+          // Touch devices (no hover) always show them.
+          '@media (hover: hover) and (pointer: fine)': {
+            opacity: 0,
+            transition: 'opacity 160ms ease',
+            '.MuiCard-root:hover &, .MuiCard-root:focus-within &': { opacity: 1 },
+          },
         }}
       >
         <QuickActionBtn
@@ -1032,7 +1027,7 @@ export function BlueprintGrid() {
               fontFamily: FONT_HEADING,
               fontWeight: 700,
               fontSize: { xs: '1.45rem', md: '1.7rem' },
-              textTransform: 'uppercase',
+              letterSpacing: '-0.018em',
               lineHeight: 1,
             }}
           >
@@ -1116,8 +1111,7 @@ export function BlueprintGrid() {
                       fontFamily: FONT_HEADING,
                       fontSize: '1.15rem',
                       fontWeight: 700,
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
+                      letterSpacing: '-0.008em',
                     }}
                   >
                     {t('Ship Components', 'Composants de vaisseau')}

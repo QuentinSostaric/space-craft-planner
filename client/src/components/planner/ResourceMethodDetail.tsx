@@ -36,6 +36,7 @@ import {
   getLocationIconName,
   getMaterialProviderIconName,
 } from '../ui/StarCitizenLicensedIcon';
+import { TEXT_LABEL } from '../../theme';
 
 interface ResourceMethodDetailProps {
   resourceName: string;
@@ -340,7 +341,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                       label={factionName}
                       size="small"
                       variant="outlined"
-                      sx={{ fontSize: '0.75rem', height: 18 }}
+                      sx={{ fontSize: TEXT_LABEL, height: 18 }}
                     />
                   )}
                   <Chip
@@ -348,14 +349,14 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                     label={activityLabel}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: '0.75rem', height: 18 }}
+                    sx={{ fontSize: TEXT_LABEL, height: 18 }}
                   />
                   <Chip
                     label={formatScaleLabel(contract.availability.derivedScale, lang)}
                     size="small"
                     variant="outlined"
                     color="primary"
-                    sx={{ fontSize: '0.75rem', height: 18 }}
+                    sx={{ fontSize: TEXT_LABEL, height: 18 }}
                   />
                 </Box>
                 {localities.length > 0 && (
@@ -371,7 +372,7 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                             iconName ? <StarCitizenLicensedIcon name={iconName} size={12} dimmed /> : undefined
                           }
                           label={location}
-                          sx={{ fontSize: '0.75rem', height: 18 }}
+                          sx={{ fontSize: TEXT_LABEL, height: 18 }}
                         />
                       );
                     })}

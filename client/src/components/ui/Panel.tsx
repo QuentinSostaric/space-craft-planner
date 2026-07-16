@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTheme, alpha } from '@mui/material/styles';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { FONT_DISPLAY, FONT_MONO } from '../../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
 export interface PanelProps {
   children: ReactNode;
@@ -122,9 +122,9 @@ export function Panel({
                 variant="overline"
                 sx={{
                   fontFamily: FONT_MONO,
-                  fontSize: '0.6875rem',
+                  fontSize: TEXT_LABEL_SM,
                   letterSpacing: '0.08em',
-                  color: 'text.disabled',
+                  color: 'text.secondary',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 0.75,
@@ -163,9 +163,9 @@ export function Panel({
               <Typography
                 variant="caption"
                 sx={{
-                  color: 'text.disabled',
+                  color: 'text.secondary',
                   display: 'block',
-                  fontSize: '0.75rem',
+                  fontSize: TEXT_LABEL,
                   mt: 0.25,
                 }}
               >

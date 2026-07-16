@@ -70,9 +70,7 @@ function ResourceFact({ label, value }: { label: string; value: string }) {
         variant="caption"
         sx={{
           display: 'block',
-          color: 'text.disabled',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
+          color: 'text.secondary',
           mb: 0.5,
         }}
       >
@@ -186,7 +184,6 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
               fontWeight: 700,
               fontSize: '1.15rem',
               lineHeight: 1,
-              textTransform: 'uppercase',
             }}
           >
             {resourceName}
