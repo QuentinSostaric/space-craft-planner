@@ -49,6 +49,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Tailscale access: the machine's MagicDNS name and any tailnet FQDN.
+    allowedHosts: ['qcomputer', '.ts.net'],
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8788',

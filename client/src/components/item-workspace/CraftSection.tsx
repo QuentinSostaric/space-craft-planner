@@ -25,6 +25,8 @@ interface CraftSectionProps {
   projectedStats: ItemStats;
   /** Hide the Field Data accordion (when the host page renders it elsewhere). */
   hideFieldData?: boolean;
+  /** Hide the Blueprint details reference panel (idem). */
+  hideReference?: boolean;
 }
 
 function formatCraftTime(secs: number): string {
@@ -171,6 +173,24 @@ function computeFieldData(blueprint: Blueprint) {
   return { itemType, sizeVal, volumeVal, gridSizeVal, footprintVal, attackProfile, ammoType, armorSlot, technicalTags, hasFieldData };
 }
 
+/** Manufacturer / category / rarity / slots rows, reusable outside the panel. */
+export function BlueprintDetailsRows({ blueprint }: { blueprint: Blueprint }) {
+  const { t, lang } = useI18n();
+  return (
+    <Stack spacing={0.15}>
+      <KVRow label={t('Manufacturer', 'Fabricant')} value={blueprint.manufacturer} />
+      <KVRow
+        label={t('Category', 'Catégorie')}
+        value={loc(CATEGORY_LABELS[blueprint.category], lang)}
+      />
+      {blueprint.rarity && (
+        <KVRow label={t('Rarity', 'Rareté')} value={blueprint.rarity} />
+      )}
+      <KVRow label={t('Slots', 'Slots')} value={`${blueprint.slots.length} ${t('materials', 'matériaux')}`} />
+    </Stack>
+  );
+}
+
 export function hasBlueprintFieldData(blueprint: Blueprint): boolean {
   return computeFieldData(blueprint).hasFieldData;
 }
@@ -232,6 +252,7 @@ export function CraftSection({
   qualityScore,
   projectedStats,
   hideFieldData = false,
+  hideReference = false,
 }: CraftSectionProps) {
   const { lang, t } = useI18n();
   const theme = useTheme();
@@ -473,19 +494,11 @@ export function CraftSection({
         </Panel>
 
         {/* "Détails du blueprint" */}
-        <Panel eyebrow={t('Reference', 'Référence')} title={t('Blueprint details', 'Détails du blueprint')}>
-          <Stack spacing={0.15}>
-            <KVRow label={t('Manufacturer', 'Fabricant')} value={blueprint.manufacturer} />
-            <KVRow
-              label={t('Category', 'Catégorie')}
-              value={loc(CATEGORY_LABELS[blueprint.category], lang)}
-            />
-            {blueprint.rarity && (
-              <KVRow label={t('Rarity', 'Rareté')} value={blueprint.rarity} />
-            )}
-            <KVRow label={t('Slots', 'Slots')} value={`${blueprint.slots.length} ${t('materials', 'matériaux')}`} />
-          </Stack>
-        </Panel>
+        {!hideReference && (
+          <Panel eyebrow={t('Reference', 'Référence')} title={t('Blueprint details', 'Détails du blueprint')}>
+            <BlueprintDetailsRows blueprint={blueprint} />
+          </Panel>
+        )}
 
       </Stack>
     </Box>

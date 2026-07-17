@@ -1,4 +1,4 @@
-import { Box, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Box, Divider, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../ui/system';
 import { Autocomplete, Button, Checkbox, Chip, InputAdornment, LinearProgress, Menu, MenuItem, TextField } from '../ui/widgets';
 import { SearchIcon, CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, ScienceOutlinedIcon, FlagOutlinedIcon, OpenInNewIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -6,7 +6,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
-import { CraftSection, FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
+import { BlueprintDetailsRows, CraftSection, FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
 import { Panel } from './ui/Panel';
 import { PageStatCard } from './ui/PageStatCard';
 import { RarityBadge } from './ui/RarityBadge';
@@ -763,7 +763,7 @@ export function FabricatorPage() {
           </Box>
 
           {/* Main dense grid: simulation + reputation left, info right */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 380px' }, gap: 1.5, alignItems: 'start' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 380px' }, gap: 1.5 }}>
             {/* Craft simulation, then the reputation pipeline right below the slots */}
             <Stack spacing={1.5} sx={{ minWidth: 0 }}>
               {detailReady && selected ? (
@@ -775,6 +775,7 @@ export function FabricatorPage() {
                   qualityScore={qualityScore}
                   projectedStats={projectedStats}
                   hideFieldData
+                  hideReference
                 />
               ) : (
                 <Stack spacing={1.5}>
@@ -814,7 +815,7 @@ export function FabricatorPage() {
             </Stack>
 
             {/* Right rail: side panels */}
-            <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+            <Stack spacing={1.5} sx={{ minWidth: 0, height: '100%' }}>
               {requiredResources.length > 0 && (
                 <Panel
                   eyebrow={t('Materials', 'Matériaux')}
@@ -837,14 +838,21 @@ export function FabricatorPage() {
                 </Panel>
               )}
 
-              {detailReady && selected && hasBlueprintFieldData(selected) && (
+              {detailReady && selected && (
                 <Panel
-                  eyebrow={t('Field Data', 'Données objet')}
+                  eyebrow={t('Static data', 'Données statiques')}
                   title={t('Item details', 'Détails de l’objet')}
                   accent={theme.palette.domain.cyan}
                   dense
+                  sx={{ flex: 1 }}
                 >
-                  <FieldDataBody blueprint={selected} />
+                  <BlueprintDetailsRows blueprint={selected} />
+                  {hasBlueprintFieldData(selected) && (
+                    <>
+                      <Divider sx={{ my: 1.25 }} />
+                      <FieldDataBody blueprint={selected} />
+                    </>
+                  )}
                 </Panel>
               )}
             </Stack>
