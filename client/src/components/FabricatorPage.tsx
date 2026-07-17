@@ -251,7 +251,6 @@ function MissionPickMenu({
   picked: string[];
   onToggle: (contractName: string) => void;
 }) {
-  const theme = useTheme();
   const { t } = useI18n();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const pickedSet = useMemo(() => new Set(picked), [picked]);
@@ -308,7 +307,7 @@ function MissionPickMenu({
                   {missionSecondaryLine(contract)}
                 </Typography>
                 {rewardCount > 0 && (
-                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: theme.palette.domain.violet, lineHeight: 1.3 }}>
+                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', lineHeight: 1.3 }}>
                     {rewardCount} {t('blueprints in reward pool', 'blueprints dans le pool de récompense')}
                   </Typography>
                 )}
@@ -801,7 +800,7 @@ export function FabricatorPage() {
                 aria-label={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')}
                 title={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')}
                 onClick={() => toggleFavorite(selected.id)}
-                sx={{ color: isFavorite ? theme.palette.domain.yellow : 'text.secondary' }}
+                sx={{ color: isFavorite ? theme.palette.warning.main : 'text.secondary' }}
               >
                 {isFavorite ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
               </IconButton>
@@ -878,7 +877,7 @@ export function FabricatorPage() {
                     <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.4 }}>
                       {[s.blueprint.manufacturer, s.blueprint.category].filter(Boolean).join(' / ')}
                     </Typography>
-                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: theme.palette.domain.blue }}>
+                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
                       {s.contractCount} {t('contracts', 'contrats')} · {s.localityCount} {t('localities', 'localités')}
                     </Typography>
                   </Paper>
@@ -918,7 +917,7 @@ export function FabricatorPage() {
             <PageStatCard
               label={t('Craft time', 'Temps de craft')}
               value={selected.craftTimeSecs >= 60 ? `${Math.round(selected.craftTimeSecs / 60)}m` : `${selected.craftTimeSecs}s`}
-              domain="violet"
+              accent={theme.palette.primary.main}
             />
           </Box>
 
@@ -992,7 +991,7 @@ export function FabricatorPage() {
                           <Typography sx={{ fontWeight: 600, fontSize: TEXT_LABEL_LG, flexShrink: 0 }}>
                             {resource.resourceName}
                           </Typography>
-                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: theme.palette.domain.green, fontWeight: 700, flexShrink: 0 }}>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.primary', fontWeight: 700, flexShrink: 0 }}>
                             {formatResourceQuantity(resource.totalScu * qty, resource.quantityUnit, lang)}
                           </Typography>
                           <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ml: 'auto' }}>
@@ -1027,7 +1026,6 @@ export function FabricatorPage() {
                 <Panel
                   eyebrow={t('Static data', 'Données statiques')}
                   title={t('Item details', 'Détails de l’objet')}
-                  accent={theme.palette.domain.cyan}
                   dense
                   sx={{ flex: 1 }}
                 >
@@ -1040,7 +1038,7 @@ export function FabricatorPage() {
                 <Panel
                   eyebrow={t('Dismantling', 'Démontage')}
                   title={t('Recovered materials', 'Matériaux récupérés')}
-                  accent={theme.palette.domain.red}
+                  accent={theme.palette.domain.orange}
                   heroValue={`${Math.round(dismantleEfficiency * 100)}%`}
                   heroUnit={t('recovery', 'récup.')}
                   collapsible
@@ -1054,7 +1052,7 @@ export function FabricatorPage() {
                         <Typography sx={{ fontSize: TEXT_LABEL, fontWeight: 600, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {resource.resourceName}
                         </Typography>
-                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: theme.palette.domain.red }}>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: 'text.primary' }}>
                           {formatResourceQuantity(Math.round(resource.totalScu * dismantleEfficiency * 1000) / 1000, resource.quantityUnit, lang)}
                         </Typography>
                       </Box>

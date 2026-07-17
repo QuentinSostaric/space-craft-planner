@@ -306,7 +306,7 @@ export function CraftSection({
             `Place a material in each slot and adjust its quality. 500 = standard.`,
             `Place un matériau dans chaque slot, ajuste sa qualité. 500 = standard.`,
           )}
-          accent={theme.palette.domain.violet}
+          accent={theme.palette.primary.main}
           heroValue={`${validAssignedCount}/${blueprint.slots.length}`}
           heroUnit={t('slots', 'slots')}
         >
@@ -400,7 +400,7 @@ export function CraftSection({
           eyebrow={t('Simulation', 'Simulation')}
           title={t('Expected result', 'Résultat prévu')}
           subtitle={t('Final stats update live with sliders', 'Les stats finales évoluent en direct avec les sliders')}
-          accent={theme.palette.domain.violet}
+          accent={theme.palette.primary.main}
           action={
             qualityScore > 0 ? (
               <Chip

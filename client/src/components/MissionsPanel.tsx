@@ -1797,7 +1797,6 @@ export function MissionsPanel() {
             <PageStatCard
               label={t('Rewarded blueprints', 'Blueprints récompensés')}
               value={String(missionPageStats.rewardedBlueprintCount)}
-              domain="violet"
             />
           </Box>
 

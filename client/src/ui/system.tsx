@@ -48,26 +48,39 @@ export const TEXT_LABEL_SM = '0.6875rem';
 export const TEXT_LABEL    = '0.75rem';
 export const TEXT_LABEL_LG = '0.8125rem';
 
+/**
+ * Functional category hues — five real categories, validated (lightness band,
+ * chroma floor, CVD ≥8, normal-vision ≥15, contrast ≥3:1) against each mode's
+ * surface with the dataviz palette validator:
+ *   green   = materials & resources
+ *   cyan    = geography (systems, localities, providers)
+ *   blue    = missions & contracts
+ *   magenta = reputation & factions (social)
+ *   orange  = dismantling / salvage (industrial teardown — NOT danger red)
+ * red / yellow / violet are compatibility aliases onto the reserved status &
+ * brand colors: status semantics (danger, gold star) and the brand accent must
+ * never be re-used as category identities.
+ */
 const DOMAIN_DARK = {
-  red:     '#F4536B',
-  orange:  '#FB8F44',
-  yellow:  '#F5D90A',
-  green:   '#31D189',
-  cyan:    '#2FC7E1',
-  blue:    '#5CA9FF',
-  violet:  '#9D8CFF',
-  magenta: '#E869B8',
+  green:   '#358A2E',
+  cyan:    '#10A5BC',
+  blue:    '#2F6FE4',
+  magenta: '#C94F9E',
+  orange:  '#B85917',
+  red:     '#F87171',
+  yellow:  '#F4B740',
+  violet:  '#818CF8',
 };
 
 const DOMAIN_LIGHT = {
+  green:   '#1E7A2C',
+  cyan:    '#0089A8',
+  blue:    '#2456C4',
+  magenta: '#A63583',
+  orange:  '#8F5410',
   red:     '#C8362E',
-  orange:  '#C2571B',
-  yellow:  '#A16207',
-  green:   '#0E9F6E',
-  cyan:    '#0E7490',
-  blue:    '#1E6FE3',
-  violet:  '#6D5BD0',
-  magenta: '#BE3D8F',
+  yellow:  '#C77700',
+  violet:  '#4F46E5',
 };
 
 const PALETTE_DARK = {

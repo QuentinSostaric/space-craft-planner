@@ -563,12 +563,10 @@ export function BlueprintExplorer() {
         <PageStatCard
           label={t('Blueprints', 'Blueprints')}
           value={String(blueprintStats.blueprintCount)}
-          domain="violet"
         />
         <PageStatCard
           label={t('Manufacturers', 'Fabricants')}
           value={String(blueprintStats.manufacturerCount)}
-          domain="magenta"
         />
         <PageStatCard
           label={t('Mission-linked', 'Liees aux missions')}

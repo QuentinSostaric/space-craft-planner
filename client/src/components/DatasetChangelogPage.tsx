@@ -635,6 +635,7 @@ function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
 }
 
 export function DatasetChangelogPage() {
+  const theme = useTheme();
   const { activeDataset, availableDatasets } = useCraft();
   const { lang, t } = useI18n();
   const datasetCacheRef = useRef<Record<string, GameDataset>>({});
@@ -798,9 +799,9 @@ export function DatasetChangelogPage() {
           gap: 1.5,
         }}
       >
-        <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} domain="orange" />
-        <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} domain="green" />
-        <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} domain="orange" />
+        <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} />
+        <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} accent={theme.palette.success.main} />
+        <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} accent={theme.palette.warning.main} />
         <PageStatCard label={t('Stat rows', 'Lignes stats')} value={String(changeStats.statRows)} />
       </Box>
 
