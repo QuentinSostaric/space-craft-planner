@@ -1,9 +1,12 @@
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import InputAdornment from '@mui/material/InputAdornment';
 import LinearProgress from '@mui/material/LinearProgress';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
@@ -11,7 +14,9 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import SearchIcon from '@mui/icons-material/Search';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
@@ -39,6 +44,7 @@ import type {
 
 const LAST_BLUEPRINT_KEY = 'if-fabricator-last-blueprint';
 const PROGRESS_KEY = 'if-acquisition-progress';
+const MISSION_PICKS_KEY = 'if-fabricator-mission-picks';
 
 // ─── Progress persistence (reached reputation per faction/scope) ─────────────
 
@@ -60,6 +66,28 @@ function writeProgress(map: ProgressMap) {
     window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(map));
   } catch {
     // storage unavailable — progress simply won't persist
+  }
+}
+
+/** Selected grind missions per `${scopeKey}|${tierRep}` — a personal to-do list. */
+type MissionPicksMap = Record<string, string[]>;
+
+function readMissionPicks(): MissionPicksMap {
+  try {
+    const raw = window.localStorage.getItem(MISSION_PICKS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as MissionPicksMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeMissionPicks(map: MissionPicksMap) {
+  try {
+    window.localStorage.setItem(MISSION_PICKS_KEY, JSON.stringify(map));
+  } catch {
+    // storage unavailable — picks simply won't persist
   }
 }
 
@@ -172,16 +200,109 @@ function buildLane(
   };
 }
 
-// ─── Reputation lane (one faction) ───────────────────────────────────────────
+// ─── Mission multi-select (grind pool of one tier) ───────────────────────────
+
+function missionSecondaryLine(contract: MissionContract): string {
+  const parts: string[] = [];
+  const localities = contract.availability?.localities ?? [];
+  if (localities.length > 0) parts.push(localities.join(' · '));
+  if (contract.contractType) parts.push(contract.contractType.replace(/Contract$/, ''));
+  return parts.join('  —  ');
+}
+
+function MissionPickMenu({
+  contracts,
+  picked,
+  onToggle,
+}: {
+  contracts: MissionContract[];
+  picked: string[];
+  onToggle: (contractName: string) => void;
+}) {
+  const theme = useTheme();
+  const { t } = useI18n();
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const pickedSet = useMemo(() => new Set(picked), [picked]);
+
+  return (
+    <>
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={(event) => setAnchor(event.currentTarget)}
+        endIcon={<ExpandMoreIcon sx={{ fontSize: 15 }} />}
+        sx={{
+          width: '100%',
+          justifyContent: 'space-between',
+          px: 1,
+          py: 0.4,
+          fontSize: TEXT_LABEL,
+          fontWeight: 600,
+          color: picked.length > 0 ? 'primary.main' : 'text.secondary',
+          borderColor: picked.length > 0 ? 'primary.main' : 'ui.borderStrong',
+        }}
+      >
+        {picked.length > 0
+          ? `${picked.length}/${contracts.length} ${t('missions picked', 'missions choisies')}`
+          : `${contracts.length} ${t('missions to grind', 'missions de grind')}`}
+      </Button>
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => setAnchor(null)}
+        slotProps={{ paper: { sx: { maxHeight: 380, width: 340 } } }}
+      >
+        {contracts.map((contract) => {
+          const name = contract.contractDebugName ?? '';
+          const rewardCount = contract.rewardedBlueprints?.length ?? 0;
+          return (
+            <MenuItem
+              key={name}
+              dense
+              onClick={() => onToggle(name)}
+              sx={{ alignItems: 'flex-start', py: 0.6, whiteSpace: 'normal' }}
+            >
+              <Checkbox
+                size="small"
+                checked={pickedSet.has(name)}
+                disableRipple
+                sx={{ p: 0, mr: 1, mt: 0.15 }}
+              />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, lineHeight: 1.25 }}>
+                  {contractDisplayName(contract)}
+                </Typography>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', lineHeight: 1.3 }}>
+                  {missionSecondaryLine(contract)}
+                </Typography>
+                {rewardCount > 0 && (
+                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: theme.palette.domain.violet, lineHeight: 1.3 }}>
+                    {rewardCount} {t('blueprints in reward pool', 'blueprints dans le pool de récompense')}
+                  </Typography>
+                )}
+              </Box>
+            </MenuItem>
+          );
+        })}
+      </Menu>
+    </>
+  );
+}
+
+// ─── Reputation lane (one faction) — horizontal tier pipeline ────────────────
 
 function ReputationLane({
   lane,
   reachedReputation,
   onReach,
+  missionPicks,
+  onToggleMissionPick,
 }: {
   lane: Lane;
   reachedReputation: number;
   onReach: (rep: number) => void;
+  missionPicks: MissionPicksMap;
+  onToggleMissionPick: (tierKey: string, contractName: string) => void;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -189,11 +310,16 @@ function ReputationLane({
   const blue = theme.palette.domain.blue;
 
   const remainingTiers = lane.tiers.filter((lt) => (lt.tier.minReputation ?? 0) > reachedReputation).length;
+  const scopeName = lane.scope?.displayName ?? lane.scope?.scopeName;
 
   return (
     <Panel
-      eyebrow={lane.scope?.displayName ?? lane.scope?.scopeName ?? t('Reputation', 'Réputation')}
-      title={lane.faction.contractorDisplayName ?? t('Faction', 'Faction')}
+      eyebrow={t('Reputation', 'Réputation')}
+      title={
+        scopeName
+          ? `${lane.faction.contractorDisplayName ?? t('Faction', 'Faction')} — ${scopeName}`
+          : lane.faction.contractorDisplayName ?? t('Faction', 'Faction')
+      }
       subtitle={
         remainingTiers === 0
           ? t('Target tier reached — farm the highlighted contracts', 'Palier cible atteint — farme les contrats en surbrillance')
@@ -204,113 +330,137 @@ function ReputationLane({
       heroUnit={t('best drop', 'meilleur drop')}
       collapsible
       dense
+      noPad
     >
-      <Stack spacing={0}>
+      <Box sx={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', px: 1.5, py: 1.25, gap: 0.5 }}>
         {lane.tiers.map((laneTier, index) => {
           const rep = laneTier.tier.minReputation ?? 0;
           const reached = rep <= reachedReputation;
           const isNext = !reached && lane.tiers.findIndex((lt) => (lt.tier.minReputation ?? 0) > reachedReputation) === index;
           const hasTargets = laneTier.targetContracts.length > 0;
           const isLast = index === lane.tiers.length - 1;
+          const tierKey = `${lane.scopeKey}|${rep}`;
 
           return (
-            <Box key={`${rep}-${laneTier.tier.displayName ?? index}`} sx={{ display: 'flex', gap: 1.25, position: 'relative' }}>
-              {/* Rail: node + connector */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => onReach(reached ? rep - 1 : rep)}
-                  aria-label={`${laneTier.tier.displayName ?? rep} — ${reached ? t('reached', 'atteint') : t('mark as reached', 'marquer comme atteint')}`}
-                  sx={{
-                    border: 'none',
-                    background: 'none',
-                    p: 0,
-                    mt: 0.3,
-                    cursor: 'pointer',
-                    lineHeight: 0,
-                    color: reached ? theme.palette.success.main : isNext ? magenta : theme.palette.text.disabled,
-                  }}
-                >
-                  {reached
-                    ? <CheckCircleIcon sx={{ fontSize: 16 }} />
-                    : <RadioButtonUncheckedIcon sx={{ fontSize: 16 }} />}
-                </Box>
-                {!isLast && (
-                  <Box sx={{ flex: 1, width: 2, my: 0.3, borderRadius: 1, backgroundColor: reached ? alpha(theme.palette.success.main, 0.45) : theme.palette.ui.border }} />
-                )}
-              </Box>
-
-              {/* Tier content */}
-              <Box sx={{ flex: 1, minWidth: 0, pb: isLast ? 0 : 1.1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: isNext ? 700 : 600, fontSize: '0.8125rem', color: reached ? 'text.secondary' : 'text.primary' }}>
-                    {laneTier.tier.displayName ?? t('Entry', 'Départ')}
-                  </Typography>
-                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
-                    {rep.toLocaleString()}
-                  </Typography>
+            <Box key={`${rep}-${laneTier.tier.displayName ?? index}`} sx={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
+              {/* Tier column */}
+              <Box
+                sx={{
+                  width: 250,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.75,
+                  p: 1,
+                  borderRadius: 1.5,
+                  border: `1px solid ${isNext ? alpha(magenta, 0.45) : theme.palette.ui.border}`,
+                  backgroundColor: isNext
+                    ? alpha(magenta, 0.05)
+                    : reached
+                      ? alpha(theme.palette.success.main, 0.04)
+                      : 'transparent',
+                }}
+              >
+                {/* Tier header */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => onReach(reached ? rep - 1 : rep)}
+                    aria-label={`${laneTier.tier.displayName ?? rep} — ${reached ? t('reached', 'atteint') : t('mark as reached', 'marquer comme atteint')}`}
+                    sx={{
+                      border: 'none',
+                      background: 'none',
+                      p: 0,
+                      cursor: 'pointer',
+                      lineHeight: 0,
+                      flexShrink: 0,
+                      color: reached ? theme.palette.success.main : isNext ? magenta : theme.palette.text.disabled,
+                    }}
+                  >
+                    {reached
+                      ? <CheckCircleIcon sx={{ fontSize: 17 }} />
+                      : <RadioButtonUncheckedIcon sx={{ fontSize: 17 }} />}
+                  </Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: isNext ? 700 : 600, fontSize: '0.8125rem', lineHeight: 1.15, color: reached ? 'text.secondary' : 'text.primary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {laneTier.tier.displayName ?? t('Entry', 'Départ')}
+                    </Typography>
+                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', lineHeight: 1.2 }}>
+                      {rep.toLocaleString()} rep
+                    </Typography>
+                  </Box>
                   {isNext && (
                     <Chip
                       size="small"
-                      label={t('Next step', 'Prochaine étape')}
-                      sx={{ height: 17, fontSize: '0.625rem', fontWeight: 700, backgroundColor: alpha(magenta, 0.16), color: magenta }}
+                      label={t('Next', 'Suivant')}
+                      sx={{ height: 17, fontSize: '0.625rem', fontWeight: 700, backgroundColor: alpha(magenta, 0.16), color: magenta, flexShrink: 0 }}
                     />
                   )}
                 </Box>
 
-                {/* Contracts that drop the blueprint at this tier */}
-                {laneTier.targetContracts.map((contract) => (
-                  <Paper
-                    key={contract.contractDebugName}
-                    variant="outlined"
-                    sx={{
-                      mt: 0.6,
-                      px: 1,
-                      py: 0.65,
-                      borderColor: alpha(blue, 0.4),
-                      boxShadow: `inset 2px 0 0 0 ${blue}`,
-                      backgroundColor: alpha(blue, 0.05),
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', minWidth: 0 }}>
-                        {contractDisplayName(contract)}
-                      </Typography>
-                      <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: blue, flexShrink: 0 }}>
-                        {formatProbabilityPercent(contract.maxChance ?? contract.blueprintDropChance ?? 0)}
-                      </Typography>
-                    </Box>
-                    {(contract.availability?.localities?.length ?? 0) > 0 && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25, flexWrap: 'wrap' }}>
-                        <PlaceOutlinedIcon sx={{ fontSize: 11, color: 'text.disabled' }} />
-                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary' }}>
-                          {contract.availability.localities.join(' · ')}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Paper>
-                ))}
+                {/* Grind missions multi-select */}
+                {laneTier.grindContracts.length > 0 ? (
+                  <MissionPickMenu
+                    contracts={laneTier.grindContracts}
+                    picked={missionPicks[tierKey] ?? []}
+                    onToggle={(contractName) => onToggleMissionPick(tierKey, contractName)}
+                  />
+                ) : !hasTargets ? (
+                  <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
+                    {t('No grind contracts listed here', 'Aucun contrat de grind listé ici')}
+                  </Typography>
+                ) : null}
 
-                {/* Grind pool */}
-                {!hasTargets && laneTier.grindContracts.length > 0 && (
-                  <Typography sx={{ mt: 0.3, fontSize: TEXT_LABEL, color: 'text.secondary' }}>
-                    {laneTier.grindContracts.length}{' '}
-                    {laneTier.grindContracts.length === 1
-                      ? t('contract to raise reputation', 'contrat pour monter la réputation')
-                      : t('contracts to raise reputation', 'contrats pour monter la réputation')}
-                  </Typography>
-                )}
-                {hasTargets && laneTier.grindContracts.length > 0 && (
-                  <Typography sx={{ mt: 0.3, fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
-                    +{laneTier.grindContracts.length} {t('other contracts at this tier', 'autres contrats à ce palier')}
-                  </Typography>
+                {/* Contracts that drop the blueprint at this tier */}
+                {hasTargets && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 'auto' }}>
+                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: blue }}>
+                      {t('Drops the blueprint', 'Droppe le blueprint')}
+                    </Typography>
+                    {laneTier.targetContracts.map((contract) => (
+                      <Paper
+                        key={contract.contractDebugName}
+                        variant="outlined"
+                        sx={{
+                          px: 0.9,
+                          py: 0.55,
+                          borderColor: alpha(blue, 0.4),
+                          boxShadow: `inset 2px 0 0 0 ${blue}`,
+                          backgroundColor: alpha(blue, 0.05),
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 0.75 }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: '0.7188rem', lineHeight: 1.25, minWidth: 0 }}>
+                            {contractDisplayName(contract)}
+                          </Typography>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700, color: blue, flexShrink: 0 }}>
+                            {formatProbabilityPercent(contract.maxChance ?? contract.blueprintDropChance ?? 0)}
+                          </Typography>
+                        </Box>
+                        {(contract.availability?.localities?.length ?? 0) > 0 && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, mt: 0.2 }}>
+                            <PlaceOutlinedIcon sx={{ fontSize: 10, color: 'text.disabled', flexShrink: 0 }} />
+                            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.625rem', color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {contract.availability.localities.join(' · ')}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Paper>
+                    ))}
+                  </Box>
                 )}
               </Box>
+
+              {/* Connector to the next tier */}
+              {!isLast && (
+                <Box sx={{ display: 'flex', alignItems: 'center', px: 0.25 }}>
+                  <ChevronRightIcon sx={{ fontSize: 18, color: reached ? theme.palette.success.main : 'text.disabled' }} />
+                </Box>
+              )}
             </Box>
           );
         })}
-      </Stack>
+      </Box>
     </Panel>
   );
 }
@@ -341,6 +491,19 @@ export function FabricatorPage() {
     }
   });
   const [progress, setProgress] = useState<ProgressMap>(() => readProgress());
+  const [missionPicks, setMissionPicks] = useState<MissionPicksMap>(() => readMissionPicks());
+
+  const toggleMissionPick = useCallback((tierKey: string, contractName: string) => {
+    setMissionPicks((prev) => {
+      const current = prev[tierKey] ?? [];
+      const nextList = current.includes(contractName)
+        ? current.filter((name) => name !== contractName)
+        : [...current, contractName];
+      const next = { ...prev, [tierKey]: nextList };
+      writeMissionPicks(next);
+      return next;
+    });
+  }, []);
 
   // Local craft simulation state — independent from the /item workspace.
   const [slotAssignments, setSlotAssignments] = useState<Record<string, number | undefined>>({});
@@ -620,7 +783,40 @@ export function FabricatorPage() {
             />
           </Box>
 
-          {/* Main dense grid: simulation left, acquisition + info right */}
+          {/* Reputation pipelines — full-width horizontal tier flow per faction */}
+          {entry ? (
+            <Stack spacing={1.5} sx={{ mb: 1.5 }}>
+              {lanes.map((lane) => (
+                <ReputationLane
+                  key={lane.scopeKey}
+                  lane={lane}
+                  reachedReputation={progress[lane.scopeKey] ?? -1}
+                  onReach={(rep) => handleReach(lane.scopeKey, rep)}
+                  missionPicks={missionPicks}
+                  onToggleMissionPick={toggleMissionPick}
+                />
+              ))}
+            </Stack>
+          ) : (
+            <Panel
+              eyebrow={t('Reputation', 'Réputation')}
+              title={t('Missions', 'Missions')}
+              accent={theme.palette.domain.blue}
+              dense
+              sx={{ mb: 1.5 }}
+            >
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {missionRewards
+                  ? t(
+                      'This blueprint is not rewarded by any known mission in the current dataset.',
+                      'Ce blueprint n’est récompensé par aucune mission connue dans le dataset actuel.',
+                    )
+                  : t('Loading mission rewards…', 'Chargement des récompenses de mission…')}
+              </Typography>
+            </Panel>
+          )}
+
+          {/* Main dense grid: simulation left, info right */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 380px' }, gap: 1.5, alignItems: 'start' }}>
             {/* Craft simulation — the full slots + expected result experience */}
             <Box sx={{ minWidth: 0 }}>
@@ -641,35 +837,8 @@ export function FabricatorPage() {
               )}
             </Box>
 
-            {/* Right rail: reputation path + side panels */}
+            {/* Right rail: side panels */}
             <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-              {entry ? (
-                lanes.map((lane) => (
-                  <ReputationLane
-                    key={lane.scopeKey}
-                    lane={lane}
-                    reachedReputation={progress[lane.scopeKey] ?? -1}
-                    onReach={(rep) => handleReach(lane.scopeKey, rep)}
-                  />
-                ))
-              ) : (
-                <Panel
-                  eyebrow={t('Acquisition', 'Obtention')}
-                  title={t('Missions', 'Missions')}
-                  accent={theme.palette.domain.blue}
-                  dense
-                >
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {missionRewards
-                      ? t(
-                          'This blueprint is not rewarded by any known mission in the current dataset.',
-                          'Ce blueprint n’est récompensé par aucune mission connue dans le dataset actuel.',
-                        )
-                      : t('Loading mission rewards…', 'Chargement des récompenses de mission…')}
-                  </Typography>
-                </Panel>
-              )}
-
               {requiredResources.length > 0 && (
                 <Panel
                   eyebrow={t('Materials', 'Matériaux')}
