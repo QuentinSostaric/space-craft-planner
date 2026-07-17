@@ -24,7 +24,7 @@
     "primeicons": "^8.0.0",
     "primereact": "^10.9.8",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
