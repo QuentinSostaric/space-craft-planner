@@ -1,9 +1,5 @@
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
+import { Card, CardContent } from '../../ui/widgets';
 import { useI18n } from '../../i18n/I18nContext';
 import type { AggregatedResource, Blueprint, Resource } from '../../types';
 import { formatResourceQuantity, summarizeAssignedQualities } from '../../utils/crafting';

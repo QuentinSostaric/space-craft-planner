@@ -1,8 +1,5 @@
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
-import type { Palette } from '@mui/material/styles';
+import { Box, Paper, Typography, useTheme } from '../../ui/system';
+import type { Palette } from '../../ui/system';
 import type { ReactNode } from 'react';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 

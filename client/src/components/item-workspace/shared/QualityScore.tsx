@@ -1,6 +1,4 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
+import { Box, Typography, useTheme } from '../../../ui/system';
 import { useI18n } from '../../../i18n/I18nContext';
 import { FONT_MONO, TEXT_LABEL} from '../../../theme';
 

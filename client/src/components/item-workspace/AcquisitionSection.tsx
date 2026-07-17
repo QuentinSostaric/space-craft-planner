@@ -1,18 +1,7 @@
+import { Box, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { Card, Chip, LinearProgress } from '../../ui/widgets';
+import { ChevronRightIcon, FlagIcon, MilitaryTechOutlinedIcon, PlaceOutlinedIcon, TravelExploreOutlinedIcon } from '../../ui/icons';
 import { useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import FlagIcon from '@mui/icons-material/Flag';
-import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
-import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import {
   formatProbabilityPercent,

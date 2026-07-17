@@ -1,18 +1,7 @@
+import { Box, Divider, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { Accordion, AccordionDetails, AccordionSummary, Chip } from '../../ui/widgets';
+import { ExpandMoreIcon, CheckCircleOutlineIcon, RefreshIcon, AutoAwesomeIcon, ArrowForwardIcon } from '../../ui/icons';
 import { useCallback, useState } from 'react';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { loc, useI18n } from '../../i18n/I18nContext';
 import type { Blueprint, ItemStats, NumericItemStatKey } from '../../types';
 import {

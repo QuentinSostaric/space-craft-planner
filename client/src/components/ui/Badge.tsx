@@ -1,6 +1,6 @@
+import { useTheme, alpha } from '../../ui/system';
+import { Chip } from '../../ui/widgets';
 import type { ReactNode } from 'react';
-import Chip from '@mui/material/Chip';
-import { useTheme, alpha } from '@mui/material/styles';
 import type { ItemCategory } from '../../types';
 import { CATEGORY_LABELS } from '../../types';
 import { loc, useI18n } from '../../i18n/I18nContext';

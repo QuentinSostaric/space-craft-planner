@@ -1,12 +1,108 @@
-import { useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { alpha, useTheme } from '@mui/material/styles';
-import { RadarChart } from '@mui/x-charts/RadarChart';
+import { Box, Stack, Typography, useMediaQuery, alpha, useTheme } from '../../../ui/system';
+import { Chip } from '../../../ui/widgets';
+import { useEffect, useMemo, useRef } from 'react';
+import {
+  Chart,
+  Filler,
+  LineElement,
+  PointElement,
+  RadialLinearScale,
+} from 'chart.js';
 import { loc, useI18n } from '../../../i18n/I18nContext';
+
+Chart.register(RadialLinearScale, PointElement, LineElement, Filler);
+
+function shortenMetricLabel(label: string): string {
+  return label
+    .replace('Resistance', 'Res.')
+    .replace('Smoothness', 'Smooth.')
+    .replace('Handling', 'Handle.');
+}
+
+function RadarCanvas({
+  labels,
+  baseSeries,
+  buildSeries,
+  height,
+  baseColor,
+  buildColor,
+  gridColor,
+  labelColor,
+  labelFont,
+}: {
+  labels: string[];
+  baseSeries: number[];
+  buildSeries: number[];
+  height: number;
+  baseColor: string;
+  buildColor: string;
+  gridColor: string;
+  labelColor: string;
+  labelFont: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<Chart<'radar'> | null>(null);
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return undefined;
+    chartRef.current?.destroy();
+    chartRef.current = new Chart<'radar'>(ctx, {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [
+          {
+            data: baseSeries,
+            borderColor: baseColor,
+            borderWidth: 1,
+            borderDash: [4, 4],
+            backgroundColor: 'transparent',
+            pointRadius: 0,
+          },
+          {
+            data: buildSeries,
+            borderColor: buildColor,
+            borderWidth: 2,
+            backgroundColor: alpha(buildColor, 0.18),
+            fill: true,
+            pointRadius: 2,
+            pointBackgroundColor: buildColor,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          r: {
+            min: 80,
+            max: 120,
+            ticks: { display: false },
+            angleLines: { color: gridColor },
+            grid: { color: gridColor },
+            pointLabels: {
+              color: labelColor,
+              font: { size: 11, family: labelFont },
+            },
+          },
+        },
+      },
+    });
+    return () => {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+    };
+  }, [labels, baseSeries, buildSeries, baseColor, buildColor, gridColor, labelColor, labelFont]);
+
+  return (
+    <div style={{ height, position: 'relative' }}>
+      <canvas ref={canvasRef} role="img" aria-label="Quality impact radar" />
+    </div>
+  );
+}
 import {
   ARMOR_DAMAGE_RESISTANCE_KEYS,
   NUMERIC_ITEM_STAT_KEYS,
@@ -271,48 +367,16 @@ export function StatImpactRadar({
         })}
       </Stack>
 
-      <RadarChart
+      <RadarCanvas
+        labels={metrics.map((m) => shortenMetricLabel(m.name))}
+        baseSeries={baseSeries}
+        buildSeries={buildSeries}
         height={isCompact ? 220 : 260}
-        hideLegend
-        shape="sharp"
-        margin={isCompact ? { top: 20, bottom: 12, left: 18, right: 18 } : { top: 28, bottom: 18, left: 28, right: 28 }}
-        series={[
-          {
-            label: t('Base', 'Base'),
-            data: baseSeries,
-            color: alpha(theme.palette.text.secondary, 0.75),
-          },
-          {
-            label: t('Current build', 'Build actuel'),
-            data: buildSeries,
-            color: theme.palette.primary.main,
-            fillArea: true,
-          },
-        ]}
-        radar={{
-          metrics,
-          startAngle: -90,
-          labelGap: isCompact ? 8 : 14,
-          labelFormatter: (label) =>
-            String(label)
-              .replace('Resistance', 'Res.')
-              .replace('Smoothness', 'Smooth.')
-              .replace('Handling', 'Handle.'),
-        }}
-        sx={{
-          '& .MuiChartsLegend-root': { display: 'none' },
-          '& .MuiChartsAxis-tickLabel, & .MuiRadarMetricLabels-root text': {
-            fill: theme.palette.text.secondary,
-            fontSize: 12,
-            fontFamily: FONT_HEADING,
-          },
-          '& .MuiRadarGrid-root line, & .MuiRadarGrid-root path, & .MuiRadarGrid-root polygon': {
-            stroke: alpha(theme.palette.primary.main, 0.18),
-          },
-          '& .MuiRadarAxisHighlight-root': {
-            fill: alpha(theme.palette.primary.main, 0.06),
-          },
-        }}
+        baseColor={alpha(theme.palette.text.secondary, 0.75)}
+        buildColor={theme.palette.primary.main}
+        gridColor={alpha(theme.palette.primary.main, 0.18)}
+        labelColor={theme.palette.text.secondary}
+        labelFont={FONT_HEADING}
       />
     </Box>
   );

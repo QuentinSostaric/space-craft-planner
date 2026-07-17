@@ -1,13 +1,7 @@
+import { Box, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { LinearProgress } from '../../ui/widgets';
+import { AccessTimeOutlinedIcon, BuildOutlinedIcon, SpeedOutlinedIcon } from '../../ui/icons';
 import type { ReactNode } from 'react';
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
-import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
-import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import type { AcquisitionGraphEntry, AggregatedResource, Blueprint, ItemStats } from '../../types';
 import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../../theme';

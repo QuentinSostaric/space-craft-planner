@@ -1,13 +1,5 @@
-import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { Alert, Avatar, Chip, ToggleButton, ToggleButtonGroup } from '../../ui/widgets';
 import { useMemo } from 'react';
 import { type AccountSyncStatus, type OptimisticAccountState } from '../../auth/accountMutations';
 import { useLocalPersist } from '../../hooks/useLocalPersist';

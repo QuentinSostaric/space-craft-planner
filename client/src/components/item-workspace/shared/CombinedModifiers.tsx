@@ -1,15 +1,6 @@
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
-import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
+import { Box, Paper, Stack, Typography, alpha, useTheme } from '../../../ui/system';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '../../../ui/widgets';
+import { ElectricBoltIcon } from '../../../ui/icons';
 import { loc, useI18n } from '../../../i18n/I18nContext';
 import { NUMERIC_ITEM_STAT_KEYS, STAT_LABELS, STAT_LOWER_IS_BETTER, STAT_UNITS } from '../../../types';
 import type { ItemCategory, ItemStats, NumericItemStatKey } from '../../../types';

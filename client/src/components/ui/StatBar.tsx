@@ -1,6 +1,4 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import { useTheme, alpha } from '@mui/material/styles';
+import { Box, Typography, useTheme, alpha } from '../../ui/system';
 import { FONT_MONO, TEXT_LABEL } from '../../theme';
 
 interface StatBarProps {

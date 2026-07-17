@@ -1,13 +1,8 @@
+import { Box, Collapse, IconButton, Paper, Typography, useTheme, alpha } from '../../ui/system';
+import type { SxProps, Theme } from '../../ui/system';
+import { ExpandMoreIcon } from '../../ui/icons';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import Box from '@mui/material/Box';
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useTheme, alpha } from '@mui/material/styles';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
 export interface PanelProps {
@@ -91,16 +86,16 @@ export function Panel({
       elevation={0}
       component={component}
       className={className}
-      sx={{
-        ...VARIANT_SX[variant],
-        padding: hasHeader || noPad ? 0 : dense ? theme.spacing(1.25) : theme.spacing(2),
-        transition: 'all 200ms ease',
-        overflow: 'hidden',
-        ...(accent && {
-          boxShadow: `inset 2px 0 0 0 ${accent}`,
-        }),
-        ...sx,
-      }}
+      sx={[
+        VARIANT_SX[variant],
+        {
+          padding: hasHeader || noPad ? 0 : dense ? theme.spacing(1.25) : theme.spacing(2),
+          transition: 'all 200ms ease',
+          overflow: 'hidden',
+        },
+        accent ? { boxShadow: `inset 2px 0 0 0 ${accent}` } : null,
+        sx,
+      ]}
     >
       {hasHeader && (
         <Box

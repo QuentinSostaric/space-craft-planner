@@ -1,9 +1,5 @@
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import Stack from '@mui/material/Stack';
-import Chip from '@mui/material/Chip';
-import { useTheme } from '@mui/material/styles';
+import { Box, Paper, Typography, Stack, useTheme } from '../ui/system';
+import { Chip } from '../ui/widgets';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { CategoryBadge } from './ui/Badge';

@@ -1,22 +1,6 @@
+import { Divider, Box, IconButton, Paper, Typography } from '../ui/system';
+import { Chip, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '../ui/widgets';
 import { useMemo } from 'react';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import Divider from '@mui/material/Divider';
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import {

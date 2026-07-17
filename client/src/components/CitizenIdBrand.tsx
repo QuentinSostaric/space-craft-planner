@@ -1,5 +1,6 @@
-import Box from '@mui/material/Box';
-import Button, { type ButtonProps } from '@mui/material/Button';
+import { Box } from '../ui/system';
+import { Button } from '../ui/widgets';
+import type { ButtonProps } from '../ui/widgets';
 
 export type CitizenIdBrandEnvironment = 'production' | 'unstable';
 

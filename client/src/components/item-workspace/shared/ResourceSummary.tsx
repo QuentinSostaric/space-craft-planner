@@ -1,7 +1,4 @@
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Stack, Typography, alpha, useTheme } from '../../../ui/system';
 import { useI18n } from '../../../i18n/I18nContext';
 import { summarizeAssignedQualities } from '../../../utils/crafting';
 import type { AggregatedResource, Resource } from '../../../types';

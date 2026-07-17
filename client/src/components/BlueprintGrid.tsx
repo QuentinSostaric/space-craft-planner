@@ -1,22 +1,7 @@
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Typography, alpha, useTheme } from '../ui/system';
+import { Avatar, Card, CardActionArea, CardMedia, CircularProgress, Tooltip, Button } from '../ui/widgets';
+import { CheckIcon, AccessTimeIcon, GroupsIcon, GroupsOutlinedIcon, Inventory2OutlinedIcon, PlaylistAddIcon, StarBorderIcon, StarIcon, TravelExploreIcon, SyncIcon, DownloadOutlinedIcon } from '../ui/icons';
 import { memo, startTransition, useCallback, useDeferredValue, useMemo, useState, type ReactNode } from 'react';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import CheckIcon from '@mui/icons-material/Check';
-import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
-import CardMedia from '@mui/material/CardMedia';
-import CircularProgress from '@mui/material/CircularProgress';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import GroupsIcon from '@mui/icons-material/Groups';
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import StarIcon from '@mui/icons-material/Star';
-import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 
 import { useCraft, DEFAULT_INVENTORY_IDS } from '../store/CraftContext';
 import { useFilters } from '../store/FilterContext';
@@ -32,9 +17,6 @@ import { useAuth } from '../auth/AuthContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { navigateToPath } from '../utils/slug';
 import { SyncBlueprintsButton } from './ScLogSyncDialog';
-import Button from '@mui/material/Button';
-import SyncIcon from '@mui/icons-material/Sync';
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import {
   buildShipComponentCardModel,
   isDisplayableShipComponent,

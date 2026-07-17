@@ -1,10 +1,6 @@
+import { Button, CircularProgress, Tooltip } from '../ui/widgets';
+import { SyncIcon, CheckCircleOutlineIcon, ErrorOutlineIcon } from '../ui/icons';
 import { useState } from 'react';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Tooltip from '@mui/material/Tooltip';
-import SyncIcon from '@mui/icons-material/Sync';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { FONT_MONO, TEXT_LABEL} from '../theme';
 import { useScLog } from '../hooks/ScLogSyncContext';
 import { useAuth } from '../auth/AuthContext';

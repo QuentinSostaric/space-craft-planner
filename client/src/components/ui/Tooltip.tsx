@@ -1,6 +1,5 @@
-import { forwardRef } from 'react';
+import { Tooltip as SystemTooltip } from '../../ui/widgets';
 import type { ReactElement, ReactNode } from 'react';
-import MuiTooltip from '@mui/material/Tooltip';
 
 interface TooltipProps {
   content: ReactNode;
@@ -8,18 +7,10 @@ interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
-  function Tooltip({ content, children, position = 'top' }, ref) {
-    return (
-      <MuiTooltip
-        ref={ref}
-        title={content ?? ''}
-        placement={position}
-        enterDelay={400}
-        enterNextDelay={200}
-      >
-        {children}
-      </MuiTooltip>
-    );
-  },
-);
+export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
+  return (
+    <SystemTooltip title={content ?? ''} placement={position}>
+      {children}
+    </SystemTooltip>
+  );
+}

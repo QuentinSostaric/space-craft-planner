@@ -1,14 +1,7 @@
+import { Box, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { Avatar, Card, CardActionArea, CardMedia, Chip } from '../../ui/widgets';
 import { memo } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
-import CardMedia from '@mui/material/CardMedia';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
 import {
   StarCitizenLicensedIcon,
   getLocationIconName,

@@ -1,9 +1,6 @@
+import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
+import { Chip } from '../../ui/widgets';
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';

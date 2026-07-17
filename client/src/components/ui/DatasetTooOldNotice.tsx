@@ -1,4 +1,4 @@
-import Typography from '@mui/material/Typography';
+import { Typography } from '../../ui/system';
 import { useI18n } from '../../i18n/I18nContext';
 
 export function DatasetTooOldNotice({

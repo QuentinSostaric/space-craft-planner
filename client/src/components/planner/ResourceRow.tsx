@@ -1,3 +1,6 @@
+import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
+import { Accordion, AccordionDetails, AccordionSummary, Checkbox, Chip, Slider, TextField, ToggleButton, ToggleButtonGroup } from '../../ui/widgets';
+import { DragIndicatorIcon } from '../../ui/icons';
 import {
   memo,
   useCallback,
@@ -7,20 +10,6 @@ import {
   type FocusEvent,
   type MouseEvent,
 } from 'react';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import Box from '@mui/material/Box';
-import Checkbox from '@mui/material/Checkbox';
-import Chip from '@mui/material/Chip';
-import Paper from '@mui/material/Paper';
-import Slider from '@mui/material/Slider';
-import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Typography from '@mui/material/Typography';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import {

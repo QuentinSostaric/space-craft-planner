@@ -1,17 +1,8 @@
+import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import type { Theme } from '../../ui/system';
+import { Chip } from '../../ui/widgets';
+import { DescriptionOutlinedIcon, GridViewOutlinedIcon, InfoOutlinedIcon, Inventory2OutlinedIcon, SellOutlinedIcon, TuneIcon } from '../../ui/icons';
 import type { ReactNode } from 'react';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import SellOutlinedIcon from '@mui/icons-material/SellOutlined';
-import TuneIcon from '@mui/icons-material/Tune';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme, type Theme } from '@mui/material/styles';
 import { loc, useI18n } from '../../i18n/I18nContext';
 import type { BlueprintIdentityFact, LocalizedString, ShipComponentEntry } from '../../types';
 import {

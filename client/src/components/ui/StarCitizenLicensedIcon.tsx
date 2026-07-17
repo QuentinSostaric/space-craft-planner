@@ -1,5 +1,4 @@
-import Box from '@mui/material/Box';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, alpha, useTheme } from '../../ui/system';
 
 export type StarCitizenLicensedIconName =
   | 'asteroid'

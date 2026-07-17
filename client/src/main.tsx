@@ -1,5 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { PrimeReactProvider } from 'primereact/api';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
 import App from './App';
 import { registerWebMcpTools } from './webmcp';
 
@@ -7,6 +10,8 @@ void registerWebMcpTools();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <PrimeReactProvider value={{ ripple: false }}>
+      <App />
+    </PrimeReactProvider>
   </React.StrictMode>,
 );

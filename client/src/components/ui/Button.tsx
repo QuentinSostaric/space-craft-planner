@@ -1,8 +1,8 @@
+import { alpha, useTheme } from '../../ui/system';
+import type { SxProps, Theme } from '../../ui/system';
+import { Button as MuiButton } from '../../ui/widgets';
 import type { ReactNode } from 'react';
-import MuiButton from '@mui/material/Button';
-import type { ButtonProps as MuiButtonProps } from '@mui/material/Button';
-import type { SxProps, Theme } from '@mui/material/styles';
-import { alpha, useTheme } from '@mui/material/styles';
+import type { ButtonProps as MuiButtonProps } from '../../ui/widgets';
 
 type AppVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'gradient';
 type AppSize = 'sm' | 'md' | 'lg';

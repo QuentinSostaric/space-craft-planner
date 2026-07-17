@@ -1,15 +1,7 @@
+import { Box, IconButton, Typography } from '../../ui/system';
+import { Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, TextField } from '../../ui/widgets';
+import { CloseIcon } from '../../ui/icons';
 import { useEffect, useState } from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import CloseIcon from '@mui/icons-material/Close';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { useCraftSimulator } from '../../hooks/useCraftSimulator';

@@ -1,5 +1,4 @@
-import { styled, keyframes } from '@mui/material/styles';
-import { Box } from '@mui/material';
+import { styled, keyframes, Box } from '../../ui/system';
 
 /**
  * Displays a resource icon (ore, metal…) using the same

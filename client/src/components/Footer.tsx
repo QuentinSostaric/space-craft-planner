@@ -1,6 +1,5 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
+import { Box, Typography } from '../ui/system';
+import { Link } from '../ui/widgets';
 import { useI18n } from '../i18n/I18nContext';
 import { navigateToPath } from '../utils/slug';
 import { TEXT_LABEL_SM } from '../theme';

@@ -1,6 +1,5 @@
-import Box from '@mui/material/Box';
-import Tooltip from '@mui/material/Tooltip';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, alpha, useTheme } from '../../../ui/system';
+import { Tooltip } from '../../../ui/widgets';
 import type { GppModifier } from '../../../types';
 
 interface ModifierSparklineProps {

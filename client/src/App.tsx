@@ -1,18 +1,7 @@
-import { ThemeProvider } from '@mui/material/styles';
-import GlobalStyles from '@mui/material/GlobalStyles';
-import CssBaseline from '@mui/material/CssBaseline';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import CircularProgress from '@mui/material/CircularProgress';
-import Fade from '@mui/material/Fade';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Box from '@mui/material/Box';
-import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { createAppTheme } from './theme';
+import { Fade, Paper, Box, Skeleton, Stack, Typography } from './ui/system';
+import { Dialog, DialogContent, DialogTitle, CircularProgress, LinearProgress } from './ui/widgets';
+import { createAppTheme, installGlobalStyles } from './theme';
+import { injectGlobalCss } from './ui/system';
 import { useTheme } from './hooks/useTheme';
 import { ThemeModeContext } from './hooks/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
@@ -1000,58 +989,41 @@ function AppContentInner() {
     [themeMode, setThemeMode],
   );
 
-  // Stable across renders that don't change the theme, so MUI doesn't re-inject
-  // the global stylesheet on every AppContentInner render.
-  const globalStyles = useMemo(
-    () => ({
-      html: { height: '100%' },
-      body: {
-        height: '100dvh',
-        margin: 0,
-        padding: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      },
-      '#root': {
-        flex: 1,
-        minHeight: 0,
-        height: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      },
-      '*': {
-        scrollbarWidth: 'thin',
-        scrollbarColor: `${theme.palette.ui.borderStrong} ${theme.palette.ui.surface1}`,
-      },
-      '*::-webkit-scrollbar': {
-        width: '10px',
-        height: '10px',
-      },
-      '*::-webkit-scrollbar-track': {
-        backgroundColor: theme.palette.ui.surface1,
-      },
-      '*::-webkit-scrollbar-thumb': {
-        backgroundColor: theme.palette.ui.borderStrong,
-        borderRadius: '999px',
-        border: `2px solid ${theme.palette.ui.surface1}`,
-      },
-      '*::-webkit-scrollbar-thumb:hover': {
-        backgroundColor: theme.palette.primary.main,
-      },
-      '*::-webkit-scrollbar-corner': {
-        backgroundColor: theme.palette.ui.surface1,
-      },
-    }),
-    [theme],
-  );
+  // App-shell layout + themed scrollbars, injected once per mode.
+  useEffect(() => {
+    installGlobalStyles(theme);
+    injectGlobalCss(`
+      html { height: 100%; }
+      body {
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #root {
+        flex: 1;
+        min-height: 0;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+    `);
+    injectGlobalCss(`
+      html[data-theme='${theme.mode}'] * {
+        scrollbar-width: thin;
+        scrollbar-color: ${theme.palette.ui.borderStrong} ${theme.palette.ui.surface1};
+      }
+      html[data-theme='${theme.mode}'] *::-webkit-scrollbar-corner {
+        background-color: ${theme.palette.ui.surface1};
+      }
+    `);
+  }, [theme]);
 
   return (
     <ThemeModeContext.Provider value={themeModeCtx}>
-    <ThemeProvider theme={theme}>
-      <CssBaseline enableColorScheme />
-      <GlobalStyles styles={globalStyles} />
       <I18nProvider>
         <AuthProvider>
           <AnalyticsIdentitySync />
@@ -1064,7 +1036,6 @@ function AppContentInner() {
           </ServerFlagsProvider>
         </AuthProvider>
       </I18nProvider>
-    </ThemeProvider>
     </ThemeModeContext.Provider>
   );
 }

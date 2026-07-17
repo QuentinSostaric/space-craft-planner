@@ -1,7 +1,6 @@
+import { Box, Typography } from '../ui/system';
+import { Button } from '../ui/widgets';
 import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 import { useI18n } from '../i18n/I18nContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { LS_KEYS } from '../types';

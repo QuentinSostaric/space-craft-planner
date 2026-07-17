@@ -1,20 +1,7 @@
+import { Box, Skeleton, Typography, alpha } from '../../ui/system';
+import { Chip, List, ListItem, ListItemButton, Table, TableBody, TableCell, TableHead, TableRow } from '../../ui/widgets';
+import { FlagIcon, MilitaryTechOutlinedIcon, TravelExploreOutlinedIcon } from '../../ui/icons';
 import { useEffect, useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import Skeleton from '@mui/material/Skeleton';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import FlagIcon from '@mui/icons-material/Flag';
-import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
-import { alpha } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import {

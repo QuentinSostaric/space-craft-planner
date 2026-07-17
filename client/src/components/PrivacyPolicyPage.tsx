@@ -1,7 +1,5 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
-import Divider from '@mui/material/Divider';
+import { Box, Typography, Divider } from '../ui/system';
+import { Link } from '../ui/widgets';
 import { useI18n } from '../i18n/I18nContext';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

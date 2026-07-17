@@ -1,9 +1,5 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import LinearProgress from '@mui/material/LinearProgress';
-import Snackbar from '@mui/material/Snackbar';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { Stack, Typography } from '../ui/system';
+import { Alert, Button, LinearProgress, Snackbar } from '../ui/widgets';
 import { useI18n } from '../i18n/I18nContext';
 import { formatBytes, useAppUpdate } from '../hooks/useAppUpdate';
 

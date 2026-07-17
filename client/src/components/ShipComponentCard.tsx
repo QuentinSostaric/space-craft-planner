@@ -1,10 +1,6 @@
+import { Box, Typography, alpha, useTheme } from '../ui/system';
+import { Card, CardMedia, Chip } from '../ui/widgets';
 import { memo, useMemo, useState } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardMedia from '@mui/material/CardMedia';
-import Chip from '@mui/material/Chip';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
 import { loc, useI18n } from '../i18n/I18nContext';
 import type { ShipComponentEntry } from '../types';
 import {

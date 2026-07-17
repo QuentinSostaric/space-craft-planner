@@ -9,16 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.9",
-    "@mui/material": "^7.3.9",
-    "@mui/x-charts": "^8.28.0",
     "@posthog/react": "^1.6.0",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
+    "chart.js": "^4.5.1",
     "posthog-js": "^1.376.0",
+    "primeicons": "^8.0.0",
+    "primereact": "^10.9.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

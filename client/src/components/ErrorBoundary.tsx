@@ -1,8 +1,6 @@
+import { Box, Typography, Paper } from '../ui/system';
+import { Button } from '../ui/widgets';
 import { Component, type ReactNode, type ErrorInfo } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import { FONT_HEADING } from '../theme';
 
 interface Props { children: ReactNode }

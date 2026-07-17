@@ -1,19 +1,7 @@
+import { Box, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { Accordion, AccordionDetails, AccordionSummary, Button, Card, CardContent, Chip, LinearProgress, TextField } from '../../ui/widgets';
+import { ExpandMoreIcon } from '../../ui/icons';
 import { useEffect, useMemo, useState } from 'react';
-import Accordion from '@mui/material/Accordion';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useI18n } from '../../i18n/I18nContext';
 import {
   formatMaterialProviderConfidence,

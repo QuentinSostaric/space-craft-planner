@@ -1,13 +1,6 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '../ui/widgets';
+import { DownloadOutlinedIcon } from '../ui/icons';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
