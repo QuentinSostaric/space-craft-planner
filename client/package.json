@@ -20,7 +20,7 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "chart.js": "^4.5.1",
-    "posthog-js": "^1.376.0",
+    "posthog-js": "^1.404.0",
     "primeicons": "^8.0.0",
     "primereact": "^10.9.8",
     "react": "^19.2.0",
