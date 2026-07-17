@@ -561,6 +561,29 @@ export function FabricatorPage() {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
+  const [lootableOnly, setLootableOnly] = useState(true);
+
+  const lootableIds = useMemo(
+    () => new Set((missionRewards?.blueprintAcquisitionGraph ?? []).map((e) => e.blueprint.id)),
+    [missionRewards],
+  );
+
+  // Search list, restricted to mission-lootable blueprints while the toggle is
+  // on (falls back to the full list until mission rewards are known).
+  const searchOptions = useMemo(
+    () => (lootableOnly && lootableIds.size > 0 ? blueprints.filter((bp) => lootableIds.has(bp.id)) : blueprints),
+    [blueprints, lootableOnly, lootableIds],
+  );
+
+  // Default selection: last viewed blueprint, else the CQ7 Rifle.
+  useEffect(() => {
+    if (selectedId || blueprints.length === 0) return;
+    if (itemSlugFromPathname(window.location.pathname)) return;
+    const cq7 = blueprints.find((bp) => bp.name.toLowerCase() === 'cq7 rifle')
+      ?? blueprints.find((bp) => bp.name.toLowerCase().includes('cq7'));
+    if (cq7) setSelectedId(cq7.id);
+  }, [blueprints, selectedId]);
+
   // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
   // the item page); back/forward keep the selection in sync.
   useEffect(() => {
@@ -693,7 +716,7 @@ export function FabricatorPage() {
       {/* Toolbar row: search + inline hero strip */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 1.5 }}>
         <Autocomplete
-          options={blueprints}
+          options={searchOptions}
           value={selected}
           onChange={(_e, bp) => handleSelect(bp)}
           getOptionLabel={(bp) => bp.name}
@@ -725,6 +748,21 @@ export function FabricatorPage() {
           }}
           sx={{ width: { xs: '100%', sm: 340 }, '& .MuiInputBase-root': { height: 40 } }}
         />
+
+        <Box
+          component="label"
+          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}
+          title={t('Only blueprints obtainable from missions', 'Seulement les blueprints obtenables via missions')}
+        >
+          <Checkbox
+            size="small"
+            checked={lootableOnly}
+            onChange={(_e, checked) => setLootableOnly(checked)}
+          />
+          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'text.disabled' }}>
+            {t('Lootable only', 'Lootable only')}
+          </Typography>
+        </Box>
 
         {selected && (
           <>

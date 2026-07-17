@@ -1484,7 +1484,11 @@ export function Autocomplete<T>({
       setOpen(true);
       setHighlight(0);
     },
-    onFocus: () => setOpen(true),
+    onFocus: (event: { target: HTMLInputElement }) => {
+      // Typing after focusing a filled combobox should replace, not append.
+      event.target.select();
+      setOpen(true);
+    },
     onBlur: () => {
       window.setTimeout(() => {
         setOpen(false);
