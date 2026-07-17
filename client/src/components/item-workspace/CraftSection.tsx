@@ -30,13 +30,6 @@ interface CraftSectionProps {
   hideReference?: boolean;
 }
 
-function formatCraftTime(secs: number): string {
-  if (secs < 60) return `${secs}s`;
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
-}
-
 function formatStatValue(key: NumericItemStatKey, value: number): string {
   const unit = STAT_UNITS[key];
   const abs = Math.abs(value);
@@ -513,11 +506,6 @@ export function CraftSection({
           )}
             </AccordionDetails>
           </Accordion>
-
-          <Divider sx={{ my: 1.25, borderColor: theme.palette.ui.border }} />
-          <Stack spacing={0.15} sx={{ mb: 1.25 }}>
-            <KVRow label={t('Craft time', 'Temps de craft')} value={formatCraftTime(blueprint.craftTimeSecs)} />
-          </Stack>
         </Panel>
 
         {/* "Détails du blueprint" */}

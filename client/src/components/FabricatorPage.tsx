@@ -1,18 +1,22 @@
-import { Box, Divider, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Box, Divider, IconButton, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../ui/system';
 import { Autocomplete, Button, Checkbox, Chip, InputAdornment, LinearProgress, Menu, MenuItem, TextField } from '../ui/widgets';
-import { SearchIcon, CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, ScienceOutlinedIcon, FlagOutlinedIcon, OpenInNewIcon } from '../ui/icons';
+import { SearchIcon, CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, FlagOutlinedIcon, OpenInNewIcon, Inventory2OutlinedIcon, StarIcon, StarBorderIcon, PlaylistAddIcon, AddIcon, RemoveIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
-import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
-import { BlueprintDetailsRows, CraftSection, FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM } from '../theme';
+import { CraftSection, FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
+import { ResourceIcon } from './ui/ResourceIcon';
 import { Panel } from './ui/Panel';
 import { PageStatCard } from './ui/PageStatCard';
 import { RarityBadge } from './ui/RarityBadge';
-import { formatProbabilityPercent, getAcquisitionEntry } from '../utils/crafting';
+import { aggregateBlueprintResources, formatProbabilityPercent, formatResourceQuantity, getAcquisitionEntry } from '../utils/crafting';
 import type {
   AcquisitionContract,
+  AggregatedResource,
+  MaterialSourceEntry,
+  MaterialSources,
   AcquisitionFaction,
   AcquisitionGraphEntry,
   Blueprint,
@@ -177,6 +181,54 @@ function buildLane(
     maxNeededReputation,
     bestChance,
   };
+}
+
+// ─── Material source lookup ──────────────────────────────────────────────────
+
+function normalizeResourceKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function resolveMaterialSource(sources: MaterialSources | null, resourceName: string): MaterialSourceEntry | null {
+  if (!sources) return null;
+  const key = normalizeResourceKey(resourceName);
+  if (sources.resources[key]) return sources.resources[key];
+  for (const entry of Object.values(sources.resources)) {
+    if (entry.displayName && normalizeResourceKey(entry.displayName) === key) return entry;
+  }
+  return null;
+}
+
+// ─── Item description (clamped, expandable) ──────────────────────────────────
+
+function ItemDescription({ blueprint }: { blueprint: Blueprint }) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const description = blueprint.identity?.descriptionBody ?? blueprint.identity?.description;
+  if (!description) return null;
+  return (
+    <Box sx={{ mb: 1.25 }}>
+      <Typography
+        onClick={() => setExpanded((v) => !v)}
+        title={expanded ? undefined : t('Click to expand', 'Cliquer pour déplier')}
+        sx={{
+          fontSize: TEXT_LABEL,
+          lineHeight: 1.5,
+          color: 'text.secondary',
+          cursor: 'pointer',
+          ...(expanded ? {} : {
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }),
+        }}
+      >
+        {description}
+      </Typography>
+      <Divider sx={{ mt: 1.25 }} />
+    </Box>
+  );
 }
 
 // ─── Mission multi-select (grind pool of one tier) ───────────────────────────
@@ -448,7 +500,7 @@ function ReputationLane({
 
 export function FabricatorPage() {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const {
     activeDataset,
     missionRewards,
@@ -456,8 +508,17 @@ export function FabricatorPage() {
     ensureMissionRewardsLoaded,
     ensureBlueprintDetailLoaded,
     ensureFactionContractsLoaded,
+    ensureResourceDataLoaded,
     factionContractsByFactionId,
     setActiveBlueprint,
+    inventoryIds,
+    toggleInventory,
+    favoriteIds,
+    toggleFavorite,
+    addGoal,
+    addPlannerResourceRequirement,
+    dismantlingData,
+    materialSources,
   } = useCraft();
 
   const blueprints = activeDataset.blueprints;
@@ -485,6 +546,7 @@ export function FabricatorPage() {
   }, []);
 
   // Local craft simulation state — independent from the /item workspace.
+  const [qty, setQty] = useState(1);
   const [slotAssignments, setSlotAssignments] = useState<Record<string, number | undefined>>({});
   const assignQuality = useCallback((slotId: string, value: number | undefined) => {
     setSlotAssignments((prev) => ({ ...prev, [slotId]: value }));
@@ -492,6 +554,7 @@ export function FabricatorPage() {
   const clearAssignments = useCallback(() => setSlotAssignments({}), []);
   useEffect(() => {
     setSlotAssignments({});
+    setQty(1);
   }, [selectedId]);
 
   useEffect(() => {
@@ -509,6 +572,10 @@ export function FabricatorPage() {
       void ensureBlueprintDetailLoaded(selected.id);
     }
   }, [selected, ensureBlueprintDetailLoaded]);
+
+  useEffect(() => {
+    if (selected) void ensureResourceDataLoaded();
+  }, [selected, ensureResourceDataLoaded]);
 
   const { qualityScore, projectedStats } = useCraftSimulator(
     detailReady ? selected : null,
@@ -577,12 +644,23 @@ export function FabricatorPage() {
       .slice(0, 6);
   }, [missionRewards]);
 
-  const requiredResources = useMemo(() => {
-    if (!selected?.requiredResourceIds?.length) return [];
-    return selected.requiredResourceIds
-      .map((id) => activeDataset.resources.find((r) => r.id === id))
-      .filter((r): r is NonNullable<typeof r> => Boolean(r));
-  }, [activeDataset.resources, selected?.requiredResourceIds]);
+  const requiredResources = useMemo<AggregatedResource[]>(
+    () => (detailReady && selected ? aggregateBlueprintResources(selected.slots, slotAssignments) : []),
+    [detailReady, selected, slotAssignments],
+  );
+
+  const totalRequiredScu = useMemo(
+    () => requiredResources
+      .filter((r) => r.quantityUnit !== 'count')
+      .reduce((sum, r) => sum + r.totalScu, 0) * qty,
+    [requiredResources, qty],
+  );
+
+  const dismantleTimeSecs = dismantlingData?.dismantling?.blueprint?.dismantleTimeSecs ?? 0;
+  const dismantleEfficiency = dismantlingData?.dismantling?.blueprint?.efficiency ?? 0.5;
+
+  const inInventory = selected ? inventoryIds.includes(selected.id) : false;
+  const isFavorite = selected ? favoriteIds.includes(selected.id) : false;
 
   const heroImage = selected?.media?.primaryVisual?.imageUrl ?? selected?.media?.image?.imageUrl ?? null;
   const topStanding = entry?.standings?.length
@@ -653,15 +731,55 @@ export function FabricatorPage() {
               {selected.rarity && <RarityBadge rarity={selected.rarity} />}
               <Chip size="small" label={selected.category} sx={{ height: 20, fontSize: TEXT_LABEL_SM }} />
             </Box>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={openWorkspace}
-              endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
-              sx={{ ml: 'auto', flexShrink: 0 }}
-            >
-              {t('Full workspace', 'Workspace complet')}
-            </Button>
+            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+              <IconButton
+                size="small"
+                aria-label={inInventory ? t('Remove from inventory', 'Retirer de l’inventaire') : t('Add to inventory', 'Ajouter à l’inventaire')}
+                title={inInventory ? t('Remove from inventory', 'Retirer de l’inventaire') : t('Add to inventory', 'Ajouter à l’inventaire')}
+                onClick={() => toggleInventory(selected.id)}
+                sx={{ color: inInventory ? 'primary.main' : 'text.secondary' }}
+              >
+                <Inventory2OutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')}
+                title={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')}
+                onClick={() => toggleFavorite(selected.id)}
+                sx={{ color: isFavorite ? theme.palette.domain.yellow : 'text.secondary' }}
+              >
+                {isFavorite ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
+              </IconButton>
+
+              {/* Quantity stepper feeding the planner goal and material totals */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, border: `1px solid ${theme.palette.ui.border}`, borderRadius: 0.75, px: 0.5, height: 30 }}>
+                <IconButton size="small" aria-label={t('Decrease quantity', 'Réduire la quantité')} onClick={() => setQty((q) => Math.max(1, q - 1))} sx={{ p: 0.25 }}>
+                  <RemoveIcon sx={{ fontSize: 11 }} />
+                </IconButton>
+                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, minWidth: 22, textAlign: 'center' }}>
+                  ×{qty}
+                </Typography>
+                <IconButton size="small" aria-label={t('Increase quantity', 'Augmenter la quantité')} onClick={() => setQty((q) => Math.min(99, q + 1))} sx={{ p: 0.25 }}>
+                  <AddIcon sx={{ fontSize: 11 }} />
+                </IconButton>
+              </Box>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<PlaylistAddIcon sx={{ fontSize: 14 }} />}
+                onClick={() => addGoal(qualityScore, projectedStats, qty, selected, slotAssignments)}
+              >
+                {t('Planner', 'Planner')}
+              </Button>
+              <IconButton
+                size="small"
+                aria-label={t('Full workspace', 'Workspace complet')}
+                title={t('Full workspace', 'Workspace complet')}
+                onClick={openWorkspace}
+              >
+                <OpenInNewIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Box>
           </>
         )}
       </Box>
@@ -727,37 +845,32 @@ export function FabricatorPage() {
       {selected && (
         <>
           {/* Stat row */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', xl: 'repeat(6, 1fr)' }, gap: 1.25, mb: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', xl: 'repeat(5, 1fr)' }, gap: 1.25, mb: 1.5 }}>
             <PageStatCard
               label={t('Best drop chance', 'Meilleure chance')}
-              value={entry ? formatProbabilityPercent(Math.max(0, ...lanes.map((l) => l.bestChance))) : '—'}
+              value={!missionRewards ? '…' : entry ? formatProbabilityPercent(Math.max(0, ...lanes.map((l) => l.bestChance))) : '—'}
               domain="blue"
               icon={<FlagOutlinedIcon sx={{ fontSize: 16 }} />}
             />
             <PageStatCard
               label={t('Reputation needed', 'Réputation requise')}
-              value={topStanding?.standingName ?? t('None', 'Aucune')}
+              value={!missionRewards ? '…' : topStanding?.standingName ?? t('None', 'Aucune')}
               domain="magenta"
             />
             <PageStatCard
               label={t('Source contracts', 'Contrats sources')}
-              value={entry ? String(entry.contractCount) : '0'}
+              value={!missionRewards ? '…' : entry ? String(entry.contractCount) : '0'}
               domain="blue"
             />
             <PageStatCard
               label={t('Localities', 'Localités')}
-              value={entry ? String(entry.localityCount) : '0'}
+              value={!missionRewards ? '…' : entry ? String(entry.localityCount) : '0'}
               domain="cyan"
               icon={<PlaceOutlinedIcon sx={{ fontSize: 16 }} />}
             />
             <PageStatCard
               label={t('Craft time', 'Temps de craft')}
               value={selected.craftTimeSecs >= 60 ? `${Math.round(selected.craftTimeSecs / 60)}m` : `${selected.craftTimeSecs}s`}
-              domain="violet"
-            />
-            <PageStatCard
-              label={t('Material slots', 'Slots matériaux')}
-              value={String(selected.slotCount ?? selected.slots.length)}
               domain="violet"
             />
           </Box>
@@ -812,32 +925,57 @@ export function FabricatorPage() {
                   </Typography>
                 </Panel>
               )}
+              {detailReady && selected && requiredResources.length > 0 && (
+                <Panel
+                  eyebrow={t('Materials', 'Matériaux')}
+                  title={t('Required resources & sourcing', 'Ressources requises & sourcing')}
+                  accent={theme.palette.domain.green}
+                  heroValue={totalRequiredScu > 0 ? formatResourceQuantity(totalRequiredScu, 'scu', lang) : String(requiredResources.length)}
+                  dense
+                >
+                  <Stack spacing={0.75}>
+                    {requiredResources.map((resource) => {
+                      const sourceEntry = resolveMaterialSource(materialSources, resource.resourceName);
+                      const topProvider = sourceEntry?.providers
+                        ?.slice()
+                        .sort((a, b) => (b.groupProbabilityPct ?? 0) - (a.groupProbabilityPct ?? 0))[0];
+                      return (
+                        <Box key={resource.resourceName} sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                          <ResourceIcon name={resource.resourceName} size={16} />
+                          <Typography sx={{ fontWeight: 600, fontSize: TEXT_LABEL_LG, flexShrink: 0 }}>
+                            {resource.resourceName}
+                          </Typography>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: theme.palette.domain.green, fontWeight: 700, flexShrink: 0 }}>
+                            {formatResourceQuantity(resource.totalScu * qty, resource.quantityUnit, lang)}
+                          </Typography>
+                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ml: 'auto' }}>
+                            {topProvider
+                              ? `${topProvider.providerDisplayName}${topProvider.system ? ` · ${topProvider.system}` : ''}${topProvider.groupProbabilityPct != null ? ` · ${topProvider.groupProbabilityPct.toFixed(1)}%` : ''}`
+                              : t('No source data', 'Pas de source connue')}
+                          </Typography>
+                          <IconButton
+                            size="small"
+                            aria-label={t('Add to planner', 'Ajouter au planner')}
+                            title={t('Add to planner', 'Ajouter au planner')}
+                            onClick={() => addPlannerResourceRequirement(
+                              resource.resourceName,
+                              resource.totalScu * qty,
+                              resource.quantityUnit === 'count' ? 'count' : 'scu',
+                            )}
+                            sx={{ p: 0.4, flexShrink: 0 }}
+                          >
+                            <PlaylistAddIcon sx={{ fontSize: 13 }} />
+                          </IconButton>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Panel>
+              )}
             </Stack>
 
             {/* Right rail: side panels */}
             <Stack spacing={1.5} sx={{ minWidth: 0, height: '100%' }}>
-              {requiredResources.length > 0 && (
-                <Panel
-                  eyebrow={t('Materials', 'Matériaux')}
-                  title={t('Required resources', 'Ressources requises')}
-                  accent={theme.palette.domain.green}
-                  heroValue={String(requiredResources.length)}
-                  dense
-                >
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
-                    {requiredResources.map((resource) => (
-                      <Chip
-                        key={resource.id}
-                        size="small"
-                        icon={<ScienceOutlinedIcon sx={{ fontSize: 12 }} />}
-                        label={resource.name}
-                        sx={{ fontSize: TEXT_LABEL_SM }}
-                      />
-                    ))}
-                  </Box>
-                </Panel>
-              )}
-
               {detailReady && selected && (
                 <Panel
                   eyebrow={t('Static data', 'Données statiques')}
@@ -846,13 +984,43 @@ export function FabricatorPage() {
                   dense
                   sx={{ flex: 1 }}
                 >
-                  <BlueprintDetailsRows blueprint={selected} />
-                  {hasBlueprintFieldData(selected) && (
-                    <>
-                      <Divider sx={{ my: 1.25 }} />
-                      <FieldDataBody blueprint={selected} />
-                    </>
-                  )}
+                  <ItemDescription blueprint={selected} />
+                  {hasBlueprintFieldData(selected) && <FieldDataBody blueprint={selected} />}
+                </Panel>
+              )}
+
+              {detailReady && selected && dismantleTimeSecs > 0 && requiredResources.length > 0 && (
+                <Panel
+                  eyebrow={t('Dismantling', 'Démontage')}
+                  title={t('Recovered materials', 'Matériaux récupérés')}
+                  accent={theme.palette.domain.red}
+                  heroValue={`${Math.round(dismantleEfficiency * 100)}%`}
+                  heroUnit={t('recovery', 'récup.')}
+                  collapsible
+                  defaultCollapsed
+                  dense
+                >
+                  <Stack spacing={0.6}>
+                    {requiredResources.map((resource) => (
+                      <Box key={resource.resourceName} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ResourceIcon name={resource.resourceName} size={14} />
+                        <Typography sx={{ fontSize: TEXT_LABEL, fontWeight: 600, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {resource.resourceName}
+                        </Typography>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: theme.palette.domain.red }}>
+                          {formatResourceQuantity(Math.round(resource.totalScu * dismantleEfficiency * 1000) / 1000, resource.quantityUnit, lang)}
+                        </Typography>
+                      </Box>
+                    ))}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 0.5, borderTop: `1px solid ${theme.palette.ui.border}` }}>
+                      <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {t('Dismantle time', 'Temps de démontage')}
+                      </Typography>
+                      <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700 }}>
+                        {dismantleTimeSecs >= 60 ? `${Math.floor(dismantleTimeSecs / 60)}m ${dismantleTimeSecs % 60 ? `${dismantleTimeSecs % 60}s` : ''}`.trim() : `${dismantleTimeSecs}s`}
+                      </Typography>
+                    </Box>
+                  </Stack>
                 </Panel>
               )}
             </Stack>

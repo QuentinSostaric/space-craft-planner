@@ -156,7 +156,7 @@ interface CraftState {
   }) => void;
   assignQuality: (slotId: string, quality: number | undefined) => void;
   clearAssignments: () => void;
-  addGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
+  addGoal: (score: number, projectedStats: ItemStats, quantity?: number, blueprintOverride?: Blueprint, assignmentsOverride?: Record<string, number | undefined>) => void;
   ensureGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
   removeGoal: (goalId: string) => void;
   updateGoalQuantity: (goalId: string, quantity: number) => void;
@@ -1415,15 +1415,16 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   );
 
   const addGoal = useCallback(
-    (qualityScore: number, projectedStats: ItemStats, quantity = 1) => {
-      if (!activeBlueprint) return;
+    (qualityScore: number, projectedStats: ItemStats, quantity = 1, blueprintOverride?: Blueprint, assignmentsOverride?: Record<string, number | undefined>) => {
+      const goalBlueprint = blueprintOverride ?? activeBlueprint;
+      if (!goalBlueprint) return;
 
       const goal: CraftGoal = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        blueprintId: activeBlueprint.id,
-        blueprintName: activeBlueprint.name,
-        category: activeBlueprint.category,
-        slotAssignments: { ...slotAssignments },
+        blueprintId: goalBlueprint.id,
+        blueprintName: goalBlueprint.name,
+        category: goalBlueprint.category,
+        slotAssignments: { ...(assignmentsOverride ?? slotAssignments) },
         quantity,
         qualityScore,
         projectedStats,
