@@ -1,16 +1,16 @@
-import { Tooltip as SystemTooltip } from '../../ui/widgets';
-import type { ReactElement, ReactNode } from 'react';
+import type { AriaAttributes, ReactElement, ReactNode } from 'react';
+import { AppTooltip } from './overlays/AppTooltip';
 
-interface TooltipProps {
+export interface TooltipProps {
   content: ReactNode;
-  children: ReactElement;
+  children: ReactElement<{ className?: string } & AriaAttributes>;
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
   return (
-    <SystemTooltip title={content ?? ''} placement={position}>
+    <AppTooltip content={content} position={position}>
       {children}
-    </SystemTooltip>
+    </AppTooltip>
   );
 }

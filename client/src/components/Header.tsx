@@ -1,5 +1,7 @@
-import { Box, Divider, IconButton, Typography, useMediaQuery, alpha } from '../ui/system';
-import { AppBar, Toolbar, Autocomplete, Button, InputAdornment, MenuItem, Select, TextField, ToggleButton, ToggleButtonGroup, Tooltip } from '../ui/widgets';
+import { Box, Divider, IconButton, Typography, useMediaQuery, alpha, useTheme } from '../ui/system';
+import { AppBar, Toolbar } from './ui/primitives';
+import { AppAutocomplete, AppButton, AppSelect, AppToggleGroup } from './ui/controls';
+import { AppTooltip } from './ui/overlays';
 import { SearchIcon, DownloadOutlinedIcon, LightModeOutlinedIcon, DarkModeOutlinedIcon, SystemUpdateAltIcon, FiberManualRecordIcon, VisibilityOutlinedIcon } from '../ui/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
@@ -92,7 +94,11 @@ export function Header() {
   const { user } = useAuth();
   const isDesktop = isTauriRuntime();
   const hasUpdate = isDesktop && updateStatus === 'available';
-  const isLg = useMediaQuery('(min-width:1120px)');
+  const theme = useTheme();
+  const isMd = useMediaQuery(theme.breakpoints.up('md'));
+  const isLg = useMediaQuery(theme.breakpoints.up('lg'));
+  const [searchValue, setSearchValue] = useState<GlobalSearchOption | string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { watcher, sync } = useScLog();
   const [watcherError, setWatcherError] = useState<string | null>(null);
@@ -163,8 +169,17 @@ export function Header() {
     return [...bps, ...res, ...missions];
   }, [activeDataset.blueprints, activeDataset.missionRewards?.factionGroups, activeDataset.resources, factionContractsByFactionId, t]);
 
-  const handleSearchSelect = (_event: unknown, option: GlobalSearchOption | null) => {
-    if (!option) return;
+  const searchSuggestions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return globalSearchOptions.slice(0, 40);
+    return globalSearchOptions
+      .filter((option) => `${option.label} ${option.description}`.toLowerCase().includes(q))
+      .slice(0, 40);
+  }, [globalSearchOptions, searchQuery]);
+
+  const handleSearchSelect = (option: GlobalSearchOption) => {
+    setSearchValue(null);
+    setSearchQuery('');
     if (option.kind === 'blueprint') { setActiveBlueprint(option.blueprint); return; }
     if (option.kind === 'resource') {
       navigateToPath(resourcePathFromSlug(option.resource.id), { mainView: 'resources', resourceId: option.resource.id });
@@ -236,91 +251,81 @@ export function Header() {
           )}
         </Box>
 
-        {/* Global search — fills center */}
-        <Autocomplete
-          size="small"
-          blurOnSelect
-          clearOnBlur
-          options={globalSearchOptions}
-          getOptionLabel={(o) => o.label}
-          getOptionKey={(o) => o.key}
-          groupBy={(o) => o.kind === 'blueprint' ? t('Blueprints', 'Blueprints') : o.kind === 'resource' ? t('Resources', 'Ressources') : t('Missions', 'Missions')}
-          filterOptions={(options, state) => {
-            const q = state.inputValue.trim().toLowerCase();
-            if (!q) return options;
-            return options.filter((o) => `${o.label} ${o.description}`.toLowerCase().includes(q));
-          }}
-          onChange={handleSearchSelect}
-          sx={{
-            flex: '1 1 auto',
-            maxWidth: 540,
-            mx: 'auto',
-            '& .MuiInputBase-root': {
-              height: 38,
-              backgroundColor: (th) => alpha(th.palette.ui.surface2, 0.9),
-              borderRadius: 1.5,
-            },
-            '& .MuiAutocomplete-input': { fontSize: '0.875rem' },
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              placeholder={t('Search blueprints, resources, missions…', 'Rechercher blueprints, ressources, missions…')}
-              inputProps={{ ...params.inputProps, 'aria-label': t('Global search', 'Recherche globale') }}
-              InputProps={{
-                ...params.InputProps,
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 17, color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          )}
-          renderOption={(props, option) => {
-            const { key, ...rest } = props;
-            return (
-              <Box key={option.key} component="li" {...rest} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+        {/* Global search — fills the center without displacing utility controls. */}
+        <Box sx={{ flex: '1 1 220px', minWidth: { xs: 120, sm: 220 }, maxWidth: 540, mx: 'auto', position: 'relative' }}>
+          <SearchIcon sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 17, color: 'text.disabled', zIndex: 1, pointerEvents: 'none' }} />
+          <AppAutocomplete
+            value={searchValue}
+            suggestions={searchSuggestions}
+            getOptionLabel={(option) => option.label}
+            onValueChange={(value) => {
+              setSearchValue(value);
+              if (typeof value === 'string') setSearchQuery(value);
+              else if (value) handleSearchSelect(value);
+            }}
+            onQueryChange={setSearchQuery}
+            placeholder={isMd ? t('Search blueprints, resources, missions…', 'Rechercher blueprints, ressources, missions…') : t('Search…', 'Rechercher…')}
+            ariaLabel={t('Global search', 'Recherche globale')}
+            forceSelection
+            sx={{ width: '100%' }}
+            inputSx={{ width: '100%', height: { xs: 44, md: 38 }, pl: 4.25, backgroundColor: alpha(theme.palette.ui.surface2, 0.9), fontSize: '0.875rem' }}
+            partSx={{
+              root: { width: '100%' },
+              panel: { maxWidth: 'calc(100vw - 24px)' },
+              item: { minHeight: 44, py: 0.75 },
+            }}
+            itemTemplate={(option) => (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>{option.label}</Typography>
                 <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_BODY, letterSpacing: 0 }}>{option.description}</Typography>
               </Box>
-            );
-          }}
-        />
+            )}
+          />
+        </Box>
 
         {/* Right-side tools */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, md: 1 }, flexShrink: 0 }}>
 
-          {/* Channel toggle — visible on md+ */}
-          <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
-            <ToggleButtonGroup
+          {/* Channel remains available at every width; mobile uses a compact select. */}
+          {isMd ? (
+            <AppToggleGroup
               value={activeChannel}
-              exclusive
-              onChange={(_e, val) => { if (val) void setActiveDatasetChannel(val); }}
-              size="small"
-              aria-label={t('Dataset channel', 'Canal du dataset')}
-              sx={{ height: 34 }}
-            >
-              <ToggleButton
-                value="live"
-                disabled={!availableChannels.has('live')}
-                sx={{ px: 1.25, fontSize: TEXT_LABEL, fontWeight: 700, fontFamily: FONT_MONO, gap: 0.75 }}
-              >
-                {/* Static dot: the channel is a stable setting, not live activity */}
-                <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', display: 'inline-block', flexShrink: 0 }} />
-                LIVE
-              </ToggleButton>
-              <ToggleButton value="ptu" disabled={!availableChannels.has('ptu')} sx={{ px: 1.25, fontSize: TEXT_LABEL, fontWeight: 700, fontFamily: FONT_MONO }}>
-                PTU
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
+              options={[
+                {
+                  value: 'live',
+                  disabled: !availableChannels.has('live'),
+                  label: (
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', flexShrink: 0 }} />
+                      LIVE
+                    </Box>
+                  ),
+                },
+                { value: 'ptu', disabled: !availableChannels.has('ptu'), label: 'PTU' },
+              ]}
+              onValueChange={(value) => { void setActiveDatasetChannel(value); }}
+              ariaLabel={t('Dataset channel', 'Canal du dataset')}
+              partSx={{ button: { minHeight: 34, px: 1.25, fontFamily: FONT_MONO, fontSize: TEXT_LABEL } }}
+            />
+          ) : (
+            <AppSelect
+              value={activeChannel}
+              options={[
+                { label: 'LIVE', value: 'live', disabled: !availableChannels.has('live') },
+                { label: 'PTU', value: 'ptu', disabled: !availableChannels.has('ptu') },
+              ]}
+              onValueChange={(value) => { if (value) void setActiveDatasetChannel(value); }}
+              ariaLabel={t('Dataset channel', 'Canal du dataset')}
+              sx={{ width: 92 }}
+              partSx={{ root: { minHeight: 44 }, input: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, px: 0.75 }, trigger: { width: 28 } }}
+            />
+          )}
 
           {/* LIVE: dataset freshness, demoted to a quiet version stamp + tooltip —
               it's trust information consulted rarely, not primary chrome. */}
           {activeChannel === 'live' && (
-            <Tooltip
-              title={`${t('Game build', 'Build du jeu')} ${liveVersion ?? t('Latest', 'Dernier')}${liveDate ? ` · ${liveDate}` : ''}`}
+            <AppTooltip
+              content={`${t('Game build', 'Build du jeu')} ${liveVersion ?? t('Latest', 'Dernier')}${liveDate ? ` · ${liveDate}` : ''}`}
             >
               <Box
                 sx={{
@@ -339,52 +344,36 @@ export function Header() {
                   {liveVersion ?? t('Latest', 'Dernier')}
                 </Typography>
               </Box>
-            </Tooltip>
+            </AppTooltip>
           )}
 
           {/* PTU: dataset selector */}
           {activeChannel === 'ptu' && ptuDatasets.length > 0 && (
-            <Select
-              size="small"
+            <AppSelect
               value={activeDataset.datasetId || (ptuDatasets[0]?.datasetId ?? '')}
-              onChange={(e) => void setActiveDatasetId(e.target.value)}
-              displayEmpty
-              aria-label={t('PTU dataset', 'Dataset PTU')}
-              sx={{
-                display: { xs: 'none', md: 'flex' },
-                height: 34,
-                minWidth: 180,
-                maxWidth: 240,
-                fontSize: TEXT_LABEL,
-                fontFamily: FONT_MONO,
-                backgroundColor: 'ui.surface2',
-                '& .MuiSelect-select': { py: '6px', px: 1.25 },
-              }}
-            >
-              {ptuDatasets.map((ds) => {
-                const date = formatDatasetBuildDate(ds.buildDateStamp, ds.importedAt, lang);
-                return (
-                  <MenuItem key={ds.datasetId} value={ds.datasetId} sx={{ fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}>
-                    {ds.version}{date ? ` · ${date}` : ''}
-                  </MenuItem>
-                );
+              options={ptuDatasets.map((dataset) => {
+                const date = formatDatasetBuildDate(dataset.buildDateStamp, dataset.importedAt, lang);
+                return { label: `${dataset.version}${date ? ` · ${date}` : ''}`, value: dataset.datasetId };
               })}
-            </Select>
+              onValueChange={(value) => { if (value) void setActiveDatasetId(value); }}
+              ariaLabel={t('PTU dataset', 'Dataset PTU')}
+              sx={{ width: { xs: 92, md: 220 }, display: { xs: 'none', sm: 'inline-flex' } }}
+              partSx={{ root: { minHeight: { xs: 44, md: 34 }, backgroundColor: 'ui.surface2' }, input: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL, px: 1.25 } }}
+            />
           )}
 
           {/* Desktop app download CTA — web only */}
           {!isDesktop && (
-            <Button
-              component="a"
-            href={getDesktopInstallerUrl()}
-            onClick={() => {
-              trackEvent('download_clicked', { download_target: 'desktop_app' });
-              trackEvent('desktop_latest_installer_clicked');
-            }}
-              size="small"
-              variant="outlined"
+            <AppButton
+              href={getDesktopInstallerUrl()}
+              onClick={() => {
+                trackEvent('download_clicked', { download_target: 'desktop_app' });
+                trackEvent('desktop_latest_installer_clicked');
+              }}
+              size="sm"
+              variant="secondary"
               startIcon={<DownloadOutlinedIcon sx={{ fontSize: 13 }} />}
-              aria-label={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
+              ariaLabel={t('Download desktop app', 'Telecharger l app desktop', 'Desktop-App herunterladen')}
               sx={{
                 display: { xs: 'none', md: 'flex' },
                 height: 28,
@@ -399,13 +388,13 @@ export function Header() {
               }}
             >
               {t('Desktop app', 'App desktop', 'Desktop-App')}
-            </Button>
+            </AppButton>
           )}
 
           {/* Live watcher toggle — desktop only */}
           {isDesktop && (
-            <Tooltip
-              title={
+            <AppTooltip
+              content={
                 watcherError ?? (
                   !isLoggedIn
                     ? t('Login to watch LIVE logs', 'Connecte-toi pour surveiller les logs LIVE')
@@ -470,63 +459,68 @@ export function Header() {
                   {watcher.running ? 'LIVE' : t('Watch', 'Watch')}
                 </Typography>
               </Box>
-            </Tooltip>
+            </AppTooltip>
           )}
 
           {/* Update available — desktop only */}
           {hasUpdate && (
-            <Tooltip title={t('Click to install update', 'Cliquer pour installer la mise à jour', 'Klicken zum Aktualisieren')}>
-              <Button
+            <AppTooltip content={t('Click to install update', 'Cliquer pour installer la mise à jour', 'Klicken zum Aktualisieren')}>
+              <AppButton
                 onClick={() => { void triggerUpdate(); }}
-                size="small"
-                variant="outlined"
-                color="warning"
-                startIcon={<SystemUpdateAltIcon sx={{ fontSize: 13 }} />}
-                sx={{
-                  display: { xs: 'none', md: 'flex' },
-                  height: 28,
-                  fontSize: TEXT_LABEL,
-                  fontFamily: FONT_MONO,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  flexShrink: 0,
-                }}
+                size="sm"
+                variant="ghost"
+                icon={<SystemUpdateAltIcon sx={{ fontSize: 15 }} />}
+                ariaLabel={t('Install update', 'Installer la mise à jour', 'Update installieren')}
+                sx={{ minWidth: 44, minHeight: 44, fontFamily: FONT_MONO, fontWeight: 700, color: 'warning.main', borderColor: 'warning.main' }}
               >
-                {availableVersion ? `v${availableVersion}` : t('Update', 'Mise à jour', 'Update')}
-              </Button>
-            </Tooltip>
+                <Box component="span" sx={{ display: { xs: 'none', lg: 'inline' } }}>
+                  {availableVersion ? `v${availableVersion}` : t('Update', 'Mise à jour', 'Update')}
+                </Box>
+              </AppButton>
+            </AppTooltip>
           )}
 
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5, opacity: 0.4 }} />
 
           {/* Theme toggle */}
-          <Tooltip title={themeMode === 'dark' ? t('Light mode', 'Mode clair') : t('Dark mode', 'Mode sombre')}>
+          <AppTooltip content={themeMode === 'dark' ? t('Light mode', 'Mode clair') : t('Dark mode', 'Mode sombre')}>
             <IconButton
               onClick={toggleTheme}
               size="small"
               aria-label={themeMode === 'dark' ? t('Switch to light mode', 'Passer en mode clair') : t('Switch to dark mode', 'Passer en mode sombre')}
-              sx={{ width: 34, height: 34, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+              sx={{ width: 44, height: 44, borderRadius: 1, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
             >
               {themeMode === 'dark' ? <LightModeOutlinedIcon sx={{ fontSize: 18 }} /> : <DarkModeOutlinedIcon sx={{ fontSize: 18 }} />}
             </IconButton>
-          </Tooltip>
+          </AppTooltip>
 
-          {/* Language toggle */}
-          <ToggleButtonGroup
-            value={lang}
-            exclusive
-            onChange={(_e, val) => { if (val) setLang(val); }}
-            size="small"
-            aria-label={t('Language', 'Langue')}
-            sx={{
-              height: 34,
-              '& .MuiToggleButton-root': { px: { xs: 0.75, md: 1 }, fontSize: TEXT_LABEL_SM, fontWeight: 700, fontFamily: FONT_MONO, letterSpacing: '0.04em', minWidth: { xs: 30, md: 38 } },
-            }}
-          >
-            <ToggleButton value="en">EN</ToggleButton>
-            <ToggleButton value="fr">FR</ToggleButton>
-            <ToggleButton value="de">DE</ToggleButton>
-          </ToggleButtonGroup>
+          {/* Language — button group on desktop, compact select on mobile */}
+          {isMd ? (
+            <AppToggleGroup
+              value={lang}
+              options={[
+                { value: 'en', label: 'EN' },
+                { value: 'fr', label: 'FR' },
+                { value: 'de', label: 'DE' },
+              ]}
+              onValueChange={(value) => setLang(value)}
+              ariaLabel={t('Language', 'Langue')}
+              partSx={{ button: { minHeight: 34, px: 1, fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.04em' } }}
+            />
+          ) : (
+            <AppSelect
+              value={lang}
+              options={[
+                { label: 'EN', value: 'en' },
+                { label: 'FR', value: 'fr' },
+                { label: 'DE', value: 'de' },
+              ]}
+              onValueChange={(value) => { if (value) setLang(value); }}
+              ariaLabel={t('Language', 'Langue')}
+              sx={{ width: 78 }}
+              partSx={{ root: { minHeight: 44 }, input: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700, px: 0.75 }, trigger: { width: 28 } }}
+            />
+          )}
         </Box>
       </Toolbar>
     </AppBar>

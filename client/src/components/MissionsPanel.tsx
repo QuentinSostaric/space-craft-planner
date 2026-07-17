@@ -1,10 +1,15 @@
 import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
-import { Autocomplete, Button, Card, Chip, FormControl, InputAdornment, Link, MenuItem, Select, TextField, ToggleButton, ToggleButtonGroup, LinearProgress } from '../ui/widgets';
+import { Card, Link } from './ui/primitives';
+import { AppProgressBar } from './ui/feedback';
+import { AppChip } from './ui/data-display/AppChip';
 import { BusinessOutlinedIcon, FilterListOffOutlinedIcon, FlagIcon, ImageNotSupportedOutlinedIcon, LeaderboardOutlinedIcon, MilitaryTechOutlinedIcon, ChevronRightIcon, OpenInNewIcon, PlaceOutlinedIcon, PublicOutlinedIcon, TravelExploreOutlinedIcon, VerifiedOutlinedIcon } from '../ui/icons';
 import { memo, startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { BlueprintCard } from './BlueprintGrid';
 import { AppGlyph } from './ui/AppGlyph';
+import { AppButton, AppSelect, AppTextField } from './ui/controls';
+import { SurfaceState } from './ui/feedback';
+import { PageHeader, PageLayout, ResponsiveFilters } from './ui/page';
 import { CategoryBadge } from './ui/Badge';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
@@ -314,8 +319,18 @@ function MissionsFilterBar({
     standingBucketFilter !== 'all' ||
     rewardBlueprintFilter !== null ||
     resourceObjectiveMode !== 'all';
+  const compactControlSx = { minHeight: 32, fontSize: TEXT_LABEL };
+  const stringOptions = (options: string[]) => options.map((value) => ({ label: value, value }));
+  const resetFilters = () => {
+    onLocationChange(null);
+    onEmployerChange(null);
+    onLegalityChange('all');
+    onStandingBucketChange('all');
+    onRewardBlueprintChange(null);
+    onResourceObjectiveModeChange('all');
+  };
 
-  return (
+  const filters = (
     <Paper
       variant="outlined"
       component="section"
@@ -333,134 +348,135 @@ function MissionsFilterBar({
         direction={{ xs: 'column', xl: 'row' }}
         spacing={1}
         justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', xl: 'center' }}
+        alignItems={{ xs: 'stretch', xl: 'center' }}
       >
         <Box>
-          <Typography
-            variant="overline"
-            sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
-          >
+          <Typography variant="overline" sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}>
             {t('Mission filters', 'Filtres missions', 'Missionsfilter')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {t(
-              'Search across every mission field, then use a few high-value filters for employer, theater, reward, standing and legality.',
-              'Recherche dans tous les champs mission, puis utilise quelques filtres clés pour employeur, théâtre, récompense, réputation et légalité.',
-              'Suche über alle Missionsfelder und nutze wenige starke Filter für Arbeitgeber, Einsatzraum, Belohnung, Ruf und Legalität.',
+              'Search across every mission field, then filter by employer, theater, reward, standing and legality.',
+              'Recherchez dans tous les champs, puis filtrez par employeur, théâtre, récompense, réputation et légalité.',
+              'Suche über alle Missionsfelder und filtere nach Arbeitgeber, Einsatzraum, Belohnung, Ruf und Legalität.',
             )}
           </Typography>
         </Box>
         {hasActiveFilters && (
-          <Button
-            variant="outlined"
-            startIcon={<FilterListOffOutlinedIcon />}
-            onClick={() => {
-              onLocationChange(null);
-              onEmployerChange(null);
-              onLegalityChange('all');
-              onStandingBucketChange('all');
-              onRewardBlueprintChange(null);
-              onResourceObjectiveModeChange('all');
-            }}
-            sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          <AppButton
+            variant="secondary"
+            size="sm"
+            icon={<FilterListOffOutlinedIcon />}
+            onClick={resetFilters}
+            ariaLabel={t('Reset mission filters', 'Réinitialiser les filtres de mission')}
+            sx={{ whiteSpace: 'nowrap', alignSelf: { xs: 'flex-start', xl: 'center' } }}
           >
-            {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
-          </Button>
+            {t('Reset filters', 'Réinitialiser', 'Filter zurücksetzen')}
+          </AppButton>
         )}
       </Stack>
 
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField
-          type="search"
-          size="small"
-          placeholder={t('Search contracts...', 'Rechercher des contrats...')}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
-                  <AppGlyph name="search" size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{ flex: { xs: '1 1 100%', sm: '1 1 200px' }, '& .MuiInputBase-root': { fontSize: '0.875rem', height: 32 } }}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) minmax(210px, 0.45fr)' }, gap: 1 }}>
+        <Box sx={{ position: 'relative' }}>
+          <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, color: 'text.secondary', lineHeight: 0, pointerEvents: 'none' }}>
+            <AppGlyph name="search" size={18} />
+          </Box>
+          <AppTextField
+            type="search"
+            placeholder={t('Search contracts...', 'Rechercher des contrats...')}
+            value={search}
+            onValueChange={onSearchChange}
+            ariaLabel={t('Search missions', 'Rechercher des missions')}
+            sx={{ ...compactControlSx, width: '100%', pl: 4 }}
+          />
+        </Box>
+        <AppSelect
+          value={sortBy}
+          options={MISSION_SORT_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+          onValueChange={(value) => { if (value) onSortChange(value); }}
+          ariaLabel={t('Sort missions', 'Trier les missions')}
+          sx={compactControlSx}
         />
-        <FormControl
-          size="small"
-          sx={{ minWidth: { xs: '100%', sm: 210 }, '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL } }}
-        >
-          <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)} inputProps={{ 'aria-label': t('Sort missions', 'Trier les missions') }}>
-            {MISSION_SORT_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <ToggleButtonGroup
-          value={legalityFilter}
-          exclusive
-          onChange={(_event, value) => { if (value) onLegalityChange(value); }}
-          size="small"
-          aria-label={t('Legality filter', 'Filtre de legalite')}
-          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: TEXT_LABEL, px: 1.5 } }}
-        >
-          <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
-          <ToggleButton value="lawful" sx={{ '&.Mui-selected': { color: theme.palette.success.main } }}>
-            {t('Lawful', 'Legal')}
-          </ToggleButton>
-          <ToggleButton value="unlawful" sx={{ '&.Mui-selected': { color: theme.palette.error.main } }}>
-            {t('Unlawful', 'Illegal')}
-          </ToggleButton>
-        </ToggleButtonGroup>
       </Box>
+
+      <Box role="group" aria-label={t('Legality filter', 'Filtre de légalité')} sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+        {[
+          { value: 'all', label: t('All', 'Tous') },
+          { value: 'lawful', label: t('Lawful', 'Légal') },
+          { value: 'unlawful', label: t('Unlawful', 'Illégal') },
+        ].map((option) => (
+          <AppButton
+            key={option.value}
+            variant={legalityFilter === option.value ? 'primary' : 'secondary'}
+            size="sm"
+            ariaPressed={legalityFilter === option.value}
+            ariaLabel={`${t('Show', 'Afficher')} ${option.label.toLowerCase()}`}
+            onClick={() => onLegalityChange(option.value)}
+          >
+            {option.label}
+          </AppButton>
+        ))}
+      </Box>
+
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
-        <Autocomplete
-          size="small"
-          options={employers}
+        <AppSelect
           value={employerFilter}
-          onChange={(_event, value) => onEmployerChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
+          options={stringOptions(employers)}
+          onValueChange={onEmployerChange}
+          placeholder={t('Employer', 'Employeur')}
+          ariaLabel={t('Filter by employer', 'Filtrer par employeur')}
+          clearable
+          filterable
+          sx={compactControlSx}
         />
-        <Autocomplete
-          size="small"
-          options={locations}
+        <AppSelect
           value={locationFilter}
-          onChange={(_event, value) => onLocationChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
+          options={stringOptions(locations)}
+          onValueChange={onLocationChange}
+          placeholder={t('Location', 'Lieu')}
+          ariaLabel={t('Filter by location', 'Filtrer par lieu')}
+          clearable
+          filterable
+          sx={compactControlSx}
         />
-        <Autocomplete
-          size="small"
-          options={rewardBlueprints}
+        <AppSelect
           value={rewardBlueprintFilter}
-          onChange={(_event, value) => onRewardBlueprintChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint recompense')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
+          options={stringOptions(rewardBlueprints)}
+          onValueChange={onRewardBlueprintChange}
+          placeholder={t('Reward blueprint', 'Blueprint récompense')}
+          ariaLabel={t('Filter by reward blueprint', 'Filtrer par blueprint récompense')}
+          clearable
+          filterable
+          sx={compactControlSx}
         />
-        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: TEXT_LABEL } }}>
-          <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)} inputProps={{ 'aria-label': t('Standing requirement', 'Prérequis réputation') }}>
-            {STANDING_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: TEXT_LABEL } }}>
-          <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')} inputProps={{ 'aria-label': t('Resource objective filter', 'Filtre objectif ressource') }}>
-            {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <AppSelect
+          value={standingBucketFilter}
+          options={STANDING_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+          onValueChange={(value) => { if (value) onStandingBucketChange(value); }}
+          ariaLabel={t('Standing requirement', 'Prérequis réputation')}
+          sx={compactControlSx}
+        />
+        <AppSelect
+          value={resourceObjectiveMode}
+          options={RESOURCE_OBJECTIVE_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+          onValueChange={(value) => { if (value) onResourceObjectiveModeChange(value); }}
+          ariaLabel={t('Resource objective filter', 'Filtre objectif ressource')}
+          sx={compactControlSx}
+        />
       </Box>
     </Paper>
+  );
+
+  return (
+    <ResponsiveFilters
+      title={t('Mission filters and sort', 'Filtres et tri des missions')}
+      triggerLabel={t('Filters and sort', 'Filtres et tri')}
+      closeLabel={t('Show missions', 'Afficher les missions')}
+      dismissLabel={t('Close mission filters', 'Fermer les filtres de mission')}
+      summary={hasActiveFilters ? t('Filters active', 'Filtres actifs') : t('All missions', 'Toutes les missions')}
+    >
+      {filters}
+    </ResponsiveFilters>
   );
 }
 
@@ -482,15 +498,14 @@ const ContractRow = memo(function ContractRow({
   const dropChance = getMissionBlueprintDropChance(contract);
   const isLawful = (group.faction?.factionType?.toLowerCase() ?? '') !== 'unlawful';
   const scale = contract.availability.derivedScale;
+  const href = missionPathFromSlug(getMissionSlug(contract, group));
 
   return (
     <Box
       component="tr"
-      onClick={() => onOpen(contract, group)}
       sx={{
-        cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr auto', sm: 'minmax(0,1fr) minmax(0,0.5fr) minmax(0,0.5fr) 80px' },
+        gridTemplateColumns: { xs: 'minmax(0, 1fr) auto', sm: 'minmax(0,1fr) minmax(0,0.5fr) minmax(0,0.5fr) 96px' },
         alignItems: 'center',
         gap: 1,
         px: 2,
@@ -500,17 +515,34 @@ const ContractRow = memo(function ContractRow({
         transition: 'background-color 120ms',
       }}
     >
-      {/* Name + employer */}
       <Box component="td" sx={{ minWidth: 0 }}>
-        <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'text.primary' }}>
-          {contractName}
-        </Typography>
+        <Box
+          component="a"
+          href={href}
+          onClick={(event) => {
+            if (!shouldHandleInternalLinkClick(event)) return;
+            event.preventDefault();
+            onOpen(contract, group);
+          }}
+          aria-label={`${t('Open mission dossier', 'Ouvrir le dossier mission')}: ${contractName}`}
+          sx={{
+            display: 'inline-block',
+            maxWidth: '100%',
+            color: 'text.primary',
+            textDecoration: 'none',
+            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+            '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 },
+          }}
+        >
+          <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'inherit' }}>
+            {contractName}
+          </Typography>
+        </Box>
         <Typography noWrap sx={{ fontSize: TEXT_LABEL, color: 'text.secondary' }}>
           {employerName}{primaryLocation ? ` · ${primaryLocation}` : ''}
         </Typography>
       </Box>
 
-      {/* Scale + legality — hidden xs */}
       <Box component="td" sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: 0.25, minWidth: 0 }}>
         {scale && (
           <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary', whiteSpace: 'nowrap' }}>
@@ -522,21 +554,31 @@ const ContractRow = memo(function ContractRow({
         </Typography>
       </Box>
 
-      {/* Pool — hidden xs */}
       <Box component="td" sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0 }}>
         <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary' }}>
           {blueprintCount} bp
         </Typography>
       </Box>
 
-      {/* Drop chance */}
-      <Box component="td" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
+      <Box component="td" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75, flexShrink: 0 }}>
         {dropChance > 0 && (
           <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'primary.main' }}>
             {formatProbabilityPercent(dropChance)}
           </Typography>
         )}
-        <ChevronRightIcon sx={{ fontSize: '0.9rem', color: 'text.disabled' }} />
+        <Box
+          component="a"
+          href={href}
+          onClick={(event) => {
+            if (!shouldHandleInternalLinkClick(event)) return;
+            event.preventDefault();
+            onOpen(contract, group);
+          }}
+          aria-label={`${t('Open mission dossier', 'Ouvrir le dossier mission')}: ${contractName}`}
+          sx={{ display: 'inline-flex', color: 'text.secondary', p: 0.5, borderRadius: 1 }}
+        >
+          <ChevronRightIcon sx={{ fontSize: '1rem' }} />
+        </Box>
       </Box>
     </Box>
   );
@@ -1021,7 +1063,7 @@ function MissionHero({
         <Stack spacing={1.25}>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
             <ScaleBadge scale={contract.availability.derivedScale} label={formatScaleLabel(contract.availability.derivedScale, lang)} />
-            <Chip
+            <AppChip
               label={factionType === 'unlawful' ? t('Unlawful', 'Illegal') : t('Lawful', 'Legal')}
               size="small"
               color={factionType === 'unlawful' ? 'error' : 'success'}
@@ -1044,7 +1086,7 @@ function MissionHero({
               {locations.map((location) => {
                 const iconName = getLocationIconName(location);
                 return (
-                  <Chip
+                  <AppChip
                     key={location}
                     label={location}
                     size="small"
@@ -1100,19 +1142,27 @@ function MissionDetail({
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
-      <Stack spacing={2}>
-        <Button
-          variant="outlined"
-          color="inherit"
-          startIcon={<AppGlyph name="arrow-left" size={18} />}
-          onClick={onBack}
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          {t('Back to missions', 'Retour aux missions')}
-        </Button>
-
-        <MissionHero contract={contract} group={group} />
+    <>
+      <PageHeader
+        variant="compact"
+        eyebrow={t('Mission dossier', 'Dossier de mission')}
+        title={getMissionContractName(contract)}
+        description={`${employer?.displayName ?? group.contractorDisplayName}${localities[0] ? ` · ${localities[0]}` : ''}`}
+        actions={(
+          <AppButton
+            variant="secondary"
+            size="sm"
+            icon={<AppGlyph name="arrow-left" size={18} />}
+            onClick={onBack}
+            ariaLabel={t('Back to missions', 'Retour aux missions')}
+          >
+            {t('Back to missions', 'Retour aux missions')}
+          </AppButton>
+        )}
+      />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
+        <Stack spacing={2}>
+          <MissionHero contract={contract} group={group} />
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={2.25} divider={<Divider flexItem />}>
@@ -1226,7 +1276,7 @@ function MissionDetail({
                   {localities.length > 0 ? localities.map((location) => {
                     const iconName = getLocationIconName(location);
                     return (
-                      <Chip
+                      <AppChip
                         key={location}
                         label={location}
                         size="small"
@@ -1249,7 +1299,7 @@ function MissionDetail({
                 contract.minimumRequiredStandings.length > 0 ? (
                   <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                     {contract.minimumRequiredStandings.map((standing: MissionRequiredStanding, index) => (
-                      <Chip
+                      <AppChip
                         key={`${standing.factionName ?? 'standing'}-${index}`}
                         label={formatStandingLabel(standing, lang)}
                         size="small"
@@ -1280,7 +1330,7 @@ function MissionDetail({
                     {contract.resourceObjectives.length > 0 && (
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                         {contract.resourceObjectives.map((objective) => (
-                          <Chip
+                          <AppChip
                             key={`${objective.resourceId}-${objective.minScu}-${objective.maxScu}`}
                             label={`${objective.displayName} ${objective.minScu}-${objective.maxScu} SCU`}
                             size="small"
@@ -1324,17 +1374,17 @@ function MissionDetail({
               )}
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              <Chip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
-              <Chip
+              <AppChip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
+              <AppChip
                 label={`${formatProbabilityPercent(blueprintDropChance)} ${t('blueprint chance', 'chance blueprint', 'Blueprint-Chance')}`}
                 size="small"
                 variant="outlined"
               />
-              <Chip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
+              <AppChip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
               {localities[0] && (() => {
                 const iconName = getLocationIconName(localities[0]);
                 return (
-                  <Chip
+                  <AppChip
                     label={localities[0]}
                     size="small"
                     variant="outlined"
@@ -1380,8 +1430,9 @@ function MissionDetail({
             ))}
           </Box>
         )}
-      </Stack>
-    </Box>
+        </Stack>
+      </Box>
+    </>
   );
 }
 
@@ -1683,28 +1734,36 @@ export function MissionsPanel() {
 
   if (missionRewardsLoading) {
     return (
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <LinearProgress />
-        <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {t('Loading mission rewards...', 'Chargement des recompenses de mission...')}
-          </Typography>
-        </Box>
-      </Box>
+      <PageLayout width="wide" component="main">
+        <SurfaceState
+          tone="loading"
+          title={t('Loading mission rewards...', 'Chargement des récompenses de mission...')}
+        />
+      </PageLayout>
     );
   }
 
   if (missionRewardsError) {
-    return <Box sx={{ p: 3, color: 'error.main' }}><Typography>{missionRewardsError}</Typography></Box>;
+    return (
+      <PageLayout width="wide" component="main">
+        <SurfaceState
+          tone="error"
+          title={t('Mission rewards unavailable', 'Récompenses de mission indisponibles')}
+          description={missionRewardsError}
+        />
+      </PageLayout>
+    );
   }
 
   if (!missionRewards || missionRewards.factionGroups.length === 0) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-        <FlagIcon sx={{ mb: 1, opacity: 0.4, fontSize: '3rem' }} />
-        <Typography variant="body1" sx={{ fontWeight: 700 }}>{t('No mission data', 'Aucune donnee de mission')}</Typography>
-        <DatasetTooOldNotice />
-      </Box>
+      <PageLayout width="wide" component="main">
+        <SurfaceState
+          title={t('No mission data', 'Aucune donnée de mission')}
+          icon={<FlagIcon sx={{ opacity: 0.55, fontSize: '3rem' }} />}
+          description={<DatasetTooOldNotice />}
+        />
+      </PageLayout>
     );
   }
 
@@ -1717,18 +1776,12 @@ export function MissionsPanel() {
   };
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2.5,
-        p: { xs: 2, sm: 3 },
-        maxWidth: 1600,
-        mx: 'auto',
-        animation: 'if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both',
-      }}
+    <PageLayout
+      width="wide"
+      component="main"
+      sx={{ animation: 'if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both' }}
     >
-      {factionsLoading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />}
+      {factionsLoading && <AppProgressBar sx={{ position: 'fixed', top: 0, left: 0, right: 0, borderRadius: 0, zIndex: 9999 }} />}
 
       {selectedMission ? (
         <MissionDetail
@@ -1747,58 +1800,21 @@ export function MissionsPanel() {
         />
       ) : (
         <>
-          {/* View header */}
-          <Box>
-            <Typography
-              component="h1"
-              sx={{
-                fontFamily: FONT_DISPLAY,
-                fontWeight: 700,
-                fontSize: { xs: '1.75rem', md: '2rem' },
-                letterSpacing: '-0.018em',
-                lineHeight: 1.1,
-                color: 'text.primary',
-                mb: 0.5,
-              }}
-            >
-              {t('Missions', 'Missions')}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: '64ch' }}>
-              {t(
-                'Explore contracts, faction employers and blueprint rewards across the published dataset.',
-                'Explorez les contrats, les employeurs de faction et les récompenses de blueprints du dataset publié.',
-              )}
-            </Typography>
-          </Box>
-
-          {/* Stat cards grid */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 1.5,
-            }}
-          >
-            <PageStatCard
-              label={t('Contracts', 'Contrats')}
-              value={String(missionPageStats.contractCount)}
-              domain="blue"
-            />
-            <PageStatCard
-              label={t('Employers', 'Employeurs')}
-              value={String(missionPageStats.employerCount)}
-              domain="magenta"
-            />
-            <PageStatCard
-              label={t('Factions', 'Factions')}
-              value={String(missionPageStats.factionCount)}
-              domain="magenta"
-            />
-            <PageStatCard
-              label={t('Rewarded blueprints', 'Blueprints récompensés')}
-              value={String(missionPageStats.rewardedBlueprintCount)}
-            />
-          </Box>
+          <PageHeader
+            title={t('Missions', 'Missions')}
+            description={t(
+              'Explore contracts, faction employers and blueprint rewards across the published dataset.',
+              'Explorez les contrats, les employeurs de faction et les récompenses de blueprints du dataset publié.',
+            )}
+            stats={(
+              <>
+                <PageStatCard label={t('Contracts', 'Contrats')} value={String(missionPageStats.contractCount)} domain="blue" />
+                <PageStatCard label={t('Employers', 'Employeurs')} value={String(missionPageStats.employerCount)} domain="magenta" />
+                <PageStatCard label={t('Factions', 'Factions')} value={String(missionPageStats.factionCount)} domain="magenta" />
+                <PageStatCard label={t('Rewarded blueprints', 'Blueprints récompensés')} value={String(missionPageStats.rewardedBlueprintCount)} />
+              </>
+            )}
+          />
 
           {/* Filter bar */}
           <MissionsFilterBar
@@ -1832,17 +1848,24 @@ export function MissionsPanel() {
             >
               {filteredContracts.length} {t('contracts', 'contrats')}
             </Typography>
-            <ToggleButtonGroup
-              value={missionView}
-              exclusive
-              size="small"
-              onChange={(_e, val) => { if (val) setMissionView(val as 'cards' | 'rows'); }}
-              aria-label={t('View mode', 'Mode vue')}
-              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: TEXT_LABEL, textTransform: 'none' } }}
-            >
-              <ToggleButton value="cards">{t('Cards', 'Cartes')}</ToggleButton>
-              <ToggleButton value="rows">{t('Rows', 'Lignes')}</ToggleButton>
-            </ToggleButtonGroup>
+            <Box role="group" aria-label={t('View mode', 'Mode d’affichage')} sx={{ display: 'flex', gap: 0.75 }}>
+              <AppButton
+                variant={missionView === 'cards' ? 'primary' : 'secondary'}
+                size="sm"
+                ariaPressed={missionView === 'cards'}
+                onClick={() => setMissionView('cards')}
+              >
+                {t('Cards', 'Cartes')}
+              </AppButton>
+              <AppButton
+                variant={missionView === 'rows' ? 'primary' : 'secondary'}
+                size="sm"
+                ariaPressed={missionView === 'rows'}
+                onClick={() => setMissionView('rows')}
+              >
+                {t('Rows', 'Lignes')}
+              </AppButton>
+            </Box>
           </Box>
 
           {/* Contract grid / rows */}
@@ -1904,6 +1927,6 @@ export function MissionsPanel() {
           )}
         </>
       )}
-    </Box>
+    </PageLayout>
   );
 }

@@ -1,13 +1,15 @@
 import { Box, IconButton, Stack, Typography, alpha, useTheme } from '../ui/system';
-import { Chip, InputAdornment, MenuItem, Select, TextField, ToggleButton, ToggleButtonGroup } from '../ui/widgets';
+import { AppChip } from './ui/data-display';
 import { AddIcon, CheckIcon, ContentCopyIcon, DeleteOutlineIcon, EditOutlinedIcon, PushPinOutlinedIcon, SearchIcon, VisibilityOutlinedIcon } from '../ui/icons';
 import { useMemo, useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 import { LS_KEYS } from '../types';
-import { Button } from './ui/Button';
+import { AppButton, AppSelect, AppTextArea, AppTextField } from './ui/controls';
+import { PageHeader, PageLayout } from './ui/page';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../theme';
 import { trackEvent } from '../analytics/posthog';
+import { PlannerSegmentedControl } from './planner/PlannerControls';
 
 const NOTE_TAGS = ['note', 'mining', 'craft', 'route', 'missions', 'economy'];
 
@@ -73,10 +75,10 @@ function InlineMd({ text }: { text: string }) {
           </Box>
         );
         if (tok.type === 'ref-bp') return (
-          <Chip key={i} label={`@bp:${tok.id}`} size="small" variant="outlined" sx={{ mx: 0.25, height: 18, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, cursor: 'default' }} />
+          <AppChip key={i} label={`@bp:${tok.id}`} size="sm" outlined sx={{ mx: 0.25, height: 18, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, cursor: 'default' }} />
         );
         if (tok.type === 'ref-res') return (
-          <Chip key={i} label={`@res:${tok.id}`} size="small" variant="outlined" color="secondary" sx={{ mx: 0.25, height: 18, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, cursor: 'default' }} />
+          <AppChip key={i} label={`@res:${tok.id}`} size="sm" outlined tone="info" sx={{ mx: 0.25, height: 18, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, cursor: 'default' }} />
         );
         return null;
       })}
@@ -146,7 +148,7 @@ function MarkdownView({ source, onChange }: { source: string; onChange: (next: s
         <Box
           component="li"
           key={idx}
-          sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, listStyle: 'none', ml: -2 }}
+          sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, listStyle: 'none', ml: -2, minHeight: 44 }}
         >
           <Box
             component="input"
@@ -154,7 +156,7 @@ function MarkdownView({ source, onChange }: { source: string; onChange: (next: s
             checked={checked}
             onChange={() => toggleLine(idx)}
             aria-label="Toggle task"
-            sx={{ mt: '3px', cursor: 'pointer', accentColor: theme.palette.primary.main }}
+            sx={{ width: 20, height: 20, mt: 1.5, cursor: 'pointer', accentColor: theme.palette.primary.main }}
           />
           <Typography
             component="span"
@@ -203,7 +205,7 @@ function MarkdownView({ source, onChange }: { source: string; onChange: (next: s
 
 // ── Note list item ─────────────────────────────────────────────────────────
 
-function NoteListItem({ note, active, onClick }: { note: PlannerNote; active: boolean; onClick: () => void }) {
+function NoteListItem({ note, active, onClick, untitledLabel, locale }: { note: PlannerNote; active: boolean; onClick: () => void; untitledLabel: string; locale: string }) {
   const theme = useTheme();
   const preview = note.body.replace(/^#+ /gm, '').replace(/\n+/g, ' ').slice(0, 120) || '…';
   const taskTotal = (note.body.match(/^- \[/gm) || []).length;
@@ -230,7 +232,7 @@ function NoteListItem({ note, active, onClick }: { note: PlannerNote; active: bo
       }}
     >
       <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.875rem', color: 'text.primary', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {note.title || t_('Untitled', 'Sans titre')}
+        {note.title || untitledLabel}
       </Typography>
       <Typography
         sx={{
@@ -247,26 +249,25 @@ function NoteListItem({ note, active, onClick }: { note: PlannerNote; active: bo
         {preview}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        <Chip label={note.tag} size="small" sx={{ height: 16, fontSize: TEXT_LABEL_SM, '& .MuiChip-label': { px: 0.75 } }} />
+        <AppChip label={note.tag} size="sm" sx={{ height: 16, fontSize: TEXT_LABEL_SM, px: 0.75 }} />
         {taskTotal > 0 && (
           <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
             {taskDone}/{taskTotal}
           </Typography>
         )}
         <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', ml: 'auto' }}>
-          {new Date(note.updatedAt).toLocaleDateString()}
+          {new Date(note.updatedAt).toLocaleDateString(locale)}
         </Typography>
       </Box>
     </Box>
   );
 }
 
-function t_(en: string, _fr: string): string { return en; }
-
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function PlannerPage() {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
+  const locale = lang === 'fr' ? 'fr-FR' : lang === 'de' ? 'de-DE' : 'en-US';
   const theme = useTheme();
 
   const [notes, setNotes] = useLocalPersist<PlannerNote[]>(LS_KEYS.PLANNER_NOTES, DEFAULT_NOTES);
@@ -326,32 +327,20 @@ export function PlannerPage() {
   const taskDone = activeNote ? (activeNote.body.match(/^- \[x\]/gim) || []).length : 0;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
-      {/* Page header */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1.5 }}>
-        <Box sx={{ flex: 1, minWidth: 280 }}>
-          <Typography
-            sx={{
-              fontFamily: FONT_DISPLAY,
-              fontWeight: 700,
-              fontSize: { xs: '1.9rem', md: '2.2rem' },
-              lineHeight: 1,
-              letterSpacing: '-0.015em',
-            }}
-          >
-            {t('Planner', 'Planificateur')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, maxWidth: '70ch' }}>
-            {t(
-              'Research notebook in markdown format. Check tasks, reference a blueprint with @bp:id or a resource with @res:id.',
-              'Carnet de recherche au format markdown. Coche les tâches, référence un blueprint avec @bp:id ou une ressource avec @res:id.',
-            )}
-          </Typography>
-        </Box>
-        <Button variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
-          {t('New note', 'Nouvelle note')}
-        </Button>
-      </Box>
+    <PageLayout width="wide">
+      <PageHeader
+        title={t('Planner', 'Planificateur', 'Planer')}
+        description={t(
+          'Research notebook in markdown format. Check tasks, reference a blueprint with @bp:id or a resource with @res:id.',
+          'Carnet de recherche au format markdown. Coche les tâches, référence un blueprint avec @bp:id ou une ressource avec @res:id.',
+          'Forschungsnotizbuch im Markdown-Format. Aufgaben abhaken und Baupläne mit @bp:id oder Ressourcen mit @res:id referenzieren.',
+        )}
+        actions={(
+          <AppButton variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
+            {t('New note', 'Nouvelle note', 'Neue Notiz')}
+          </AppButton>
+        )}
+      />
 
       {/* Shell: sidebar + editor — two separate cards with a gap */}
       <Box
@@ -377,23 +366,17 @@ export function PlannerPage() {
           }}
         >
           {/* Search */}
-          <TextField
-            size="small"
-            placeholder={t('Filter notes…', 'Filtrer les notes…')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            fullWidth
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: '0.95rem', color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.78rem' } }}
-          />
+          <Box sx={{ position: 'relative' }}>
+            <SearchIcon sx={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.95rem', color: 'text.disabled', zIndex: 1, pointerEvents: 'none' }} />
+            <AppTextField
+              type="search"
+              ariaLabel={t('Filter notes', 'Filtrer les notes', 'Notizen filtern')}
+              placeholder={t('Filter notes…', 'Filtrer les notes…', 'Notizen filtern…')}
+              value={search}
+              onValueChange={setSearch}
+              sx={{ height: 32, fontSize: '0.78rem', pl: 3.5 }}
+            />
+          </Box>
 
           {pinned.length > 0 && (
             <>
@@ -402,7 +385,7 @@ export function PlannerPage() {
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {pinned.map((n) => (
-                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} />
+                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} untitledLabel={t('Untitled', 'Sans titre', 'Ohne Titel')} locale={locale} />
                 ))}
               </Box>
             </>
@@ -415,7 +398,7 @@ export function PlannerPage() {
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {others.map((n) => (
-                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} />
+                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} untitledLabel={t('Untitled', 'Sans titre', 'Ohne Titel')} locale={locale} />
                 ))}
               </Box>
             </>
@@ -453,62 +436,56 @@ export function PlannerPage() {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 120 }}>
-                  <TextField
+                  <AppTextField
                     value={activeNote.title}
-                    onChange={(e) => update(activeNote.id, { title: e.target.value })}
-                    variant="standard"
-                    fullWidth
-                    slotProps={{
-                      input: {
-                        disableUnderline: true,
-                        sx: { fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1rem', color: 'text.primary' },
-                      },
-                    }}
-                    aria-label={t('Note title', 'Titre de la note')}
+                    onValueChange={(title) => update(activeNote.id, { title })}
+                    ariaLabel={t('Note title', 'Titre de la note', 'Notiztitel')}
+                    sx={{ border: 'none', boxShadow: 'none', backgroundColor: 'transparent', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1rem', color: 'text.primary', px: 0 }}
                   />
-                  <Chip label={activeNote.tag} size="small" sx={{ height: 18, fontSize: TEXT_LABEL_SM, flexShrink: 0, '& .MuiChip-label': { px: 0.75 } }} />
+                  <AppChip label={activeNote.tag} size="sm" sx={{ height: 18, fontSize: TEXT_LABEL_SM, flexShrink: 0, px: 0.75 }} />
                 </Box>
                 <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-                  <Button
+                  <AppButton
                     variant={activeNote.pinned ? 'secondary' : 'ghost'}
                     size="sm"
                     icon={<PushPinOutlinedIcon sx={{ fontSize: '0.8rem' }} />}
                     onClick={() => update(activeNote.id, { pinned: !activeNote.pinned })}
-                    aria-pressed={activeNote.pinned}
+                    ariaPressed={activeNote.pinned}
                   >
                     {activeNote.pinned ? t('Pinned', 'Épinglée') : t('Pin', 'Épingler')}
-                  </Button>
-                  <Button
+                  </AppButton>
+                  <AppButton
                     variant="ghost"
                     size="sm"
                     icon={copied ? <CheckIcon sx={{ fontSize: '0.8rem' }} /> : <ContentCopyIcon sx={{ fontSize: '0.8rem' }} />}
                     onClick={handleCopy}
                   >
                     {copied ? t('Copied', 'Copié') : t('Copy MD', 'Copier MD')}
-                  </Button>
-                  <ToggleButtonGroup
+                  </AppButton>
+                  <PlannerSegmentedControl
                     value={mode}
-                    exclusive
-                    size="small"
-                    onChange={(_e, val) => { if (val) setMode(val as 'preview' | 'edit'); }}
-                    aria-label={t('Edit mode', 'Mode édition')}
-                    sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.35, fontSize: TEXT_LABEL, textTransform: 'none' } }}
-                  >
-                    <ToggleButton value="preview" aria-label={t('Preview', 'Aperçu')}>
-                      <VisibilityOutlinedIcon sx={{ fontSize: '0.8rem', mr: 0.35 }} />
-                      {t('Preview', 'Aperçu')}
-                    </ToggleButton>
-                    <ToggleButton value="edit" aria-label={t('Edit', 'Éditer')}>
-                      <EditOutlinedIcon sx={{ fontSize: '0.8rem', mr: 0.35 }} />
-                      {t('Edit', 'Éditer')}
-                    </ToggleButton>
-                  </ToggleButtonGroup>
+                    onValueChange={setMode}
+                    ariaLabel={t('Edit mode', 'Mode édition')}
+                    compact
+                    options={[
+                      {
+                        value: 'preview',
+                        ariaLabel: t('Preview', 'Aperçu'),
+                        label: <><VisibilityOutlinedIcon sx={{ fontSize: '0.8rem' }} />{t('Preview', 'Aperçu')}</>,
+                      },
+                      {
+                        value: 'edit',
+                        ariaLabel: t('Edit', 'Éditer'),
+                        label: <><EditOutlinedIcon sx={{ fontSize: '0.8rem' }} />{t('Edit', 'Éditer')}</>,
+                      },
+                    ]}
+                  />
                   <IconButton
                     size="small"
                     onClick={() => removeNote(activeNote.id)}
                     title={t('Delete note', 'Supprimer la note')}
                     aria-label={t('Delete note', 'Supprimer la note')}
-                    sx={{ color: 'error.main' }}
+                    sx={{ minWidth: 44, minHeight: 44, color: 'error.main' }}
                   >
                     <DeleteOutlineIcon sx={{ fontSize: '1rem' }} />
                   </IconButton>
@@ -518,7 +495,7 @@ export function PlannerPage() {
               {/* Meta bar */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 0.75, borderBottom: `1px solid ${theme.palette.ui.border}`, backgroundColor: alpha(theme.palette.background.default, 0.4) }}>
                 <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
-                  {new Date(activeNote.updatedAt).toLocaleString()}
+                  {new Date(activeNote.updatedAt).toLocaleString(locale)}
                 </Typography>
                 <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
                   {activeNote.body.length} {t('chars', 'car.')}
@@ -538,27 +515,13 @@ export function PlannerPage() {
                     onChange={(next) => update(activeNote.id, { body: next })}
                   />
                 ) : (
-                  <Box
-                    component="textarea"
+                  <AppTextArea
                     value={activeNote.body}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => update(activeNote.id, { body: e.target.value })}
+                    onValueChange={(body) => update(activeNote.id, { body })}
+                    rows={14}
                     placeholder={t('Write in markdown. ## heading, - [ ] task, **bold**, @bp:id, @res:id', 'Écris en markdown. ## titre, - [ ] tâche, **gras**, @bp:id, @res:id')}
-                    aria-label={t('Note body', 'Contenu de la note')}
-                    sx={{
-                      width: '100%',
-                      height: '100%',
-                      minHeight: 320,
-                      resize: 'none',
-                      border: 'none',
-                      outline: 'none',
-                      backgroundColor: 'transparent',
-                      color: 'text.primary',
-                      fontFamily: FONT_MONO,
-                      fontSize: '0.875rem',
-                      lineHeight: 1.7,
-                      p: 0,
-                      '&::placeholder': { color: 'text.disabled' },
-                    }}
+                    ariaLabel={t('Note body', 'Contenu de la note', 'Notizinhalt')}
+                    sx={{ width: '100%', minHeight: 320, resize: 'vertical', border: 'none', boxShadow: 'none', backgroundColor: 'transparent', color: 'text.primary', fontFamily: FONT_MONO, fontSize: '0.875rem', lineHeight: 1.7, p: 0 }}
                   />
                 )}
               </Box>
@@ -580,19 +543,13 @@ export function PlannerPage() {
                 <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
                   {t('Markdown:', 'Markdown :')} **{t('bold', 'gras')}** _{t('italic', 'italique')}_ `{t('code', 'code')}` # {t('heading', 'titre')} - [ ] {t('task', 'tâche')} @bp:id @res:id
                 </Typography>
-                <Select
-                  size="small"
+                <AppSelect
                   value={activeNote.tag}
-                  onChange={(e) => update(activeNote.id, { tag: e.target.value })}
-                  sx={{ height: 24, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, '& .MuiSelect-select': { py: '1px', px: 0.75 } }}
-                  aria-label={t('Tag', 'Tag')}
-                >
-                  {NOTE_TAGS.map((tag) => (
-                    <MenuItem key={tag} value={tag} sx={{ fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}>
-                      {tag}
-                    </MenuItem>
-                  ))}
-                </Select>
+                  options={NOTE_TAGS.map((tag) => ({ label: tag, value: tag }))}
+                  onValueChange={(tag) => { if (tag) update(activeNote.id, { tag }); }}
+                  ariaLabel={t('Tag', 'Tag', 'Tag')}
+                  sx={{ width: 132, minHeight: 28, fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}
+                />
               </Box>
             </>
           ) : (
@@ -602,14 +559,14 @@ export function PlannerPage() {
                 <Typography sx={{ color: 'text.disabled', mb: 2 }}>
                   {t('No note selected', 'Aucune note sélectionnée')}
                 </Typography>
-                <Button variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
+                <AppButton variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
                   {t('Create a note', 'Créer une note')}
-                </Button>
+                </AppButton>
               </Box>
             </Box>
           )}
         </Box>
       </Box>
-    </Box>
+    </PageLayout>
   );
 }

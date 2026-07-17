@@ -1,5 +1,5 @@
 import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
-import { Chip } from '../../ui/widgets';
+import { AppChip } from '../ui/data-display';
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
@@ -145,9 +145,9 @@ export function GoalsList() {
             {t('Build queue', 'File de craft')}
           </Typography>
         </Box>
-        <Chip
-          size="small"
-          variant="outlined"
+        <AppChip
+          size="sm"
+          outlined
           label={`${orderedGoals.length} ${t('goals', 'objectifs')}`}
         />
       </Box>

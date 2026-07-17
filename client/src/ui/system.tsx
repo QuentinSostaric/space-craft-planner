@@ -83,49 +83,53 @@ const DOMAIN_LIGHT = {
   violet:  '#4F46E5',
 };
 
-const PALETTE_DARK = {
-  bg:    '#07121F',
-  bgElev:'#0C1B2E',
-  surface: '#0F2138',
-  surface2:'#16294A',
-  surface3:'#1D365C',
-  border: 'rgba(148, 178, 220, 0.10)',
-  borderStrong: 'rgba(148, 178, 220, 0.22)',
-  borderAccent: 'rgba(129, 140, 248, 0.35)',
-  text:   '#ECF2FA',
-  textSecondary: '#B7C5DA',
-  textTertiary:  '#8A9CB6',
-  accent: '#818CF8',
-  accentHover: '#A5B4FC',
-  accentSoft: 'rgba(129, 140, 248, 0.16)',
-  accentBorder: 'rgba(129, 140, 248, 0.45)',
-  success: '#2FCB8A',
-  warn:    '#F4B740',
-  danger:  '#F87171',
-  domain: DOMAIN_DARK,
-};
+export const SC_CRAFT_PALETTES = {
+  dark: {
+    bg: '#07121F',
+    bgElev: '#0C1B2E',
+    surface: '#0F2138',
+    surface2: '#16294A',
+    surface3: '#1D365C',
+    border: 'rgba(148, 178, 220, 0.10)',
+    borderStrong: 'rgba(148, 178, 220, 0.22)',
+    borderAccent: 'rgba(129, 140, 248, 0.35)',
+    text: '#ECF2FA',
+    textSecondary: '#B7C5DA',
+    textTertiary: '#8A9CB6',
+    accent: '#818CF8',
+    accentHover: '#A5B4FC',
+    accentSoft: 'rgba(129, 140, 248, 0.16)',
+    accentBorder: 'rgba(129, 140, 248, 0.45)',
+    success: '#2FCB8A',
+    warn: '#F4B740',
+    danger: '#F87171',
+    domain: DOMAIN_DARK,
+  },
+  light: {
+    bg: '#ECEDF6',
+    bgElev: '#F4F4FB',
+    surface: '#FAFAFD',
+    surface2: '#EFF0F8',
+    surface3: '#E3E5EE',
+    border: '#D8DBE9',
+    borderStrong: '#BFC3D7',
+    borderAccent: 'rgba(79, 70, 229, 0.35)',
+    text: '#14112E',
+    textSecondary: '#3D3F6B',
+    textTertiary: '#5A5E8B',
+    accent: '#4F46E5',
+    accentHover: '#4338CA',
+    accentSoft: 'rgba(79, 70, 229, 0.10)',
+    accentBorder: 'rgba(79, 70, 229, 0.35)',
+    success: '#0E9F6E',
+    warn: '#C77700',
+    danger: '#C8362E',
+    domain: DOMAIN_LIGHT,
+  },
+} as const;
 
-const PALETTE_LIGHT = {
-  bg:    '#ECEDF6',
-  bgElev:'#F4F4FB',
-  surface: '#FAFAFD',
-  surface2:'#EFF0F8',
-  surface3:'#E3E5EE',
-  border: '#D8DBE9',
-  borderStrong: '#BFC3D7',
-  borderAccent: 'rgba(79, 70, 229, 0.35)',
-  text:   '#14112E',
-  textSecondary: '#3D3F6B',
-  textTertiary:  '#5A5E8B',
-  accent: '#4F46E5',
-  accentHover: '#4338CA',
-  accentSoft: 'rgba(79, 70, 229, 0.10)',
-  accentBorder: 'rgba(79, 70, 229, 0.35)',
-  success: '#0E9F6E',
-  warn:    '#C77700',
-  danger:  '#C8362E',
-  domain: DOMAIN_LIGHT,
-};
+const PALETTE_DARK = SC_CRAFT_PALETTES.dark;
+const PALETTE_LIGHT = SC_CRAFT_PALETTES.light;
 
 const BREAKPOINTS = { xs: 0, sm: 600, md: 900, lg: 1200, xl: 1536 } as const;
 type BreakpointKey = keyof typeof BREAKPOINTS;
@@ -640,18 +644,33 @@ export const Divider = fixedForwardRef<DividerProps>(function Divider(
   return <Box ref={ref} component="hr" sx={[{ border: 'none', flexShrink: 0 }, base, sx]} {...rest} />;
 }, 'Divider');
 
-export const ButtonBase = createSxComponent('button', {
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  margin: 0,
-  font: 'inherit',
-  color: 'inherit',
-  cursor: 'pointer',
-  outline: 'none',
-  textDecoration: 'none',
-  '&:focus-visible': (t: Theme) => ({ boxShadow: `0 0 0 2px ${t.palette.background.default}, 0 0 0 4px ${t.palette.primary.main}` }),
+export const ButtonBase = fixedForwardRef<BoxProps>(function ButtonBase(
+  { component, type, ...rest },
+  ref,
+) {
+  const resolvedComponent = component ?? 'button';
+  return (
+    <Box
+      ref={ref}
+      component={resolvedComponent}
+      type={resolvedComponent === 'button' ? (type ?? 'button') : type}
+      sx={{
+        border: 'none',
+        background: 'none',
+        padding: 0,
+        margin: 0,
+        font: 'inherit',
+        color: 'inherit',
+        cursor: 'pointer',
+        outline: 'none',
+        textDecoration: 'none',
+        '&:focus-visible': (t: Theme) => ({ boxShadow: `0 0 0 2px ${t.palette.background.default}, 0 0 0 4px ${t.palette.primary.main}` }),
+      }}
+      {...rest}
+    />
+  );
 }, 'ButtonBase');
+
 
 export interface IconButtonProps extends BoxProps {
   size?: 'small' | 'medium' | 'large';
@@ -692,21 +711,23 @@ export function Collapse({ in: open, children, timeout = 200, unmountOnExit = fa
   timeout?: number;
   unmountOnExit?: boolean;
 }) {
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const duration = reduceMotion ? 0 : timeout;
   const [mounted, setMounted] = useState(open);
   useEffect(() => {
     if (open) setMounted(true);
     else if (unmountOnExit) {
-      const id = window.setTimeout(() => setMounted(false), timeout);
+      const id = window.setTimeout(() => setMounted(false), duration);
       return () => window.clearTimeout(id);
     }
     return undefined;
-  }, [open, timeout, unmountOnExit]);
+  }, [duration, open, unmountOnExit]);
   return (
     <div
       style={{
         display: 'grid',
         gridTemplateRows: open ? '1fr' : '0fr',
-        transition: `grid-template-rows ${timeout}ms ease`,
+        transition: `grid-template-rows ${duration}ms ease`,
       }}
     >
       <div style={{ overflow: 'hidden', minHeight: 0 }}>
@@ -721,11 +742,12 @@ export function Fade({ in: open = true, children, timeout = 200 }: {
   children?: ReactNode;
   timeout?: number;
 }) {
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   return (
     <div
       style={{
         opacity: open ? 1 : 0,
-        transition: `opacity ${timeout}ms ease`,
+        transition: `opacity ${reduceMotion ? 0 : timeout}ms ease`,
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
@@ -747,9 +769,10 @@ export interface SkeletonProps extends BoxProps {
 let skeletonKeyframesInjected = false;
 
 export const Skeleton = fixedForwardRef<SkeletonProps>(function Skeleton(
-  { variant = 'text', width, height, animation: _animation, sx, ...rest },
+  { variant = 'text', width, height, animation = 'pulse', sx, ...rest },
   ref,
 ) {
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   if (!skeletonKeyframesInjected) {
     skeletonKeyframesInjected = true;
     injectCss('@keyframes if-skeleton-pulse{0%{opacity:1}50%{opacity:0.45}100%{opacity:1}}');
@@ -763,7 +786,7 @@ export const Skeleton = fixedForwardRef<SkeletonProps>(function Skeleton(
         borderRadius: radius,
         width: width ?? '100%',
         height: height ?? (variant === 'text' ? '1.2em' : 'auto'),
-        animation: 'if-skeleton-pulse 1.6s ease-in-out infinite',
+        animation: animation && !reduceMotion ? 'if-skeleton-pulse 1.6s ease-in-out infinite' : 'none',
         display: 'block',
       }, sx]}
       {...rest}

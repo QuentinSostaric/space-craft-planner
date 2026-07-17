@@ -1,5 +1,8 @@
 import { Box, Typography, alpha, useTheme } from '../ui/system';
-import { Avatar, Card, CardActionArea, CardMedia, CircularProgress, Tooltip, Button } from '../ui/widgets';
+import { Avatar, Card, CardActionArea, CardMedia } from './ui/primitives';
+import { AppButton } from './ui/controls';
+import { AppTooltip } from './ui/overlays';
+import { AppProgressSpinner } from './ui/feedback';
 import { CheckIcon, AccessTimeIcon, GroupsIcon, GroupsOutlinedIcon, Inventory2OutlinedIcon, PlaylistAddIcon, StarBorderIcon, StarIcon, TravelExploreIcon, SyncIcon, DownloadOutlinedIcon } from '../ui/icons';
 import { memo, startTransition, useCallback, useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 
@@ -13,6 +16,8 @@ import { MaterialChips } from './ui/MaterialChips';
 import { getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
+import { SurfaceState } from './ui/feedback';
+import { PageHeader, PageLayout } from './ui/page';
 import { useAuth } from '../auth/AuthContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { navigateToPath } from '../utils/slug';
@@ -207,20 +212,29 @@ function QuickActionBtn({
   icon,
   onClick,
   color,
+  disabled = false,
+  ariaLabel,
 }: {
   active?: boolean;
   label: string;
   icon: ReactNode;
   onClick: () => void;
   color?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
 }) {
   const theme = useTheme();
   const resolvedColor = color ?? theme.palette.primary.main;
   return (
     <Box
       component="button"
+      type="button"
+      disabled={disabled}
+      aria-label={ariaLabel ?? label}
+      aria-pressed={active}
       onClick={(e: { stopPropagation: () => void }) => { e.stopPropagation(); onClick(); }}
       sx={{
+        '& svg': { fontSize: 14 },
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -244,7 +258,7 @@ function QuickActionBtn({
           color: active ? resolvedColor : 'text.primary',
           borderColor: active ? alpha(resolvedColor, 0.8) : 'text.secondary',
         },
-        '& .MuiSvgIcon-root': { fontSize: '14px !important' },
+        '&:disabled': { cursor: 'not-allowed', opacity: 0.55 },
       }}
     >
       {icon}
@@ -314,6 +328,7 @@ export const BlueprintCard = memo(function BlueprintCard({
 
   return (
     <Card
+      className="blueprint-card"
       role="listitem"
       sx={{
         height: '100%',
@@ -337,6 +352,7 @@ export const BlueprintCard = memo(function BlueprintCard({
       }}
     >
       <CardActionArea
+        className="blueprint-card-link"
         component="a"
         href={cardHref}
         onClick={(event) => {
@@ -397,9 +413,9 @@ export const BlueprintCard = memo(function BlueprintCard({
                   filter: thumbMode === 'item' ? (theme.palette.mode === 'dark' ? 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' : 'drop-shadow(0 8px 16px rgba(0,0,0,0.1))') : 'none',
                   p: thumbMode === 'logo' ? 2 : 0,
                   transition: 'transform 300ms ease',
-                  '.MuiCardActionArea-root:hover &': {
+                  '.blueprint-card-link:hover &': {
                     transform: 'scale(1.05)',
-                  }
+                  },
                 }}
               />
             ) : (
@@ -494,7 +510,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           '@media (hover: hover) and (pointer: fine)': {
             opacity: 0,
             transition: 'opacity 160ms ease',
-            '.MuiCard-root:hover &, .MuiCard-root:focus-within &': { opacity: 1 },
+            '.blueprint-card:hover &, .blueprint-card:focus-within &': { opacity: 1 },
           },
         }}
       >
@@ -519,15 +535,17 @@ export const BlueprintCard = memo(function BlueprintCard({
           icon={<PlaylistAddIcon />}
         />
         {organizationShareAction && (
-          <Tooltip title={organizationShareAction.tooltip}>
+          <AppTooltip content={organizationShareAction.tooltip}>
             <Box sx={{ display: 'flex', flex: 1 }}>
               <QuickActionBtn
                 active={organizationShareAction.selected}
+                disabled={organizationShareAction.disabled || organizationShareAction.busy}
                 onClick={() => organizationShareAction.onToggle(blueprint.id)}
                 label={organizationShareAction.label}
+                ariaLabel={organizationShareAction.ariaLabel}
                 icon={
                   organizationShareAction.busy ? (
-                    <CircularProgress size={14} color="inherit" />
+                    <AppProgressSpinner size={14} strokeWidth={4} />
                   ) : organizationShareAction.selected ? (
                     <GroupsIcon />
                   ) : (
@@ -536,18 +554,20 @@ export const BlueprintCard = memo(function BlueprintCard({
                 }
               />
             </Box>
-          </Tooltip>
+          </AppTooltip>
         )}
         {(extraQuickActions ?? []).map((action) => (
-          <Tooltip key={action.key} title={action.tooltip}>
+          <AppTooltip key={action.key} content={action.tooltip}>
             <Box sx={{ display: 'flex', flex: 1 }}>
               <QuickActionBtn
                 active={Boolean(action.selected)}
+                disabled={action.disabled || action.busy}
                 onClick={() => action.onClick(blueprint.id)}
                 label={action.label}
+                ariaLabel={action.ariaLabel}
                 icon={
                   action.busy ? (
-                    <CircularProgress size={14} color="inherit" />
+                    <AppProgressSpinner size={14} strokeWidth={4} />
                   ) : action.avatarSrc ? (
                     <Avatar
                       src={action.avatarSrc}
@@ -562,7 +582,7 @@ export const BlueprintCard = memo(function BlueprintCard({
                 }
               />
             </Box>
-          </Tooltip>
+          </AppTooltip>
         ))}
       </Box>
     </Card>
@@ -987,69 +1007,37 @@ export function BlueprintGrid() {
   const hasVisibleShipComponents = filteredShipComponents.length > 0;
   const isCompletelyEmpty = !hasVisibleBlueprints && !hasVisibleShipComponents;
 
-  const GUTTER = { xs: 2, sm: 3, lg: 4 } as const;
-  const MAX_W = 1600;
-
   return (
-    <Box sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          maxWidth: MAX_W,
-          mx: 'auto',
-          width: '100%',
-          animation: 'if-fade-in 280ms ease both',
-        }}
-      >
-        {/* ── View header ── */}
-        <Box sx={{ px: GUTTER, pt: { xs: 2, sm: 2.5, lg: 3 }, pb: 0 }}>
-          <Typography
-            sx={{
-              fontFamily: FONT_HEADING,
-              fontWeight: 700,
-              fontSize: { xs: '1.45rem', md: '1.7rem' },
-              letterSpacing: '-0.018em',
-              lineHeight: 1,
-            }}
-          >
-            {t('Blueprints', 'Blueprints')}
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: 'text.secondary', mt: 0.5, fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.875rem' } }}
-          >
-            {t(
-              'Browse craftable items, simulate quality builds and plan your material runs.',
-              'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
-            )}
-          </Typography>
-        </Box>
+    <PageLayout
+      width="wide"
+      component="main"
+      sx={{ flex: '1 0 auto', minHeight: 0, animation: 'if-fade-in 280ms ease both' }}
+    >
+      <PageHeader
+        title={t('Blueprints', 'Blueprints')}
+        description={t(
+          'Browse craftable items, simulate quality builds and plan your material runs.',
+          'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
+        )}
+      />
 
-        {/* ── Explorer (toolbar + filters) — same horizontal gutter ── */}
-        <Box sx={{ px: GUTTER }}>
-          <BlueprintExplorer />
-        </Box>
+      <BlueprintExplorer />
 
-        {/* ── Result count ── */}
-        <Box sx={{ px: GUTTER, mb: 1.25, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
+      {/* ── Result count ── */}
+      <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{filteredBlueprints.length}</strong>{' '}
             {t('blueprints', 'blueprints')}
             {!shipComponentFiltersBlocked ? ` • ${filteredShipComponents.length} ${t('ship components', 'composants de vaisseau')}` : ''}
-          </Typography>
-        </Box>
+        </Typography>
+      </Box>
 
-        {/* ── Grid area — IntersectionObserver root ── */}
-        <Box sx={{ px: GUTTER, pb: 4 }}>
-          {isCompletelyEmpty ? (
-            <Box sx={{ py: 8, textAlign: 'center' }}>
-              <Typography sx={{ color: 'text.secondary', mb: 1 }} role="status">
-                {emptyMessage}
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* ── Grid area — IntersectionObserver root ── */}
+      <Box sx={{ pb: 4 }}>
+        {isCompletelyEmpty ? (
+          <SurfaceState title={emptyMessage} />
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {hasVisibleBlueprints && (
                 <Box>
                   <Box
@@ -1129,11 +1117,11 @@ export function BlueprintGrid() {
                   </Box>
                 </Box>
               )}
-            </Box>
-          )}
+          </Box>
+        )}
 
-          {/* ── Inventory sync CTA — shown when inventory has only default blueprints ── */}
-          {librarySegment === 'inventory' && hasOnlyDefaultInventory && (
+        {/* ── Inventory sync CTA — shown when inventory has only default blueprints ── */}
+        {librarySegment === 'inventory' && hasOnlyDefaultInventory && (
             <Box
               sx={{
                 mt: 3,
@@ -1170,31 +1158,29 @@ export function BlueprintGrid() {
               {isDesktop && Boolean(user) ? (
                 <SyncBlueprintsButton variant="contained" size="small" />
               ) : isDesktop && !user ? (
-                <Button
-                  variant="contained"
-                  size="small"
+                <AppButton
+                  variant="primary"
+                  size="sm"
                   startIcon={<SyncIcon sx={{ fontSize: 14 }} />}
                   onClick={() => navigateToPath('/account', { mainView: 'account' })}
                   sx={{ fontWeight: 700 }}
                 >
                   {t('Go to Account', 'Aller sur le Compte')}
-                </Button>
+                </AppButton>
               ) : (
-                <Button
-                  component="a"
+                <AppButton
                   href="/api/desktop/latest-installer"
-                  variant="contained"
-                  size="small"
+                  variant="primary"
+                  size="sm"
                   startIcon={<DownloadOutlinedIcon sx={{ fontSize: 14 }} />}
                   sx={{ fontWeight: 700 }}
                 >
                   {t('Download desktop app', 'Télécharger l\'app bureau')}
-                </Button>
+                </AppButton>
               )}
             </Box>
-          )}
-        </Box>
+        )}
       </Box>
-    </Box>
+    </PageLayout>
   );
 }

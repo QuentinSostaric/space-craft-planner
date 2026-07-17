@@ -1,5 +1,6 @@
 import { Box, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
-import { Alert, Avatar, Chip, ToggleButton, ToggleButtonGroup } from '../../ui/widgets';
+import { Avatar } from '../ui/primitives';
+import { AppAlert } from '../ui/feedback';
 import { useMemo } from 'react';
 import { type AccountSyncStatus, type OptimisticAccountState } from '../../auth/accountMutations';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
@@ -10,6 +11,9 @@ import type {
   StoredAccount,
 } from '../../services/authService';
 import { Button } from '../ui/Button';
+import { AppButton } from '../ui/controls/AppButton';
+import { SurfaceState } from '../ui/feedback/SurfaceState';
+import { AppChip } from '../ui/data-display/AppChip';
 
 type CraftRequestViewMode = 'incoming' | 'outgoing' | 'all';
 type CraftRequestStatusFilter = 'all' | 'active' | AccountCraftRequestStatus;
@@ -261,161 +265,125 @@ export function CraftRequestsPanel({
           </Box>
 
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-            <Chip
+            <AppChip
               label={t(
                 `${pendingIncomingCraftRequestCount} awaiting you`,
                 `${pendingIncomingCraftRequestCount} a traiter`,
                 `${pendingIncomingCraftRequestCount} warten auf dich`,
               )}
-              size="small"
-              color="warning"
+              size="sm"
+              tone="warning"
             />
-            <Chip
+            <AppChip
               label={t(
                 `${activeCraftRequestCount} active`,
                 `${activeCraftRequestCount} actives`,
                 `${activeCraftRequestCount} aktiv`,
               )}
-              size="small"
-              variant="outlined"
+              size="sm"
+              outlined
             />
-            <Chip
+            <AppChip
               label={t(
                 `${closedCraftRequestCount} closed`,
                 `${closedCraftRequestCount} cloturees`,
                 `${closedCraftRequestCount} geschlossen`,
               )}
-              size="small"
-              variant="outlined"
+              size="sm"
+              outlined
             />
           </Stack>
         </Stack>
 
         {syncError && (
-          <Alert severity="error" variant="outlined">
+          <AppAlert severity="error">
             {syncError}
-          </Alert>
+          </AppAlert>
         )}
 
         {(syncStatus === 'pending' || syncStatus === 'syncing') && syncingCraftRequestIds.size > 0 && (
-          <Alert severity="info" variant="outlined">
+          <AppAlert severity="info">
             {t(
               'Craft request changes are still syncing to the cloud. The interface is already updated locally.',
               'Les changements de demandes de craft se synchronisent encore vers le cloud. L interface est deja mise a jour localement.',
               'Craft-Anfragen werden noch mit der Cloud synchronisiert. Die Oberfläche ist lokal bereits aktualisiert.',
             )}
-          </Alert>
+          </AppAlert>
         )}
 
         {craftRequestError && (
-          <Alert severity="error" variant="outlined">
+          <AppAlert severity="error">
             {craftRequestError}
-          </Alert>
+          </AppAlert>
         )}
 
         {craftRequestNotice && (
-          <Alert severity="success" variant="outlined">
+          <AppAlert severity="success">
             {craftRequestNotice}
-          </Alert>
+          </AppAlert>
         )}
 
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <ToggleButtonGroup
-            exclusive
-            value={viewMode}
-            onChange={(_event, value: CraftRequestViewMode | null) => {
-              if (value) {
-                setViewMode(value);
-              }
-            }}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                px: 1.5,
-                py: 0.9,
-                textTransform: 'none',
-              },
-            }}
+        <Stack spacing={1}>
+          <Box
+            role="group"
+            aria-label={t('Request direction', 'Direction des demandes', 'Anfragerichtung')}
+            sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}
           >
-            <ToggleButton value="incoming">
-              {t('Incoming', 'Entrantes', 'Eingehend')}
-            </ToggleButton>
-            <ToggleButton value="outgoing">
-              {t('Outgoing', 'Sortantes', 'Ausgehend')}
-            </ToggleButton>
-            <ToggleButton value="all">
-              {t('All', 'Tout', 'Alle')}
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          <ToggleButtonGroup
-            exclusive
-            value={statusFilter}
-            onChange={(_event, value: CraftRequestStatusFilter | null) => {
-              if (value) {
-                setStatusFilter(value);
-              }
-            }}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                px: 1.25,
-                py: 0.8,
-                textTransform: 'none',
-              },
-            }}
+            {([
+              ['incoming', t('Incoming', 'Entrantes', 'Eingehend')],
+              ['outgoing', t('Outgoing', 'Sortantes', 'Ausgehend')],
+              ['all', t('All', 'Tout', 'Alle')],
+            ] as const).map(([value, label]) => (
+              <AppButton
+                key={value}
+                variant={viewMode === value ? 'secondary' : 'ghost'}
+                size="sm"
+                ariaPressed={viewMode === value}
+                onClick={() => setViewMode(value)}
+                sx={{ minHeight: 44 }}
+              >
+                {label}
+              </AppButton>
+            ))}
+          </Box>
+          <Box
+            role="group"
+            aria-label={t('Request status', 'Statut des demandes', 'Anfragestatus')}
+            sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}
           >
-            <ToggleButton value="active">
-              {t('Active', 'Actives', 'Aktiv')}
-            </ToggleButton>
-            <ToggleButton value="pending">
-              {t('Pending', 'En attente', 'Ausstehend')}
-            </ToggleButton>
-            <ToggleButton value="accepted">
-              {t('Accepted', 'Acceptees', 'Angenommen')}
-            </ToggleButton>
-            <ToggleButton value="denied">
-              {t('Denied', 'Refusees', 'Abgelehnt')}
-            </ToggleButton>
-            <ToggleButton value="closed">
-              {t('Closed', 'Cloturees', 'Geschlossen')}
-            </ToggleButton>
-            <ToggleButton value="all">
-              {t('All statuses', 'Tous les statuts', 'Alle Status')}
-            </ToggleButton>
-          </ToggleButtonGroup>
+            {([
+              ['active', t('Active', 'Actives', 'Aktiv')],
+              ['pending', t('Pending', 'En attente', 'Ausstehend')],
+              ['accepted', t('Accepted', 'Acceptees', 'Angenommen')],
+              ['denied', t('Denied', 'Refusees', 'Abgelehnt')],
+              ['closed', t('Closed', 'Cloturees', 'Geschlossen')],
+              ['all', t('All statuses', 'Tous les statuts', 'Alle Status')],
+            ] as const).map(([value, label]) => (
+              <AppButton
+                key={value}
+                variant={statusFilter === value ? 'secondary' : 'ghost'}
+                size="sm"
+                ariaPressed={statusFilter === value}
+                onClick={() => setStatusFilter(value)}
+                sx={{ minHeight: 44 }}
+              >
+                {label}
+              </AppButton>
+            ))}
+          </Box>
         </Stack>
 
         {filteredCraftRequestEntries.length === 0 ? (
-          <Box
-            sx={{
-              py: 4,
-              px: 2,
-              textAlign: 'center',
-              borderRadius: 2,
-              border: `1px dashed ${theme.palette.divider}`,
-              backgroundColor: alpha(theme.palette.background.default, 0.28),
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 0.75 }}>
-              {t('No craft requests match this view', 'Aucune demande de craft dans cette vue', 'Keine Craft-Anfragen in dieser Ansicht')}
-            </Typography>
-            <Typography sx={{ color: 'text.secondary', maxWidth: 620, mx: 'auto' }}>
-              {t(
-                'Switch the direction or status filter to inspect the rest of your request history.',
-                'Change le filtre de direction ou de statut pour consulter le reste de ton historique de demandes.',
-                'Wechsle den Richtungs- oder Statusfilter, um den Rest deiner Anfragenhistorie zu sehen.',
-              )}
-            </Typography>
-          </Box>
+          <SurfaceState
+            title={t('No craft requests match this view', 'Aucune demande de craft dans cette vue', 'Keine Craft-Anfragen in dieser Ansicht')}
+            description={t(
+              'Switch the direction or status filter to inspect the rest of your request history.',
+              'Change le filtre de direction ou de statut pour consulter le reste de ton historique de demandes.',
+              'Wechsle den Richtungs- oder Statusfilter, um den Rest deiner Anfragenhistorie zu sehen.',
+            )}
+          />
         ) : (
-          <Box
-            sx={{
-              maxHeight: { xl: 780 },
-              overflowY: { xl: 'auto' },
-              pr: { xl: 0.5 },
-            }}
-          >
+          <Box>
             <Box
               sx={{
                 display: 'grid',
@@ -478,20 +446,20 @@ export function CraftRequestsPanel({
                         </Stack>
 
                         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                          <Chip
+                          <AppChip
                             label={
                               direction === 'incoming'
                                 ? t('Incoming', 'Entrante', 'Eingehend')
                                 : t('Outgoing', 'Sortante', 'Ausgehend')
                             }
-                            size="small"
-                            variant="outlined"
+                            size="sm"
+                            outlined
                           />
-                          <Chip
+                          <AppChip
                             label={statusMeta.label}
-                            size="small"
-                            color={statusMeta.color}
-                            variant="outlined"
+                            size="sm"
+                            tone={statusMeta.color === 'error' ? 'danger' : statusMeta.color}
+                            outlined
                           />
                         </Stack>
                       </Stack>
@@ -508,32 +476,32 @@ export function CraftRequestsPanel({
 
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                         {resourcesLabel && (
-                          <Chip
+                          <AppChip
                             label={resourcesLabel}
-                            size="small"
-                            variant="outlined"
+                            size="sm"
+                            outlined
                           />
                         )}
                         {request.ownerDiscordMessageId && (
-                          <Chip
+                          <AppChip
                             label={t('Discord bot notified', 'Bot Discord notifie', 'Discord-Bot benachrichtigt')}
-                            size="small"
-                            variant="outlined"
+                            size="sm"
+                            outlined
                           />
                         )}
                         {request.contactInitiatedAt && (
-                          <Chip
+                          <AppChip
                             label={t('Contact initiated', 'Mise en relation lancee', 'Kontakt gestartet')}
-                            size="small"
-                            color="info"
-                            variant="outlined"
+                            size="sm"
+                            tone="info"
+                            outlined
                           />
                         )}
                         {isSyncing && (
-                          <Chip
+                          <AppChip
                             label={t('Syncing', 'Synchronisation', 'Synchronisiert')}
-                            size="small"
-                            color="warning"
+                            size="sm"
+                            tone="warning"
                           />
                         )}
                       </Stack>

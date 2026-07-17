@@ -1,5 +1,6 @@
 import { Fade, Paper, Box, Skeleton, Stack, Typography } from './ui/system';
-import { Dialog, DialogContent, DialogTitle, CircularProgress, LinearProgress } from './ui/widgets';
+import { AppProgressBar, AppProgressSpinner } from './components/ui/feedback';
+import { AppDialog } from './components/ui/overlays/AppDialog';
 import { createAppTheme, installGlobalStyles } from './theme';
 import { injectGlobalCss } from './ui/system';
 import { useTheme } from './hooks/useTheme';
@@ -23,6 +24,7 @@ import { AnalyticsProvider, setAnalyticsContext, trackEvent, trackPageView } fro
 import { AnalyticsIdentitySync } from './analytics/AnalyticsIdentitySync';
 import { ServerFlagsProvider } from './hooks/ServerFlagsContext';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { MainView } from './components/NavRail';
 import { mainViewFromPathname, navigateToPath } from './utils/slug';
 
@@ -486,21 +488,22 @@ function MainContentFallback({ view }: { view: ResolvedMainView }) {
 
 function ComparisonModalFallback() {
   return (
-    <Dialog open fullWidth maxWidth="lg" aria-label="Loading comparison">
-      <DialogTitle>
-        <Skeleton width={180} height={28} />
-      </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Skeleton variant="rounded" width={120} height={28} />
-            <Skeleton variant="rounded" width={120} height={28} />
-          </Stack>
-          <Skeleton variant="rounded" height={260} />
-          <Skeleton variant="rounded" height={220} />
+    <AppDialog
+      open
+      onOpenChange={() => undefined}
+      title="Loading comparison"
+      dismissable={false}
+      width="min(64rem, calc(100vw - 2rem))"
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Skeleton variant="rounded" width={120} height={28} />
+          <Skeleton variant="rounded" width={120} height={28} />
         </Stack>
-      </DialogContent>
-    </Dialog>
+        <Skeleton variant="rounded" height={260} />
+        <Skeleton variant="rounded" height={220} />
+      </Stack>
+    </AppDialog>
   );
 }
 
@@ -700,7 +703,80 @@ const MAIN_VIEW_PATHS: Partial<Record<MainView, string>> = {
   planner: '/planner',
   changelog: '/changelog',
   account: '/account',
+  privacy: '/privacy',
 };
+
+function SkipLink({ label }: { label: string }) {
+  return (
+    <Box
+      component="a"
+      href="#main-content"
+      sx={{
+        position: 'fixed',
+        top: 8,
+        left: 8,
+        zIndex: 2000,
+        px: 1.5,
+        py: 1,
+        borderRadius: 1,
+        backgroundColor: 'background.paper',
+        color: 'text.primary',
+        border: '1px solid',
+        borderColor: 'primary.main',
+        textDecoration: 'none',
+        transform: 'translateY(-150%)',
+        transition: 'transform 120ms ease',
+        '&:focus': { transform: 'translateY(0)' },
+      }}
+    >
+      {label}
+    </Box>
+  );
+}
+
+function AppShellFrame({
+  children,
+  mainRef,
+  mainLabel,
+  skipLabel,
+  progress = false,
+  nav,
+  live,
+}: {
+  children: ReactNode;
+  mainRef?: Ref<HTMLElement>;
+  mainLabel: string;
+  skipLabel: string;
+  progress?: boolean;
+  nav?: ReactNode;
+  live?: 'polite' | 'assertive';
+}) {
+  return (
+    <Box sx={APP_SHELL_GRID_SX}>
+      <SkipLink label={skipLabel} />
+      <Box component="header" sx={{ gridArea: 'header' }}>
+        <Header />
+        {progress && <AppProgressBar sx={{ height: 2 }} />}
+      </Box>
+      {nav != null && (
+        <Box component="nav" aria-label="Primary navigation" sx={{ gridArea: 'rail', display: 'flex', minWidth: 0 }}>
+          {nav}
+        </Box>
+      )}
+      <Box
+        ref={mainRef}
+        component="main"
+        id="main-content"
+        tabIndex={-1}
+        sx={[APP_SHELL_MAIN_SX, { '&:focus': { outline: 'none' } }]}
+        aria-label={mainLabel}
+        aria-live={live}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+}
 
 function AppShell() {
   const {
@@ -716,6 +792,8 @@ function AppShell() {
   const [mainView, setMainView] = useState<MainView>(() => mainViewFromPathname(window.location.pathname));
   const [isPending, startTransition] = useTransition();
   const ensureMissionRewardsLoadedRef = useRef(ensureMissionRewardsLoaded);
+  const mainRef = useRef<HTMLElement>(null);
+  const previousFocusedViewRef = useRef<MainView | null>(null);
   useEffect(() => { ensureMissionRewardsLoadedRef.current = ensureMissionRewardsLoaded; });
 
   useEffect(() => {
@@ -745,6 +823,20 @@ function AppShell() {
       ? 'account'
       : mainView;
 
+  useEffect(() => {
+    if (previousFocusedViewRef.current === null) {
+      previousFocusedViewRef.current = guardedMainView;
+      return;
+    }
+    if (previousFocusedViewRef.current !== guardedMainView) {
+      previousFocusedViewRef.current = guardedMainView;
+      window.requestAnimationFrame(() => {
+        mainRef.current?.focus({ preventScroll: true });
+        mainRef.current?.scrollTo({ top: 0 });
+      });
+    }
+  }, [guardedMainView]);
+
   const handleChangeView = useCallback((view: MainView) => {
     const nextView = !user && view === 'organizations' ? 'account' : view;
     const path = MAIN_VIEW_PATHS[nextView] ?? '/';
@@ -753,137 +845,108 @@ function AppShell() {
 
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={APP_SHELL_GRID_SX}>
-        <Box sx={{ gridArea: 'header' }}>
-          <Header />
-          <LinearProgress sx={{ height: 2 }} />
-        </Box>
-        <Box component="main" id="main-content" sx={APP_SHELL_MAIN_SX}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="polite">
-              <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t('Loading published dataset', 'Chargement du dataset publie')}
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {t(
-                    'The app is connecting to the published dataset API.',
-                    'L\'application se connecte a l API du dataset publie.',
-                  )}
-                </Typography>
-              </Paper>
-            </Box>
-            <Footer />
+      <AppShellFrame
+        mainRef={mainRef}
+        mainLabel={t('Content', 'Contenu', 'Inhalt')}
+        skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
+        progress
+        live="polite"
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }}>
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                {t('Loading published dataset', 'Chargement du dataset publie')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {t(
+                  'The app is connecting to the published dataset API.',
+                  'L\'application se connecte a l API du dataset publie.',
+                )}
+              </Typography>
+            </Paper>
           </Box>
+          <Footer />
         </Box>
-      </Box>
+      </AppShellFrame>
     );
   }
 
   // Dataset switch in progress — old data present but new one loading
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
-      <Box sx={APP_SHELL_GRID_SX}>
-        <Box sx={{ gridArea: 'header' }}>
-          <Header />
-          <LinearProgress sx={{ height: 2 }} />
-        </Box>
-        <Box component="nav" sx={{ gridArea: 'rail', display: 'flex', minWidth: 0 }}>
-          <NavRail mainView={guardedMainView} onChangeView={handleChangeView} />
-        </Box>
-        <Box
-          component="main"
-          id="main-content"
-          sx={APP_SHELL_MAIN_SX}
-          aria-live="polite"
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-              <Fade in timeout={300}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <CircularProgress
-                    size={56}
-                    thickness={2}
-                    sx={{ mb: 3, color: 'primary.main' }}
-                  />
-                  <Typography variant="h6" sx={{ mb: 0.75 }}>
-                    {t('Loading new dataset', 'Chargement du dataset')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t('Please wait…', 'Veuillez patienter…')}
-                  </Typography>
-                </Box>
-              </Fade>
-            </Box>
-            <Footer />
+      <AppShellFrame
+        mainRef={mainRef}
+        mainLabel={t('Content', 'Contenu', 'Inhalt')}
+        skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
+        progress
+        live="polite"
+        nav={<NavRail mainView={guardedMainView} onChangeView={handleChangeView} />}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+            <Fade in timeout={300}>
+              <Box sx={{ textAlign: 'center' }}>
+                <AppProgressSpinner size={56} strokeWidth={2} sx={{ mb: 3 }} />
+                <Typography variant="h6" sx={{ mb: 0.75 }}>
+                  {t('Loading new dataset', 'Chargement du dataset')}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('Please wait…', 'Veuillez patienter…')}
+                </Typography>
+              </Box>
+            </Fade>
           </Box>
+          <Footer />
         </Box>
-      </Box>
+      </AppShellFrame>
     );
   }
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
-      <Box sx={APP_SHELL_GRID_SX}>
-        <Box sx={{ gridArea: 'header' }}>
-          <Header />
-        </Box>
-        <Box component="main" id="main-content" sx={APP_SHELL_MAIN_SX}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }} aria-live="assertive">
-              <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
-                <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
-                  {t('Published dataset unavailable', 'Dataset publie indisponible')}
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                  {t(
-                    'This app reads published datasets through the runtime API. The API must be available.',
-                    'Cette app lit les datasets publies via l API runtime. L API doit etre disponible.',
-                  )}
-                </Typography>
-              </Paper>
-            </Box>
-            <Footer />
+      <AppShellFrame
+        mainRef={mainRef}
+        mainLabel={t('Content', 'Contenu', 'Inhalt')}
+        skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
+        live="assertive"
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }}>
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', maxWidth: 480, borderColor: 'error.main' }}>
+              <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
+                {t('Published dataset unavailable', 'Dataset publie indisponible')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                {t(
+                  'This app reads published datasets through the runtime API. The API must be available.',
+                  'Cette app lit les datasets publies via l API runtime. L API doit etre disponible.',
+                )}
+              </Typography>
+            </Paper>
           </Box>
+          <Footer />
         </Box>
-      </Box>
+      </AppShellFrame>
     );
   }
   return (
-    <Box
-      sx={APP_SHELL_GRID_SX}
-    >
-      <Box sx={{ gridArea: 'header' }}>
-        <Header />
-        {isPending && <LinearProgress sx={{ height: 2 }} />}
-      </Box>
-      <Box component="nav" sx={{ gridArea: 'rail', display: 'flex', minWidth: 0 }}>
-        <NavRail
-          mainView={guardedMainView}
-          onChangeView={handleChangeView}
-        />
-      </Box>
-      <Box
-        component="main"
-        id="main-content"
-        sx={{
-          gridArea: 'main',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 0,
-        }}
-        aria-label={t('Content', 'Contenu')}
+    <>
+      <AppShellFrame
+        mainRef={mainRef}
+        mainLabel={t('Content', 'Contenu', 'Inhalt')}
+        skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
+        progress={isPending}
+        nav={<NavRail mainView={guardedMainView} onChangeView={handleChangeView} />}
       >
         <MainContent mainView={guardedMainView} />
-      </Box>
+      </AppShellFrame>
       {comparisonOpen && (
         <Suspense fallback={<ComparisonModalFallback />}>
           <LazyComparisonModal />
         </Suspense>
       )}
-    </Box>
+    </>
   );
 }
 

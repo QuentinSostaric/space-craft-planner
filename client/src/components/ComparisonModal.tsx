@@ -1,5 +1,5 @@
-import { Divider, Box, IconButton, Paper, Typography } from '../ui/system';
-import { Chip, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '../ui/widgets';
+import { Divider, Box, Paper, Typography } from '../ui/system';
+import { List, ListItem, ListItemText, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from './ui/primitives';
 import { useMemo } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
@@ -13,6 +13,8 @@ import {
 import type { Blueprint, ComparisonItem, Lang, NumericItemStatKey } from '../types';
 import { aggregateBlueprintResources, summarizeAssignedQualities } from '../utils/crafting';
 import { Button } from './ui/Button';
+import { AppChip } from './ui/data-display/AppChip';
+import { AppDialog } from './ui/overlays/AppDialog';
 import { CategoryBadge } from './ui/Badge';
 import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../theme';
 
@@ -166,7 +168,7 @@ function formatStatDisplayValue(key: NumericItemStatKey, value: number): number 
 // ─── Stat comparison table ────────────────────────────────────────────────────
 function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKeys: NumericItemStatKey[]; lang: Lang }) {
   return (
-    <TableContainer component={Paper} variant="outlined">
+    <TableContainer component={Paper} sx={{ border: 1, borderColor: 'divider', overflowX: 'auto' }}>
       <Table
         size="small"
         aria-label={lang === 'fr' ? 'Comparaison des statistiques' : lang === 'de' ? 'Statistikvergleich' : 'Stats comparison'}
@@ -211,19 +213,20 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                   const delta = val - base;
                   const displayVal = formatStatDisplayValue(key, val);
                   const displayDelta = formatStatDisplayValue(key, delta);
+                  const improved = isLower ? delta < 0 : delta > 0;
+                  const stateLabel = delta === 0
+                    ? (lang === 'fr' ? 'Inchangé' : lang === 'de' ? 'Unverändert' : 'Unchanged')
+                    : improved
+                      ? (lang === 'fr' ? 'Amélioré' : lang === 'de' ? 'Verbessert' : 'Improved')
+                      : (lang === 'fr' ? 'Dégradé' : lang === 'de' ? 'Verschlechtert' : 'Degraded');
                   return (
                     <TableCell key={item.id} align="center">
-                      <Typography
-                        variant="body2"
-                        sx={{ fontFamily: FONT_MONO, fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
-                      >
-                        {displayVal}
+                      <Typography variant="body2" sx={{ fontFamily: FONT_MONO, fontWeight: isBest ? 700 : 400, fontSize: '.78rem' }}>
+                        {displayVal}{isBest ? <Box component="span" sx={{ display: 'block', fontFamily: FONT_HEADING, fontSize: TEXT_LABEL }}>{lang === 'fr' ? 'Meilleur' : lang === 'de' ? 'Bester Wert' : 'Best'}</Box> : null}
                       </Typography>
-                      {delta !== 0 && (
-                        <Typography variant="caption" sx={{ color: (isLower ? delta < 0 : delta > 0) ? 'success.main' : 'error.main', fontSize: TEXT_LABEL }}>
-                          {displayDelta > 0 ? '+' : ''}{displayDelta}
-                        </Typography>
-                      )}
+                      <Typography variant="caption" sx={{ color: delta === 0 ? 'text.secondary' : improved ? 'success.main' : 'error.main', fontSize: TEXT_LABEL }}>
+                        {delta === 0 ? stateLabel : `${improved ? '↑' : '↓'} ${stateLabel} ${displayDelta > 0 ? '+' : ''}${displayDelta}`}
+                      </Typography>
                     </TableCell>
                   );
                 })}
@@ -280,10 +283,8 @@ function ResourceSummary({ item, lang, blueprints }: { item: ComparisonItem; lan
           <ListItemText
             primary={entry.resourceName}
             secondary={summarizeAssignedQualities(entry.assignedQualityValues, entry.unassignedSlotCount, lang)}
-            slotProps={{
-              primary: { variant: 'body2', sx: { fontSize: '.75rem' } },
-              secondary: { variant: 'caption', sx: { fontSize: TEXT_LABEL } },
-            }}
+            primaryTypographyProps={{ variant: 'body2', sx: { fontSize: '.75rem' } }}
+            secondaryTypographyProps={{ variant: 'caption', sx: { fontSize: TEXT_LABEL } }}
           />
           <Typography variant="caption" sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, ml: 1, flexShrink: 0 }}>
             ×{entry.totalScu.toFixed(2)} SCU
@@ -312,60 +313,22 @@ export function ComparisonModal() {
   );
 
   return (
-    <Dialog
+    <AppDialog
       open={comparisonOpen}
-      onClose={closeComparison}
-      aria-labelledby="comparison-dialog-title"
-      maxWidth="lg"
-      fullWidth
-      slotProps={{
-        paper: {
-          sx: { maxHeight: '90vh' },
-        },
-      }}
+      onOpenChange={(open) => { if (!open) closeComparison(); }}
+      title={t('Compare', 'Comparer')}
+      description={`${comparisonItems.length} ${t('item', 'item')}${comparisonItems.length !== 1 ? 's' : ''} · ${t('max 4', 'max 4')}`}
+      closeLabel={t('Close comparison', 'Fermer la comparaison')}
+      width="min(72rem, calc(100vw - 2rem))"
+      partSx={{ root: { maxHeight: '90vh' }, content: { overflowY: 'auto', p: { xs: 1.5, sm: 2 } }, header: { alignItems: 'flex-start' } }}
     >
-      <DialogTitle
-        id="comparison-dialog-title"
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          pb: 1,
-        }}
-      >
-        <Box>
-          <Typography
-            variant="h6"
-            sx={{
-              fontFamily: FONT_HEADING,
-              fontWeight: 700,
-              fontSize: '1.3rem',
-            }}
-          >
-            {t('Compare', 'Comparer')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {comparisonItems.length} {t('item', 'item')}{comparisonItems.length !== 1 ? 's' : ''}
-            {' · '}{t('max 4', 'max 4')}
-          </Typography>
+      {comparisonItems.length > 0 && (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+          <Button variant="ghost" size="sm" onClick={clearComparison} sx={{ minHeight: 44 }}>
+            {t('Clear all', 'Tout effacer')}
+          </Button>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {comparisonItems.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearComparison}>
-              {t('Clear all', 'Tout effacer')}
-            </Button>
-          )}
-          <IconButton
-            onClick={closeComparison}
-            aria-label={t('Close comparison', 'Fermer la comparaison')}
-            size="small"
-          >
-            ✕
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent dividers>
+      )}
         {comparisonItems.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
             <Typography variant="h4" sx={{ mb: 1, opacity: 0.4 }}>◈</Typography>
@@ -376,7 +339,7 @@ export function ComparisonModal() {
             {/* Item chips */}
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 2 }}>
               {comparisonItems.map((item) => (
-                <Chip
+                <AppChip
                   key={item.id}
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -388,14 +351,14 @@ export function ComparisonModal() {
                       </Typography>
                     </Box>
                   }
-                  variant="outlined"
-                  onDelete={() => removeFromComparison(item.id)}
-                  deleteIcon={<span style={{ fontSize: '.7rem' }}>✕</span>}
-                  sx={{ borderColor: item.color }}
+                  outlined
+                  onRemove={() => removeFromComparison(item.id)}
+                  removeLabel={`${t('Remove', 'Retirer')} ${item.blueprintName}`}
+                  sx={{ borderColor: item.color, minHeight: 44 }}
                 />
               ))}
               {comparisonItems.length < 4 && (
-                <Chip
+                <AppChip
                   label={t('+ Add from Stats panel', '+ Ajouter depuis Stats')}
                   variant="outlined"
                   sx={{ borderStyle: 'dashed', color: 'text.secondary' }}
@@ -429,7 +392,7 @@ export function ComparisonModal() {
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${Math.min(comparisonItems.length, 2)}, 1fr)`, md: `repeat(${comparisonItems.length}, 1fr)` }, gap: 1.5 }}>
               {comparisonItems.map((item) => (
-                <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
+                <Paper key={item.id} component="article" sx={{ p: 1.5, border: 1, borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, pb: 0.75, borderBottom: 2, borderColor: item.color }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} aria-hidden="true" />
                     <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '.78rem' }}>{item.blueprintName}</Typography>
@@ -440,7 +403,6 @@ export function ComparisonModal() {
             </Box>
           </Box>
         )}
-      </DialogContent>
-    </Dialog>
+    </AppDialog>
   );
 }

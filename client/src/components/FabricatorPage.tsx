@@ -1,6 +1,6 @@
 import { Box, Divider, IconButton, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../ui/system';
-import { Autocomplete, Button, Checkbox, Chip, InputAdornment, LinearProgress, Menu, MenuItem, TextField } from '../ui/widgets';
-import { SearchIcon, CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, FlagOutlinedIcon, Inventory2OutlinedIcon, StarIcon, StarBorderIcon, PlaylistAddIcon, AddIcon, RemoveIcon } from '../ui/icons';
+import { AppProgressBar } from './ui/feedback';
+import { CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, FlagOutlinedIcon, Inventory2OutlinedIcon, StarIcon, StarBorderIcon, PlaylistAddIcon, AddIcon, RemoveIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -8,6 +8,10 @@ import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM } from '../theme';
 import { CraftSection, FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
 import { ResourceIcon } from './ui/ResourceIcon';
+import { AppAutocomplete, AppButton, AppCheckbox } from './ui/controls';
+import { AppOverlayPanel } from './ui/overlays';
+import { AppChip } from './ui/data-display/AppChip';
+import { PageHeader, PageLayout } from './ui/page';
 import { Panel } from './ui/Panel';
 import { PageStatCard } from './ui/PageStatCard';
 import { RarityBadge } from './ui/RarityBadge';
@@ -252,71 +256,75 @@ function MissionPickMenu({
   onToggle: (contractName: string) => void;
 }) {
   const { t } = useI18n();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const pickedSet = useMemo(() => new Set(picked), [picked]);
 
   return (
-    <>
-      <Button
-        variant="outlined"
-        size="small"
-        onClick={(event) => setAnchor(event.currentTarget)}
-        endIcon={<ExpandMoreIcon sx={{ fontSize: 15 }} />}
-        sx={{
-          width: '100%',
-          justifyContent: 'space-between',
-          px: 1,
-          py: 0.4,
-          fontSize: TEXT_LABEL,
-          fontWeight: 600,
-          color: picked.length > 0 ? 'primary.main' : 'text.secondary',
-          borderColor: picked.length > 0 ? 'primary.main' : 'ui.borderStrong',
-        }}
-      >
-        {picked.length > 0
-          ? `${picked.length}/${contracts.length} ${t('missions picked', 'missions choisies')}`
-          : `${contracts.length} ${t('missions to grind', 'missions de grind')}`}
-      </Button>
-      <Menu
-        anchorEl={anchor}
-        open={Boolean(anchor)}
-        onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { maxHeight: 380, width: 340 } } }}
-      >
+    <AppOverlayPanel
+      ariaLabel={t('Pick missions to grind', 'Choisir les missions a grind')}
+      partSx={{ content: { maxHeight: 380, width: 340, overflowY: 'auto', p: 0.5 } }}
+      trigger={
+        <AppButton
+          variant="secondary"
+          size="sm"
+          aria-expanded={false}
+          endIcon={<ExpandMoreIcon sx={{ fontSize: 15 }} />}
+          sx={{
+            width: '100%',
+            justifyContent: 'space-between',
+            px: 1,
+            py: 0.4,
+            fontSize: TEXT_LABEL,
+            fontWeight: 600,
+            color: picked.length > 0 ? 'primary.main' : 'text.secondary',
+            borderColor: picked.length > 0 ? 'primary.main' : 'ui.borderStrong',
+          }}
+        >
+          {picked.length > 0
+            ? `${picked.length}/${contracts.length} ${t('missions picked', 'missions choisies')}`
+            : `${contracts.length} ${t('missions to grind', 'missions de grind')}`}
+        </AppButton>
+      }
+    >
+      <Box component="ul" role="group" aria-label={t('Missions', 'Missions')} sx={{ listStyle: 'none', m: 0, p: 0 }}>
         {contracts.map((contract) => {
           const name = contract.contractDebugName ?? '';
           const rewardCount = contract.rewardedBlueprints?.length ?? 0;
           return (
-            <MenuItem
+            <Box
               key={name}
-              dense
-              onClick={() => onToggle(name)}
-              sx={{ alignItems: 'flex-start', py: 0.6, whiteSpace: 'normal' }}
+              component="li"
+              sx={{
+                px: 1,
+                py: 0.6,
+                borderRadius: 0.75,
+                '&:hover': { backgroundColor: 'ui.surface2' },
+              }}
             >
-              <Checkbox
-                size="small"
+              <AppCheckbox
                 checked={pickedSet.has(name)}
-                disableRipple
-                sx={{ p: 0, mr: 1, mt: 0.15 }}
+                onCheckedChange={() => onToggle(name)}
+                sx={{ width: '100%', alignItems: 'flex-start' }}
+                label={
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, lineHeight: 1.25 }}>
+                      {contractDisplayName(contract)}
+                    </Typography>
+                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', lineHeight: 1.3 }}>
+                      {missionSecondaryLine(contract)}
+                    </Typography>
+                    {rewardCount > 0 && (
+                      <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', lineHeight: 1.3 }}>
+                        {rewardCount} {t('blueprints in reward pool', 'blueprints dans le pool de récompense')}
+                      </Typography>
+                    )}
+                  </Box>
+                }
               />
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, lineHeight: 1.25 }}>
-                  {contractDisplayName(contract)}
-                </Typography>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled', lineHeight: 1.3 }}>
-                  {missionSecondaryLine(contract)}
-                </Typography>
-                {rewardCount > 0 && (
-                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.secondary', lineHeight: 1.3 }}>
-                    {rewardCount} {t('blueprints in reward pool', 'blueprints dans le pool de récompense')}
-                  </Typography>
-                )}
-              </Box>
-            </MenuItem>
+            </Box>
           );
         })}
-      </Menu>
-    </>
+      </Box>
+    </AppOverlayPanel>
   );
 }
 
@@ -421,10 +429,10 @@ function ReputationLane({
                     </Typography>
                   </Box>
                   {isNext && (
-                    <Chip
-                      size="small"
+                    <AppChip
+                      size="sm"
                       label={t('Next', 'Suivant')}
-                      sx={{ height: 17, fontSize: '0.625rem', fontWeight: 700, backgroundColor: alpha(magenta, 0.16), color: magenta, flexShrink: 0 }}
+                      sx={{ height: 20, fontSize: '0.625rem', fontWeight: 700, backgroundColor: alpha(magenta, 0.16), color: magenta, flexShrink: 0 }}
                     />
                   )}
                 </Box>
@@ -561,6 +569,7 @@ export function FabricatorPage() {
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
   const [lootableOnly, setLootableOnly] = useState(true);
+  const [blueprintQuery, setBlueprintQuery] = useState('');
 
   const lootableIds = useMemo(
     () => new Set((missionRewards?.blueprintAcquisitionGraph ?? []).map((e) => e.blueprint.id)),
@@ -569,10 +578,16 @@ export function FabricatorPage() {
 
   // Search list, restricted to mission-lootable blueprints while the toggle is
   // on (falls back to the full list until mission rewards are known).
-  const searchOptions = useMemo(
-    () => (lootableOnly && lootableIds.size > 0 ? blueprints.filter((bp) => lootableIds.has(bp.id)) : blueprints),
-    [blueprints, lootableOnly, lootableIds],
-  );
+  const searchOptions = useMemo(() => {
+    const available = lootableOnly && lootableIds.size > 0
+      ? blueprints.filter((bp) => lootableIds.has(bp.id))
+      : blueprints;
+    const query = blueprintQuery.trim().toLowerCase();
+    if (!query) return available;
+    return available.filter((bp) =>
+      [bp.name, bp.manufacturer, bp.category].filter(Boolean).join(' ').toLowerCase().includes(query),
+    );
+  }, [blueprints, blueprintQuery, lootableOnly, lootableIds]);
 
   // Default selection: last viewed blueprint, else the CQ7 Rifle.
   useEffect(() => {
@@ -711,128 +726,74 @@ export function FabricatorPage() {
     : null;
 
   return (
-    <Box sx={{ px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2 }, flex: 1, width: '100%', maxWidth: 1700, mx: 'auto' }}>
-      {/* Toolbar row: search + inline hero strip */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 1.5 }}>
-        <Autocomplete
-          options={searchOptions}
-          value={selected}
-          onChange={(_e, bp) => handleSelect(bp)}
-          getOptionLabel={(bp) => bp.name}
-          isOptionEqualToValue={(a, b) => a.id === b.id}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              placeholder={t('Search a blueprint…', 'Rechercher un blueprint…')}
-              InputProps={{
-                ...params.InputProps,
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          )}
-          renderOption={(props, bp) => {
-            const { key, ...rest } = props;
-            return (
-              <Box key={bp.id} component="li" {...rest} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start !important' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>{bp.name}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                  {[bp.manufacturer, bp.category].filter(Boolean).join(' / ')}
-                </Typography>
-              </Box>
-            );
-          }}
-          sx={{ width: { xs: '100%', sm: 340 }, '& .MuiInputBase-root': { height: 40 } }}
-        />
-
-        <Box
-          component="label"
-          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}
-          title={t('Only blueprints obtainable from missions', 'Seulement les blueprints obtenables via missions')}
-        >
-          <Checkbox
-            size="small"
-            checked={lootableOnly}
-            onChange={(_e, checked) => setLootableOnly(checked)}
-          />
-          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'text.disabled' }}>
-            {t('Lootable only', 'Lootable only')}
-          </Typography>
-        </Box>
-
-        {selected && (
-          <>
-            {heroImage && (
-              <Box
-                component="img"
-                src={heroImage}
-                alt={selected.name}
-                sx={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 1, border: `1px solid ${theme.palette.ui.border}`, flexShrink: 0 }}
-              />
-            )}
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1.0625rem', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {selected.name}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', lineHeight: 1.2 }}>
-                {selected.manufacturer}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-              {selected.rarity && <RarityBadge rarity={selected.rarity} />}
-              <Chip size="small" label={selected.category} sx={{ height: 20, fontSize: TEXT_LABEL_SM }} />
-            </Box>
-            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-              <IconButton
-                size="small"
-                aria-label={inInventory ? t('Remove from inventory', 'Retirer de l’inventaire') : t('Add to inventory', 'Ajouter à l’inventaire')}
-                title={inInventory ? t('Remove from inventory', 'Retirer de l’inventaire') : t('Add to inventory', 'Ajouter à l’inventaire')}
-                onClick={() => toggleInventory(selected.id)}
-                sx={{ color: inInventory ? 'primary.main' : 'text.secondary' }}
-              >
-                <Inventory2OutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-              <IconButton
-                size="small"
-                aria-label={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')}
-                title={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')}
-                onClick={() => toggleFavorite(selected.id)}
-                sx={{ color: isFavorite ? theme.palette.warning.main : 'text.secondary' }}
-              >
-                {isFavorite ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
-              </IconButton>
-
-              {/* Quantity stepper feeding the planner goal and material totals */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, border: `1px solid ${theme.palette.ui.border}`, borderRadius: 0.75, px: 0.5, height: 30 }}>
-                <IconButton size="small" aria-label={t('Decrease quantity', 'Réduire la quantité')} onClick={() => setQty((q) => Math.max(1, q - 1))} sx={{ p: 0.25 }}>
-                  <RemoveIcon sx={{ fontSize: 11 }} />
-                </IconButton>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, minWidth: 22, textAlign: 'center' }}>
-                  ×{qty}
-                </Typography>
-                <IconButton size="small" aria-label={t('Increase quantity', 'Augmenter la quantité')} onClick={() => setQty((q) => Math.min(99, q + 1))} sx={{ p: 0.25 }}>
-                  <AddIcon sx={{ fontSize: 11 }} />
-                </IconButton>
-              </Box>
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<PlaylistAddIcon sx={{ fontSize: 14 }} />}
-                onClick={() => addGoal(qualityScore, projectedStats, qty, selected, slotAssignments)}
-              >
-                {t('Planner', 'Planner')}
-              </Button>
-            </Box>
-          </>
+    <PageLayout width="full" component="main" sx={{ maxWidth: 1700, gap: 1.5, py: { xs: 1.5, md: 2 }, px: { xs: 1.5, md: 2 } }}>
+      <PageHeader
+        variant="compact"
+        eyebrow={t('Fabricator', 'Fabricator')}
+        title={selected?.name ?? t('Select a blueprint', 'Sélectionnez un blueprint')}
+        description={selected ? [selected.manufacturer, selected.category].filter(Boolean).join(' · ') : t(
+          'Pick a blueprint to simulate its craft and see the reputation path to unlock it.',
+          'Choisis un blueprint pour simuler son craft et voir le chemin de réputation pour le débloquer.',
         )}
+        meta={selected ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+            {heroImage && <Box component="img" src={heroImage} alt="" sx={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 1, border: `1px solid ${theme.palette.ui.border}` }} />}
+            {selected.rarity && <RarityBadge rarity={selected.rarity} />}
+            <AppChip size="sm" label={selected.category} />
+          </Box>
+        ) : undefined}
+        actions={selected ? (
+          <>
+            <IconButton size="small" aria-label={inInventory ? t('Remove from inventory', 'Retirer de l’inventaire') : t('Add to inventory', 'Ajouter à l’inventaire')} onClick={() => toggleInventory(selected.id)} sx={{ color: inInventory ? 'primary.main' : 'text.secondary', minWidth: 44, minHeight: 44 }}>
+              <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            <IconButton size="small" aria-label={isFavorite ? t('Remove favourite', 'Retirer des favoris') : t('Favourite', 'Favori')} onClick={() => toggleFavorite(selected.id)} sx={{ color: isFavorite ? theme.palette.warning.main : 'text.secondary', minWidth: 44, minHeight: 44 }}>
+              {isFavorite ? <StarIcon sx={{ fontSize: 18 }} /> : <StarBorderIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+            <Box role="group" aria-label={t('Craft quantity', 'Quantité à fabriquer')} sx={{ display: 'flex', alignItems: 'center', border: `1px solid ${theme.palette.ui.border}`, borderRadius: 0.75 }}>
+              <IconButton size="small" aria-label={t('Decrease quantity', 'Réduire la quantité')} onClick={() => setQty((q) => Math.max(1, q - 1))} sx={{ minWidth: 44, minHeight: 44 }}><RemoveIcon sx={{ fontSize: 14 }} /></IconButton>
+              <Typography aria-live="polite" sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>×{qty}</Typography>
+              <IconButton size="small" aria-label={t('Increase quantity', 'Augmenter la quantité')} onClick={() => setQty((q) => Math.min(99, q + 1))} sx={{ minWidth: 44, minHeight: 44 }}><AddIcon sx={{ fontSize: 14 }} /></IconButton>
+            </Box>
+            <AppButton variant="primary" size="sm" startIcon={<PlaylistAddIcon sx={{ fontSize: 14 }} />} onClick={() => addGoal(qualityScore, projectedStats, qty, selected, slotAssignments)} sx={{ minHeight: 44 }}>
+              {t('Planner', 'Planner')}
+            </AppButton>
+          </>
+        ) : undefined}
+      />
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <AppAutocomplete
+          value={selected}
+          suggestions={searchOptions}
+          onValueChange={(value) => {
+            if (value && typeof value === 'object') handleSelect(value);
+          }}
+          onQueryChange={setBlueprintQuery}
+          getOptionLabel={(bp) => `${bp.name} — ${[bp.manufacturer, bp.category].filter(Boolean).join(' · ')}`}
+          selectedItemTemplate={(bp) => bp.name}
+          itemTemplate={(bp) => (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{bp.name}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>{[bp.manufacturer, bp.category].filter(Boolean).join(' / ')}</Typography>
+            </Box>
+          )}
+          forceSelection
+          placeholder={t('Search a blueprint…', 'Rechercher un blueprint…')}
+          ariaLabel={t('Search blueprints', 'Rechercher des blueprints')}
+          sx={{ width: { xs: '100%', sm: 380 }, minHeight: 44 }}
+        />
+        <AppCheckbox
+          label={<Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'text.secondary' }}>{t('Lootable only', 'Lootable only')}</Typography>}
+          checked={lootableOnly}
+          onCheckedChange={setLootableOnly}
+          description={t('Only blueprints obtainable from missions', 'Seulement les blueprints obtenables via missions')}
+        />
       </Box>
 
       {missionRewardsLoading && !missionRewards && !selected && (
         <Box sx={{ maxWidth: 640 }}>
-          <LinearProgress sx={{ mb: 1.5 }} />
+          <AppProgressBar sx={{ mb: 1.5 }} />
           <Skeleton variant="rectangular" height={120} />
         </Box>
       )}
@@ -840,15 +801,6 @@ export function FabricatorPage() {
       {/* Empty state: pitch + suggestions */}
       {!selected && (
         <Box sx={{ maxWidth: 900 }}>
-          <Typography variant="h5" sx={{ mb: 0.5 }}>
-            {t('Fabricator', 'Fabricator')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            {t(
-              'Pick a blueprint to simulate its craft and see the reputation path to unlock it.',
-              'Choisis un blueprint pour simuler son craft et voir le chemin de réputation pour le débloquer.',
-            )}
-          </Typography>
           {missionRewards && (
             <>
               <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
@@ -1072,7 +1024,7 @@ export function FabricatorPage() {
           </Box>
         </>
       )}
-    </Box>
+    </PageLayout>
   );
 }
 

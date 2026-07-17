@@ -1,5 +1,5 @@
 import { Box, Typography, Paper } from '../ui/system';
-import { Button } from '../ui/widgets';
+import { AppButton } from './ui/controls';
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { FONT_HEADING } from '../theme';
 
@@ -70,13 +70,13 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               {this.state.error.message}
             </Typography>
-            <Button
-              variant="contained"
-              color="error"
+            <AppButton
+              variant="danger"
               onClick={() => this.setState({ error: null })}
+              sx={{ minHeight: 44 }}
             >
               Retry
-            </Button>
+            </AppButton>
           </Paper>
         </Box>
       );

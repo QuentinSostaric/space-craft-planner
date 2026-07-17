@@ -1,5 +1,7 @@
 import { Box, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
-import { Alert, Avatar, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle } from '../../ui/widgets';
+import { Avatar } from '../ui/primitives';
+import { AppAlert } from '../ui/feedback';
+import { AppDialog } from '../ui/overlays';
 import { ShareOutlinedIcon, DeleteOutlineOutlinedIcon } from '../../ui/icons';
 import { useMemo, useState } from 'react';
 import type { Resource } from '../../types';
@@ -10,6 +12,9 @@ import { formatQualityLabel, formatResourceQuantity } from '../../utils/crafting
 import { ResourceIcon } from '../ui/ResourceIcon';
 import { Button } from '../ui/Button';
 import { FONT_HEADING } from '../../theme';
+import { AppCheckbox } from '../ui/controls/AppCheckbox';
+import { SurfaceState } from '../ui/feedback/SurfaceState';
+import { AppChip } from '../ui/data-display/AppChip';
 
 interface ResourceInventoryPanelProps {
   account: StoredAccount;
@@ -172,58 +177,45 @@ export function ResourceInventoryPanel({
             </Box>
 
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              <Chip
+              <AppChip
                 label={t(
                   `${inventoryResources.length} stored entries`,
                   `${inventoryResources.length} entrees stockees`,
                   `${inventoryResources.length} gespeicherte Eintrage`,
                 )}
-                size="small"
+                size="sm"
               />
-              <Chip
+              <AppChip
                 label={t(
                   `${sharedResourceEntryIdSet.size} shared entries`,
                   `${sharedResourceEntryIdSet.size} entrees partagees`,
                   `${sharedResourceEntryIdSet.size} geteilte Eintrage`,
                 )}
-                size="small"
-                variant="outlined"
+                size="sm"
+                outlined
               />
             </Stack>
           </Stack>
 
           {resourceError && (
-            <Alert severity="error" variant="outlined">
+            <AppAlert severity="error">
               {resourceError}
-            </Alert>
+            </AppAlert>
           )}
 
           {inventoryResources.length === 0 ? (
-            <Box
-              sx={{
-                py: { xs: 4, md: 5 },
-                px: 2,
-                textAlign: 'center',
-                borderRadius: 2,
-                border: `1px dashed ${theme.palette.divider}`,
-                backgroundColor: alpha(theme.palette.background.default, 0.3),
-              }}
-            >
-              <Typography variant="h6" sx={{ mb: 0.75 }}>
-                {t(
-                  'No resources stored yet',
-                  'Aucune ressource stockee pour le moment',
-                  'Noch keine Ressourcen gespeichert',
-                )}
-              </Typography>
-              <Typography sx={{ color: 'text.secondary', maxWidth: 560, mx: 'auto' }}>
-                {t(
-                  'Use Add to inventory on any resource card to create one or more entries with quantity and quality.',
-                  'Utilise Ajouter a l inventaire sur une carte ressource pour creer une ou plusieurs entrees avec quantite et qualite.',
-                  'Nutze Auf Karte zum Inventar hinzufugen, um einen oder mehrere Eintrage mit Menge und Qualitat zu erstellen.',
-                )}
-              </Typography>
-            </Box>
+            <SurfaceState
+              title={t(
+                'No resources stored yet',
+                'Aucune ressource stockee pour le moment',
+                'Noch keine Ressourcen gespeichert',
+              )}
+              description={t(
+                'Use Add to inventory on any resource card to create one or more entries with quantity and quality.',
+                'Utilise Ajouter a l inventaire sur une carte ressource pour creer une ou plusieurs entrees avec quantite et qualite.',
+                'Nutze Auf Karte zum Inventar hinzufugen, um einen oder mehrere Eintrage mit Menge und Qualitat zu erstellen.',
+              )}
+            />
           ) : (
             <Box
               sx={{
@@ -284,17 +276,17 @@ export function ResourceInventoryPanel({
                       </Stack>
 
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip
-                          size="small"
+                        <AppChip
+                          size="sm"
                           label={
                             resourceEntry.quality == null
                               ? t('No quality', 'Sans qualite', 'Ohne Qualitat')
                               : formatQualityLabel(resourceEntry.quality, lang)
                           }
-                          variant={resourceEntry.quality == null ? 'outlined' : 'filled'}
+                          outlined={resourceEntry.quality == null}
                         />
-                        <Chip
-                          size="small"
+                        <AppChip
+                          size="sm"
                           label={
                             isShared
                               ? t(
@@ -304,8 +296,8 @@ export function ResourceInventoryPanel({
                                 )
                               : t('Private entry', 'Entree privee', 'Privater Eintrag')
                           }
-                          color={isShared ? 'primary' : 'default'}
-                          variant={isShared ? 'filled' : 'outlined'}
+                          tone={isShared ? 'primary' : 'default'}
+                          outlined={!isShared}
                         />
                       </Stack>
 
@@ -346,20 +338,38 @@ export function ResourceInventoryPanel({
         </Stack>
       </Paper>
 
-      <Dialog
+      <AppDialog
         open={Boolean(shareDialogEntry)}
-        onClose={closeShareDialog}
-        fullWidth
-        maxWidth="sm"
+        onOpenChange={(open) => { if (!open) closeShareDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={t(
+          'Share resource entry with organizations',
+          'Partager cette entree de ressource avec des organisations',
+          'Ressourceneintrag mit Organisationen teilen',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeShareDialog}
+              disabled={Boolean(actionEntryId)}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                void handleSaveResourceShares();
+              }}
+              disabled={Boolean(actionEntryId) || linkedOrganizations.length === 0}
+            >
+              {actionEntryId === shareDialogEntryId
+                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle>
-          {t(
-            'Share resource entry with organizations',
-            'Partager cette entree de ressource avec des organisations',
-            'Ressourceneintrag mit Organisationen teilen',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {shareDialogEntry
@@ -376,13 +386,13 @@ export function ResourceInventoryPanel({
             </Typography>
 
             {linkedOrganizations.length === 0 ? (
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   'Link at least one organization on this account before sharing resources.',
                   'Lie au moins une organisation a ce compte avant de partager des ressources.',
                   'Verknupfe mindestens eine Organisation mit diesem Konto, bevor du Ressourcen teilst.',
                 )}
-              </Alert>
+              </AppAlert>
             ) : (
               <Stack spacing={1}>
                 {linkedOrganizations.map((organization) => {
@@ -400,22 +410,18 @@ export function ResourceInventoryPanel({
                       }}
                     >
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Checkbox
+                        <AppCheckbox
                           checked={checked}
-                          onChange={() =>
+                          onCheckedChange={() =>
                             setShareDialogSelection((currentSelection) =>
                               checked
                                 ? currentSelection.filter((sid) => sid !== organization.sid)
                                 : [...currentSelection, organization.sid],
                             )
                           }
+                          label={organization.name}
+                          description={organization.sid}
                         />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography sx={{ fontWeight: 700 }}>{organization.name}</Typography>
-                          <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>
-                            {organization.sid}
-                          </Typography>
-                        </Box>
                       </Stack>
                     </Paper>
                   );
@@ -423,28 +429,7 @@ export function ResourceInventoryPanel({
               </Stack>
             )}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeShareDialog}
-            disabled={Boolean(actionEntryId)}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void handleSaveResourceShares();
-            }}
-            disabled={Boolean(actionEntryId) || linkedOrganizations.length === 0}
-          >
-            {actionEntryId === shareDialogEntryId
-              ? t('Saving...', 'Enregistrement...', 'Speichere...')
-              : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
     </>
   );
 }

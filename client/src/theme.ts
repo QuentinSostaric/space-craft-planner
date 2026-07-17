@@ -30,6 +30,31 @@ export function installGlobalStyles(theme: Theme) {
   injectGlobalCss(`
     *, *::before, *::after { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
+    .if-skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 2000;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: ${p.primary.main};
+      color: ${p.primary.contrastText};
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .if-skip-link:focus { transform: translateY(0); }
+    .if-visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
     body {
       margin: 0;
       font-size: 14.5px;
@@ -55,6 +80,22 @@ export function installGlobalStyles(theme: Theme) {
       100% { box-shadow: 0 0 0 6px transparent; }
     }
     .if-appear { animation: if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both; }
+    @media (pointer: coarse) {
+      button, [role='button'], a[data-touch-target='true'] {
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+      .if-appear { animation: none !important; }
+    }
   `);
   injectGlobalCss(`
     html[data-theme='${theme.mode}'] ::selection { background: ${alphaColor(p.primary.main, 0.25)}; }

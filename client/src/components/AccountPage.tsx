@@ -1,7 +1,8 @@
-﻿import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Divider, IconButton, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
-import { Alert, Avatar, Badge, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, LinearProgress, Link, Button as MuiButton, MenuItem, Rating, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, ToggleButton, Tooltip, Switch } from '../ui/widgets';
-import { AddCircleOutlineOutlinedIcon, DeleteOutlineOutlinedIcon, GroupsIcon, GroupsOutlinedIcon, InfoOutlinedIcon, LogoutOutlinedIcon, RefreshOutlinedIcon, SearchOutlinedIcon, FiberManualRecordIcon, AddOutlinedIcon, DeleteOutlineIcon, FolderOpenOutlinedIcon } from '../ui/icons';
+﻿import { startTransition, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Avatar, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from './ui/primitives';
+import { AppDialog, AppTooltip } from './ui/overlays';
+import { AddCircleOutlineOutlinedIcon, DeleteOutlineOutlinedIcon, GroupsIcon, GroupsOutlinedIcon, LogoutOutlinedIcon, RefreshOutlinedIcon, SearchOutlinedIcon, FiberManualRecordIcon, AddOutlinedIcon, DeleteOutlineIcon, FolderOpenOutlinedIcon } from '../ui/icons';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import discordSymbol from '../assets/discord-symbol.svg';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
@@ -38,6 +39,12 @@ import { trackEvent } from '../analytics/posthog';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { SyncBlueprintsButton } from './ScLogSyncDialog';
 import { CitizenIdIcon, CitizenIdSignInButton } from './CitizenIdBrand';
+import { AppButton, AppCheckbox, AppRating, AppSelect, AppSwitch, AppTextField } from './ui/controls';
+import { PageHeader } from './ui/page/PageHeader';
+import { PageLayout } from './ui/page/PageLayout';
+import { SurfaceState } from './ui/feedback/SurfaceState';
+import { AppAlert, AppProgressBar } from './ui/feedback';
+import { AppChip } from './ui/data-display/AppChip';
 
 function readAuthError(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -48,6 +55,8 @@ const RSI_VERIFICATION_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACCOUNT_BLUEPRINT_BATCH_SIZE = 24;
 const RESOURCE_BATCH_SCU_STEP = 0.000001;
 const ALL_RESOURCES_SHARE_OPTION = '__all__';
+
+type AccountTab = 'overview' | 'inventory' | 'requests' | 'orgs' | 'settings';
 
 type AccountAssetFilter =
   | 'all'
@@ -116,6 +125,31 @@ function formatAbsoluteDate(value: string | null | undefined): string | null {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(timestamp));
+}
+
+function handleAccountTabKeyDown(
+  event: ReactKeyboardEvent<HTMLButtonElement>,
+  activeId: AccountTab,
+  onChange: (id: AccountTab) => void,
+) {
+  const tabIds: readonly AccountTab[] = ['overview', 'inventory', 'requests', 'orgs', 'settings'];
+  const currentIndex = tabIds.indexOf(activeId);
+  let nextIndex = currentIndex;
+
+  if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabIds.length;
+  else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+  else if (event.key === 'Home') nextIndex = 0;
+  else if (event.key === 'End') nextIndex = tabIds.length - 1;
+  else return;
+
+  event.preventDefault();
+  const nextId = tabIds[nextIndex];
+  onChange(nextId);
+  requestAnimationFrame(() => {
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-tab-id="${nextId}"]`)
+      ?.focus();
+  });
 }
 
 function normalizeOrganizationSidInput(value: string): string {
@@ -262,7 +296,7 @@ export function AccountPage() {
     readLocalAccountCollections(),
   );
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'requests' | 'orgs' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<AccountTab>('overview');
 
   // Custom SC installation paths (settings tab)
   const [customPaths, setCustomPaths] = useState<Array<{ id: string; label: string; path: string }>>(() => {
@@ -1657,26 +1691,29 @@ export function AccountPage() {
 
   if (loading) {
     return (
-      <Box sx={{ p: { xs: 1.5, md: 3 }, flex: 1 }}>
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography variant="h4" sx={{ mb: 1 }}>
-            {t('Account', 'Compte', 'Konto')}
-          </Typography>
-          <Typography sx={{ color: 'text.secondary' }}>
-            {t('Loading account session...', 'Chargement de la session compte...', 'Kontositzung wird geladen...')}
-          </Typography>
-        </Paper>
-      </Box>
+      <PageLayout>
+        <PageHeader title={t('Account', 'Compte', 'Konto')} />
+        <SurfaceState
+          tone="loading"
+          title={t('Loading account session...', 'Chargement de la session compte...', 'Kontositzung wird geladen...')}
+        />
+      </PageLayout>
     );
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
+    <PageLayout>
+      <PageHeader
+        title={t('Account', 'Compte', 'Konto')}
+        description={user
+          ? t('Manage your identity, saved assets, organizations and craft requests.', 'Gere ton identite, tes actifs sauvegardes, tes organisations et tes demandes de craft.', 'Verwalte deine Identitat, gespeicherten Assets, Organisationen und Craft-Anfragen.')
+          : t('Sign in to synchronize your crafting workspace across devices.', 'Connecte-toi pour synchroniser ton espace de craft entre tes appareils.', 'Melde dich an, um deinen Crafting-Arbeitsbereich gerateubergreifend zu synchronisieren.')}
+      />
 
       {urlAuthError && (
-        <Alert severity="error" variant="outlined">
+        <AppAlert severity="error">
           {t('Authentication failed.', 'Echec de l\'authentification.', 'Authentifizierung ist fehlgeschlagen.')} {urlAuthError}
-        </Alert>
+        </AppAlert>
       )}
 
       {user ? (
@@ -1734,18 +1771,18 @@ export function AccountPage() {
                   sx={{ mt: 0.75 }}
                 >
                   {account?.rsi?.handle && (
-                    <Chip
+                    <AppChip
                       label={`RSI — ${account.rsi.handle}`}
-                      size="small"
-                      color="success"
-                      variant="outlined"
+                      size="sm"
+                      tone="success"
+                      outlined
                       sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}
                     />
                   )}
-                  <Chip
+                  <AppChip
                     label={t('Discord linked', 'Discord lié', 'Discord verknüpft')}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                     sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}
                   />
                   {account?.createdAt && (
@@ -1781,43 +1818,58 @@ export function AccountPage() {
               </Stack>
             </Box>
 
-            {/* Tabs */}
             <Divider />
-            <Tabs
-              value={activeTab}
-              onChange={(_event, value: typeof activeTab) => setActiveTab(value)}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                px: { xs: 1, md: 2 },
-                minHeight: 46,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              }}
+            <Box
+              role="tablist"
+              aria-label={t('Account sections', 'Sections du compte', 'Kontobereiche')}
+              sx={{ display: 'flex', gap: 0.75, px: { xs: 1, md: 2 }, py: 1, overflowX: 'auto' }}
             >
-              <Tab value="overview" label={t('Overview', 'Aperçu', 'Übersicht')} />
-              <Tab value="inventory" label={t('Inventory', 'Inventaire', 'Inventar')} />
-              <Tab
-                value="requests"
-                label={
-                  <Badge
-                    badgeContent={pendingCraftRequestCount}
-                    color="error"
-                    max={99}
-                    sx={{ '& .MuiBadge-badge': { right: -10, top: 0 } }}
-                  >
-                    {t('Craft requests', 'Craft requests', 'Craft-Anfragen')}
-                  </Badge>
-                }
-              />
-              <Tab value="orgs" label={t('My orgs', 'Mes orgs', 'Meine Orgs')} />
-              <Tab value="settings" label={t('Settings', 'Paramètres', 'Einstellungen')} />
-            </Tabs>
+              {([
+                ['overview', t('Overview', 'Aperçu', 'Übersicht')],
+                ['inventory', t('Inventory', 'Inventaire', 'Inventar')],
+                ['requests', pendingCraftRequestCount > 0
+                  ? t(`Craft requests (${pendingCraftRequestCount})`, `Demandes de craft (${pendingCraftRequestCount})`, `Craft-Anfragen (${pendingCraftRequestCount})`)
+                  : t('Craft requests', 'Demandes de craft', 'Craft-Anfragen')],
+                ['orgs', t('My orgs', 'Mes orgs', 'Meine Orgs')],
+                ['settings', t('Settings', 'Paramètres', 'Einstellungen')],
+              ] as const).map(([value, label]) => (
+                <Box
+                  component="button"
+                  type="button"
+                  key={value}
+                  role="tab"
+                  id={`account-tab-${value}`}
+                  data-tab-id={value}
+                  aria-label={label}
+                  aria-selected={activeTab === value}
+                  aria-controls={`account-tabpanel-${value}`}
+                  tabIndex={activeTab === value ? 0 : -1}
+                  onClick={() => setActiveTab(value)}
+                  onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) =>
+                    handleAccountTabKeyDown(event, activeTab, setActiveTab)}
+                  sx={{
+                    minHeight: 44,
+                    px: 1.5,
+                    whiteSpace: 'nowrap',
+                    borderRadius: 1,
+                    border: `1px solid ${activeTab === value ? theme.palette.primary.main : theme.palette.divider}`,
+                    backgroundColor: activeTab === value ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                    color: activeTab === value ? 'text.primary' : 'text.secondary',
+                    font: 'inherit',
+                    cursor: 'pointer',
+                    '&:hover': { color: 'text.primary', borderColor: 'primary.main' },
+                  }}
+                >
+                  {label}
+                </Box>
+              ))}
+            </Box>
           </Paper>
 
           {(desktopAuthError || syncError) && (
-            <Alert severity="error" variant="outlined">
+            <AppAlert severity="error">
               {desktopAuthError || syncError}
-            </Alert>
+            </AppAlert>
           )}
 
           {account && !account.onboardingCompletedAt && (
@@ -1840,24 +1892,24 @@ export function AccountPage() {
                     {t('Setup checklist', 'Checklist de configuration', 'Einrichtungs-Checkliste')}
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
-                    <Chip
-                      size="small"
-                      color="success"
-                      variant="outlined"
+                    <AppChip
+                      size="sm"
+                      tone="success"
+                      outlined
                       label={t('Discord linked', 'Discord lie', 'Discord verknuepft')}
                     />
-                    <Chip
-                      size="small"
-                      color={account.rsi?.handle ? 'success' : 'default'}
-                      variant={account.rsi?.handle ? 'outlined' : 'filled'}
+                    <AppChip
+                      size="sm"
+                      tone={account.rsi?.handle ? 'success' : 'default'}
+                      outlined={Boolean(account.rsi?.handle)}
                       label={account.rsi?.handle
                         ? t('RSI linked', 'RSI lie', 'RSI verknuepft')
                         : t('Link RSI', 'Lier RSI', 'RSI verknuepfen')}
                     />
-                    <Chip
-                      size="small"
-                      color={isDesktop ? 'success' : 'default'}
-                      variant={isDesktop ? 'outlined' : 'filled'}
+                    <AppChip
+                      size="sm"
+                      tone={isDesktop ? 'success' : 'default'}
+                      outlined={isDesktop}
                       label={isDesktop
                         ? t('Desktop app active', 'App desktop active', 'Desktop-App aktiv')
                         : t('Desktop app available', 'App desktop disponible', 'Desktop-App verfuegbar')}
@@ -1869,46 +1921,46 @@ export function AccountPage() {
                   {!account.rsi?.handle && (
                     citizenIdRsiLinkEnabled ? (
                       <CitizenIdSignInButton
-                        size="small"
+                        size="sm"
                         environment={citizenIdBrandEnvironment}
                         onClick={handleStartRsiLink}
                         disabled={rsiAction.busy}
                       />
                     ) : (
-                      <MuiButton
-                        size="small"
-                        variant="contained"
+                      <AppButton
+                        size="sm"
+                        variant="primary"
                         onClick={handleStartRsiLink}
                         disabled={rsiAction.busy}
                       >
                         {t('Link RSI', 'Lier RSI', 'RSI verknuepfen')}
-                      </MuiButton>
+                      </AppButton>
                     )
                   )}
                   {!isDesktop && (
-                    <MuiButton
-                      size="small"
-                      variant="outlined"
-                      component="a"
+                    <Link
                       href="/api/desktop/latest-installer"
+                      underline="hover"
+                      data-touch-target="true"
+                      sx={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, px: 1 }}
                     >
                       {t('Download app', 'Telecharger l app', 'App herunterladen')}
-                    </MuiButton>
+                    </Link>
                   )}
-                  <MuiButton
-                    size="small"
-                    variant="outlined"
+                  <AppButton
+                    size="sm"
+                    variant="secondary"
                     onClick={handleCompleteOnboarding}
                     disabled={onboardingAction.busy || !account.rsi?.handle}
                   >
                     {t('Mark done', 'Marquer termine', 'Als erledigt markieren')}
-                  </MuiButton>
+                  </AppButton>
                 </Stack>
               </Stack>
               {onboardingAction.error && (
-                <Alert severity="error" variant="outlined" sx={{ mt: 1.5 }}>
+                <AppAlert severity="error" sx={{ mt: 1.5 }}>
                   {onboardingAction.error}
-                </Alert>
+                </AppAlert>
               )}
             </Paper>
           )}
@@ -1916,6 +1968,9 @@ export function AccountPage() {
           {/* ── Overview Tab ── */}
           {activeTab === 'overview' && (
             <Box
+              role="tabpanel"
+              id="account-tabpanel-overview"
+              aria-labelledby="account-tab-overview"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 1fr) minmax(0, 2fr)' },
@@ -1938,15 +1993,12 @@ export function AccountPage() {
                         / {missionRewards ? totalObtainableBlueprintCount : '--'}
                       </Typography>
                     </Stack>
-                    <LinearProgress
-                      variant="determinate"
+                    <AppProgressBar
                       value={blueprintProgress}
-                      aria-label={t('Blueprint collection progress', 'Progression de la collection de blueprints', 'Fortschritt der Blueprint-Sammlung')}
+                      label={t('Blueprint collection progress', 'Progression de la collection de blueprints', 'Fortschritt der Blueprint-Sammlung')}
                       sx={{
                         height: 8,
-                        borderRadius: 999,
                         backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                        '& .MuiLinearProgress-bar': { borderRadius: 999 },
                       }}
                     />
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -2031,7 +2083,7 @@ export function AccountPage() {
                           {user.discriminator && user.discriminator !== '0' ? `#${user.discriminator}` : ''}
                         </Typography>
                       </Box>
-                      <Chip label={t('Linked', 'Lié', 'Verknüpft')} size="small" color="success" variant="outlined" />
+                      <AppChip label={t('Linked', 'Lié', 'Verknüpft')} size="sm" tone="success" outlined />
                     </Paper>
 
                     <Paper
@@ -2058,23 +2110,16 @@ export function AccountPage() {
                               {`${account.rsi.handle} · ${t('verified', 'vérifié', 'verifiziert')}`}
                             </Typography>
                             {account.rsi.verificationProvider === 'citizenid' && (
-                              <Chip
-                                size="small"
-                                variant="outlined"
+                              <AppChip
+                                size="sm"
+                                outlined
                                 icon={<CitizenIdIcon environment={citizenIdBrandEnvironment} size={14} variant="light" />}
                                 label="via Citizen iD"
                                 sx={{
                                   height: 20,
                                   borderColor: 'rgba(240, 240, 240, 0.22)',
                                   color: 'text.secondary',
-                                  '& .MuiChip-label': {
-                                    px: 0.75,
-                                    fontSize: TEXT_LABEL_SM,
-                                    lineHeight: 1,
-                                  },
-                                  '& .MuiChip-icon': {
-                                    ml: 0.5,
-                                  },
+                                  fontSize: TEXT_LABEL_SM,
                                 }}
                               />
                             )}
@@ -2097,17 +2142,17 @@ export function AccountPage() {
                       ) : (
                         citizenIdRsiLinkEnabled ? (
                           <CitizenIdSignInButton
-                            size="small"
+                            size="sm"
                             environment={citizenIdBrandEnvironment}
                             onClick={handleStartRsiLink}
                             sx={{ justifySelf: 'end', whiteSpace: 'nowrap' }}
                           />
                         ) : (
-                          <MuiButton
-                            size="small"
-                            variant="outlined"
+                          <AppButton
+                            size="sm"
+                            variant="secondary"
                             onClick={handleStartRsiLink}
-                            startIcon={(
+                            icon={(
                               <Box
                                 component="img"
                                 src={rsiLogoOfficial}
@@ -2121,16 +2166,16 @@ export function AccountPage() {
                             }}
                           >
                             {t('Manual RSI link', 'Lien RSI manuel', 'Manuelle RSI-Verknupfung')}
-                          </MuiButton>
+                          </AppButton>
                         )
                       )}
                     </Paper>
                   </Stack>
 
                   {rsiUnlinkAction.error && (
-                    <Alert severity="error" variant="outlined">
+                    <AppAlert severity="error">
                       {rsiUnlinkAction.error}
-                    </Alert>
+                    </AppAlert>
                   )}
                 </Stack>
               </Paper>
@@ -2139,7 +2184,10 @@ export function AccountPage() {
 
           {/* ── Inventory Tab ── */}
           {activeTab === 'inventory' && (
-            <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
+            <Paper
+              role="tabpanel"
+              id="account-tabpanel-inventory"
+              aria-labelledby="account-tab-inventory" variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
               <Stack spacing={2}>
                 <Stack
                   direction={{ xs: 'column', md: 'row' }}
@@ -2171,41 +2219,31 @@ export function AccountPage() {
                     spacing={1}
                     sx={{ width: { xs: '100%', md: 'auto' }, alignSelf: { xs: 'stretch', md: 'center' } }}
                   >
-                    <TextField
-                      size="small"
-                      label={t('Search assets', 'Rechercher des actifs', 'Assets suchen')}
-                      value={assetSearch}
-                      onChange={(event) => setAssetSearch(event.target.value)}
-                      sx={{ minWidth: { xs: '100%', sm: 240 } }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchOutlinedIcon fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    <TextField
-                      select
-                      size="small"
+                    <Box sx={{ position: 'relative', minWidth: { xs: '100%', sm: 240 } }}>
+                      <SearchOutlinedIcon
+                        aria-hidden="true"
+                        sx={{ position: 'absolute', left: 12, bottom: 10, zIndex: 1, color: 'text.secondary' }}
+                      />
+                      <AppTextField
+                        label={t('Search assets', 'Rechercher des actifs', 'Assets suchen')}
+                        type="search"
+                        value={assetSearch}
+                        onValueChange={setAssetSearch}
+                        sx={{ pl: 4.5 }}
+                      />
+                    </Box>
+                    <AppSelect
                       label={t('Filter', 'Filtre', 'Filter')}
                       value={assetFilter}
-                      onChange={(event) => setAssetFilter(event.target.value as AccountAssetFilter)}
-                      sx={{ minWidth: { xs: '100%', sm: 220 } }}
-                    >
-                      <MenuItem value="all">
-                        {t('All assets', 'Tous les actifs', 'Alle Assets')}
-                      </MenuItem>
-                      <MenuItem value="inventory-blueprints">
-                        {t('Inventory blueprints', 'Blueprints inventaire', 'Inventar-Blueprints')}
-                      </MenuItem>
-                      <MenuItem value="favorite-blueprints">
-                        {t('Favorite blueprints', 'Blueprints favoris', 'Favoriten-Blueprints')}
-                      </MenuItem>
-                      <MenuItem value="resources">
-                        {t('Stored resources', 'Ressources stockees', 'Gespeicherte Ressourcen')}
-                      </MenuItem>
-                    </TextField>
+                      options={[
+                        { value: 'all', label: t('All assets', 'Tous les actifs', 'Alle Assets') },
+                        { value: 'inventory-blueprints', label: t('Inventory blueprints', 'Blueprints inventaire', 'Inventar-Blueprints') },
+                        { value: 'favorite-blueprints', label: t('Favorite blueprints', 'Blueprints favoris', 'Favoriten-Blueprints') },
+                        { value: 'resources', label: t('Stored resources', 'Ressources stockees', 'Gespeicherte Ressourcen') },
+                      ]}
+                      onValueChange={(value) => { if (value) setAssetFilter(value as AccountAssetFilter); }}
+                      fieldSx={{ minWidth: { xs: '100%', sm: 220 } }}
+                    />
                     <Button
                       variant="ghost"
                       size="sm"
@@ -2233,64 +2271,64 @@ export function AccountPage() {
                 </Stack>
 
                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                  <Chip
+                  <AppChip
                     label={t(
                       `${filteredAssetEntries.length} visible entries`,
                       `${filteredAssetEntries.length} entrees visibles`,
                       `${filteredAssetEntries.length} sichtbare Eintrage`,
                     )}
-                    size="small"
+                    size="sm"
                   />
-                  <Chip
+                  <AppChip
                     label={t(
                       `${filteredBlueprintEntryCount} blueprints`,
                       `${filteredBlueprintEntryCount} blueprints`,
                       `${filteredBlueprintEntryCount} Blueprints`,
                     )}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                   />
-                  <Chip
+                  <AppChip
                     label={t(
                       `${filteredResourceEntryCount} resources`,
                       `${filteredResourceEntryCount} ressources`,
                       `${filteredResourceEntryCount} Ressourcen`,
                     )}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                   />
-                  <Chip
+                  <AppChip
                     label={t(
                       `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} shared entries`,
                       `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} entrees partagees`,
                       `${sharedBlueprintIdSet.size + sharedResourceEntryIdSet.size} geteilte Eintrage`,
                     )}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                   />
                   {hiddenBlueprintCount > 0 && (
-                    <Chip
+                    <AppChip
                       label={t(
                         `${hiddenBlueprintCount} unavailable blueprints`,
                         `${hiddenBlueprintCount} blueprints indisponibles`,
                         `${hiddenBlueprintCount} nicht verfugbare Blueprints`,
                       )}
-                      size="small"
-                      variant="outlined"
+                      size="sm"
+                      outlined
                     />
                   )}
                 </Stack>
 
                 {(blueprintCollectionError || sharedBlueprintError || resourceCollectionError) && (
-                  <Alert severity="error" variant="outlined">
+                  <AppAlert severity="error">
                     {blueprintCollectionError ?? sharedBlueprintError ?? resourceCollectionError}
-                  </Alert>
+                  </AppAlert>
                 )}
 
                 {resourceCollectionNotice && (
-                  <Alert severity="success" variant="outlined">
+                  <AppAlert severity="success">
                     {resourceCollectionNotice}
-                  </Alert>
+                  </AppAlert>
                 )}
 
                 {filteredAssetEntries.length === 0 ? (
@@ -2444,37 +2482,30 @@ export function AccountPage() {
                                 gap: 0.75,
                               }}
                             >
-                              <ToggleButton
-                                value={`share-${entry.resourceEntry.id}`}
-                                size="small"
-                                selected={entry.isShared}
-                                aria-pressed={entry.isShared}
-                                aria-label={t(
+                              <AppButton
+                                variant="secondary"
+                                ariaPressed={entry.isShared}
+                                ariaLabel={t(
                                   'Choose which linked organizations can access this resource entry',
                                   'Choisir quelles organisations liees peuvent acceder a cette entree ressource',
                                   'Auswahlen, welche verknupften Organisationen auf diesen Ressourceneintrag zugreifen konnen',
                                 )}
+                                icon={entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
                                 onClick={() => { openShareResourceDialog(entry.resourceEntry.id); }}
                                 disabled={linkedOrganizations.length === 0 || sharedResourceBusyId === entry.resourceEntry.id}
+                                fullWidth
                                 sx={{
-                                  width: '100%',
                                   minWidth: 0,
                                   minHeight: { xs: 38, sm: 40 },
                                   gap: { xs: 0.5, sm: 0.625 },
                                   px: { xs: 0.9, sm: 1.05 },
                                   py: { xs: 0.65, sm: 0.8 },
                                   justifyContent: 'flex-start',
-                                  textTransform: 'none',
                                   fontSize: { xs: TEXT_LABEL, sm: '0.78rem' },
-                                  fontWeight: 600,
                                   lineHeight: 1.15,
                                   borderColor: 'divider',
                                   backgroundColor: alpha(theme.palette.background.default, 0.22),
                                   color: 'text.secondary',
-                                  '& .MuiSvgIcon-root': {
-                                    fontSize: { xs: '0.95rem', sm: '1rem' },
-                                    flexShrink: 0,
-                                  },
                                   '& .resource-asset-action-label': {
                                     minWidth: 0,
                                     overflow: 'hidden',
@@ -2493,38 +2524,31 @@ export function AccountPage() {
                                   }),
                                 }}
                               >
-                                {entry.isShared ? <GroupsIcon fontSize="small" /> : <GroupsOutlinedIcon fontSize="small" />}
                                 <Box component="span" className="resource-asset-action-label">
                                   {entry.isShared
                                     ? t('Org sharing', 'Partage org', 'Org-Freigabe')
                                     : t('Share', 'Partage', 'Teilen')}
                                 </Box>
-                              </ToggleButton>
-                              <ToggleButton
-                                value={`remove-${entry.resourceEntry.id}`}
-                                size="small"
-                                aria-label={t('Remove this resource entry', 'Retirer cette entree ressource', 'Diesen Ressourceneintrag entfernen')}
+                              </AppButton>
+                              <AppButton
+                                variant="secondary"
+                                ariaLabel={t('Remove this resource entry', 'Retirer cette entree ressource', 'Diesen Ressourceneintrag entfernen')}
+                                icon={<DeleteOutlineOutlinedIcon fontSize="small" />}
                                 onClick={() => { void handleRemoveResourceEntry(entry.resourceEntry.id); }}
                                 disabled={sharedResourceBusyId === entry.resourceEntry.id}
+                                fullWidth
                                 sx={{
-                                  width: '100%',
                                   minWidth: 0,
                                   minHeight: { xs: 38, sm: 40 },
                                   gap: { xs: 0.5, sm: 0.625 },
                                   px: { xs: 0.9, sm: 1.05 },
                                   py: { xs: 0.65, sm: 0.8 },
                                   justifyContent: 'flex-start',
-                                  textTransform: 'none',
                                   fontSize: { xs: TEXT_LABEL, sm: '0.78rem' },
-                                  fontWeight: 600,
                                   lineHeight: 1.15,
                                   borderColor: 'divider',
                                   backgroundColor: alpha(theme.palette.background.default, 0.22),
                                   color: 'text.secondary',
-                                  '& .MuiSvgIcon-root': {
-                                    fontSize: { xs: '0.95rem', sm: '1rem' },
-                                    flexShrink: 0,
-                                  },
                                   '& .resource-asset-action-label': {
                                     minWidth: 0,
                                     overflow: 'hidden',
@@ -2538,11 +2562,10 @@ export function AccountPage() {
                                   },
                                 }}
                               >
-                                <DeleteOutlineOutlinedIcon fontSize="small" />
                                 <Box component="span" className="resource-asset-action-label">
                                   {t('Remove', 'Retirer', 'Entfernen')}
                                 </Box>
-                              </ToggleButton>
+                              </AppButton>
                             </Box>
                           }
                         />
@@ -2571,7 +2594,8 @@ export function AccountPage() {
 
           {/* ── Craft Requests Tab ── */}
           {activeTab === 'requests' && (
-            <CraftRequestsPanel
+            <Box role="tabpanel" id="account-tabpanel-requests" aria-labelledby="account-tab-requests">
+              <CraftRequestsPanel
               account={account}
               optimisticState={optimisticState}
               syncStatus={syncStatus}
@@ -2579,13 +2603,17 @@ export function AccountPage() {
               craftRequestActionId={craftRequestActionId}
               craftRequestError={craftRequestError}
               craftRequestNotice={craftRequestNotice}
-              onRespondToCraftRequest={(requestId, decision) => { void handleRespondToCraftRequest(requestId, decision); }}
-            />
+                onRespondToCraftRequest={(requestId, decision) => { void handleRespondToCraftRequest(requestId, decision); }}
+              />
+            </Box>
           )}
 
           {/* ── My Orgs Tab ── */}
           {activeTab === 'orgs' && (
-            <Stack spacing={2.5}>
+            <Stack
+              role="tabpanel"
+              id="account-tabpanel-orgs"
+              aria-labelledby="account-tab-orgs" spacing={2.5}>
               {/* Header */}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
@@ -2611,31 +2639,31 @@ export function AccountPage() {
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}>
-                  <Chip
+                  <AppChip
                     label={t(
                       linkedOrganizations.length === 1 ? '1 organization' : `${linkedOrganizations.length} organizations`,
                       linkedOrganizations.length === 1 ? '1 organisation' : `${linkedOrganizations.length} organisations`,
                       linkedOrganizations.length === 1 ? '1 Organisation' : `${linkedOrganizations.length} Organisationen`,
                     )}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                   />
                   {canManageOrganizations && (
-                    <Chip label={t('RSI linked', 'RSI lie', 'RSI verknüpft')} size="small" color="info" variant="outlined" />
+                    <AppChip label={t('RSI linked', 'RSI lie', 'RSI verknüpft')} size="sm" tone="info" outlined />
                   )}
                 </Stack>
               </Stack>
 
               {/* Error/notice banners */}
               {organizationError && (
-                <Alert severity="error" variant="outlined">
+                <AppAlert severity="error">
                   {organizationError}
-                </Alert>
+                </AppAlert>
               )}
               {organizationNotice && (
-                <Alert severity="success" variant="outlined">
+                <AppAlert severity="success">
                   {organizationNotice}
-                </Alert>
+                </AppAlert>
               )}
 
               {/* No RSI link — CTA to Settings */}
@@ -2828,33 +2856,27 @@ export function AccountPage() {
                                 </Stack>
 
                                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                  <Chip label={organizationSourceLabel} size="small" variant="outlined" />
-                                  <Chip
+                                  <AppChip label={organizationSourceLabel} size="sm" outlined />
+                                  <AppChip
                                     label={organizationStatusLabel}
-                                    size="small"
-                                    color={
-                                      organization.status === 'verified_admin'
-                                        ? 'success'
-                                        : organization.status === 'verified_member'
-                                          ? 'info'
-                                          : 'default'
-                                    }
-                                    variant={organization.status === 'observed' ? 'outlined' : 'filled'}
+                                    size="sm"
+                                    tone={organization.status === 'verified_admin' ? 'success' : organization.status === 'verified_member' ? 'info' : 'default'}
+                                    outlined={organization.status === 'observed'}
                                   />
                                   {organization.claimedByCurrentUser && (
-                                    <Chip
+                                    <AppChip
                                       label={t('Claimed by you', 'Claim par toi', 'Von dir beansprucht')}
-                                      size="small"
-                                      color="secondary"
-                                      variant="outlined"
+                                      size="sm"
+                                      tone="primary"
+                                      outlined
                                     />
                                   )}
                                   {hasPendingClaimRequest && (
-                                    <Chip
+                                    <AppChip
                                       label={t('Review pending', 'Revue en attente', 'Prüfung ausstehend')}
-                                      size="small"
-                                      color="warning"
-                                      variant="outlined"
+                                      size="sm"
+                                      tone="warning"
+                                      outlined
                                     />
                                   )}
                                 </Stack>
@@ -2898,16 +2920,14 @@ export function AccountPage() {
                                   </Typography>
                                   {typeof organization.stars === 'number' ? (
                                     <Stack spacing={0.45} sx={{ mt: 0.5 }}>
-                                      <Rating
-                                        name={`organization-stars-${organization.sid}`}
+                                      <AppRating
                                         value={Math.max(0, Math.min(5, organization.stars))}
                                         max={5}
-                                        size="small"
                                         readOnly
-                                        getLabelText={(value) => t(
-                                          `${value} stars`,
-                                          `${value} etoiles`,
-                                          `${value} Sterne`,
+                                        ariaLabel={t(
+                                          `${organization.stars} stars`,
+                                          `${organization.stars} etoiles`,
+                                          `${organization.stars} Sterne`,
                                         )}
                                       />
                                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -2980,11 +3000,11 @@ export function AccountPage() {
 
                               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                                 {organization.syncStatus === 'stale' && (
-                                  <Chip
+                                  <AppChip
                                     label={t('Snapshot stale', 'Snapshot obsolete', 'Snapshot veraltet')}
-                                    size="small"
-                                    color="warning"
-                                    variant="outlined"
+                                    size="sm"
+                                    tone="warning"
+                                    outlined
                                   />
                                 )}
                               </Stack>
@@ -3013,13 +3033,12 @@ export function AccountPage() {
                                 </Button>
 
                                 {organization.claimedByCurrentUser && (
-                                  <Tooltip
-                                    title={t(
+                                  <AppTooltip
+                                    content={t(
                                       'Invite the ItemFab Discord bot with the minimum scopes: bot and applications.commands. No guild permissions are requested.',
                                       'Inviter le bot Discord ItemFab avec les scopes minimums : bot et applications.commands. Aucune permission de serveur n est demandee.',
                                       'Lade den ItemFab-Discord-Bot mit den minimalen Scopes bot und applications.commands ein. Es werden keine Server-Berechtigungen angefordert.',
                                     )}
-                                    arrow
                                   >
                                     <span>
                                       <Button
@@ -3039,7 +3058,7 @@ export function AccountPage() {
                                         {t('Add Discord bot', 'Ajouter le bot Discord', 'Discord-Bot hinzufügen')}
                                       </Button>
                                     </span>
-                                  </Tooltip>
+                                  </AppTooltip>
                                 )}
 
                                 {organization.claimedByCurrentUser && (
@@ -3167,39 +3186,18 @@ export function AccountPage() {
                           alignItems={{ xs: 'stretch', lg: 'stretch' }}
                           sx={{ width: '100%' }}
                         >
-                          <TextField
+                          <AppTextField
                             label={t('Organization SID or URL', 'SID ou URL d organisation', 'Organisations-SID oder URL')}
                             value={organizationSidInput}
-                            onChange={(event) => setOrganizationSidInput(event.target.value)}
+                            onValueChange={setOrganizationSidInput}
                             placeholder="PROTECTORA"
-                            fullWidth
-                            size="small"
                             disabled={organizationAddBusy}
-                            InputProps={{
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  <Tooltip
-                                    title={t(
-                                      'Accepts either a SID like PROTECTORA or a full RSI org link such as https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                      'Accepte soit un SID comme PROTECTORA, soit un lien RSI complet comme https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                      'Akzeptiert entweder eine SID wie PROTECTORA oder einen vollständigen RSI-Link wie https://robertsspaceindustries.com/en/orgs/PROTECTORA',
-                                    )}
-                                  >
-                                    <Box
-                                      component="span"
-                                      sx={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        color: 'text.secondary',
-                                        cursor: 'help',
-                                      }}
-                                    >
-                                      <InfoOutlinedIcon fontSize="small" />
-                                    </Box>
-                                  </Tooltip>
-                                </InputAdornment>
-                              ),
-                            }}
+                            helperText={t(
+                              'Accepts a SID like PROTECTORA or a full public RSI organization URL.',
+                              'Accepte un SID comme PROTECTORA ou une URL publique complète d organisation RSI.',
+                              'Akzeptiert eine SID wie PROTECTORA oder eine vollständige öffentliche RSI-Organisations-URL.',
+                            )}
+                            fieldSx={{ flex: 1 }}
                           />
                           <Button
                             variant="secondary"
@@ -3223,6 +3221,9 @@ export function AccountPage() {
           {/* ── Settings Tab ── */}
           {activeTab === 'settings' && (
             <Box
+              role="tabpanel"
+              id="account-tabpanel-settings"
+              aria-labelledby="account-tab-settings"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
@@ -3246,7 +3247,7 @@ export function AccountPage() {
                       <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                         {sync.installPaths?.live ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>LIVE</MuiButton>
+                            <AppButton size="sm" variant="secondary" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>LIVE</AppButton>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                               <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
                               <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: TEXT_LABEL }}>
@@ -3263,7 +3264,7 @@ export function AccountPage() {
                         )}
                         {sync.installPaths?.ptu && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>PTU</MuiButton>
+                            <AppButton size="sm" variant="secondary" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>PTU</AppButton>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                               <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
                               <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: TEXT_LABEL }}>
@@ -3284,20 +3285,29 @@ export function AccountPage() {
                         <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                           {customPaths.map((cp) => (
                             <Box key={cp.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <MuiButton size="small" variant="outlined" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>{cp.label}</MuiButton>
+                              <AppButton size="sm" variant="secondary" disabled sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, minWidth: 56, py: 0.25 }}>{cp.label}</AppButton>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
                                 <FolderOpenOutlinedIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0 }} />
                                 <Typography variant="caption" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'text.secondary', fontSize: TEXT_LABEL }}>
                                   {cp.path}
                                 </Typography>
                               </Box>
-                              <MuiButton
-                                size="small"
-                                sx={{ minWidth: 0, px: 0.5 }}
+                              <AppButton
+                                size="sm"
+                                variant="ghost"
+                                icon={<DeleteOutlineIcon sx={{ fontSize: 16 }} />}
+                                ariaLabel={t(
+                                  `Remove ${cp.label} installation path`,
+                                  `Supprimer le chemin d installation ${cp.label}`,
+                                  `Installationspfad ${cp.label} entfernen`,
+                                )}
+                                sx={{ minWidth: 44, minHeight: 44, px: 0.5 }}
                                 onClick={() => removeCustomPath(cp.id)}
                               >
-                                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                              </MuiButton>
+                                <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+                                  {t('Remove', 'Supprimer', 'Entfernen')}
+                                </Box>
+                              </AppButton>
                             </Box>
                           ))}
                         </Stack>
@@ -3311,35 +3321,35 @@ export function AccountPage() {
                       </Typography>
                       <Stack direction="row" spacing={1} sx={{ mb: 0.75 }}>
                         {(['LIVE', 'PTU', 'HOTFIX', 'TECH-PREVIEW', 'EVOCATI'] as const).map((label) => (
-                          <MuiButton
+                          <AppButton
                             key={label}
-                            size="small"
-                            variant={customPathLabel === label ? 'contained' : 'outlined'}
+                            size="sm"
+                            variant={customPathLabel === label ? 'primary' : 'secondary'}
                             onClick={() => setCustomPathLabel(label)}
                             sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, px: 0.75, py: 0.25, minWidth: 0 }}
                           >
                             {label}
-                          </MuiButton>
+                          </AppButton>
                         ))}
                       </Stack>
                       <Stack direction="row" spacing={1}>
-                        <TextField
-                          size="small"
+                        <AppTextField
+                          ariaLabel={t('Path to channel folder', 'Chemin vers le dossier', 'Pfad zum Channel-Ordner')}
                           placeholder={t('Path to channel folder…', 'Chemin vers le dossier…', 'Pfad zum Channel-Ordner…')}
                           value={customPathInput}
-                          onChange={(e) => setCustomPathInput(e.target.value)}
+                          onValueChange={setCustomPathInput}
                           onKeyDown={(e) => { if (e.key === 'Enter') addCustomPath(); }}
-                          sx={{ flex: 1, '& .MuiInputBase-root': { fontSize: TEXT_LABEL, fontFamily: FONT_MONO } }}
+                          fieldSx={{ flex: 1 }}
                         />
-                        <MuiButton
-                          size="small"
-                          variant="outlined"
+                        <AppButton
+                          size="sm"
+                          variant="secondary"
                           onClick={addCustomPath}
                           disabled={!customPathInput.trim()}
-                          startIcon={<AddOutlinedIcon sx={{ fontSize: 14 }} />}
+                          icon={<AddOutlinedIcon sx={{ fontSize: 14 }} />}
                         >
                           {t('Add', 'Ajouter', 'Hinzufügen')}
-                        </MuiButton>
+                        </AppButton>
                       </Stack>
                     </Box>
 
@@ -3363,11 +3373,11 @@ export function AccountPage() {
                           )}
                         </Typography>
                       </Box>
-                      <Switch
-                        size="small"
+                      <AppSwitch
+                        label={t('Watch LIVE logs in real-time', 'Surveiller les logs LIVE en temps réel', 'LIVE-Logs in Echtzeit überwachen')}
                         checked={watcher.running}
                         disabled={!user || !sync.installPaths?.live}
-                        onChange={(e) => { void handleWatcherToggle(e.target.checked); }}
+                        onCheckedChange={(checked) => { void handleWatcherToggle(checked); }}
                       />
                     </Box>
 
@@ -3385,17 +3395,17 @@ export function AccountPage() {
                           )}
                         </Typography>
                       </Box>
-                      <Switch
-                        size="small"
+                      <AppSwitch
+                        label={t('Launch at Windows startup', 'Lancer au démarrage de Windows', 'Bei Windows-Start starten')}
                         checked={watcher.autoStartupEnabled}
-                        onChange={(e) => { void handleAutoStartupToggle(e.target.checked); }}
+                        onCheckedChange={(checked) => { void handleAutoStartupToggle(checked); }}
                       />
                     </Box>
 
                     {watcherError && (
-                      <Alert severity="error" variant="outlined">
+                      <AppAlert severity="error">
                         {watcherError}
-                      </Alert>
+                      </AppAlert>
                     )}
                   </Stack>
                 </Paper>
@@ -3431,11 +3441,11 @@ export function AccountPage() {
                         />
                       </Stack>
                     ) : (
-                      <MuiButton
-                        variant="outlined"
+                      <AppButton
+                        variant="secondary"
                         fullWidth
                         onClick={handleStartRsiLink}
-                        startIcon={(
+                        icon={(
                           <Box
                             component="img"
                             src={rsiLogoOfficial}
@@ -3471,7 +3481,7 @@ export function AccountPage() {
                             )}
                           </Box>
                         </Stack>
-                      </MuiButton>
+                      </AppButton>
                     )
                   )}
 
@@ -3498,9 +3508,9 @@ export function AccountPage() {
                   )}
 
                   {rsiUnlinkAction.error && (
-                    <Alert severity="error" variant="outlined">
+                    <AppAlert severity="error">
                       {rsiUnlinkAction.error}
-                    </Alert>
+                    </AppAlert>
                   )}
                 </Stack>
               </Paper>
@@ -3545,9 +3555,9 @@ export function AccountPage() {
                     </Typography>
                   )}
                   {copyLiveToPtuAction.error && (
-                    <Alert severity="error" variant="outlined">
+                    <AppAlert severity="error">
                       {copyLiveToPtuAction.error}
-                    </Alert>
+                    </AppAlert>
                   )}
                 </Stack>
               </Paper>
@@ -3568,9 +3578,9 @@ export function AccountPage() {
                   </Typography>
 
                   {deleteAction.error && (
-                    <Alert severity="error" variant="outlined">
+                    <AppAlert severity="error">
                       {deleteAction.error}
-                    </Alert>
+                    </AppAlert>
                   )}
 
                   <Button
@@ -3608,21 +3618,36 @@ export function AccountPage() {
       )}
 
       {account && (
-        <Dialog
+        <AppDialog
           open={importDialogOpen}
-          onClose={importAction.busy ? () => {} : () => setImportModalDismissed(true)}
-          fullWidth
-          maxWidth="sm"
-          aria-labelledby="dialog-title-import-inventory"
+          onOpenChange={(open) => { if (!open && !importAction.busy) setImportModalDismissed(true); }}
+          width="min(36rem, calc(100vw - 2rem))"
+          title={t(
+            'Import local inventory data?',
+            'Importer les donnees locales d inventaire ?',
+            'Lokale Inventardaten importieren?',
+          )}
+          footer={
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Button
+                variant="ghost"
+                onClick={() => setImportModalDismissed(true)}
+                disabled={importAction.busy}
+              >
+                {t('Not now', 'Plus tard', 'Nicht jetzt')}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => { void handleImportLocalCollections(); }}
+                disabled={importAction.busy}
+              >
+                {importAction.busy
+                  ? t('Importing...', 'Import en cours...', 'Importiere...')
+                  : t('Import into account', 'Importer dans le compte', 'In Konto importieren')}
+              </Button>
+            </Box>
+          }
         >
-          <DialogTitle id="dialog-title-import-inventory">
-            {t(
-              'Import local inventory data?',
-              'Importer les donnees locales d inventaire ?',
-              'Lokale Inventardaten importieren?',
-            )}
-          </DialogTitle>
-          <DialogContent dividers>
             <Stack spacing={2}>
               <Typography sx={{ color: 'text.secondary' }}>
                 {t(
@@ -3674,48 +3699,44 @@ export function AccountPage() {
               </Typography>
 
               {importAction.error && (
-                <Alert severity="error" variant="outlined">
+                <AppAlert severity="error">
                   {importAction.error}
-                </Alert>
+                </AppAlert>
               )}
             </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
+        </AppDialog>
+      )}
+
+      <AppDialog
+        open={Boolean(shareDialogBlueprint)}
+        onOpenChange={(open) => { if (!open) closeShareBlueprintDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={t(
+          'Share blueprint with organizations',
+          'Partager le blueprint avec des organisations',
+          'Blueprint mit Organisationen teilen',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
             <Button
               variant="ghost"
-              onClick={() => setImportModalDismissed(true)}
-              disabled={importAction.busy}
+              onClick={closeShareBlueprintDialog}
+              disabled={Boolean(sharedBlueprintBusyId)}
             >
-              {t('Not now', 'Plus tard', 'Nicht jetzt')}
+              {t('Cancel', 'Annuler', 'Abbrechen')}
             </Button>
             <Button
               variant="secondary"
-              onClick={() => { void handleImportLocalCollections(); }}
-              disabled={importAction.busy}
+              onClick={() => { void handleSaveBlueprintOrganizationShares(); }}
+              disabled={Boolean(sharedBlueprintBusyId) || linkedOrganizations.length === 0}
             >
-              {importAction.busy
-                ? t('Importing...', 'Import en cours...', 'Importiere...')
-                : t('Import into account', 'Importer dans le compte', 'In Konto importieren')}
+              {sharedBlueprintBusyId
+                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
             </Button>
-          </DialogActions>
-        </Dialog>
-      )}
-
-      <Dialog
-        open={Boolean(shareDialogBlueprint)}
-        onClose={closeShareBlueprintDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-share-blueprint"
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-share-blueprint">
-          {t(
-            'Share blueprint with organizations',
-            'Partager le blueprint avec des organisations',
-            'Blueprint mit Organisationen teilen',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {shareDialogBlueprint
@@ -3732,13 +3753,13 @@ export function AccountPage() {
             </Typography>
 
             {linkedOrganizations.length === 0 ? (
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   'Link at least one organization on this account before sharing blueprints.',
                   'Lie au moins une organisation a ce compte avant de partager des blueprints.',
                   'Verknüpfe mindestens eine Organisation mit diesem Konto, bevor du Blueprints teilst.',
                 )}
-              </Alert>
+              </AppAlert>
             ) : (
               <Stack spacing={1}>
                 {linkedOrganizations.map((organization) => {
@@ -3756,27 +3777,22 @@ export function AccountPage() {
                       }}
                     >
                       <Stack direction="row" spacing={1.1} alignItems="center">
-                        <Checkbox
+                        <AppCheckbox
                           checked={checked}
-                          onChange={() =>
+                          onCheckedChange={() =>
                             setShareDialogSelection((currentSelection) =>
                               checked
                                 ? currentSelection.filter((sid) => sid !== organization.sid)
                                 : [...currentSelection, organization.sid],
                             )
                           }
+                          label={organization.name}
+                          description={organization.sid}
                         />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography sx={{ fontWeight: 700 }}>
-                            {organization.name}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            {organization.sid}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          size="small"
-                          variant="outlined"
+                        <Box sx={{ flex: 1 }} />
+                        <AppChip
+                          size="sm"
+                          outlined
                           label={
                             organization.status === 'verified_admin'
                               ? t('Verified admin', 'Admin verifie', 'Verifizierter Admin')
@@ -3784,13 +3800,7 @@ export function AccountPage() {
                                 ? t('Verified member', 'Membre verifie', 'Verifiziertes Mitglied')
                                 : t('Linked only', 'Simplement liee', 'Nur verknüpft')
                           }
-                          color={
-                            organization.status === 'verified_admin'
-                              ? 'success'
-                              : organization.status === 'verified_member'
-                                ? 'info'
-                                : 'default'
-                          }
+                          tone={organization.status === 'verified_admin' ? 'success' : organization.status === 'verified_member' ? 'info' : 'default'}
                         />
                       </Stack>
                     </Paper>
@@ -3800,47 +3810,43 @@ export function AccountPage() {
             )}
 
             {sharedBlueprintError && (
-              <Alert severity="error" variant="outlined">
+              <AppAlert severity="error">
                 {sharedBlueprintError}
-              </Alert>
+              </AppAlert>
             )}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeShareBlueprintDialog}
-            disabled={Boolean(sharedBlueprintBusyId)}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleSaveBlueprintOrganizationShares(); }}
-            disabled={Boolean(sharedBlueprintBusyId) || linkedOrganizations.length === 0}
-          >
-            {sharedBlueprintBusyId
-              ? t('Saving...', 'Enregistrement...', 'Speichere...')
-              : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={Boolean(shareDialogResourceEntry)}
-        onClose={closeShareResourceDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-share-resource"
+        onOpenChange={(open) => { if (!open) closeShareResourceDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={t(
+          'Share resource entry with organizations',
+          'Partager l entree ressource avec des organisations',
+          'Ressourceneintrag mit Organisationen teilen',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeShareResourceDialog}
+              disabled={Boolean(sharedResourceBusyId)}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void handleSaveResourceOrganizationShares(); }}
+              disabled={Boolean(sharedResourceBusyId) || linkedOrganizations.length === 0}
+            >
+              {sharedResourceBusyId
+                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-share-resource">
-          {t(
-            'Share resource entry with organizations',
-            'Partager l entree ressource avec des organisations',
-            'Ressourceneintrag mit Organisationen teilen',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {shareDialogResourceEntry
@@ -3857,13 +3863,13 @@ export function AccountPage() {
             </Typography>
 
             {linkedOrganizations.length === 0 ? (
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   'Link at least one organization on this account before sharing stored resources.',
                   'Lie au moins une organisation a ce compte avant de partager des ressources stockees.',
                   'Verknupfe mindestens eine Organisation mit diesem Konto, bevor du gespeicherte Ressourcen teilst.',
                 )}
-              </Alert>
+              </AppAlert>
             ) : (
               <Stack spacing={1}>
                 {linkedOrganizations.map((organization) => {
@@ -3881,27 +3887,22 @@ export function AccountPage() {
                       }}
                     >
                       <Stack direction="row" spacing={1.1} alignItems="center">
-                        <Checkbox
+                        <AppCheckbox
                           checked={checked}
-                          onChange={() =>
+                          onCheckedChange={() =>
                             setShareDialogResourceSelection((currentSelection) =>
                               checked
                                 ? currentSelection.filter((sid) => sid !== organization.sid)
                                 : [...currentSelection, organization.sid],
                             )
                           }
+                          label={organization.name}
+                          description={organization.sid}
                         />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography sx={{ fontWeight: 700 }}>
-                            {organization.name}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            {organization.sid}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          size="small"
-                          variant="outlined"
+                        <Box sx={{ flex: 1 }} />
+                        <AppChip
+                          size="sm"
+                          outlined
                           label={
                             organization.status === 'verified_admin'
                               ? t('Verified admin', 'Admin verifie', 'Verifizierter Admin')
@@ -3909,13 +3910,7 @@ export function AccountPage() {
                                 ? t('Verified member', 'Membre verifie', 'Verifiziertes Mitglied')
                                 : t('Linked only', 'Simplement liee', 'Nur verknupft')
                           }
-                          color={
-                            organization.status === 'verified_admin'
-                              ? 'success'
-                              : organization.status === 'verified_member'
-                                ? 'info'
-                                : 'default'
-                          }
+                          tone={organization.status === 'verified_admin' ? 'success' : organization.status === 'verified_member' ? 'info' : 'default'}
                         />
                       </Stack>
                     </Paper>
@@ -3925,60 +3920,56 @@ export function AccountPage() {
             )}
 
             {resourceCollectionError && (
-              <Alert severity="error" variant="outlined">
+              <AppAlert severity="error">
                 {resourceCollectionError}
-              </Alert>
+              </AppAlert>
             )}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeShareResourceDialog}
-            disabled={Boolean(sharedResourceBusyId)}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleSaveResourceOrganizationShares(); }}
-            disabled={Boolean(sharedResourceBusyId) || linkedOrganizations.length === 0}
-          >
-            {sharedResourceBusyId
-              ? t('Saving...', 'Enregistrement...', 'Speichere...')
-              : t('Save sharing', 'Enregistrer le partage', 'Freigabe speichern')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={resourceBatchDialogOpen}
-        onClose={closeResourceBatchDialog}
-        fullWidth
-        maxWidth="md"
-        aria-labelledby="dialog-title-batch-add-resources"
+        onOpenChange={(open) => { if (!open) closeResourceBatchDialog(); }}
+        width="min(48rem, calc(100vw - 2rem))"
+        title={t(
+          'Add stored resources in batch',
+          'Ajouter des ressources stockees en batch',
+          'Gespeicherte Ressourcen gesammelt hinzufügen',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeResourceBatchDialog}
+              disabled={resourceBatchBusy}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void handleAddResourceBatch(); }}
+              disabled={resourceBatchBusy || resourceBatchRows.length === 0 || sortedResources.length === 0}
+            >
+              {resourceBatchBusy
+                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                : t('Add resource entries', 'Ajouter les entrees ressource', 'Ressourceneintrage hinzufügen')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-batch-add-resources">
-          {t(
-            'Add stored resources in batch',
-            'Ajouter des ressources stockees en batch',
-            'Gespeicherte Ressourcen gesammelt hinzufügen',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
-            <Alert severity="info" variant="outlined">
+            <AppAlert severity="info">
               {t(
                 'Add as many resource rows as needed. SCU quantities support micro precision down to 0.000001 SCU.',
                 'Ajoute autant de lignes ressource que necessaire. Les quantites en SCU acceptent une precision micro jusqu a 0.000001 SCU.',
                 'Fuge so viele Ressourcenzeilen wie nötig hinzu. SCU-Mengen unterstützen eine Mikrogenauigkeit bis 0.000001 SCU.',
               )}
-            </Alert>
+            </AppAlert>
 
             {resourceBatchError && (
-              <Alert severity="error" variant="outlined">
+              <AppAlert severity="error">
                 {resourceBatchError}
-              </Alert>
+              </AppAlert>
             )}
 
             <Stack
@@ -4014,22 +4005,26 @@ export function AccountPage() {
                 backgroundColor: alpha(theme.palette.background.default, 0.18),
               }}
             >
-              <Table size="small" sx={{ minWidth: 720 }}>
+              <Table
+                size="small"
+                aria-label={t('Resource entries to add', 'Entrées de ressources à ajouter', 'Hinzuzufügende Ressourceneinträge')}
+                sx={{ minWidth: 720 }}
+              >
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <TableCell component="th" scope="col" sx={{ whiteSpace: 'nowrap' }}>
                       {t('Resource', 'Ressource', 'Ressource')}
                     </TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <TableCell component="th" scope="col" sx={{ whiteSpace: 'nowrap' }}>
                       {t('Unit', 'Unite', 'Einheit')}
                     </TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <TableCell component="th" scope="col" sx={{ whiteSpace: 'nowrap' }}>
                       {t('Quantity', 'Quantite', 'Menge')}
                     </TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <TableCell component="th" scope="col" sx={{ whiteSpace: 'nowrap' }}>
                       {t('Quality (0-1000)', 'Qualite (0-1000)', 'Qualitat (0-1000)')}
                     </TableCell>
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    <TableCell component="th" scope="col" align="right" sx={{ whiteSpace: 'nowrap' }}>
                       {t('Action', 'Action', 'Aktion')}
                     </TableCell>
                   </TableRow>
@@ -4040,26 +4035,18 @@ export function AccountPage() {
                     return (
                       <TableRow key={row.id} hover>
                         <TableCell sx={{ minWidth: 260 }}>
-                          <TextField
-                            select
-                            size="small"
+                          <AppSelect
+                            ariaLabel={t('Resource', 'Ressource', 'Ressource')}
                             value={row.resourceId}
-                            onChange={(event) =>
-                              updateResourceBatchRow(row.id, { resourceId: event.target.value })
-                            }
-                            fullWidth
-                          >
-                            {sortedResources.map((resource) => (
-                              <MenuItem key={resource.id} value={resource.id}>
-                                {resource.name}
-                              </MenuItem>
-                            ))}
-                          </TextField>
+                            options={sortedResources.map((resource) => ({ label: resource.name, value: resource.id }))}
+                            onValueChange={(value) => { if (value) updateResourceBatchRow(row.id, { resourceId: value }); }}
+                            filterable
+                          />
                         </TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 110 }}>
-                          <Chip
-                            size="small"
-                            variant="outlined"
+                          <AppChip
+                            size="sm"
+                            outlined
                             label={
                               quantityUnit === 'count'
                                 ? t('Items', 'Objets', 'Stuck')
@@ -4068,55 +4055,56 @@ export function AccountPage() {
                           />
                         </TableCell>
                         <TableCell sx={{ minWidth: 150 }}>
-                          <TextField
-                            size="small"
+                          <AppTextField
                             type="number"
+                            ariaLabel={t('Quantity', 'Quantite', 'Menge')}
                             value={row.quantity}
-                            onChange={(event) =>
-                              updateResourceBatchRow(row.id, { quantity: event.target.value })
+                            onValueChange={(value) =>
+                              updateResourceBatchRow(row.id, { quantity: value })
                             }
-                            fullWidth
-                            inputProps={{
-                              min: quantityUnit === 'count' ? 1 : RESOURCE_BATCH_SCU_STEP,
-                              step: quantityUnit === 'count' ? 1 : RESOURCE_BATCH_SCU_STEP,
-                            }}
+                            min={quantityUnit === 'count' ? 1 : RESOURCE_BATCH_SCU_STEP}
+                            step={quantityUnit === 'count' ? 1 : RESOURCE_BATCH_SCU_STEP}
                           />
                         </TableCell>
                         <TableCell sx={{ minWidth: 150 }}>
-                          <TextField
-                            size="small"
+                          <AppTextField
                             type="number"
+                            ariaLabel={t('Quality', 'Qualite', 'Qualitat')}
                             value={row.quality}
-                            onChange={(event) =>
-                              updateResourceBatchRow(row.id, { quality: event.target.value })
+                            onValueChange={(value) =>
+                              updateResourceBatchRow(row.id, { quality: value })
                             }
-                            fullWidth
                             placeholder="0 - 1000"
-                            inputProps={{ min: 0, max: 1000, step: 1 }}
+                            min={0}
+                            max={1000}
+                            step={1}
                           />
                         </TableCell>
                         <TableCell align="right">
-                          <Tooltip
-                            title={t(
+                          <AppTooltip
+                            content={t(
                               'Remove this row',
                               'Supprimer cette ligne',
                               'Diese Zeile entfernen',
                             )}
                           >
                             <span>
-                              <IconButton
+                              <AppButton
+                                variant="ghost"
+                                size="sm"
+                                icon={<DeleteOutlineOutlinedIcon fontSize="small" />}
+                                ariaLabel={t(
+                                  `Remove ${resourceById.get(row.resourceId)?.name ?? 'resource'} row`,
+                                  `Supprimer la ligne ${resourceById.get(row.resourceId)?.name ?? 'ressource'}`,
+                                  `Zeile ${resourceById.get(row.resourceId)?.name ?? 'Ressource'} entfernen`,
+                                )}
                                 onClick={() => { removeResourceBatchRow(row.id); }}
                                 disabled={resourceBatchBusy}
-                                aria-label={t(
-                                  'Remove this resource row',
-                                  'Supprimer cette ligne ressource',
-                                  'Diese Ressourcenzeile entfernen',
-                                )}
                               >
-                                <DeleteOutlineOutlinedIcon fontSize="small" />
-                              </IconButton>
+                                {t('Remove row', 'Supprimer la ligne', 'Zeile entfernen')}
+                              </AppButton>
                             </span>
-                          </Tooltip>
+                          </AppTooltip>
                         </TableCell>
                       </TableRow>
                     );
@@ -4125,42 +4113,38 @@ export function AccountPage() {
               </Table>
             </TableContainer>
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeResourceBatchDialog}
-            disabled={resourceBatchBusy}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleAddResourceBatch(); }}
-            disabled={resourceBatchBusy || resourceBatchRows.length === 0 || sortedResources.length === 0}
-          >
-            {resourceBatchBusy
-              ? t('Saving...', 'Enregistrement...', 'Speichere...')
-              : t('Add resource entries', 'Ajouter les entrees ressource', 'Ressourceneintrage hinzufügen')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={resourceBulkShareDialogOpen}
-        onClose={closeResourceBulkShareDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-share-stored-resources"
+        onOpenChange={(open) => { if (!open) closeResourceBulkShareDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={t(
+          'Share stored resources with an organization',
+          'Partager des ressources stockees avec une organisation',
+          'Gespeicherte Ressourcen mit einer Organisation teilen',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeResourceBulkShareDialog}
+              disabled={resourceBulkShareBusy}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void handleSaveResourceBulkShare(); }}
+              disabled={resourceBulkShareBusy || linkedOrganizations.length === 0}
+            >
+              {resourceBulkShareBusy
+                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                : t('Share matching entries', 'Partager les entrees correspondantes', 'Passende Eintrage teilen')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-share-stored-resources">
-          {t(
-            'Share stored resources with an organization',
-            'Partager des ressources stockees avec une organisation',
-            'Gespeicherte Ressourcen mit einer Organisation teilen',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
@@ -4170,79 +4154,68 @@ export function AccountPage() {
               )}
             </Typography>
 
-            <TextField
-              select
-              size="small"
+            <AppSelect
               label={t('Organization', 'Organisation', 'Organisation')}
               value={resourceBulkShareDraft.organizationSid}
-              onChange={(event) =>
+              options={linkedOrganizations.map((organization) => ({
+                label: `${organization.name} (${organization.sid})`,
+                value: organization.sid,
+              }))}
+              onValueChange={(value) =>
                 setResourceBulkShareDraft((currentDraft) => ({
                   ...currentDraft,
-                  organizationSid: event.target.value,
+                  organizationSid: value ?? '',
                 }))
               }
-              fullWidth
-            >
-              {linkedOrganizations.map((organization) => (
-                <MenuItem key={organization.sid} value={organization.sid}>
-                  {organization.name} ({organization.sid})
-                </MenuItem>
-              ))}
-            </TextField>
+              fieldSx={{ width: '100%' }}
+            />
 
-            <TextField
-              select
-              size="small"
+            <AppSelect
               label={t('Resource scope', 'Portee ressource', 'Ressourcenbereich')}
               value={resourceBulkShareDraft.resourceId}
-              onChange={(event) =>
+              options={[
+                { label: t('All stored resources', 'Toutes les ressources stockees', 'Alle gespeicherten Ressourcen'), value: ALL_RESOURCES_SHARE_OPTION },
+                ...sortedResources.map((resource) => ({ label: resource.name, value: resource.id })),
+              ]}
+              onValueChange={(value) =>
                 setResourceBulkShareDraft((currentDraft) => ({
                   ...currentDraft,
-                  resourceId: event.target.value,
+                  resourceId: value ?? ALL_RESOURCES_SHARE_OPTION,
                 }))
               }
-              fullWidth
-            >
-              <MenuItem value={ALL_RESOURCES_SHARE_OPTION}>
-                {t('All stored resources', 'Toutes les ressources stockees', 'Alle gespeicherten Ressourcen')}
-              </MenuItem>
-              {sortedResources.map((resource) => (
-                <MenuItem key={resource.id} value={resource.id}>
-                  {resource.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              fieldSx={{ width: '100%' }}
+            />
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-              <TextField
-                size="small"
+              <AppTextField
                 type="number"
                 label={t('Minimum quality', 'Qualite minimale', 'Minimale Qualitat')}
                 value={resourceBulkShareDraft.minQuality}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setResourceBulkShareDraft((currentDraft) => ({
                     ...currentDraft,
-                    minQuality: event.target.value,
+                    minQuality: value,
                   }))
                 }
-                fullWidth
                 placeholder="0"
-                inputProps={{ min: 0, max: 1000, step: 1 }}
+                min={0}
+                max={1000}
+                step={1}
               />
-              <TextField
-                size="small"
+              <AppTextField
                 type="number"
                 label={t('Maximum quality', 'Qualite maximale', 'Maximale Qualitat')}
                 value={resourceBulkShareDraft.maxQuality}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setResourceBulkShareDraft((currentDraft) => ({
                     ...currentDraft,
-                    maxQuality: event.target.value,
+                    maxQuality: value,
                   }))
                 }
-                fullWidth
                 placeholder="1000"
-                inputProps={{ min: 0, max: 1000, step: 1 }}
+                min={0}
+                max={1000}
+                step={1}
               />
             </Stack>
 
@@ -4255,18 +4228,18 @@ export function AccountPage() {
               }}
             >
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                <Chip
-                  size="small"
+                <AppChip
+                  size="sm"
                   label={t(
                     `${bulkResourceSharePreview.matchingEntryIds.length} matching entries`,
                     `${bulkResourceSharePreview.matchingEntryIds.length} entrees correspondantes`,
                     `${bulkResourceSharePreview.matchingEntryIds.length} passende Eintrage`,
                   )}
                 />
-                <Chip
-                  size="small"
-                  color="primary"
-                  variant="outlined"
+                <AppChip
+                  size="sm"
+                  tone="primary"
+                  outlined
                   label={t(
                     `${bulkResourceSharePreview.newEntryIds.length} new shares`,
                     `${bulkResourceSharePreview.newEntryIds.length} nouveaux partages`,
@@ -4277,47 +4250,43 @@ export function AccountPage() {
             </Paper>
 
             {resourceBulkShareError && (
-              <Alert severity="error" variant="outlined">
+              <AppAlert severity="error">
                 {resourceBulkShareError}
-              </Alert>
+              </AppAlert>
             )}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeResourceBulkShareDialog}
-            disabled={resourceBulkShareBusy}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleSaveResourceBulkShare(); }}
-            disabled={resourceBulkShareBusy || linkedOrganizations.length === 0}
-          >
-            {resourceBulkShareBusy
-              ? t('Saving...', 'Enregistrement...', 'Speichere...')
-              : t('Share matching entries', 'Partager les entrees correspondantes', 'Passende Eintrage teilen')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={Boolean(organizationClaimDialogTarget)}
-        onClose={closeClaimOrganizationDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-claim-org"
+        onOpenChange={(open) => { if (!open) closeClaimOrganizationDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={t(
+          'Request organization claim review?',
+          'Demander une revue de claim pour cette organisation ?',
+          'Claim-Prüfung für diese Organisation anfordern?',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeClaimOrganizationDialog}
+              disabled={Boolean(organizationActionSid)}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void handleClaimOrganization(); }}
+              disabled={Boolean(organizationActionSid)}
+            >
+              {organizationActionSid
+                ? t('Sending...', 'Envoi...', 'Sende...')
+                : t('Send review request', 'Envoyer la demande', 'Anfrage senden')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-claim-org">
-          {t(
-            'Request organization claim review?',
-            'Demander une revue de claim pour cette organisation ?',
-            'Claim-Prüfung für diese Organisation anfordern?',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {organizationClaimDialogTarget
@@ -4340,48 +4309,46 @@ export function AccountPage() {
               )}
             </Typography>
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeClaimOrganizationDialog}
-            disabled={Boolean(organizationActionSid)}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleClaimOrganization(); }}
-            disabled={Boolean(organizationActionSid)}
-          >
-            {organizationActionSid
-              ? t('Sending...', 'Envoi...', 'Sende...')
-              : t('Send review request', 'Envoyer la demande', 'Anfrage senden')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={Boolean(organizationSharingDialogTarget && organizationSharingDialogState)}
-        onClose={closeOrganizationSharingDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-enable-blueprint-share"
+        onOpenChange={(open) => { if (!open) closeOrganizationSharingDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={organizationSharingDialogState?.enabled
+          ? t(
+            'Enable blueprint sharing?',
+            'Activer le partage de blueprints ?',
+            'Blueprint-Freigabe aktivieren?',
+          )
+          : t(
+            'Disable blueprint sharing?',
+            'Desactiver le partage de blueprints ?',
+            'Blueprint-Freigabe deaktivieren?',
+          )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeOrganizationSharingDialog}
+              disabled={Boolean(organizationActionSid)}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void handleSetOrganizationSharing(); }}
+              disabled={Boolean(organizationActionSid)}
+            >
+              {organizationActionSid
+                ? t('Saving...', 'Enregistrement...', 'Speichere...')
+                : organizationSharingDialogState?.enabled
+                  ? t('Enable sharing', 'Activer le partage', 'Freigabe aktivieren')
+                  : t('Disable sharing', 'Desactiver le partage', 'Freigabe deaktivieren')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-enable-blueprint-share">
-          {organizationSharingDialogState?.enabled
-            ? t(
-              'Enable blueprint sharing?',
-              'Activer le partage de blueprints ?',
-              'Blueprint-Freigabe aktivieren?',
-            )
-            : t(
-              'Disable blueprint sharing?',
-              'Desactiver le partage de blueprints ?',
-              'Blueprint-Freigabe deaktivieren?',
-            )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {organizationSharingDialogTarget
@@ -4422,44 +4389,38 @@ export function AccountPage() {
                 )}
             </Typography>
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeOrganizationSharingDialog}
-            disabled={Boolean(organizationActionSid)}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleSetOrganizationSharing(); }}
-            disabled={Boolean(organizationActionSid)}
-          >
-            {organizationActionSid
-              ? t('Saving...', 'Enregistrement...', 'Speichere...')
-              : organizationSharingDialogState?.enabled
-                ? t('Enable sharing', 'Activer le partage', 'Freigabe aktivieren')
-                : t('Disable sharing', 'Desactiver le partage', 'Freigabe deaktivieren')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={Boolean(organizationDeleteDialogTarget)}
-        onClose={closeDeleteOrganizationDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-delete-org"
+        onOpenChange={(open) => { if (!open) closeDeleteOrganizationDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={t(
+          'Delete organization from the app?',
+          'Supprimer l organisation de l appli ?',
+          'Organisation aus der App löschen?',
+        )}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={closeDeleteOrganizationDialog}
+              disabled={Boolean(organizationActionSid)}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => { void handleDeleteOrganization(); }}
+              disabled={Boolean(organizationActionSid)}
+            >
+              {organizationActionSid
+                ? t('Deleting...', 'Suppression...', 'Lösche...')
+                : t('Delete organization', 'Supprimer l organisation', 'Organisation löschen')}
+            </Button>
+          </Box>
+        }
       >
-        <DialogTitle id="dialog-title-delete-org">
-          {t(
-            'Delete organization from the app?',
-            'Supprimer l organisation de l appli ?',
-            'Organisation aus der App löschen?',
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             <Typography sx={{ color: 'text.secondary' }}>
               {organizationDeleteDialogTarget
@@ -4482,52 +4443,13 @@ export function AccountPage() {
               )}
             </Typography>
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={closeDeleteOrganizationDialog}
-            disabled={Boolean(organizationActionSid)}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleDeleteOrganization(); }}
-            disabled={Boolean(organizationActionSid)}
-          >
-            {organizationActionSid
-              ? t('Deleting...', 'Suppression...', 'Lösche...')
-              : t('Delete organization', 'Supprimer l organisation', 'Organisation löschen')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </AppDialog>
 
-      <Dialog
+      <AppDialog
         open={rsiDialogOpen}
-        onClose={rsiAction.busy ? () => {} : () => setRsiDialogOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="dialog-title-link-rsi"
-        PaperProps={{
-          sx: {
-            borderRadius: 1.5,
-            borderColor: alpha(theme.palette.primary.main, 0.26),
-            backgroundColor: theme.palette.background.paper,
-            boxShadow: `0 24px 80px ${alpha('#020817', 0.62)}`,
-            overflow: 'hidden',
-          },
-        }}
-        slotProps={{
-          backdrop: {
-            sx: {
-              backgroundColor: alpha('#020817', 0.78),
-              backdropFilter: 'blur(2px)',
-            },
-          },
-        }}
-      >
-        <DialogTitle id="dialog-title-link-rsi">
+        onOpenChange={(open) => { if (!open && !rsiAction.busy) setRsiDialogOpen(false); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={
           <Stack direction="row" spacing={1.25} alignItems="center">
             <Box
               component="img"
@@ -4544,16 +4466,36 @@ export function AccountPage() {
               </Typography>
             </Box>
           </Stack>
-        </DialogTitle>
-        <DialogContent dividers sx={{ backgroundColor: alpha(theme.palette.background.default, 0.28) }}>
+        }
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="ghost"
+              onClick={() => setRsiDialogOpen(false)}
+              disabled={rsiAction.busy}
+            >
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void handleVerifyRsiLink(); }}
+              disabled={rsiAction.busy || !rsiHandleInput.trim() || !rsiCode}
+            >
+              {rsiAction.busy
+                ? t('Verifying...', 'Verification...', 'Verifiziere...')
+                : t('Verify and link', 'Verifier et lier', 'Verifizieren und verknupfen')}
+            </Button>
+          </Box>
+        }
+      >
           <Stack spacing={2}>
-            <Alert severity="info" variant="outlined">
+            <AppAlert severity="info">
               {t(
                 'Citizen iD is not available right now.',
                 'Citizen iD n est pas disponible pour le moment.',
                 'Citizen iD ist derzeit nicht verfuegbar.',
               )}
-            </Alert>
+            </AppAlert>
 
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
@@ -4609,41 +4551,20 @@ export function AccountPage() {
               </Stack>
             </Paper>
 
-            <TextField
+            <AppTextField
               label={t('RSI handle', 'Handle RSI', 'RSI-Handle')}
               value={rsiHandleInput}
-              onChange={(event) => setRsiHandleInput(event.target.value)}
-              fullWidth
-              size="small"
+              onValueChange={setRsiHandleInput}
               autoFocus
             />
 
             {rsiAction.error && (
-              <Alert severity="error" variant="outlined">
+              <AppAlert severity="error">
                 {rsiAction.error}
-              </Alert>
+              </AppAlert>
             )}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            variant="ghost"
-            onClick={() => setRsiDialogOpen(false)}
-            disabled={rsiAction.busy}
-          >
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => { void handleVerifyRsiLink(); }}
-            disabled={rsiAction.busy || !rsiHandleInput.trim() || !rsiCode}
-          >
-            {rsiAction.busy
-              ? t('Verifying...', 'Verification...', 'Verifiziere...')
-              : t('Verify and link', 'Verifier et lier', 'Verifizieren und verknupfen')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      </AppDialog>
+    </PageLayout>
   );
 }

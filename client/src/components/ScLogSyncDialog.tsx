@@ -1,4 +1,6 @@
-import { Button, CircularProgress, Tooltip } from '../ui/widgets';
+import { AppProgressSpinner } from './ui/feedback';
+import { AppButton } from './ui/controls';
+import { AppTooltip } from './ui/overlays';
 import { SyncIcon, CheckCircleOutlineIcon, ErrorOutlineIcon } from '../ui/icons';
 import { useState } from 'react';
 import { FONT_MONO, TEXT_LABEL} from '../theme';
@@ -49,26 +51,28 @@ export function SyncBlueprintsButton({
       ? t('No Star Citizen installation detected', 'Aucune installation Star Citizen détectée')
       : localError ?? '';
 
+  const appVariant = variant === 'contained' ? 'primary' : variant === 'text' ? 'ghost' : 'secondary';
+  const icon = isBusy ? (
+    <AppProgressSpinner size={13} strokeWidth={4} />
+  ) : isDone ? (
+    <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />
+  ) : localError ? (
+    <ErrorOutlineIcon sx={{ fontSize: 14, color: 'error.main' }} />
+  ) : (
+    <SyncIcon sx={{ fontSize: 14 }} />
+  );
+
   return (
-    <Tooltip title={tooltipTitle}>
+    <AppTooltip content={tooltipTitle} disabled={!tooltipTitle}>
       <span>
-        <Button
-          variant={variant}
-          size={size}
+        <AppButton
+          variant={appVariant}
+          size={size === 'small' ? 'sm' : 'md'}
           onClick={handleSync}
           disabled={isBusy || !isLoggedIn || !hasPath}
-          startIcon={
-            isBusy ? (
-              <CircularProgress size={13} />
-            ) : isDone ? (
-              <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />
-            ) : localError ? (
-              <ErrorOutlineIcon sx={{ fontSize: 14, color: 'error.main' }} />
-            ) : (
-              <SyncIcon sx={{ fontSize: 14 }} />
-            )
-          }
+          icon={icon}
           sx={{
+            minHeight: size === 'small' ? 44 : 46,
             fontFamily: FONT_MONO,
             fontWeight: 700,
             fontSize: TEXT_LABEL,
@@ -86,8 +90,8 @@ export function SyncBlueprintsButton({
             : isDone
               ? t('Synced', 'Synchronisé')
               : t('Sync game', 'Sync game')}
-        </Button>
+        </AppButton>
       </span>
-    </Tooltip>
+    </AppTooltip>
   );
 }

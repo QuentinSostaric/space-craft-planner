@@ -1,5 +1,6 @@
 import { Box, Divider, Stack, Typography, alpha, useTheme } from '../../ui/system';
-import { Accordion, AccordionDetails, AccordionSummary, Chip } from '../../ui/widgets';
+import { Accordion, AccordionDetails, AccordionSummary } from '../ui/primitives';
+import { AppChip } from '../ui/data-display/AppChip';
 import { ExpandMoreIcon, CheckCircleOutlineIcon, RefreshIcon, AutoAwesomeIcon, ArrowForwardIcon } from '../../ui/icons';
 import { useCallback, useState } from 'react';
 import { loc, useI18n } from '../../i18n/I18nContext';
@@ -229,7 +230,7 @@ export function FieldDataBody({ blueprint }: { blueprint: Blueprint }) {
           </Typography>
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
             {technicalTags.map((tag) => (
-              <Chip key={tag} label={tag} size="small" variant="outlined" />
+              <AppChip key={tag} label={tag} size="sm" variant="outlined" />
             ))}
           </Box>
         </Box>
@@ -287,7 +288,7 @@ export function CraftSection({
     backgroundColor: alpha(gradeColor, 0.14),
     color: gradeColor,
     border: `1px solid ${alpha(gradeColor, 0.38)}`,
-    '& .MuiChip-label': { px: 1 },
+    px: 1,
   };
 
   return (
@@ -310,7 +311,7 @@ export function CraftSection({
           heroValue={`${validAssignedCount}/${blueprint.slots.length}`}
           heroUnit={t('slots', 'slots')}
         >
-          <Stack spacing={0.65}>
+          <Stack component="div" role="list" aria-label={t('Material slots', 'Slots de matériaux')} spacing={0.65}>
             {blueprint.slots.map((slot) => (
               <SlotCard
                 key={slot.id}
@@ -340,7 +341,7 @@ export function CraftSection({
                     {validAssignedCount}/{blueprint.slots.length} {t('valid', 'valides')}
                   </Typography>
                 </Stack>
-                <Stack direction="row" spacing={0.5}>
+                <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ width: { xs: '100%', sm: 'auto' }, '& button': { minHeight: 44 } }}>
                   <Button variant="ghost" size="sm" icon={<RefreshIcon sx={{ fontSize: '0.85rem' }} />} onClick={() => fillSlots('standard')}>
                     {t('Reset 500', 'Reset 500')}
                   </Button>
@@ -361,8 +362,6 @@ export function CraftSection({
           <Accordion
             expanded={techExpanded}
             onChange={() => setTechExpanded((v) => !v)}
-            disableGutters
-            elevation={0}
             sx={{
               backgroundColor: theme.palette.ui.surface,
               border: `1px solid ${theme.palette.ui.border}`,
@@ -375,7 +374,6 @@ export function CraftSection({
                 minHeight: 0,
                 px: 2,
                 py: 1,
-                '& .MuiAccordionSummary-content': { my: 0 },
                 borderBottom: techExpanded ? `1px solid ${theme.palette.ui.border}` : 'none',
               }}
             >
@@ -403,9 +401,9 @@ export function CraftSection({
           accent={theme.palette.primary.main}
           action={
             qualityScore > 0 ? (
-              <Chip
+              <AppChip
                 label={`Q${qualityScore} · ${lang === 'fr' ? grade.labelFr : grade.label}`}
-                size="small"
+                size="sm"
                 sx={gradeChipSx}
               />
             ) : undefined
@@ -415,8 +413,6 @@ export function CraftSection({
 
           <Accordion
             defaultExpanded={false}
-            disableGutters
-            elevation={0}
             sx={{
               mt: 1.5,
               backgroundColor: theme.palette.ui.surface,
@@ -445,8 +441,13 @@ export function CraftSection({
                     : theme.palette.error.main;
                 const deltaSign = row.delta > 0 ? '+' : '';
                 const deltaStr = `${deltaSign}${Math.abs(row.deltaPct) >= 1 ? row.deltaPct.toFixed(1) : row.deltaPct.toFixed(2)}%`;
+                const outcomeLabel = row.isNeutral
+                  ? t('Unchanged', 'Inchangé')
+                  : row.isImproved
+                    ? t('Improved', 'Amélioré')
+                    : t('Degraded', 'Dégradé');
                 return (
-                  <Box key={row.key}>
+                  <Box key={row.key} component="article" aria-label={`${row.label}: ${outcomeLabel}`}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 0.5, mb: 0.3 }}>
                       <Typography sx={{ fontFamily: FONT_DISPLAY, fontSize: '0.78rem', color: 'text.secondary', fontWeight: 600 }}>
                         {row.label}
@@ -459,11 +460,9 @@ export function CraftSection({
                         <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'text.primary' }}>
                           {formatStatValue(row.key, row.finalVal)}
                         </Typography>
-                        {!row.isNeutral && (
-                          <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: deltaColor }}>
-                            {deltaStr}
-                          </Typography>
-                        )}
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, fontWeight: 700, color: deltaColor }}>
+                          {row.isNeutral ? outcomeLabel : `${row.isImproved ? '↑' : '↓'} ${outcomeLabel} ${deltaStr}`}
+                        </Typography>
                       </Box>
                     </Box>
                     <Box sx={{ position: 'relative', height: 3, backgroundColor: alpha(theme.palette.text.primary, 0.08) }}>

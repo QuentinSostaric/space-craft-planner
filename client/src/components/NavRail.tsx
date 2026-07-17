@@ -1,7 +1,8 @@
 import { Box, Typography, ButtonBase, useMediaQuery, alpha, useTheme } from '../ui/system';
-import { Avatar, Badge, ListItemIcon, ListItemText, Menu, MenuItem } from '../ui/widgets';
+import { Avatar, Badge } from './ui/primitives';
+import { AppMenu } from './ui/overlays';
 import { PersonOutlineOutlinedIcon, DescriptionOutlinedIcon, FlagIcon, AssignmentIcon, GroupsOutlinedIcon, MoreHorizIcon, ScienceOutlinedIcon, DifferenceOutlinedIcon, TravelExploreOutlinedIcon } from '../ui/icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
@@ -218,7 +219,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   const { plannerTodoItems } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
-  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   // Only open tasks: an actionable number, unlike the old goals+tasks+resources
   // aggregate whose meaning was impossible to read from the badge alone.
   const plannerBadgeCount = useMemo(
@@ -247,7 +247,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={pendingIncomingCraftRequestCount}
           color="error"
           invisible={pendingIncomingCraftRequestCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
         >
           {user ? (
             <Avatar
@@ -315,7 +314,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={plannerBadgeCount}
           color="primary"
           invisible={plannerBadgeCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
         >
           <AssignmentIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
         </Badge>
@@ -377,78 +375,69 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
               onNavigate={item.onNavigate}
             />
           ))}
-          <ButtonBase
-            onClick={(event) => setMoreAnchor(event.currentTarget)}
-            aria-haspopup="menu"
-            aria-expanded={moreAnchor ? 'true' : undefined}
-            aria-label={t('More', 'Plus', 'Mehr')}
-            sx={{
-              minWidth: 0,
-              minHeight: 58,
-              px: 0.5,
-              py: 0.75,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 0.45,
-              position: 'relative',
-              color: moreActive ? 'primary.main' : 'text.secondary',
-              backgroundColor: moreActive ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                left: 8,
-                right: 8,
-                top: 0,
-                height: 2,
-                borderRadius: '0 0 2px 2px',
-                backgroundColor: 'primary.main',
-                opacity: moreActive ? 1 : 0,
-                transition: 'opacity 160ms ease',
-              },
+          <AppMenu
+            items={moreItems.map((item) => ({
+              key: item.key,
+              label: item.label,
+              icon: item.icon,
+              active: item.active,
+              onSelect: item.onNavigate,
+            }))}
+            sx={{ minWidth: 220 }}
+            partSx={{
+              action: { minHeight: 44, gap: 1.25 },
+              menuitem: { '&.app-menu-item-active': { backgroundColor: 'brand.accentSoft' } },
             }}
           >
-            <Badge
-              variant="dot"
-              color="error"
-              invisible={pendingIncomingCraftRequestCount === 0}
-            >
-              <MoreHorizIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
-            </Badge>
-            <Typography
+            <ButtonBase
+              aria-label={t('More', 'Plus', 'Mehr')}
               sx={{
-                fontFamily: FONT_BODY,
-                fontWeight: 600,
-                fontSize: MOBILE_LABEL_FONT_SIZE,
-                lineHeight: 1.1,
-                letterSpacing: '0.01em',
+                minWidth: 0,
+                minHeight: 58,
+                px: 0.5,
+                py: 0.75,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 0.45,
+                position: 'relative',
+                color: moreActive ? 'primary.main' : 'text.secondary',
+                backgroundColor: moreActive ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 8,
+                  right: 8,
+                  top: 0,
+                  height: 2,
+                  borderRadius: '0 0 2px 2px',
+                  backgroundColor: 'primary.main',
+                  opacity: moreActive ? 1 : 0,
+                  transition: 'opacity 160ms ease',
+                },
               }}
             >
-              {t('More', 'Plus', 'Mehr')}
-            </Typography>
-          </ButtonBase>
-          <Menu
-            anchorEl={moreAnchor}
-            open={Boolean(moreAnchor)}
-            onClose={() => setMoreAnchor(null)}
-            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          >
-            {moreItems.map((item) => (
-              <MenuItem
-                key={item.key}
-                selected={item.active}
-                onClick={() => {
-                  setMoreAnchor(null);
-                  item.onNavigate();
+              <Badge
+                variant="dot"
+                color="error"
+                invisible={pendingIncomingCraftRequestCount === 0}
+              >
+                <MoreHorizIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
+              </Badge>
+              <Typography
+                sx={{
+                  fontFamily: FONT_BODY,
+                  fontWeight: 600,
+                  fontSize: MOBILE_LABEL_FONT_SIZE,
+                  lineHeight: 1.1,
+                  letterSpacing: '0.01em',
                 }}
               >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText>{item.label}</ListItemText>
-              </MenuItem>
-            ))}
-          </Menu>
+                {t('More', 'Plus', 'Mehr')}
+              </Typography>
+            </ButtonBase>
+          </AppMenu>
         </Box>
       </Box>
     );
@@ -509,7 +498,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
               badgeContent={plannerBadgeCount}
               color="primary"
               invisible={plannerBadgeCount === 0}
-              sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', fontWeight: 700 } }}
             >
               <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
             </Badge>

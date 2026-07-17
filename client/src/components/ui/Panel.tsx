@@ -1,7 +1,7 @@
 import { Box, Collapse, IconButton, Paper, Typography, useTheme, alpha } from '../../ui/system';
 import type { SxProps, Theme } from '../../ui/system';
 import { ExpandMoreIcon } from '../../ui/icons';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
@@ -26,6 +26,10 @@ export interface PanelProps {
   /** Show a chevron in the header that collapses the panel body. */
   collapsible?: boolean;
   defaultCollapsed?: boolean;
+  /** Accessible label for the collapse toggle. */
+  collapseLabel?: string;
+  /** Heading level used when `title` is a string. */
+  titleComponent?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
   noPad?: boolean;
   dense?: boolean;
   variant?: 'default' | 'raised' | 'sunken';
@@ -47,6 +51,8 @@ export function Panel({
   accent,
   collapsible = false,
   defaultCollapsed = false,
+  collapseLabel = 'Toggle section',
+  titleComponent = 'h2',
   noPad = false,
   dense = false,
   variant = 'default',
@@ -55,6 +61,9 @@ export function Panel({
   className,
 }: PanelProps) {
   const theme = useTheme();
+  const generatedId = useId();
+  const titleId = title != null ? `panel-${generatedId}-title` : undefined;
+  const bodyId = `panel-${generatedId}-body`;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const VARIANT_SX = {
@@ -86,6 +95,7 @@ export function Panel({
       elevation={0}
       component={component}
       className={className}
+      aria-labelledby={titleId}
       sx={[
         VARIANT_SX[variant],
         {
@@ -140,6 +150,8 @@ export function Panel({
             {title != null && (
               typeof title === 'string' ? (
                 <Typography
+                  id={titleId}
+                  component={titleComponent}
                   sx={{
                     fontFamily: FONT_DISPLAY,
                     fontWeight: 600,
@@ -211,7 +223,9 @@ export function Panel({
                 <IconButton
                   size="small"
                   onClick={() => setCollapsed((prev) => !prev)}
+                  aria-label={collapseLabel}
                   aria-expanded={!collapsed}
+                  aria-controls={bodyId}
                   sx={{ p: 0.25 }}
                 >
                   <ExpandMoreIcon
@@ -230,7 +244,7 @@ export function Panel({
 
       {/* Body */}
       <Collapse in={!collapsible || !collapsed} timeout={180} unmountOnExit={false}>
-        <Box sx={noPad ? undefined : { p: dense ? 1.5 : 2.5 }}>
+        <Box id={bodyId} aria-hidden={collapsible && collapsed ? true : undefined} sx={noPad ? undefined : { p: dense ? 1.5 : 2.5 }}>
           {children}
         </Box>
       </Collapse>

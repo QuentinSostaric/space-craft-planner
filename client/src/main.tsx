@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
+import './ui/prime/theme.css';
 import App from './App';
 import { registerWebMcpTools } from './webmcp';
 

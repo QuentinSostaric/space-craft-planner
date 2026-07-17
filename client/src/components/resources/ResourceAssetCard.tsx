@@ -1,5 +1,6 @@
 import { Box, Stack, Typography, alpha, useTheme } from '../../ui/system';
-import { Avatar, Card, CardActionArea, CardMedia, Chip } from '../../ui/widgets';
+import { Avatar, Card, CardActionArea, CardMedia } from '../ui/primitives';
+import { AppChip } from '../ui/data-display/AppChip';
 import { memo } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import {
@@ -124,7 +125,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
         }}
       >
         <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}>
-          <Chip
+          <AppChip
             label={getResourceFamilyLabel(resource?.visualKind ?? null, lang)}
             size="small"
             sx={{
@@ -135,7 +136,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
           />
         </Box>
         <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
-          <Chip
+          <AppChip
             size="small"
             color={missionCount > 0 ? 'primary' : 'default'}
             label={
@@ -172,6 +173,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
         <Box>
           <Typography
+            component="h3"
             sx={{
               fontFamily: FONT_HEADING,
               fontWeight: 700,
@@ -222,7 +224,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
         {infoChips.length > 0 ? (
           <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
             {infoChips.map((chip) => (
-              <Chip
+              <AppChip
                 key={`${resourceName}-${chip.label}`}
                 size="small"
                 label={chip.label}
@@ -243,7 +245,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
           {systems.slice(0, 3).map((system) => {
             const iconName = getLocationIconName(system);
             return (
-              <Chip
+              <AppChip
                 key={system}
                 size="small"
                 icon={
@@ -253,7 +255,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
               />
             );
           })}
-          {systems.length > 3 ? <Chip size="small" label={`+${systems.length - 3}`} /> : null}
+          {systems.length > 3 ? <AppChip size="small" label={`+${systems.length - 3}`} /> : null}
         </Stack>
       </Box>
     </>

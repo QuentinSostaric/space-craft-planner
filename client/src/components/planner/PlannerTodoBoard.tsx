@@ -1,11 +1,14 @@
 import { Box, ButtonBase, IconButton, Paper, Typography, alpha, useTheme } from '../../ui/system';
-import { Autocomplete, Button, Checkbox, Chip, TextField, ToggleButton, ToggleButtonGroup, Tooltip } from '../../ui/widgets';
+import { AppTooltip } from '../ui/overlays';
+import { AppChip } from '../ui/data-display';
 import { AddTaskOutlinedIcon, CheckCircleOutlineOutlinedIcon, DeleteOutlineOutlinedIcon, EditOutlinedIcon, Inventory2OutlinedIcon, RocketLaunchOutlinedIcon, SearchOutlinedIcon } from '../../ui/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useCraft } from '../../store/CraftContext';
 import type { PlannerTodoItem, PlannerTodoSource } from '../../types';
-import { FONT_HEADING, TEXT_LABEL, TEXT_LABEL_SM} from '../../theme';
+import { FONT_HEADING } from '../../theme';
+import { AppAutocomplete, AppButton, AppCheckbox, AppTextArea, AppTextField } from '../ui/controls';
+import { PlannerSegmentedControl } from './PlannerControls';
 import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 import { toSlug } from '../../utils/slug';
 
@@ -40,6 +43,7 @@ export function PlannerTodoBoard() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null);
+  const [blueprintQuery, setBlueprintQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<PlannerTodoFilter>('open');
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
@@ -53,11 +57,15 @@ export function PlannerTodoBoard() {
     [blueprints],
   );
   const selectedBlueprint = useMemo(
-    () =>
-      blueprintOptions.find((blueprint) => blueprint.id === selectedBlueprintId) ??
-      null,
+    () => blueprintOptions.find((blueprint) => blueprint.id === selectedBlueprintId) ?? null,
     [blueprintOptions, selectedBlueprintId],
   );
+  const blueprintSuggestions = useMemo(() => {
+    const query = blueprintQuery.trim().toLowerCase();
+    return query
+      ? blueprintOptions.filter((blueprint) => blueprint.name.toLowerCase().includes(query))
+      : blueprintOptions;
+  }, [blueprintOptions, blueprintQuery]);
 
   useEffect(() => {
     if (draftMode !== 'mission-blueprint') {
@@ -226,21 +234,21 @@ export function PlannerTodoBoard() {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-            <Chip
-              size="small"
-              variant="outlined"
+            <AppChip
+              size="sm"
+              outlined
               icon={<AddTaskOutlinedIcon sx={{ fontSize: 16 }} />}
               label={`${counts.open} ${t('open', 'ouvertes')}`}
             />
-            <Chip
-              size="small"
-              variant="outlined"
+            <AppChip
+              size="sm"
+              outlined
               icon={<CheckCircleOutlineOutlinedIcon sx={{ fontSize: 16 }} />}
               label={`${counts.done} ${t('done', 'terminées')}`}
             />
-            <Chip
-              size="small"
-              variant="outlined"
+            <AppChip
+              size="sm"
+              outlined
               icon={<RocketLaunchOutlinedIcon sx={{ fontSize: 16 }} />}
               label={`${counts.blueprintMissions} ${t('missions', 'missions')}`}
             />
@@ -255,30 +263,15 @@ export function PlannerTodoBoard() {
             alignItems: 'start',
           }}
         >
-          <ToggleButtonGroup
-            exclusive
+          <PlannerSegmentedControl
             value={draftMode}
-            aria-label={t('Task type', 'Type de tâche')}
-            onChange={(_event, value: PlannerTodoSource | null) => {
-              if (value) {
-                setDraftMode(value);
-              }
-            }}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                px: 1.2,
-                fontSize: TEXT_LABEL,
-                fontWeight: 700,
-                fontFamily: FONT_HEADING,
-              },
-            }}
-          >
-            <ToggleButton value="manual">{t('Manual task', 'Tâche manuelle')}</ToggleButton>
-            <ToggleButton value="mission-blueprint">
-              {t('Blueprint mission', 'Mission blueprint')}
-            </ToggleButton>
-          </ToggleButtonGroup>
+            ariaLabel={t('Task type', 'Type de tâche')}
+            onValueChange={setDraftMode}
+            options={[
+              { value: 'manual', label: t('Manual task', 'Tâche manuelle') },
+              { value: 'mission-blueprint', label: t('Blueprint mission', 'Mission blueprint') },
+            ]}
+          />
 
           <Box
             sx={{
@@ -291,71 +284,60 @@ export function PlannerTodoBoard() {
             }}
           >
             {draftMode === 'mission-blueprint' && (
-              <Autocomplete
-                options={blueprintOptions}
+              <AppAutocomplete
+                label={t('Blueprint', 'Blueprint')}
                 value={selectedBlueprint}
-                onChange={(_event, value) => {
-                  setSelectedBlueprintId(value?.id ?? null);
-                  if (value && !draftTitle.trim()) {
-                    setDraftTitle(`Craft ${value.name}`);
+                suggestions={blueprintSuggestions}
+                getOptionLabel={(option) => option.name as string}
+                onQueryChange={setBlueprintQuery}
+                onValueChange={(value) => {
+                  const blueprint = typeof value === 'string' ? null : value;
+                  setSelectedBlueprintId(blueprint?.id as string ?? null);
+                  if (blueprint && !draftTitle.trim()) {
+                    setDraftTitle(`Craft ${blueprint.name}`);
                   }
                 }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Blueprint', 'Blueprint')}
-                    placeholder={t('Select a blueprint', 'Sélectionner un blueprint')}
-                    size="small"
-                  />
-                )}
-                getOptionLabel={(option) => option.name}
-                isOptionEqualToValue={(left, right) => left.id === right.id}
-                size="small"
+                forceSelection
+                placeholder={t('Select a blueprint', 'Sélectionner un blueprint')}
               />
             )}
-            <TextField
+            <AppTextField
               value={draftTitle}
-              onChange={(event) => setDraftTitle(event.target.value)}
+              onValueChange={setDraftTitle}
               label={t('Task title', 'Titre de la tâche')}
               placeholder={
                 draftMode === 'mission-blueprint'
                   ? t('Craft mission title', 'Titre de mission de craft')
                   : t('What needs to be done?', 'Que faut-il faire ?')
               }
-              size="small"
             />
-            <TextField
+            <AppTextArea
               value={draftDescription}
-              onChange={(event) => setDraftDescription(event.target.value)}
+              onValueChange={setDraftDescription}
               label={t('Notes', 'Notes')}
               placeholder={t('Context, requirements, follow-up...', 'Contexte, exigences, suivi...')}
-              size="small"
-              multiline
-              minRows={1}
-              maxRows={3}
+              rows={1}
+              autoResize
             />
           </Box>
 
-          <Button
-            variant="contained"
+          <AppButton
+            variant="primary"
             onClick={handleCreateTodo}
-            startIcon={<AddTaskOutlinedIcon />}
+            icon={<AddTaskOutlinedIcon />}
             disabled={draftMode === 'mission-blueprint' && !selectedBlueprint}
-            sx={{
-              minHeight: 40,
-              whiteSpace: 'nowrap',
-            }}
+            sx={{ minHeight: 44, whiteSpace: 'nowrap' }}
           >
             {t('Add task', 'Ajouter')}
-          </Button>
+          </AppButton>
         </Box>
 
         {draftMode === 'mission-blueprint' && activeBlueprint && activeBlueprint.id !== selectedBlueprintId && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<Inventory2OutlinedIcon />}
+            <AppButton
+              size="sm"
+              variant="ghost"
+              icon={<Inventory2OutlinedIcon />}
               onClick={() => {
                 setSelectedBlueprintId(activeBlueprint.id);
                 if (!draftTitle.trim()) {
@@ -364,7 +346,7 @@ export function PlannerTodoBoard() {
               }}
             >
               {t('Use current blueprint', 'Utiliser le blueprint courant')}: {activeBlueprint.name}
-            </Button>
+            </AppButton>
           </Box>
         )}
       </Box>
@@ -381,52 +363,41 @@ export function PlannerTodoBoard() {
           alignItems: 'center',
         }}
       >
-        <ToggleButtonGroup
-          exclusive
-          size="small"
+        <PlannerSegmentedControl
           value={filter}
-          aria-label={t('Filter tasks', 'Filtrer les tâches')}
-          onChange={(_event, value: PlannerTodoFilter | null) => {
-            if (value) {
-              setFilter(value);
-            }
-          }}
-          sx={{
-            '& .MuiToggleButton-root': {
-              px: 1,
-              fontSize: TEXT_LABEL_SM,
-              fontWeight: 700,
-              fontFamily: FONT_HEADING,
-            },
-          }}
-        >
-          <ToggleButton value="all">{t('All', 'Tout')}</ToggleButton>
-          <ToggleButton value="open">{t('Open', 'Ouvert')}</ToggleButton>
-          <ToggleButton value="done">{t('Done', 'Terminé')}</ToggleButton>
-          <ToggleButton value="manual">{t('Manual', 'Manuel')}</ToggleButton>
-          <ToggleButton value="mission-blueprint">{t('Missions', 'Missions')}</ToggleButton>
-        </ToggleButtonGroup>
-
-        <TextField
-          size="small"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder={t('Search tasks or blueprints', 'Rechercher une tâche ou un blueprint')}
-          InputProps={{
-            startAdornment: <SearchOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />,
-          }}
+          ariaLabel={t('Filter tasks', 'Filtrer les tâches')}
+          onValueChange={setFilter}
+          compact
+          options={[
+            { value: 'all', label: t('All', 'Tout') },
+            { value: 'open', label: t('Open', 'Ouvert') },
+            { value: 'done', label: t('Done', 'Terminé') },
+            { value: 'manual', label: t('Manual', 'Manuel') },
+            { value: 'mission-blueprint', label: t('Missions', 'Missions') },
+          ]}
         />
 
-        <Button
-          variant="outlined"
-          color="inherit"
-          size="small"
+        <Box sx={{ position: 'relative' }}>
+          <SearchOutlinedIcon sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 18, color: 'text.secondary', zIndex: 1, pointerEvents: 'none' }} />
+          <AppTextField
+            type="search"
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            ariaLabel={t('Search tasks or blueprints', 'Rechercher une tâche ou un blueprint')}
+            placeholder={t('Search tasks or blueprints', 'Rechercher une tâche ou un blueprint')}
+            sx={{ paddingLeft: 4.5 }}
+          />
+        </Box>
+
+        <AppButton
+          variant="secondary"
+          size="sm"
           disabled={counts.done === 0}
           onClick={clearCompletedPlannerTodoItems}
           sx={{ justifySelf: { xs: 'stretch', sm: 'end' } }}
         >
           {t('Clear completed', 'Nettoyer le terminé')}
-        </Button>
+        </AppButton>
       </Box>
 
       <Box
@@ -474,7 +445,7 @@ export function PlannerTodoBoard() {
           return (
             <Paper
               key={item.id}
-              variant="outlined"
+              outlined
               sx={{
                 p: 1.25,
                 borderColor: item.completed
@@ -487,36 +458,34 @@ export function PlannerTodoBoard() {
               }}
             >
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                <Checkbox
+                <AppCheckbox
+                  label={item.completed ? t('Mark task open', 'Rouvrir la tâche') : t('Mark task completed', 'Marquer la tâche terminée')}
                   checked={item.completed}
-                  onChange={() => togglePlannerTodoItem(item.id)}
-                  sx={{ mt: -0.25 }}
+                  onCheckedChange={() => togglePlannerTodoItem(item.id)}
+                  sx={{ mt: -0.25, minWidth: 44, minHeight: 44, '& > span': { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' } }}
                 />
 
                 <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                   {isEditing ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <TextField
-                        size="small"
+                      <AppTextField
                         value={editingTitle}
-                        onChange={(event) => setEditingTitle(event.target.value)}
+                        onValueChange={setEditingTitle}
                         label={t('Task title', 'Titre de la tâche')}
                       />
-                      <TextField
-                        size="small"
+                      <AppTextArea
                         value={editingDescription}
-                        onChange={(event) => setEditingDescription(event.target.value)}
+                        onValueChange={setEditingDescription}
                         label={t('Notes', 'Notes')}
-                        multiline
-                        minRows={2}
+                        rows={2}
                       />
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Button size="small" variant="contained" onClick={saveEditing}>
+                        <AppButton size="sm" variant="primary" onClick={saveEditing}>
                           {t('Save', 'Enregistrer')}
-                        </Button>
-                        <Button size="small" variant="outlined" onClick={cancelEditing}>
+                        </AppButton>
+                        <AppButton size="sm" variant="secondary" onClick={cancelEditing}>
                           {t('Cancel', 'Annuler')}
-                        </Button>
+                        </AppButton>
                       </Box>
                     </Box>
                   ) : (
@@ -541,9 +510,9 @@ export function PlannerTodoBoard() {
                           {item.title}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                          <Chip
-                            size="small"
-                            variant="outlined"
+                          <AppChip
+                            size="sm"
+                            outlined
                             icon={
                               item.source === 'mission-blueprint' ? (
                                 <RocketLaunchOutlinedIcon sx={{ fontSize: 15 }} />
@@ -616,16 +585,16 @@ export function PlannerTodoBoard() {
                           )}
                         </Box>
                         <Box sx={{ display: 'flex', gap: 0.25 }}>
-                          <Tooltip title={t('Edit task', 'Modifier la tâche')}>
+                          <AppTooltip content={t('Edit task', 'Modifier la tâche')}>
                             <IconButton size="small" onClick={() => startEditing(item)} aria-label={t('Edit item', 'Modifier l\'élément')}>
                               <EditOutlinedIcon sx={{ fontSize: 18 }} />
                             </IconButton>
-                          </Tooltip>
-                          <Tooltip title={t('Delete task', 'Supprimer la tâche')}>
+                          </AppTooltip>
+                          <AppTooltip content={t('Delete task', 'Supprimer la tâche')}>
                             <IconButton size="small" onClick={() => removePlannerTodoItem(item.id)} aria-label={t('Remove item', 'Supprimer l\'élément')}>
                               <DeleteOutlineOutlinedIcon sx={{ fontSize: 18 }} />
                             </IconButton>
-                          </Tooltip>
+                          </AppTooltip>
                         </Box>
                       </Box>
                     </>

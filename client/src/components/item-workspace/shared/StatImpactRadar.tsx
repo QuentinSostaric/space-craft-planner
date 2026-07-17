@@ -1,5 +1,5 @@
 import { Box, Stack, Typography, useMediaQuery, alpha, useTheme } from '../../../ui/system';
-import { Chip } from '../../../ui/widgets';
+import { AppChip } from '../../ui/data-display/AppChip';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   Chart,
@@ -303,8 +303,8 @@ export function StatImpactRadar({
           </Typography>
         </Box>
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-          <Chip
-            size="small"
+          <AppChip
+            size="sm"
             label={t('Base', 'Base')}
             variant="outlined"
             sx={{
@@ -313,8 +313,8 @@ export function StatImpactRadar({
               borderColor: alpha(theme.palette.text.secondary, 0.35),
             }}
           />
-          <Chip
-            size="small"
+          <AppChip
+            size="sm"
             label={t('Current build', 'Build actuel')}
             variant="filled"
             sx={{
@@ -341,9 +341,9 @@ export function StatImpactRadar({
               ? t('improved', 'amélioré', 'verbessert')
               : t('degraded', 'dégradé', 'verschlechtert');
           return (
-            <Chip
+            <AppChip
               key={metric.key}
-              size="small"
+              size="sm"
               label={`${statePrefix}${metric.label}`}
               variant="outlined"
               aria-label={`${metric.label}: ${stateLabel}`}

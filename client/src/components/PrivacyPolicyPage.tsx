@@ -1,5 +1,5 @@
 import { Box, Typography, Divider } from '../ui/system';
-import { Link } from '../ui/widgets';
+import { PageHeader, PageLayout } from './ui/page';
 import { useI18n } from '../i18n/I18nContext';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -41,16 +41,15 @@ export function PrivacyPolicyPage() {
   const { t } = useI18n();
 
   return (
-    <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3, md: 4 }, py: { xs: 3, sm: 4 } }}>
-      <Box sx={{ maxWidth: 760, mx: 'auto' }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-          {t('Privacy Policy', 'Politique de confidentialité', 'Datenschutzerklärung')}
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 3 }}>
-          {t('Last updated: May 2026', 'Dernière mise à jour : mai 2026', 'Letzte Aktualisierung: Mai 2026')}
-        </Typography>
+    <PageLayout width="reading" component="article">
+      <PageHeader
+        variant="reading"
+        title={t('Privacy Policy', 'Politique de confidentialité', 'Datenschutzerklärung')}
+        meta={t('Last updated: May 2026', 'Dernière mise à jour : mai 2026', 'Letzte Aktualisierung: Mai 2026')}
+      />
 
-        <Divider sx={{ mb: 3 }} />
+      <Divider />
+      <Box>
 
         <Section title={t('1. Who we are', '1. Qui sommes-nous', '1. Wer wir sind')}>
           <P>
@@ -59,7 +58,7 @@ export function PrivacyPolicyPage() {
               'Item Fabricator est un outil de fan non officiel pour les joueurs de Star Citizen, créé par ',
               'Item Fabricator ist ein inoffizielles Fan-Tool für Star-Citizen-Spieler, erstellt von ',
             )}
-            <Link href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">@ThSamon</Link>
+            <Box component="a" sx={{ color: 'brand.blue', '&:hover': { textDecoration: 'underline' } }} href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">@ThSamon</Box>
             {t(
               '. This site is not affiliated with Cloud Imperium Games.',
               '. Ce site n\'est pas affilié à Cloud Imperium Games.',
@@ -138,9 +137,9 @@ export function PrivacyPolicyPage() {
                 ' : nous utilisons Discord OAuth pour vous authentifier. Discord collecte des données conformément à sa ',
                 ': Wir verwenden Discord OAuth zur Authentifizierung. Discord erhebt Daten gemäß seiner ',
               )}
-              <Link href="https://discord.com/privacy" target="_blank" rel="noopener noreferrer">
+              <Box component="a" sx={{ color: 'brand.blue', '&:hover': { textDecoration: 'underline' } }} href="https://discord.com/privacy" target="_blank" rel="noopener noreferrer">
                 {t('Privacy Policy', 'politique de confidentialité', 'Datenschutzrichtlinie')}
-              </Link>
+              </Box>
               {'.'}
             </Li>
             <Li>
@@ -150,9 +149,9 @@ export function PrivacyPolicyPage() {
                 ' : notre backend fonctionne sur Cloudflare Workers et stocke les données de compte dans Cloudflare R2. Voir la ',
                 ': Unser Backend läuft auf Cloudflare Workers und speichert Kontodaten in Cloudflare R2. Siehe die ',
               )}
-              <Link href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">
+              <Box component="a" sx={{ color: 'brand.blue', '&:hover': { textDecoration: 'underline' } }} href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">
                 {t('Privacy Policy', 'politique de confidentialité de Cloudflare', 'Datenschutzrichtlinie von Cloudflare')}
-              </Link>
+              </Box>
               {'.'}
             </Li>
           </Ul>
@@ -182,21 +181,21 @@ export function PrivacyPolicyPage() {
               'Pour toute question relative à la vie privée, ouvrez une issue sur ',
               'Für datenschutzbezogene Anfragen öffnen Sie ein Issue auf ',
             )}
-            <Link href="https://github.com/QuentinSostaric/space-craft-planner" target="_blank" rel="noopener noreferrer">
+            <Box component="a" sx={{ color: 'brand.blue', '&:hover': { textDecoration: 'underline' } }} href="https://github.com/QuentinSostaric/space-craft-planner" target="_blank" rel="noopener noreferrer">
               GitHub
-            </Link>
+            </Box>
             {t(
               ' or reach out to ',
               ' ou contactez ',
               ' oder kontaktieren Sie ',
             )}
-            <Link href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">
+            <Box component="a" sx={{ color: 'brand.blue', '&:hover': { textDecoration: 'underline' } }} href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">
               @ThSamon
-            </Link>
+            </Box>
             {t(' on X.', ' sur X.', ' auf X.')}
           </P>
         </Section>
       </Box>
-    </Box>
+    </PageLayout>
   );
 }

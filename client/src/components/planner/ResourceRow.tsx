@@ -1,14 +1,12 @@
 import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
-import { Accordion, AccordionDetails, AccordionSummary, Checkbox, Chip, Slider, TextField, ToggleButton, ToggleButtonGroup } from '../../ui/widgets';
+import { Accordion, AccordionDetails, AccordionSummary } from '../ui/primitives';
+import { AppChip } from '../ui/data-display';
 import { DragIndicatorIcon } from '../../ui/icons';
 import {
   memo,
   useCallback,
   useMemo,
-  type ChangeEvent,
   type DragEventHandler,
-  type FocusEvent,
-  type MouseEvent,
 } from 'react';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
@@ -22,6 +20,8 @@ import { ResourceMethodDetail } from './ResourceMethodDetail';
 import { AppGlyph } from '../ui/AppGlyph';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import { FONT_MONO, TEXT_LABEL} from '../../theme';
+import { AppCheckbox, AppSlider } from '../ui/controls';
+import { PlannerNumberInput, PlannerSegmentedControl } from './PlannerControls';
 
 const DEFAULT_PROGRESS: ResourceProgress = { collected: 0, method: null };
 
@@ -66,23 +66,22 @@ export const ResourceRow = memo(function ResourceRow({
   const isDone = collected >= resource.totalScu && resource.totalScu > 0;
 
   const handleMethodChange = useCallback(
-    (_event: MouseEvent<HTMLElement>, value: ResourceMethod | null) => {
-      setResourceMethod(resource.resourceName, value);
+    (value: ResourceMethod) => {
+      setResourceMethod(resource.resourceName, value === method ? null : value);
     },
-    [resource.resourceName, setResourceMethod],
+    [method, resource.resourceName, setResourceMethod],
   );
 
   const handleSliderChange = useCallback(
-    (_event: Event, value: number | number[]) => {
-      setResourceCollected(resource.resourceName, value as number);
+    (value: number) => {
+      setResourceCollected(resource.resourceName, value);
     },
     [resource.resourceName, setResourceCollected],
   );
 
   const handleInputChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = parseFloat(event.target.value);
-      if (!Number.isNaN(value)) {
+    (value: number | '') => {
+      if (value !== '' && Number.isFinite(value)) {
         setResourceCollected(resource.resourceName, Math.max(0, Math.min(resource.totalScu, value)));
       }
     },
@@ -90,9 +89,8 @@ export const ResourceRow = memo(function ResourceRow({
   );
 
   const handleInputBlur = useCallback(
-    (event: FocusEvent<HTMLInputElement>) => {
-      const value = parseFloat(event.target.value);
-      const clamped = Number.isNaN(value)
+    (value: number | '') => {
+      const clamped = value === '' || !Number.isFinite(value)
         ? 0
         : resource.quantityUnit === 'count'
           ? Math.round(Math.max(0, Math.min(resource.totalScu, value)))
@@ -147,10 +145,10 @@ export const ResourceRow = memo(function ResourceRow({
             {resource.resourceName}
           </Typography>
           {resource.minRequiredQuality != null && resource.minRequiredQuality > 0 && (
-            <Chip
+            <AppChip
               label={`Min ${resource.minRequiredQuality}`}
-              size="small"
-              variant="outlined"
+              size="sm"
+              outlined
               sx={{
                 fontSize: TEXT_LABEL,
                 height: 18,
@@ -160,11 +158,11 @@ export const ResourceRow = memo(function ResourceRow({
             />
           )}
           {manualRequired > 0 && (
-            <Chip
+            <AppChip
               label={`+${formatResourceQuantity(manualRequired, resource.quantityUnit, lang, 'long')} ${t('manual', 'manuel')}`}
-              size="small"
-              variant="outlined"
-              onDelete={() => clearPlannerResourceRequirement(resource.resourceName)}
+              size="sm"
+              outlined
+              onRemove={() => clearPlannerResourceRequirement(resource.resourceName)}
               sx={{ fontSize: TEXT_LABEL, height: 18 }}
             />
           )}
@@ -199,71 +197,54 @@ export const ResourceRow = memo(function ResourceRow({
           )}
         </Box>
 
-        <ToggleButtonGroup
+        <PlannerSegmentedControl
           value={method}
-          exclusive
-          onChange={handleMethodChange}
-          size="small"
-          aria-label={t('Collection method', 'Méthode de collecte')}
-          sx={{
-            '& .MuiToggleButton-root': {
-              fontSize: TEXT_LABEL,
-              py: 0.25,
-              px: 1,
-            },
-          }}
-        >
-          <ToggleButton value="mission">{t('Mission', 'Mission')}</ToggleButton>
-          <ToggleButton value="mining">{t('Mining', 'Minage')}</ToggleButton>
-          <ToggleButton value="dismantle">{t('Dismantle', 'Démantelé')}</ToggleButton>
-          <ToggleButton value="buy">{t('Buy', 'Achat')}</ToggleButton>
-        </ToggleButtonGroup>
+          onValueChange={handleMethodChange}
+          ariaLabel={t('Collection method', 'Méthode de collecte')}
+          compact
+          sx={{ width: '100%' }}
+          options={[
+            { value: 'mission', label: t('Mission', 'Mission') },
+            { value: 'mining', label: t('Mining', 'Minage') },
+            { value: 'dismantle', label: t('Dismantle', 'Démantelé') },
+            { value: 'buy', label: t('Buy', 'Achat') },
+          ]}
+        />
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Slider
+          <AppSlider
             min={0}
             max={resource.totalScu}
             step={quantityStep}
             value={collected}
-            onChange={handleSliderChange}
-            valueLabelDisplay="auto"
-            valueLabelFormat={valueLabelFormat}
-            aria-label={t('Collected amount', 'Quantité collectée')}
-            sx={{ flex: 1, color: isDone ? 'success.main' : undefined }}
+            onValueChange={handleSliderChange}
+            formatValue={valueLabelFormat}
+            label={t('Collected amount', 'Quantité collectée')}
+            marks={resource.totalScu > 0 ? [
+              { value: 0, label: '0' },
+              { value: resource.totalScu, label: formatQuantityValue(resource.totalScu, resource.quantityUnit) },
+            ] : []}
+            sx={{ flex: 1, minWidth: 120 }}
+            partSx={{ handle: { minWidth: 24, minHeight: 24 }, root: { minHeight: 24 } }}
           />
-          <TextField
-            type="number"
-            size="small"
+          <PlannerNumberInput
             value={collected}
-            onChange={handleInputChange}
+            onValueChange={handleInputChange}
             onBlur={handleInputBlur}
-            slotProps={{
-              htmlInput: {
-                min: 0,
-                max: resource.totalScu,
-                step: quantityStep,
-                style: {
-                  width: 52,
-                  textAlign: 'right',
-                  padding: '3px 6px',
-                  fontSize: TEXT_LABEL,
-                  fontFamily: 'monospace',
-                },
-              },
-            }}
-            sx={{ width: 70, flexShrink: 0 }}
-            aria-label={t('Collected amount value', 'Valeur collectée')}
+            min={0}
+            max={resource.totalScu}
+            step={quantityStep}
+            ariaLabel={t('Collected amount value', 'Valeur collectée')}
+            sx={{ width: 76, flexShrink: 0, fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}
           />
           <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}>
             / {formatQuantityValue(resource.totalScu, resource.quantityUnit)}
           </Typography>
-          <Checkbox
+          <AppCheckbox
             checked={isDone}
-            onChange={handleCheckbox}
-            size="small"
-            title={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
-            aria-label={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
-            sx={{ p: 0.25, flexShrink: 0 }}
+            onCheckedChange={handleCheckbox}
+            label={t('Mark as fully collected', 'Marquer comme entièrement collecté')}
+            sx={{ minWidth: 44, minHeight: 44, flexShrink: 0, '& > span': { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' } }}
           />
         </Box>
       </Box>
@@ -280,7 +261,7 @@ export const ResourceRow = memo(function ResourceRow({
         >
           <AccordionSummary
             expandIcon={<AppGlyph name="caret-up" size={16} />}
-            sx={{ minHeight: 32, '& .MuiAccordionSummary-content': { my: 0.5 } }}
+            sx={{ minHeight: 44, py: 0.5 }}
           >
             <Typography
               variant="caption"

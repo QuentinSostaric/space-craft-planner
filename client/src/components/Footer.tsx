@@ -1,5 +1,4 @@
 import { Box, Typography } from '../ui/system';
-import { Link } from '../ui/widgets';
 import { useI18n } from '../i18n/I18nContext';
 import { navigateToPath } from '../utils/slug';
 import { TEXT_LABEL_SM } from '../theme';
@@ -37,36 +36,36 @@ export function Footer() {
         )}
       </Typography>
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5, fontSize: TEXT_LABEL_SM, flexWrap: 'wrap' }}>
-        <Link
+        <Box component="a"
           href="https://robertsspaceindustries.com"
           target="_blank"
           rel="noopener noreferrer"
-          sx={{ fontSize: 'inherit' }}
+          sx={{ fontSize: 'inherit', color: 'brand.blue', textDecoration: 'none', minHeight: 44, display: 'inline-flex', alignItems: 'center', '&:hover': { textDecoration: 'underline' } }}
         >
           robertsspaceindustries.com
-        </Link>
+        </Box>
         <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
         <Typography component="span" sx={{ color: 'text.secondary', fontSize: 'inherit' }}>
           {t('External media credit:', 'Credit medias externes :')}{' '}
-          <Link href="https://starcitizen.tools" target="_blank" rel="noopener noreferrer">
+          <Box component="a" sx={{ color: 'brand.blue', textDecoration: 'none', minHeight: 44, display: 'inline-flex', alignItems: 'center', '&:hover': { textDecoration: 'underline' } }} href="https://starcitizen.tools" target="_blank" rel="noopener noreferrer">
             starcitizen.tools
-          </Link>
+          </Box>
         </Typography>
         <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
         <Typography component="span" sx={{ color: 'text.secondary', fontSize: 'inherit' }}>
           {t('Made by', 'Fait par')}{' '}
-          <Link href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">
+          <Box component="a" sx={{ color: 'brand.blue', textDecoration: 'none', minHeight: 44, display: 'inline-flex', alignItems: 'center', '&:hover': { textDecoration: 'underline' } }} href="https://x.com/ThSamon" target="_blank" rel="noopener noreferrer">
             @ThSamon
-          </Link>
+          </Box>
         </Typography>
         <Typography component="span" aria-hidden="true" sx={{ color: 'text.disabled', fontSize: 'inherit' }}>|</Typography>
-        <Link
+        <Box component="a"
           href="/privacy"
-          sx={{ fontSize: 'inherit' }}
+          sx={{ fontSize: 'inherit', color: 'brand.blue', textDecoration: 'none', minHeight: 44, display: 'inline-flex', alignItems: 'center', '&:hover': { textDecoration: 'underline' } }}
           onClick={(e) => { e.preventDefault(); navigateToPath('/privacy'); }}
         >
           {t('Privacy Policy', 'Politique de confidentialité', 'Datenschutzerklärung')}
-        </Link>
+        </Box>
       </Box>
     </Box>
   );

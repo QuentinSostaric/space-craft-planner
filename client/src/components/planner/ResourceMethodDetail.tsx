@@ -1,5 +1,6 @@
 import { Box, Skeleton, Typography, alpha } from '../../ui/system';
-import { Chip, List, ListItem, ListItemButton, Table, TableBody, TableCell, TableHead, TableRow } from '../../ui/widgets';
+import { List, ListItem, ListItemButton, Table, TableBody, TableCell, TableHead, TableRow } from '../ui/primitives';
+import { AppChip } from '../ui/data-display';
 import { FlagIcon, MilitaryTechOutlinedIcon, TravelExploreOutlinedIcon } from '../../ui/icons';
 import { useEffect, useMemo } from 'react';
 import { useCraft } from '../../store/CraftContext';
@@ -324,25 +325,25 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', mt: 0.65 }}>
                   {factionName && (
-                    <Chip
+                    <AppChip
                       label={factionName}
-                      size="small"
-                      variant="outlined"
+                      size="sm"
+                      outlined
                       sx={{ fontSize: TEXT_LABEL, height: 18 }}
                     />
                   )}
-                  <Chip
+                  <AppChip
                     icon={<MissionActivityIcon kind={activityKind} />}
                     label={activityLabel}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                     sx={{ fontSize: TEXT_LABEL, height: 18 }}
                   />
-                  <Chip
+                  <AppChip
                     label={formatScaleLabel(contract.availability.derivedScale, lang)}
-                    size="small"
-                    variant="outlined"
-                    color="primary"
+                    size="sm"
+                    outlined
+                    tone="primary"
                     sx={{ fontSize: TEXT_LABEL, height: 18 }}
                   />
                 </Box>
@@ -351,10 +352,10 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                     {localities.slice(0, 2).map((location) => {
                       const iconName = getLocationIconName(location);
                       return (
-                        <Chip
+                        <AppChip
                           key={location}
-                          size="small"
-                          variant="outlined"
+                          size="sm"
+                          outlined
                           icon={
                             iconName ? <StarCitizenLicensedIcon name={iconName} size={12} dimmed /> : undefined
                           }

@@ -1,5 +1,5 @@
 import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
-import { LinearProgress } from '../../ui/widgets';
+import { AppProgressBar } from '../ui/feedback';
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
@@ -176,11 +176,7 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
               .join(' • ') || t('No totals', 'Pas de total')}
           </Typography>
         </Box>
-        <LinearProgress
-          variant="determinate"
-          value={globalPct}
-          sx={{ height: 6, borderRadius: 999 }}
-        />
+        <AppProgressBar value={globalPct} />
       </Box>
 
       <Box
