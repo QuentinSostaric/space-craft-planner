@@ -14,6 +14,7 @@ import {
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
 import { SlotCard } from './shared/SlotCard';
+import { StatImpactRadar } from './shared/StatImpactRadar';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../../theme';
 
 interface CraftSectionProps {
@@ -417,8 +418,32 @@ export function CraftSection({
             ) : undefined
           }
         >
+          <StatImpactRadar blueprint={blueprint} projectedStats={projectedStats} />
+
+          <Accordion
+            defaultExpanded={false}
+            disableGutters
+            elevation={0}
+            sx={{
+              mt: 1.5,
+              backgroundColor: theme.palette.ui.surface,
+              border: `1px solid ${theme.palette.ui.border}`,
+            }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />}
+              sx={{ px: 1.5, py: 0.9 }}
+            >
+              <Typography
+                variant="overline"
+                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.1em', color: 'text.secondary', lineHeight: 1 }}
+              >
+                {t('Detailed stats', 'Stats détaillées')}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 1.5, pt: 1, pb: 1.25 }}>
           {statRows.length > 0 ? (
-            <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+            <Stack spacing={0.5}>
               {statRows.map((row) => {
                 const deltaColor = row.isNeutral
                   ? theme.palette.text.disabled
@@ -486,6 +511,8 @@ export function CraftSection({
               {t('No modifiable stats', 'Aucune stat modifiable')}
             </Typography>
           )}
+            </AccordionDetails>
+          </Accordion>
 
           <Divider sx={{ my: 1.25, borderColor: theme.palette.ui.border }} />
           <Stack spacing={0.15} sx={{ mb: 1.25 }}>

@@ -6,11 +6,12 @@ import {
   Filler,
   LineElement,
   PointElement,
+  RadarController,
   RadialLinearScale,
 } from 'chart.js';
 import { loc, useI18n } from '../../../i18n/I18nContext';
 
-Chart.register(RadialLinearScale, PointElement, LineElement, Filler);
+Chart.register(RadarController, RadialLinearScale, PointElement, LineElement, Filler);
 
 function shortenMetricLabel(label: string): string {
   return label
@@ -44,9 +45,12 @@ function RadarCanvas({
   const chartRef = useRef<Chart<'radar'> | null>(null);
 
   useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return undefined;
-    chartRef.current?.destroy();
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return undefined;
+    // StrictMode double-invokes effects; make sure no chart instance is
+    // still bound to this canvas before creating a new one.
+    Chart.getChart(canvas)?.destroy();
     chartRef.current = new Chart<'radar'>(ctx, {
       type: 'radar',
       data: {
