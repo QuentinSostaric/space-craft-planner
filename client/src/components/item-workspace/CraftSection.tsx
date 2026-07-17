@@ -34,6 +34,8 @@ interface CraftSectionProps {
   clearAssignments: () => void;
   qualityScore: number;
   projectedStats: ItemStats;
+  /** Hide the Field Data accordion (when the host page renders it elsewhere). */
+  hideFieldData?: boolean;
 }
 
 function formatCraftTime(secs: number): string {
@@ -157,6 +159,82 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function computeFieldData(blueprint: Blueprint) {
+  const attachDef = blueprint.identity?.attachDef;
+  const inv = blueprint.identity?.inventoryOccupancy;
+  const itemType = blueprint.baseStats.weaponType || blueprint.baseStats.armorType || null;
+  const sizeVal = attachDef?.size != null ? String(attachDef.size) : null;
+  const volumeVal = inv?.microScu != null ? `${formatMicroScu(inv.microScu)} microSCU` : null;
+  const gridSizeVal = inv?.gridSize?.x && inv?.gridSize?.y ? `${inv.gridSize.x} × ${inv.gridSize.y}` : null;
+  const footprintVal = inv?.dimensions?.x && inv?.dimensions?.y && inv?.dimensions?.z
+    ? `${Math.round(inv.dimensions.x * 1000)} × ${Math.round(inv.dimensions.y * 1000)} × ${Math.round(inv.dimensions.z * 1000)} mm`
+    : null;
+  const attackProfile = [attachDef?.type, attachDef?.subType].filter(Boolean).map(humanizeToken).join(' / ') || null;
+  const ammoType = blueprint.baseStats.ammoType || blueprint.baseStats.ammoFlavor || null;
+  const armorSlot = blueprint.baseStats.armorSlot || null;
+  const technicalTags = [
+    attachDef?.size != null ? `Size ${attachDef.size}` : null,
+    attachDef?.grade != null ? `Grade ${attachDef.grade}` : null,
+    ...(attachDef?.tags ?? []).map(humanizeToken),
+    ...(attachDef?.requiredTags ?? []).map(humanizeToken),
+  ].filter(Boolean) as string[];
+  const hasFieldData = !!(itemType || sizeVal || volumeVal || gridSizeVal || footprintVal || attackProfile || ammoType || armorSlot || technicalTags.length > 0);
+  return { itemType, sizeVal, volumeVal, gridSizeVal, footprintVal, attackProfile, ammoType, armorSlot, technicalTags, hasFieldData };
+}
+
+export function hasBlueprintFieldData(blueprint: Blueprint): boolean {
+  return computeFieldData(blueprint).hasFieldData;
+}
+
+/** The Field Data rows + technical tags, reusable outside the accordion. */
+export function FieldDataBody({ blueprint }: { blueprint: Blueprint }) {
+  const { t } = useI18n();
+  const { itemType, sizeVal, volumeVal, gridSizeVal, footprintVal, attackProfile, ammoType, armorSlot, technicalTags } = computeFieldData(blueprint);
+  return (
+    <>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(100px, 0.5fr) 1fr',
+          columnGap: 2,
+          '& > *:last-child, & > *:nth-last-of-type(2)': { borderBottom: 'none' },
+        }}
+      >
+        {itemType && <FieldRow label={t('Item Type', 'Type objet')} value={itemType} />}
+        {sizeVal && <FieldRow label={t('Size', 'Taille')} value={sizeVal} />}
+        {volumeVal && <FieldRow label={t('Volume', 'Volume')} value={volumeVal} />}
+        {gridSizeVal && <FieldRow label={t('Grid Size', 'Taille grille')} value={gridSizeVal} />}
+        {footprintVal && <FieldRow label={t('Footprint', 'Encombrement')} value={footprintVal} />}
+        {attackProfile && <FieldRow label={t('Attack Profile', 'Profil attaque')} value={attackProfile} />}
+        {ammoType && <FieldRow label={t('Ammo Type', 'Type munition')} value={ammoType} />}
+        {armorSlot && <FieldRow label={t('Armor Slot', 'Emplacement')} value={armorSlot} />}
+      </Box>
+
+      {technicalTags.length > 0 && (
+        <Box sx={{ mt: 1.25 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              fontWeight: 500,
+              fontSize: TEXT_LABEL,
+              display: 'block',
+              mb: 0.75,
+            }}
+          >
+            {t('Technical Tags', 'Tags techniques')}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {technicalTags.map((tag) => (
+              <Chip key={tag} label={tag} size="small" variant="outlined" />
+            ))}
+          </Box>
+        </Box>
+      )}
+    </>
+  );
+}
+
 export function CraftSection({
   blueprint,
   slotAssignments,
@@ -164,6 +242,7 @@ export function CraftSection({
   clearAssignments,
   qualityScore,
   projectedStats,
+  hideFieldData = false,
 }: CraftSectionProps) {
   const { lang, t } = useI18n();
   const theme = useTheme();
@@ -194,26 +273,7 @@ export function CraftSection({
   }[grade.color];
 
   const statRows = buildStatRows(blueprint, projectedStats, lang);
-
-  const attachDef = blueprint.identity?.attachDef;
-  const inv = blueprint.identity?.inventoryOccupancy;
-  const itemType = blueprint.baseStats.weaponType || blueprint.baseStats.armorType || null;
-  const sizeVal = attachDef?.size != null ? String(attachDef.size) : null;
-  const volumeVal = inv?.microScu != null ? `${formatMicroScu(inv.microScu)} microSCU` : null;
-  const gridSizeVal = inv?.gridSize?.x && inv?.gridSize?.y ? `${inv.gridSize.x} × ${inv.gridSize.y}` : null;
-  const footprintVal = inv?.dimensions?.x && inv?.dimensions?.y && inv?.dimensions?.z
-    ? `${Math.round(inv.dimensions.x * 1000)} × ${Math.round(inv.dimensions.y * 1000)} × ${Math.round(inv.dimensions.z * 1000)} mm`
-    : null;
-  const attackProfile = [attachDef?.type, attachDef?.subType].filter(Boolean).map(humanizeToken).join(' / ') || null;
-  const ammoType = blueprint.baseStats.ammoType || blueprint.baseStats.ammoFlavor || null;
-  const armorSlot = blueprint.baseStats.armorSlot || null;
-  const technicalTags = [
-    attachDef?.size != null ? `Size ${attachDef.size}` : null,
-    attachDef?.grade != null ? `Grade ${attachDef.grade}` : null,
-    ...(attachDef?.tags ?? []).map(humanizeToken),
-    ...(attachDef?.requiredTags ?? []).map(humanizeToken),
-  ].filter(Boolean) as string[];
-  const hasFieldData = !!(itemType || sizeVal || volumeVal || gridSizeVal || footprintVal || attackProfile || ammoType || armorSlot || technicalTags.length > 0);
+  const hasFieldData = hasBlueprintFieldData(blueprint);
 
   const gradeChipSx = {
     height: 22,
@@ -293,7 +353,7 @@ export function CraftSection({
         </Panel>
 
         {/* ── FIELD DATA ── */}
-        {hasFieldData && (
+        {hasFieldData && !hideFieldData && (
           <Accordion
             expanded={techExpanded}
             onChange={() => setTechExpanded((v) => !v)}
@@ -323,45 +383,7 @@ export function CraftSection({
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2, pt: 1.25, pb: 1.5 }}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(100px, 0.5fr) 1fr',
-                  columnGap: 2,
-                  '& > *:last-child, & > *:nth-last-of-type(2)': { borderBottom: 'none' },
-                }}
-              >
-                {itemType && <FieldRow label={t('Item Type', 'Type objet')} value={itemType} />}
-                {sizeVal && <FieldRow label={t('Size', 'Taille')} value={sizeVal} />}
-                {volumeVal && <FieldRow label={t('Volume', 'Volume')} value={volumeVal} />}
-                {gridSizeVal && <FieldRow label={t('Grid Size', 'Taille grille')} value={gridSizeVal} />}
-                {footprintVal && <FieldRow label={t('Footprint', 'Encombrement')} value={footprintVal} />}
-                {attackProfile && <FieldRow label={t('Attack Profile', 'Profil attaque')} value={attackProfile} />}
-                {ammoType && <FieldRow label={t('Ammo Type', 'Type munition')} value={ammoType} />}
-                {armorSlot && <FieldRow label={t('Armor Slot', 'Emplacement')} value={armorSlot} />}
-              </Box>
-
-              {technicalTags.length > 0 && (
-                <Box sx={{ mt: 1.25 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontWeight: 500,
-                      fontSize: TEXT_LABEL,
-                      display: 'block',
-                      mb: 0.75,
-                    }}
-                  >
-                    {t('Technical Tags', 'Tags techniques')}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                    {technicalTags.map((tag) => (
-                      <Chip key={tag} label={tag} size="small" variant="outlined" />
-                    ))}
-                  </Box>
-                </Box>
-              )}
+              <FieldDataBody blueprint={blueprint} />
             </AccordionDetails>
           </Accordion>
         )}

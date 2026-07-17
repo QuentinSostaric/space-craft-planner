@@ -27,7 +27,7 @@ import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
-import { CraftSection } from './item-workspace/CraftSection';
+import { CraftSection, FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
 import { Panel } from './ui/Panel';
 import { PageStatCard } from './ui/PageStatCard';
 import { RarityBadge } from './ui/RarityBadge';
@@ -783,43 +783,10 @@ export function FabricatorPage() {
             />
           </Box>
 
-          {/* Reputation pipelines — full-width horizontal tier flow per faction */}
-          {entry ? (
-            <Stack spacing={1.5} sx={{ mb: 1.5 }}>
-              {lanes.map((lane) => (
-                <ReputationLane
-                  key={lane.scopeKey}
-                  lane={lane}
-                  reachedReputation={progress[lane.scopeKey] ?? -1}
-                  onReach={(rep) => handleReach(lane.scopeKey, rep)}
-                  missionPicks={missionPicks}
-                  onToggleMissionPick={toggleMissionPick}
-                />
-              ))}
-            </Stack>
-          ) : (
-            <Panel
-              eyebrow={t('Reputation', 'Réputation')}
-              title={t('Missions', 'Missions')}
-              accent={theme.palette.domain.blue}
-              dense
-              sx={{ mb: 1.5 }}
-            >
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {missionRewards
-                  ? t(
-                      'This blueprint is not rewarded by any known mission in the current dataset.',
-                      'Ce blueprint n’est récompensé par aucune mission connue dans le dataset actuel.',
-                    )
-                  : t('Loading mission rewards…', 'Chargement des récompenses de mission…')}
-              </Typography>
-            </Panel>
-          )}
-
-          {/* Main dense grid: simulation left, info right */}
+          {/* Main dense grid: simulation + reputation left, info right */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 380px' }, gap: 1.5, alignItems: 'start' }}>
-            {/* Craft simulation — the full slots + expected result experience */}
-            <Box sx={{ minWidth: 0 }}>
+            {/* Craft simulation, then the reputation pipeline right below the slots */}
+            <Stack spacing={1.5} sx={{ minWidth: 0 }}>
               {detailReady && selected ? (
                 <CraftSection
                   blueprint={selected}
@@ -828,6 +795,7 @@ export function FabricatorPage() {
                   clearAssignments={clearAssignments}
                   qualityScore={qualityScore}
                   projectedStats={projectedStats}
+                  hideFieldData
                 />
               ) : (
                 <Stack spacing={1.5}>
@@ -835,7 +803,36 @@ export function FabricatorPage() {
                   <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 1.5 }} />
                 </Stack>
               )}
-            </Box>
+
+              {entry ? (
+                lanes.map((lane) => (
+                  <ReputationLane
+                    key={lane.scopeKey}
+                    lane={lane}
+                    reachedReputation={progress[lane.scopeKey] ?? -1}
+                    onReach={(rep) => handleReach(lane.scopeKey, rep)}
+                    missionPicks={missionPicks}
+                    onToggleMissionPick={toggleMissionPick}
+                  />
+                ))
+              ) : (
+                <Panel
+                  eyebrow={t('Reputation', 'Réputation')}
+                  title={t('Missions', 'Missions')}
+                  accent={theme.palette.domain.blue}
+                  dense
+                >
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {missionRewards
+                      ? t(
+                          'This blueprint is not rewarded by any known mission in the current dataset.',
+                          'Ce blueprint n’est récompensé par aucune mission connue dans le dataset actuel.',
+                        )
+                      : t('Loading mission rewards…', 'Chargement des récompenses de mission…')}
+                  </Typography>
+                </Panel>
+              )}
+            </Stack>
 
             {/* Right rail: side panels */}
             <Stack spacing={1.5} sx={{ minWidth: 0 }}>
@@ -861,25 +858,14 @@ export function FabricatorPage() {
                 </Panel>
               )}
 
-              {entry && entry.localities.length > 0 && (
+              {detailReady && selected && hasBlueprintFieldData(selected) && (
                 <Panel
-                  eyebrow={t('Where', 'Où')}
-                  title={t('Mission localities', 'Localités des missions')}
+                  eyebrow={t('Field Data', 'Données objet')}
+                  title={t('Item details', 'Détails de l’objet')}
                   accent={theme.palette.domain.cyan}
-                  heroValue={String(entry.localities.length)}
                   dense
                 >
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
-                    {entry.localities.map((locality) => (
-                      <Chip
-                        key={locality}
-                        size="small"
-                        icon={<PlaceOutlinedIcon sx={{ fontSize: 12 }} />}
-                        label={locality}
-                        sx={{ fontSize: TEXT_LABEL_SM }}
-                      />
-                    ))}
-                  </Box>
+                  <FieldDataBody blueprint={selected} />
                 </Panel>
               )}
             </Stack>
