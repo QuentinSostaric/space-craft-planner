@@ -99,7 +99,7 @@ export function SlotCard({
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
-          md: 'minmax(210px, 0.92fr) minmax(220px, 1fr) 74px minmax(92px, 118px) 34px',
+          md: 'minmax(140px, 0.92fr) minmax(150px, 1fr) 68px minmax(80px, 118px) 30px',
         },
         gap: { xs: 0.85, md: 1 },
         alignItems: 'center',

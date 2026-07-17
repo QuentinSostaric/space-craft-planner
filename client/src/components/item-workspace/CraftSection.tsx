@@ -231,7 +231,7 @@ export function CraftSection({
       id="blueprint-craft"
       component="section"
       aria-label={t('Craft simulator', 'Simulateur de craft')}
-      sx={{ scrollMarginTop: 66, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 340px' }, gap: 1.5, alignItems: 'start' }}
+      sx={{ scrollMarginTop: 66, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(280px, 340px)' }, gap: 1.5, alignItems: 'start' }}
     >
       {/* ── LEFT: Slots + Field Data ── */}
       <Stack spacing={1.5}>

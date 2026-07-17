@@ -160,12 +160,12 @@ const LazyPrivacyView = lazy(() =>
   })),
 );
 
-const LazyAcquisitionView = lazy(() =>
-  import('./components/AcquisitionPage').then(({ AcquisitionPage }) => ({
-    default: function AcquisitionView() {
+const LazyFabricatorView = lazy(() =>
+  import('./components/FabricatorPage').then(({ FabricatorPage }) => ({
+    default: function FabricatorView() {
       return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-          <AcquisitionPage />
+          <FabricatorPage />
           <Footer />
         </Box>
       );
@@ -174,7 +174,7 @@ const LazyAcquisitionView = lazy(() =>
 );
 
 type ResolvedMainView =
-  | 'acquisition'
+  | 'fabricator'
   | 'blueprints'
   | 'workspace'
   | 'missions'
@@ -719,8 +719,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? 'account'
       : mainView === 'privacy'
         ? 'privacy'
-      : mainView === 'acquisition' && !activeBlueprint
-        ? 'acquisition'
+      : mainView === 'fabricator' && !activeBlueprint
+        ? 'fabricator'
         : activeBlueprint
           ? 'workspace'
           : 'blueprints';
@@ -740,8 +740,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? LazyAccountView
       : resolvedView === 'privacy'
         ? LazyPrivacyView
-      : resolvedView === 'acquisition'
-        ? LazyAcquisitionView
+      : resolvedView === 'fabricator'
+        ? LazyFabricatorView
         : resolvedView === 'workspace'
           ? LazyWorkspaceView
           : LazyBlueprintsView;
@@ -784,7 +784,7 @@ const APP_SHELL_MAIN_SX = {
 // Views not listed here (privacy) navigate to the site root, matching
 // the previous nested-ternary behaviour.
 const MAIN_VIEW_PATHS: Partial<Record<MainView, string>> = {
-  acquisition: '/',
+  fabricator: '/',
   blueprints: '/blueprints',
   missions: '/missions',
   resources: '/resources',

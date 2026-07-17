@@ -26,7 +26,7 @@ import { FONT_BODY, FONT_MONO, TEXT_LABEL_SM } from '../theme';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
-  | 'acquisition'
+  | 'fabricator'
   | 'blueprints'
   | 'missions'
   | 'resources'
@@ -248,7 +248,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
     [account?.incomingCraftRequests],
   );
 
-  const goToAcquisition = useCallback(() => onChangeView('acquisition'), [onChangeView]);
+  const goToFabricator = useCallback(() => onChangeView('fabricator'), [onChangeView]);
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
   const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
   const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
@@ -292,12 +292,12 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   // the "More" overflow menu so each tab keeps a comfortable touch target.
   const mobileItems = [
     {
-      key: 'acquisition',
-      active: mainView === 'acquisition',
-      label: t('Acquisition', 'Obtention'),
+      key: 'fabricator',
+      active: mainView === 'fabricator',
+      label: t('Fabricator', 'Fabricator'),
       icon: <TravelExploreOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
       href: '/',
-      onNavigate: goToAcquisition,
+      onNavigate: goToFabricator,
     },
     {
       key: 'blueprints',
@@ -505,11 +505,11 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
       >
         <NavSectionLabel>{t('Craft', 'Fabrication', 'Fertigung')}</NavSectionLabel>
         <NavItem
-          active={mainView === 'acquisition'}
-          label={t('Acquisition', 'Obtention')}
+          active={mainView === 'fabricator'}
+          label={t('Fabricator', 'Fabricator')}
           icon={<TravelExploreOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
           href="/"
-          onNavigate={goToAcquisition}
+          onNavigate={goToFabricator}
         />
         <NavItem
           active={mainView === 'blueprints'}
