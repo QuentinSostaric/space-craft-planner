@@ -39,19 +39,6 @@ const LazyBlueprintsView = lazy(() =>
   })),
 );
 
-const LazyWorkspaceView = lazy(() =>
-  import('./components/ItemWorkspace').then(({ ItemWorkspace }) => ({
-    default: function WorkspaceView() {
-      return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-          <ItemWorkspace />
-          <Footer />
-        </Box>
-      );
-    },
-  })),
-);
-
 const LazyMissionsView = lazy(() =>
   import('./components/MissionsPanel').then(({ MissionsPanel }) => ({
     default: function MissionsView() {
@@ -165,7 +152,6 @@ const LazyFabricatorView = lazy(() =>
 type ResolvedMainView =
   | 'fabricator'
   | 'blueprints'
-  | 'workspace'
   | 'missions'
   | 'resources'
   | 'organizations'
@@ -223,67 +209,6 @@ function BlueprintGridFallback() {
             </Paper>
           ))}
         </Box>
-      </Box>
-      <Footer />
-    </Box>
-  );
-}
-
-function WorkspaceFallback() {
-  return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <Box
-        sx={{
-          p: { xs: 1.25, sm: 2, md: 3 },
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' },
-          gap: { xs: 2, md: 3 },
-          flex: 1,
-        }}
-      >
-        <Stack spacing={2}>
-          <Skeleton variant="rounded" width={124} height={32} />
-          <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Skeleton width="28%" height={18} sx={{ mb: 1.5 }} />
-            <Skeleton width="76%" height={54} sx={{ mb: 1.25 }} />
-            <Skeleton width="34%" height={24} sx={{ mb: 2 }} />
-            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-              <Skeleton variant="rounded" width={140} height={36} />
-              <Skeleton variant="rounded" width={140} height={36} />
-            </Stack>
-            <Skeleton variant="rounded" height={220} />
-          </Paper>
-          <Paper variant="outlined" sx={{ p: 2.25 }}>
-            <Skeleton width="26%" height={18} sx={{ mb: 1.5 }} />
-            <Skeleton height={18} sx={{ mb: 1 }} />
-            <Skeleton height={18} sx={{ mb: 1 }} />
-            <Skeleton width="84%" height={18} />
-          </Paper>
-        </Stack>
-
-        <Stack spacing={2}>
-          <Paper variant="outlined" sx={{ p: 2.25 }}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-              <Skeleton variant="rounded" height={88} sx={{ flex: 1 }} />
-              <Skeleton variant="rounded" height={88} sx={{ flex: 1 }} />
-              <Skeleton variant="rounded" height={88} sx={{ flex: 1 }} />
-            </Stack>
-          </Paper>
-          <Paper variant="outlined" sx={{ p: 2.25 }}>
-            <Skeleton width="18%" height={18} sx={{ mb: 1.5 }} />
-            <Stack spacing={1.25}>
-              <Skeleton variant="rounded" height={120} />
-              <Skeleton variant="rounded" height={120} />
-            </Stack>
-          </Paper>
-          <Paper variant="outlined" sx={{ p: 2.25 }}>
-            <Skeleton width="22%" height={18} sx={{ mb: 1.5 }} />
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-              <Skeleton variant="rounded" height={180} sx={{ flex: 1 }} />
-              <Skeleton variant="rounded" height={180} sx={{ flex: 1 }} />
-            </Stack>
-          </Paper>
-        </Stack>
       </Box>
       <Footer />
     </Box>
@@ -553,8 +478,6 @@ function MainContentFallback({ view }: { view: ResolvedMainView }) {
       return <AccountFallback />;
     case 'changelog':
       return <ChangelogFallback />;
-    case 'workspace':
-      return <WorkspaceFallback />;
     case 'blueprints':
     default:
       return <BlueprintGridFallback />;
@@ -708,11 +631,9 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? 'account'
       : mainView === 'privacy'
         ? 'privacy'
-      : mainView === 'fabricator' && !activeBlueprint
+      : mainView === 'fabricator'
         ? 'fabricator'
-        : activeBlueprint
-          ? 'workspace'
-          : 'blueprints';
+        : 'blueprints';
 
   const SelectedView =
     resolvedView === 'missions'
@@ -731,13 +652,11 @@ function MainContent({ mainView }: { mainView: MainView }) {
         ? LazyPrivacyView
       : resolvedView === 'fabricator'
         ? LazyFabricatorView
-        : resolvedView === 'workspace'
-          ? LazyWorkspaceView
-          : LazyBlueprintsView;
+        : LazyBlueprintsView;
 
   return (
     <Suspense fallback={<MainContentFallback view={resolvedView} />}>
-      <Fade in timeout={resolvedView === 'workspace' ? 200 : 180}>
+      <Fade in timeout={180}>
         <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: '100%' }}>
           <SelectedView />
         </Box>

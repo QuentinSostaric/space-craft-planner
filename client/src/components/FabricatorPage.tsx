@@ -1,6 +1,6 @@
 import { Box, Divider, IconButton, Paper, Skeleton, Stack, Typography, alpha, useTheme } from '../ui/system';
 import { Autocomplete, Button, Checkbox, Chip, InputAdornment, LinearProgress, Menu, MenuItem, TextField } from '../ui/widgets';
-import { SearchIcon, CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, FlagOutlinedIcon, OpenInNewIcon, Inventory2OutlinedIcon, StarIcon, StarBorderIcon, PlaylistAddIcon, AddIcon, RemoveIcon } from '../ui/icons';
+import { SearchIcon, CheckCircleIcon, ExpandMoreIcon, RadioButtonUncheckedIcon, ChevronRightIcon, PlaceOutlinedIcon, FlagOutlinedIcon, Inventory2OutlinedIcon, StarIcon, StarBorderIcon, PlaylistAddIcon, AddIcon, RemoveIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -12,6 +12,7 @@ import { Panel } from './ui/Panel';
 import { PageStatCard } from './ui/PageStatCard';
 import { RarityBadge } from './ui/RarityBadge';
 import { aggregateBlueprintResources, formatProbabilityPercent, formatResourceQuantity, getAcquisitionEntry } from '../utils/crafting';
+import { itemSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
 import type {
   AcquisitionContract,
   AggregatedResource,
@@ -510,7 +511,6 @@ export function FabricatorPage() {
     ensureFactionContractsLoaded,
     ensureResourceDataLoaded,
     factionContractsByFactionId,
-    setActiveBlueprint,
     inventoryIds,
     toggleInventory,
     favoriteIds,
@@ -560,6 +560,20 @@ export function FabricatorPage() {
   useEffect(() => {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
+
+  // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
+  // the item page); back/forward keep the selection in sync.
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const slug = itemSlugFromPathname(window.location.pathname);
+      if (!slug) return;
+      const fromUrl = blueprints.find((bp) => toSlug(bp.name) === slug);
+      if (fromUrl) setSelectedId(fromUrl.id);
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [blueprints]);
 
   const selected: Blueprint | null = useMemo(
     () => blueprints.find((bp) => bp.id === selectedId) ?? null,
@@ -620,6 +634,13 @@ export function FabricatorPage() {
 
   const handleSelect = useCallback((bp: Blueprint | null) => {
     setSelectedId(bp?.id ?? null);
+    const currentSlug = itemSlugFromPathname(window.location.pathname);
+    if (bp) {
+      const slug = toSlug(bp.name);
+      if (currentSlug !== slug) navigateToPath(`/item/${slug}`, { blueprintId: bp.id });
+    } else if (currentSlug) {
+      navigateToPath('/');
+    }
     try {
       if (bp) window.localStorage.setItem(LAST_BLUEPRINT_KEY, bp.id);
       else window.localStorage.removeItem(LAST_BLUEPRINT_KEY);
@@ -666,10 +687,6 @@ export function FabricatorPage() {
   const topStanding = entry?.standings?.length
     ? [...entry.standings].sort((a, b) => (b.minReputation ?? 0) - (a.minReputation ?? 0))[0]
     : null;
-
-  const openWorkspace = useCallback(() => {
-    if (selected) setActiveBlueprint(selected);
-  }, [selected, setActiveBlueprint]);
 
   return (
     <Box sx={{ px: { xs: 1.5, md: 2 }, py: { xs: 1.5, md: 2 }, flex: 1, width: '100%', maxWidth: 1700, mx: 'auto' }}>
@@ -771,14 +788,6 @@ export function FabricatorPage() {
               >
                 {t('Planner', 'Planner')}
               </Button>
-              <IconButton
-                size="small"
-                aria-label={t('Full workspace', 'Workspace complet')}
-                title={t('Full workspace', 'Workspace complet')}
-                onClick={openWorkspace}
-              >
-                <OpenInNewIcon sx={{ fontSize: 14 }} />
-              </IconButton>
             </Box>
           </>
         )}
