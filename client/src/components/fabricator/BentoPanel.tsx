@@ -1,0 +1,147 @@
+import { Box, Paper, Typography } from '../../ui/system';
+import type { SxProps, Theme } from '../../ui/system';
+import type { ReactNode } from 'react';
+import { FONT_DISPLAY, FONT_MONO } from '../../theme';
+
+/**
+ * Bento card: the single panel shape of the Fabricator work grid.
+ *
+ * Header = accent tick + title (+ muted mono note), with a free-form `right`
+ * slot for the hero number or inline controls. The accent also tints the card's
+ * left edge, which is how a section's functional category is read at a glance.
+ */
+export function BentoPanel({
+  accent,
+  title,
+  note,
+  right,
+  span,
+  children,
+  bodySx,
+  sx,
+}: {
+  accent?: string;
+  title: string;
+  note?: string;
+  right?: ReactNode;
+  /** Column span inside the 12-column work grid (lg and up). */
+  span?: number;
+  children: ReactNode;
+  bodySx?: SxProps<Theme>;
+  sx?: SxProps<Theme>;
+}) {
+  return (
+    <Paper
+      sx={[
+        {
+          borderRadius: '9px',
+          backgroundColor: 'ui.surface',
+          overflow: 'hidden',
+          minWidth: 0,
+          gridColumn: span ? { xs: 'span 12', lg: `span ${span}` } : 'span 12',
+          ...(accent ? { boxShadow: `inset 2px 0 0 0 ${accent}` } : null),
+        },
+        sx,
+      ]}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.25,
+          px: 1.5,
+          py: 1,
+          borderBottom: (t: Theme) => `1px solid ${t.palette.ui.border}`,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.125, minWidth: 0 }}>
+          <Box
+            aria-hidden
+            sx={{
+              width: 13,
+              height: 2,
+              flexShrink: 0,
+              backgroundColor: accent ?? 'text.disabled',
+            }}
+          />
+          <Typography
+            component="h2"
+            sx={{
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 700,
+              fontSize: '0.86rem',
+              lineHeight: 1.2,
+              color: 'text.primary',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {title}
+          </Typography>
+          {note && (
+            <Typography
+              sx={{
+                fontFamily: FONT_MONO,
+                fontSize: '0.625rem',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'text.disabled',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: { xs: 'none', md: 'block' },
+              }}
+            >
+              {note}
+            </Typography>
+          )}
+        </Box>
+        {right && (
+          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>{right}</Box>
+        )}
+      </Box>
+      <Box sx={bodySx}>{children}</Box>
+    </Paper>
+  );
+}
+
+/** Hero number + unit, as rendered on the right of a bento header. */
+export function BentoHero({ value, unit, color }: { value: ReactNode; unit?: string; color?: string }) {
+  return (
+    <Box sx={{ textAlign: 'right', lineHeight: 1 }}>
+      <Typography
+        component="div"
+        sx={{
+          fontFamily: FONT_DISPLAY,
+          fontWeight: 800,
+          fontSize: '1.05rem',
+          lineHeight: 1,
+          letterSpacing: '-0.01em',
+          fontVariantNumeric: 'tabular-nums',
+          color: color ?? 'text.primary',
+        }}
+      >
+        {value}
+      </Typography>
+      {unit && (
+        <Typography
+          component="div"
+          sx={{
+            fontFamily: FONT_MONO,
+            fontSize: '0.5625rem',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'text.disabled',
+            mt: 0.25,
+          }}
+        >
+          {unit}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+export default BentoPanel;

@@ -622,11 +622,28 @@ export const Typography = fixedForwardRef<TypographyProps>(function Typography(
   return <Box ref={ref} component={component ?? def.tag} sx={[def.sx, extra, sx]} {...rest} />;
 }, 'Typography');
 
-export const Paper = createSxComponent('div', {
-  backgroundColor: 'ui.surface',
-  border: (t: Theme) => `1px solid ${t.palette.ui.border}`,
-  borderRadius: 1,
-  backgroundImage: 'none',
+export interface PaperProps extends BoxProps {
+  /** Accepted for MUI compatibility; every Paper is outlined already. */
+  variant?: 'outlined' | 'elevation';
+  elevation?: number;
+}
+
+export const Paper = fixedForwardRef<PaperProps>(function Paper(
+  { variant: _variant, elevation: _elevation, sx, ...rest },
+  ref,
+) {
+  return (
+    <Box
+      ref={ref}
+      sx={[{
+        backgroundColor: 'ui.surface',
+        border: (t: Theme) => `1px solid ${t.palette.ui.border}`,
+        borderRadius: 1,
+        backgroundImage: 'none',
+      }, sx]}
+      {...rest}
+    />
+  );
 }, 'Paper');
 
 export interface DividerProps extends BoxProps {
@@ -645,7 +662,7 @@ export const Divider = fixedForwardRef<DividerProps>(function Divider(
 }, 'Divider');
 
 export const ButtonBase = fixedForwardRef<BoxProps>(function ButtonBase(
-  { component, type, ...rest },
+  { component, type, sx, ...rest },
   ref,
 ) {
   const resolvedComponent = component ?? 'button';
@@ -654,7 +671,10 @@ export const ButtonBase = fixedForwardRef<BoxProps>(function ButtonBase(
       ref={ref}
       component={resolvedComponent}
       type={resolvedComponent === 'button' ? (type ?? 'button') : type}
-      sx={{
+      // The reset has to merge with — not be replaced by — the caller's sx.
+      // Spreading `rest` over a plain `sx` prop dropped it entirely, which let
+      // the UA's `buttonface`/`buttonborder` defaults paint every styled button.
+      sx={[{
         border: 'none',
         background: 'none',
         padding: 0,
@@ -665,7 +685,7 @@ export const ButtonBase = fixedForwardRef<BoxProps>(function ButtonBase(
         outline: 'none',
         textDecoration: 'none',
         '&:focus-visible': (t: Theme) => ({ boxShadow: `0 0 0 2px ${t.palette.background.default}, 0 0 0 4px ${t.palette.primary.main}` }),
-      }}
+      }, sx]}
       {...rest}
     />
   );

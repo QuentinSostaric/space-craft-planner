@@ -5,7 +5,7 @@
  * engine; this module keeps the historical import surface (fonts, text
  * sizes) and owns the global CSS that CssBaseline used to provide.
  */
-import { alphaColor, getTheme, injectGlobalCss } from './ui/system';
+import { alphaColor, getTheme, injectGlobalCss, FONT_BODY } from './ui/system';
 import type { Theme, ThemeMode } from './ui/system';
 
 export {
@@ -57,6 +57,9 @@ export function installGlobalStyles(theme: Theme) {
     }
     body {
       margin: 0;
+      /* Without this the document falls back to the UA serif, and every node
+         that does not set a family of its own inherits it. */
+      font-family: ${FONT_BODY};
       font-size: 14.5px;
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
