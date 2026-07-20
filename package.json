@@ -31,7 +31,7 @@
     "planner:purge-goals": "node scripts/purgePlannerGoals.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.908.0"
+    "@aws-sdk/client-s3": "^3.1090.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
