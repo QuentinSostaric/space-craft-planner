@@ -19,6 +19,7 @@ const OAUTH_CALLBACK_READ_TIMEOUT_SECS: u64 = 5;
 const MAX_API_PATH_BYTES: usize = 2 * 1024;
 const MAX_API_REQUEST_BODY_BYTES: usize = 1024 * 1024;
 const MAX_API_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_PUBLIC_GAME_DATA_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_OAUTH_RESPONSE_BYTES: usize = 64 * 1024;
 const MAX_AUTHORIZATION_URL_BYTES: usize = 4 * 1024;
 const MAX_SESSION_TOKEN_BYTES: usize = 8 * 1024;
@@ -350,6 +351,15 @@ fn build_http_client() -> Result<reqwest::Client, String> {
         .map_err(|error| format!("Unable to configure HTTP client: {error}"))
 }
 
+fn max_api_response_bytes(url: &Url) -> usize {
+    let path = url.path();
+    if path == "/api/game-data/public" || path.starts_with("/api/game-data/public/") {
+        MAX_PUBLIC_GAME_DATA_RESPONSE_BYTES
+    } else {
+        MAX_API_RESPONSE_BYTES
+    }
+}
+
 async fn read_response_bytes(
     mut response: reqwest::Response,
     max_bytes: usize,
@@ -404,6 +414,7 @@ async fn fetch_api_json(
 ) -> Result<serde_json::Value, String> {
     let base_url = api_base_url()?;
     let url = resolve_api_url(&base_url, &path)?;
+    let max_response_bytes = max_api_response_bytes(&url);
 
     let method = method.unwrap_or_else(|| "GET".to_string()).to_uppercase();
     let client = build_http_client()?;
@@ -433,7 +444,7 @@ async fn fetch_api_json(
     }
 
     let response = request.send().await.map_err(|e| e.to_string())?;
-    let (status, payload) = read_response_json(response, MAX_API_RESPONSE_BYTES).await?;
+    let (status, payload) = read_response_json(response, max_response_bytes).await?;
 
     if !status.is_success() {
         // Clear a stale/expired token when the server rejects it, but only if a
@@ -1422,6 +1433,34 @@ mod tests {
         assert!(resolve_api_url(&base, "").is_err());
         // Too long (> MAX_API_PATH_BYTES = 2048)
         assert!(resolve_api_url(&base, &"/api/".repeat(500)).is_err());
+    }
+
+    #[test]
+    fn public_game_data_responses_have_a_larger_bounded_limit() {
+        let base = Url::parse("https://itemfab.space/").unwrap();
+
+        let dataset_index = resolve_api_url(&base, "/api/game-data/public").unwrap();
+        let live_dataset =
+            resolve_api_url(&base, "/api/game-data/public/live?include=all").unwrap();
+        let unrelated_api = resolve_api_url(&base, "/api/account").unwrap();
+        let similar_prefix = resolve_api_url(&base, "/api/game-data/publicity").unwrap();
+
+        assert_eq!(
+            max_api_response_bytes(&dataset_index),
+            MAX_PUBLIC_GAME_DATA_RESPONSE_BYTES
+        );
+        assert_eq!(
+            max_api_response_bytes(&live_dataset),
+            MAX_PUBLIC_GAME_DATA_RESPONSE_BYTES
+        );
+        assert_eq!(
+            max_api_response_bytes(&unrelated_api),
+            MAX_API_RESPONSE_BYTES
+        );
+        assert_eq!(
+            max_api_response_bytes(&similar_prefix),
+            MAX_API_RESPONSE_BYTES
+        );
     }
 
     #[test]

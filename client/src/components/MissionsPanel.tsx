@@ -2,7 +2,7 @@ import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/s
 import { Card, Link } from './ui/primitives';
 import { AppProgressBar } from './ui/feedback';
 import { AppChip } from './ui/data-display/AppChip';
-import { BusinessOutlinedIcon, FilterListOffOutlinedIcon, FlagIcon, ImageNotSupportedOutlinedIcon, LeaderboardOutlinedIcon, MilitaryTechOutlinedIcon, ChevronRightIcon, OpenInNewIcon, PlaceOutlinedIcon, PublicOutlinedIcon, TravelExploreOutlinedIcon, VerifiedOutlinedIcon } from '../ui/icons';
+import { BusinessOutlinedIcon, FilterListOffOutlinedIcon, FlagIcon, ImageNotSupportedOutlinedIcon, LeaderboardOutlinedIcon, MilitaryTechOutlinedIcon, PaidOutlinedIcon, ChevronRightIcon, OpenInNewIcon, PlaceOutlinedIcon, PublicOutlinedIcon, TravelExploreOutlinedIcon, VerifiedOutlinedIcon } from '../ui/icons';
 import { memo, startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { BlueprintCard } from './BlueprintGrid';
@@ -13,9 +13,11 @@ import { PageHeader, PageLayout, ResponsiveFilters } from './ui/page';
 import { CategoryBadge } from './ui/Badge';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
+import { Panel } from './ui/Panel';
 import { ScaleBadge } from './ui/RarityBadge';
 import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLicensedIcon';
 import { loc, useI18n } from '../i18n/I18nContext';
+import { formatUec } from './fabricator/AcquisitionRoutes';
 import { useCraft } from '../store/CraftContext';
 import {
   formatProbabilityPercent,
@@ -36,6 +38,7 @@ import type {
   MissionEmployerRef,
   MissionSort,
   MissionRequiredStanding,
+  MissionPayouts,
   MissionRewardFactionGroup,
   Resource,
   LocalizedString,
@@ -266,6 +269,178 @@ function MissionFact({
         </Box>
       </Box>
     </Stack>
+  );
+}
+
+/**
+ * Payout facts for one contract.
+ *
+ * Contract generator missions carry no aUEC: the game computes the payout server-side from
+ * the difficulty tiers. So this shows an amount only when the contract declares one, the
+ * difficulty band otherwise, and — separately labelled — the employer's declared range,
+ * which comes from that employer's other missions and is never this contract's pay.
+ */
+function MissionPayoutFact({
+  contract,
+  group,
+}: {
+  contract: MissionContract;
+  group: MissionRewardFactionGroup;
+}) {
+  const { t, lang } = useI18n();
+  const explicitReward = contract.payout?.rewardUec ?? null;
+  const difficulty = contract.difficulty ?? null;
+  const employerRange = group.payoutRange ?? null;
+
+  if (explicitReward === null && !difficulty && !employerRange) {
+    return null;
+  }
+
+  return (
+    <MissionFact
+      icon={<PaidOutlinedIcon fontSize="small" />}
+      label={t('Payout', 'Paiement')}
+      value={
+        <Stack spacing={0.5}>
+          {explicitReward !== null && explicitReward > 0 ? (
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatUec(explicitReward)}</Typography>
+          ) : (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {t('Calculated in game from difficulty', 'Calculé en jeu selon la difficulté')}
+            </Typography>
+          )}
+          {difficulty && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('Difficulty', 'Difficulté')}: {lang === 'fr' ? difficulty.label.fr : difficulty.label.en}
+              {' '}({difficulty.weightedRank}/{difficulty.maxRank})
+            </Typography>
+          )}
+          {employerRange && (
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              {t('This employer pays', 'Cet employeur paie')} {formatUec(employerRange.minRewardUec)}
+              {' – '}{formatUec(employerRange.maxRewardUec)}
+              {' '}({t('across', 'sur')} {employerRange.missionCount} {t('missions', 'missions')})
+            </Typography>
+          )}
+        </Stack>
+      }
+    />
+  );
+}
+
+const PAYOUT_PAGE_SIZE = 25;
+
+/**
+ * The mission broker missions that declare a real aUEC reward.
+ *
+ * These are a different set from the contracts listed below on this page: contract
+ * generator missions reward blueprints but never declare an amount, while these declare an
+ * amount but never reward blueprints. Keeping them in their own section avoids implying
+ * that either number applies to the other.
+ */
+function MissionPayoutsSection({ payouts }: { payouts: MissionPayouts | null }) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+
+  const matching = useMemo(
+    () =>
+      category
+        ? payouts?.missions.filter((mission) => mission.category === category) ?? []
+        : payouts?.missions ?? [],
+    [payouts, category],
+  );
+  const visible = expanded ? matching : matching.slice(0, PAYOUT_PAGE_SIZE);
+
+  if (!payouts || payouts.missionCount === 0) {
+    return null;
+  }
+
+  return (
+    <Panel
+      component="section"
+      title={t('Mission payouts', 'Paiements de mission')}
+      titleComponent="h2"
+      variant="raised"
+    >
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        {t(
+          'Missions that declare a reward in the game files. Contracts rewarding blueprints compute their payout in game and are listed separately below.',
+          'Missions déclarant une récompense dans les fichiers du jeu. Les contrats récompensant des blueprints calculent leur paiement en jeu et sont listés séparément ci-dessous.',
+        )}
+      </Typography>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1.5, mt: 1.5 }}>
+        <PageStatCard label={t('Missions', 'Missions')} value={String(payouts.missionCount)} domain="blue" />
+        <PageStatCard label={t('Median', 'Médiane')} value={formatUec(payouts.medianRewardUec)} domain="magenta" />
+        <PageStatCard label={t('Highest', 'Maximum')} value={formatUec(payouts.maxRewardUec)} />
+      </Box>
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1.5 }}>
+        <AppChip
+          label={t('All', 'Toutes')}
+          size="sm"
+          color={category === null ? 'primary' : undefined}
+          variant={category === null ? 'filled' : 'outlined'}
+          onClick={() => setCategory(null)}
+        />
+        {payouts.categories.map((name) => (
+          <AppChip
+            key={name}
+            label={name}
+            size="sm"
+            color={category === name ? 'primary' : undefined}
+            variant={category === name ? 'filled' : 'outlined'}
+            onClick={() => setCategory(name)}
+          />
+        ))}
+      </Box>
+
+      <Stack spacing={0} sx={{ mt: 1.5 }}>
+        {visible.map((mission) => (
+          <Box
+            key={mission.id}
+            sx={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 1.5,
+              py: 0.75,
+              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {mission.title}
+                {mission.titleIsTemplated && (
+                  <Box component="span" sx={{ color: 'text.disabled' }} title={t(
+                    'The game fills this title in at runtime.',
+                    'Le jeu complète ce titre au runtime.',
+                  )}> *</Box>
+                )}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {[mission.giver, mission.lawful ? t('Lawful', 'Légale') : t('Unlawful', 'Illégale')]
+                  .filter(Boolean)
+                  .join(' · ')}
+                {mission.buyInUec > 0 && ` · ${t('Buy-in', 'Mise')} ${formatUec(mission.buyInUec)}`}
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ fontFamily: FONT_MONO, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              {formatUec(mission.rewardUec)}
+              {mission.maxRewardUec != null && ` – ${formatUec(mission.maxRewardUec)}`}
+              {mission.plusBonuses && '+'}
+            </Typography>
+          </Box>
+        ))}
+      </Stack>
+
+      {matching.length > visible.length && (
+        <AppButton variant="secondary" size="sm" onClick={() => setExpanded(true)} sx={{ mt: 1.5 }}>
+          {t('Show all', 'Tout afficher')} ({matching.length})
+        </AppButton>
+      )}
+    </Panel>
   );
 }
 
@@ -1167,6 +1342,7 @@ function MissionDetail({
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={2.25} divider={<Divider flexItem />}>
             <MissionFact icon={<BusinessOutlinedIcon fontSize="small" />} label={t('Mission name', 'Mission')} value={getMissionContractName(contract)} />
+            <MissionPayoutFact contract={contract} group={group} />
               <MissionFact
                 icon={<VerifiedOutlinedIcon fontSize="small" />}
                 label={t('Employer', 'Employeur')}
@@ -1800,6 +1976,24 @@ export function MissionsPanel() {
         />
       ) : (
         <>
+          {/*
+            A slug that resolves to nothing used to drop the user on the full
+            index with no explanation, so a broken deep link was indistinguishable
+            from a working one — and the acquisition rail links here by deriving
+            slugs, which is exactly the case that can go stale. This stays a
+            notice rather than an error page because faction contracts load
+            lazily, so "no match yet" is not the same as "no such mission".
+          */}
+          {selectedMissionSlug && (
+            <SurfaceState
+              tone="error"
+              title={t('Mission not found', 'Mission introuvable')}
+              description={t(
+                `Nothing in this dataset matches “${selectedMissionSlug}”. Showing every contract instead.`,
+                `Rien dans ce dataset ne correspond à « ${selectedMissionSlug} ». Affichage de tous les contrats à la place.`,
+              )}
+            />
+          )}
           <PageHeader
             title={t('Missions', 'Missions')}
             description={t(
@@ -1815,6 +2009,8 @@ export function MissionsPanel() {
               </>
             )}
           />
+
+          <MissionPayoutsSection payouts={missionRewards?.missionPayouts ?? null} />
 
           {/* Filter bar */}
           <MissionsFilterBar

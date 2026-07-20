@@ -21,6 +21,12 @@ export interface AppOverlayPanelProps {
   children: ReactNode;
   ariaLabel?: string;
   dismissable?: boolean;
+  /**
+   * Where the panel is mounted. Pass `document.body` when the trigger sits in a
+   * container that clips (`overflow: hidden` / a scroll region) — rendered in
+   * place, the panel would be cut off at that container's edge.
+   */
+  appendTo?: 'self' | HTMLElement | null;
   className?: string;
   sx?: SxValue;
   partSx?: PrimePartStyles<AppOverlayPanelPart>;
@@ -36,6 +42,7 @@ export function AppOverlayPanel({
   children,
   ariaLabel,
   dismissable = true,
+  appendTo,
   className,
   sx,
   partSx,
@@ -61,6 +68,7 @@ export function AppOverlayPanel({
         id={panelId}
         aria-label={ariaLabel}
         dismissable={dismissable}
+        appendTo={appendTo}
         showCloseIcon={false}
         className={compilePrimeRootClass(theme, sx, className)}
         pt={compilePrimePartClasses(theme, partSx)}

@@ -156,6 +156,57 @@ html[data-theme='light'] {
   background: var(--sc-primary);
 }
 
+/*
+ * Slider handle geometry.
+ *
+ * PrimeReact injects only the anchoring half of the structure at runtime — the
+ * handle gets `position: absolute` and `top: 50%`, with `left: <percent>` set
+ * inline from the value. The offset that pulls it back onto the rail lives in
+ * the `resources/themes/*` stylesheets this app does not load, so without the
+ * rules below the handle hangs a full half of its height under the track and
+ * half its width past each end. Translating beats the themes' fixed negative
+ * margins here because call sites size the handle differently (14px, 16px,
+ * 24px) and a translate stays centred at any size.
+ */
+.p-slider .p-slider-handle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 140ms ease,
+    border-color 140ms ease;
+}
+
+.p-slider.p-slider-horizontal .p-slider-handle {
+  transform: translate(-50%, -50%);
+}
+
+.p-slider.p-slider-vertical .p-slider-handle {
+  transform: translate(-50%, 50%);
+}
+
+/*
+ * Grab feedback. Every rule restates the centring translate because `transform`
+ * is one property — dropping it here would snap the handle back off the rail
+ * for the duration of the hover. The global prefers-reduced-motion guard in
+ * theme.ts collapses the durations, so the scale still reads as a state change
+ * without the travel.
+ */
+.p-slider:not(.p-disabled).p-slider-horizontal .p-slider-handle:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+}
+
+.p-slider.p-slider-horizontal .p-slider-handle:active,
+.p-slider.p-slider-horizontal .p-slider-handle.p-slider-handle-active {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.p-slider .p-slider-handle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .p-overlaypanel {
   border: 1px solid var(--sc-border-strong);
   background: var(--sc-surface-2);

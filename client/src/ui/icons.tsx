@@ -106,6 +106,7 @@ export const DifferenceOutlinedIcon = makeIcon('pi-clone', 'DifferenceOutlinedIc
 export const HubOutlinedIcon = makeIcon('pi-sitemap', 'HubOutlinedIcon');
 export const LeaderboardOutlinedIcon = makeIcon('pi-chart-bar', 'LeaderboardOutlinedIcon');
 export const MilitaryTechOutlinedIcon = makeIcon('pi-trophy', 'MilitaryTechOutlinedIcon');
+export const PaidOutlinedIcon = makeIcon('pi-wallet', 'PaidOutlinedIcon');
 export const SmartToyOutlinedIcon = makeIcon('pi-microchip', 'SmartToyOutlinedIcon');
 export const RocketLaunchOutlinedIcon = makeIcon('pi-send', 'RocketLaunchOutlinedIcon');
 export const ElectricBoltIcon = makeIcon('pi-bolt', 'ElectricBoltIcon');

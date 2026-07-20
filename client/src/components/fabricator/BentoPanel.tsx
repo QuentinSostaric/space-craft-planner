@@ -44,8 +44,30 @@ export function BentoPanel({
         sx,
       ]}
     >
-      <Box
-        sx={{
+      <BentoHeader accent={accent} title={title} note={note} right={right} />
+      <Box sx={bodySx}>{children}</Box>
+    </Paper>
+  );
+}
+
+/** The bento header — accent tick, title, muted note, `right` slot. */
+function BentoHeader({
+  accent,
+  title,
+  note,
+  right,
+  sx,
+}: {
+  accent?: string;
+  title: string;
+  note?: string;
+  right?: ReactNode;
+  sx?: SxProps<Theme>;
+}) {
+  return (
+    <Box
+      sx={[
+        {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -53,9 +75,11 @@ export function BentoPanel({
           px: 1.5,
           py: 1,
           borderBottom: (t: Theme) => `1px solid ${t.palette.ui.border}`,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.125, minWidth: 0 }}>
+        },
+        sx,
+      ]}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.125, minWidth: 0 }}>
           <Box
             aria-hidden
             sx={{
@@ -98,12 +122,10 @@ export function BentoPanel({
             </Typography>
           )}
         </Box>
-        {right && (
-          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>{right}</Box>
-        )}
-      </Box>
-      <Box sx={bodySx}>{children}</Box>
-    </Paper>
+      {right && (
+        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>{right}</Box>
+      )}
+    </Box>
   );
 }
 

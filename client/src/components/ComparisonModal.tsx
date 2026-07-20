@@ -251,7 +251,7 @@ function StatTable({ items, statKeys, lang }: { items: ComparisonItem[]; statKey
                       variant="body2"
                       sx={{ fontFamily: FONT_MONO, fontWeight: isBest ? 700 : 400, color: isBest ? item.color : 'text.primary', fontSize: '.78rem' }}
                     >
-                      {item.qualityScore}<Typography component="span" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL }}>/100</Typography>
+                      {item.qualityScore}<Typography component="span" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL }}>/1000</Typography>
                     </Typography>
                   </TableCell>
                 );
@@ -347,7 +347,7 @@ export function ComparisonModal() {
                       <CategoryBadge category={item.category} iconOnly />
                       <span>{item.blueprintName}</span>
                       <Typography component="span" sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.secondary' }}>
-                        {item.qualityScore}/100
+                        {item.qualityScore}/1000
                       </Typography>
                     </Box>
                   }

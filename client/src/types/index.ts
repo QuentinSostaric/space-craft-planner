@@ -674,6 +674,22 @@ export interface BlueprintIdentity {
   attachDef?: BlueprintAttachDef;
 }
 
+/** One resource returned by dismantling. Blacklisted resources are consumed but never returned. */
+export interface BlueprintDismantleReturn {
+  name: string;
+  costScu: number;
+  yieldScu: number;
+  blacklisted: boolean;
+}
+
+export interface BlueprintDismantle {
+  efficiency: number;
+  dismantleTimeSecs: number;
+  returns: BlueprintDismantleReturn[];
+  totalYieldScu: number;
+  hasBlacklistedInputs: boolean;
+}
+
 export interface Blueprint {
   id: string;
   name: string;
@@ -682,6 +698,8 @@ export interface Blueprint {
   craftTimeSecs: number;
   baseStats: ItemStats;
   slots: MaterialSlot[];
+  /** Computed dismantle return. Present on datasets built after the 4.9 dismantle work. */
+  dismantle?: BlueprintDismantle | null;
   slotCount?: number;
   requiredResourceIds?: string[];
   identity?: BlueprintIdentity;
@@ -946,6 +964,58 @@ export interface MissionText {
   resolutionStatus?: string | null;
 }
 
+export interface MissionContractPayout {
+  buyInUec: number;
+  /** Only a handful of contracts declare an explicit amount; null means runtime-calculated. */
+  rewardUec: number | null;
+  isCalculatedAtRuntime: boolean;
+}
+
+export interface MissionDifficultyAxis {
+  label: string | null;
+  rank: number | null;
+}
+
+export interface MissionContractDifficulty {
+  /** Weighted 1-6 rank, normalised so it is comparable across difficulty profiles. */
+  weightedRank: number;
+  maxRank: number;
+  profileName: string | null;
+  label: LocalizedString;
+  axes: Partial<Record<'mechanicalSkill' | 'mentalLoad' | 'riskOfLoss' | 'gameKnowledge', MissionDifficultyAxis>>;
+}
+
+/** Declared aUEC payouts of an employer's mission broker missions. */
+export interface MissionEmployerPayoutRange {
+  missionCount: number;
+  minRewardUec: number;
+  maxRewardUec: number;
+  medianRewardUec: number;
+}
+
+export interface MissionPayout {
+  id: string;
+  title: string | null;
+  /** The record title still holds runtime placeholders, so it is a generic label. */
+  titleIsTemplated: boolean;
+  giver: string | null;
+  category: string | null;
+  rewardUec: number;
+  maxRewardUec: number | null;
+  plusBonuses: boolean;
+  buyInUec: number;
+  lawful: boolean;
+}
+
+export interface MissionPayouts {
+  missionCount: number;
+  minRewardUec: number;
+  maxRewardUec: number;
+  medianRewardUec: number;
+  categories: string[];
+  missions: MissionPayout[];
+}
+
 export interface MissionContract {
   contractFile: string | null;
   handlerDebugName: string | null;
@@ -959,6 +1029,10 @@ export interface MissionContract {
   reputationScope: MissionReputationScope | null;
   minimumRequiredStandings: MissionRequiredStanding[];
   availability: MissionAvailability;
+  /** Contract generator missions declare no amount; the payout is computed at runtime. */
+  payout?: MissionContractPayout | null;
+  /** The difficulty tiers that drive the runtime payout. */
+  difficulty?: MissionContractDifficulty | null;
   blueprintDropChance?: number | null;
   rewardedBlueprints: MissionRewardBlueprint[];
   itemAwards: MissionItemAward[];
@@ -970,6 +1044,8 @@ export interface MissionRewardFactionGroup {
   id: string;
   contractorDisplayName: string;
   employer?: MissionEmployerRef | null;
+  /** Declared payouts of this employer's mission broker missions, not of its contracts. */
+  payoutRange?: MissionEmployerPayoutRange | null;
   faction: MissionRewardFaction | null;
   reputationScopes: MissionReputationScope[];
   contractCount: number;
@@ -985,6 +1061,8 @@ export interface MissionRewardsData {
   blueprintAcquisitionGraph: AcquisitionGraphEntry[];
   /** Maps resourceId → factionId[] for planner lazy-loading. Present on new datasets. */
   resourceObjectiveIndex?: Record<string, string[]>;
+  /** Mission broker missions that declare a real aUEC reward. Present on new datasets. */
+  missionPayouts?: MissionPayouts | null;
 }
 
 export interface FactionContractsChunk {
@@ -1313,6 +1391,13 @@ export interface CraftGoal {
   slotAssignments: Record<string, number | undefined>;
   quantity: number;
   qualityScore: number;
+  /**
+   * Upper bound `qualityScore` was recorded against. Absent on goals written
+   * before the build index moved to the game's 0–1000 scale, which is exactly
+   * how those are recognised — the two ranges overlap, so the number alone
+   * cannot say which scale it is on.
+   */
+  qualityScoreScale?: number;
   projectedStats: ItemStats;
   createdAt: number;
 }

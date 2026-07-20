@@ -64,7 +64,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
           </Typography>
         </Box>
       )}
-      description={`${t('Build index', 'Indice de build')}: ${qualityScore}/100`}
+      description={`${t('Build index', 'Indice de build')}: ${qualityScore}/1000`}
       closeLabel={t('Close', 'Fermer')}
       width="min(40rem, calc(100vw - 1rem))"
       footer={(
@@ -92,7 +92,7 @@ export function GoalEditModal({ goal, onClose }: GoalEditModalProps) {
       }}
     >
       <Typography sx={{ color: 'text.secondary', fontFamily: FONT_MONO, mb: 1.5 }}>
-        {t('Build index', 'Indice de build')}: <strong>{qualityScore}</strong>/100
+        {t('Build index', 'Indice de build')}: <strong>{qualityScore}</strong>/1000
       </Typography>
       {!blueprint.detailsLoaded ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>

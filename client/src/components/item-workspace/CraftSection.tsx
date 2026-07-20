@@ -76,10 +76,10 @@ function buildStatRows(blueprint: Blueprint, projectedStats: ItemStats, lang: 'e
 }
 
 function getGrade(score: number): { label: string; labelFr: string; color: 'success' | 'primary' | 'default' | 'warning' | 'error' } {
-  if (score >= 80) return { label: 'Excellent', labelFr: 'Excellent', color: 'success' };
-  if (score >= 60) return { label: 'Élevé', labelFr: 'Élevé', color: 'primary' };
-  if (score >= 40) return { label: 'Standard', labelFr: 'Standard', color: 'default' };
-  if (score >= 20) return { label: 'Médiocre', labelFr: 'Médiocre', color: 'warning' };
+  if (score >= 800) return { label: 'Excellent', labelFr: 'Excellent', color: 'success' };
+  if (score >= 600) return { label: 'Élevé', labelFr: 'Élevé', color: 'primary' };
+  if (score >= 400) return { label: 'Standard', labelFr: 'Standard', color: 'default' };
+  if (score >= 200) return { label: 'Médiocre', labelFr: 'Médiocre', color: 'warning' };
   return { label: 'Défectueux', labelFr: 'Défectueux', color: 'error' };
 }
 

@@ -121,7 +121,7 @@ export const GoalCard = memo(function GoalCard({
               {goal.blueprintName}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}>
-              {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
+              {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/1000
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.25, position: 'relative', zIndex: 2 }}>

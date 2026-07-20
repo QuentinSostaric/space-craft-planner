@@ -21,6 +21,7 @@ import {
   isPlaceholderResourceSlot,
   isResourceSlot,
 } from '../../utils/crafting';
+import { BUILD_INDEX_MAX } from '../../hooks/useCraftSimulator';
 
 const QUALITY_STEP = 50;
 
@@ -416,7 +417,7 @@ export function BuildIndexKnob({ score, color }: { score: number; color: string 
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - Math.max(0, Math.min(100, score)) / 100)}
+          strokeDashoffset={circumference * (1 - Math.max(0, Math.min(BUILD_INDEX_MAX, score)) / BUILD_INDEX_MAX)}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: 'stroke-dashoffset 500ms cubic-bezier(.22,1,.36,1), stroke 300ms ease' }}
         />
@@ -435,7 +436,9 @@ export function BuildIndexKnob({ score, color }: { score: number; color: string 
           sx={{
             fontFamily: FONT_DISPLAY,
             fontWeight: 800,
-            fontSize: '2rem',
+            // Four digits now fit inside the ring, so the type has to come down
+            // a step from the 2rem the two-digit 0–100 index used.
+            fontSize: '1.625rem',
             lineHeight: 1,
             color: 'text.primary',
             fontVariantNumeric: 'tabular-nums',

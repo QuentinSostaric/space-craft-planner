@@ -1,4 +1,4 @@
-import { Box, ButtonBase, Divider, IconButton, Paper, Skeleton, Typography, alpha, useTheme } from '../ui/system';
+import { Box, ButtonBase, IconButton, Paper, Skeleton, Typography, alpha, useTheme } from '../ui/system';
 import type { Theme } from '../ui/system';
 import { AppProgressBar } from './ui/feedback';
 import {
@@ -10,7 +10,7 @@ import {
   StarBorderIcon,
   StarIcon,
 } from '../ui/icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
@@ -19,6 +19,7 @@ import { FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSect
 import { StatImpactRadar } from './item-workspace/shared/StatImpactRadar';
 import { ResourceIcon } from './ui/ResourceIcon';
 import { AppButton } from './ui/controls';
+import { AppOverlayPanel } from './ui/overlays';
 import { PageLayout } from './ui/page';
 import { RarityBadge } from './ui/RarityBadge';
 import { BentoHero, BentoPanel } from './fabricator/BentoPanel';
@@ -47,9 +48,9 @@ import type {
 } from '../types';
 import { CATEGORY_LABELS } from '../types';
 
-const LAST_BLUEPRINT_KEY = 'if-fabricator-last-blueprint';
 const PROGRESS_KEY = 'if-acquisition-progress';
-const MISSION_PICKS_KEY = 'if-fabricator-mission-picks';
+/** Which view the Projected result panel shows: the radar, or the stat meters. */
+const RADAR_VIEW_KEY = 'if-fabricator-radar-view';
 
 // ─── Progress persistence (reached reputation per faction/scope) ─────────────
 
@@ -71,28 +72,6 @@ function writeProgress(map: ProgressMap) {
     window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(map));
   } catch {
     // storage unavailable — progress simply won't persist
-  }
-}
-
-/** Selected grind missions per `${scopeKey}|${tierRep}` — a personal to-do list. */
-type MissionPicksMap = Record<string, string[]>;
-
-function readMissionPicks(): MissionPicksMap {
-  try {
-    const raw = window.localStorage.getItem(MISSION_PICKS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as MissionPicksMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeMissionPicks(map: MissionPicksMap) {
-  try {
-    window.localStorage.setItem(MISSION_PICKS_KEY, JSON.stringify(map));
-  } catch {
-    // storage unavailable — picks simply won't persist
   }
 }
 
@@ -163,7 +142,14 @@ function buildLane(
         const min = top?.minReputation ?? 0;
         return min >= rep && min < nextRep && !targetNames.has(c.contractDebugName ?? '');
       });
-      return { tier, targetContracts, grindContracts };
+      // Pair each target with its full contract record so the row can show the
+      // same reward pool as a grind row.
+      const targetMissionContracts: Record<string, MissionContract> = {};
+      for (const contract of factionContracts ?? []) {
+        const name = contract.contractDebugName ?? '';
+        if (name && targetNames.has(name)) targetMissionContracts[name] = contract;
+      }
+      return { tier, targetContracts, targetMissionContracts, grindContracts };
     });
 
   const bestChance = Math.max(0, ...targets.map((c) => c.maxChance ?? c.blueprintDropChance ?? 0));
@@ -198,10 +184,10 @@ function resolveMaterialSource(sources: MaterialSources | null, resourceName: st
 // ─── Small presentational pieces ─────────────────────────────────────────────
 
 function gradeOf(score: number, theme: Theme): { label: LocalizedString; color: string } {
-  if (score >= 80) return { label: { en: 'Excellent', fr: 'Excellent', de: 'Exzellent' }, color: theme.palette.success.main };
-  if (score >= 60) return { label: { en: 'High', fr: 'Élevé', de: 'Hoch' }, color: theme.palette.primary.main };
-  if (score >= 40) return { label: { en: 'Standard', fr: 'Standard', de: 'Standard' }, color: theme.palette.text.secondary };
-  if (score >= 20) return { label: { en: 'Poor', fr: 'Médiocre', de: 'Mäßig' }, color: theme.palette.warning.main };
+  if (score >= 800) return { label: { en: 'Excellent', fr: 'Excellent', de: 'Exzellent' }, color: theme.palette.success.main };
+  if (score >= 600) return { label: { en: 'High', fr: 'Élevé', de: 'Hoch' }, color: theme.palette.primary.main };
+  if (score >= 400) return { label: { en: 'Standard', fr: 'Standard', de: 'Standard' }, color: theme.palette.text.secondary };
+  if (score >= 200) return { label: { en: 'Poor', fr: 'Médiocre', de: 'Mäßig' }, color: theme.palette.warning.main };
   return { label: { en: 'Defective', fr: 'Défectueux', de: 'Defekt' }, color: theme.palette.error.main };
 }
 
@@ -268,6 +254,8 @@ function KpiTile({
 
 /** Shared column template for the Materials & sourcing table. */
 const MATERIAL_GRID = '18px minmax(0, 1fr) 68px 58px 24px';
+/** Dismantle has no sourcing columns, but keeps the icon gutter and the rule. */
+const DISMANTLE_GRID = '18px minmax(0, 1fr) 68px';
 
 const materialHeadSx = {
   fontFamily: FONT_MONO,
@@ -279,24 +267,49 @@ const materialHeadSx = {
 
 // ─── Item description (clamped, expandable) ──────────────────────────────────
 
+const DESCRIPTION_CLAMP_LINES = 2;
+
 function ItemDescription({ blueprint }: { blueprint: Blueprint }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const textRef = useRef<HTMLElement | null>(null);
   const description = blueprint.identity?.descriptionBody ?? blueprint.identity?.description;
+
+  /*
+   * The toggle only appears when the text is actually clamped. Without the
+   * measurement a one-line description still offered a control that visibly did
+   * nothing — and making the paragraph itself the button meant screen readers
+   * announced the entire blurb as the control's name.
+   */
+  useLayoutEffect(() => {
+    const node = textRef.current;
+    if (!node || !description) {
+      setOverflows(false);
+      return;
+    }
+    const measure = () => setOverflows(node.scrollHeight - node.clientHeight > 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [description, expanded]);
+
   if (!description) return null;
+
   return (
-    <Box sx={{ mb: 1.25 }}>
+    <Box sx={{ mt: 0.5, maxWidth: '84ch' }}>
       <Typography
-        onClick={() => setExpanded((v) => !v)}
-        title={expanded ? undefined : t('Click to expand', 'Cliquer pour déplier')}
+        ref={textRef}
+        id={`item-description-${blueprint.id}`}
         sx={{
           fontSize: TEXT_LABEL,
           lineHeight: 1.5,
           color: 'text.secondary',
-          cursor: 'pointer',
           ...(expanded ? {} : {
             display: '-webkit-box',
-            WebkitLineClamp: 3,
+            WebkitLineClamp: DESCRIPTION_CLAMP_LINES,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
           }),
@@ -304,7 +317,25 @@ function ItemDescription({ blueprint }: { blueprint: Blueprint }) {
       >
         {description}
       </Typography>
-      <Divider sx={{ mt: 1.25 }} />
+      {(overflows || expanded) && (
+        <ButtonBase
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          aria-controls={`item-description-${blueprint.id}`}
+          sx={{
+            mt: 0.25,
+            fontFamily: FONT_MONO,
+            fontSize: '0.62rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            color: 'primary.main',
+            '&:hover': { textDecoration: 'underline' },
+          }}
+        >
+          {expanded ? t('Less', 'Moins') : t('More', 'Plus')}
+        </ButtonBase>
+      )}
     </Box>
   );
 }
@@ -335,13 +366,7 @@ export function FabricatorPage() {
 
   const blueprints = activeDataset.blueprints;
 
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    try {
-      return window.localStorage.getItem(LAST_BLUEPRINT_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressMap>(() => readProgress());
   /**
    * Transient confirmation on the Add-to-Planner button (design: 1.6s). Keyed
@@ -356,29 +381,23 @@ export function FabricatorPage() {
     const timer = window.setTimeout(() => setPlannedAt(null), 1600);
     return () => window.clearTimeout(timer);
   }, [plannedAt]);
-  const [missionPicks, setMissionPicks] = useState<MissionPicksMap>(() => readMissionPicks());
-  const [radarOpen, setRadarOpen] = useState(false);
-
-  const toggleMissionPick = useCallback((tierKey: string, contractName: string) => {
-    setMissionPicks((prev) => {
-      const current = prev[tierKey] ?? [];
-      const nextList = current.includes(contractName)
-        ? current.filter((name) => name !== contractName)
-        : [...current, contractName];
-      const next = { ...prev, [tierKey]: nextList };
-      writeMissionPicks(next);
-      return next;
-    });
-  }, []);
-
-  /** Bulk-write whole tiers of picks — the routes panel owns which and why. */
-  const setTierPicks = useCallback((entries: Record<string, string[]>) => {
-    setMissionPicks((prev) => {
-      const next = { ...prev, ...entries };
-      writeMissionPicks(next);
-      return next;
-    });
-  }, []);
+  const [radarOpen, setRadarOpen] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(RADAR_VIEW_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleRadar = useCallback(() => setRadarOpen((previous) => !previous), []);
+  // Persisting in an effect, not inside the updater: a state updater has to
+  // stay pure — React may invoke it more than once, or discard the result.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RADAR_VIEW_KEY, radarOpen ? '1' : '0');
+    } catch {
+      // storage unavailable — the choice just won't survive a reload
+    }
+  }, [radarOpen]);
 
   // Local craft simulation state — independent from the /item workspace.
   const [qty, setQty] = useState(1);
@@ -401,8 +420,9 @@ export function FabricatorPage() {
   // its own. The lootable-only scoping lives on the Blueprints library as the
   // "Obtainable" segment, which filters on the same acquisition graph.
 
-  // Default selection: last viewed blueprint, else the CQ7 Rifle. A persisted
-  // id can go stale across dataset switches — treat it like no selection.
+  // Landing on the bare route always opens the CQ7 Rifle. Continuity across
+  // sessions is the URL's job — selecting a blueprint pushes /item/<slug>, so
+  // reopening that address restores it; `/` is the neutral entry point.
   useEffect(() => {
     if (blueprints.length === 0) return;
     if (selectedId && blueprints.some((bp) => bp.id === selectedId)) return;
@@ -492,12 +512,6 @@ export function FabricatorPage() {
     } else if (currentSlug) {
       navigateToPath('/');
     }
-    try {
-      if (bp) window.localStorage.setItem(LAST_BLUEPRINT_KEY, bp.id);
-      else window.localStorage.removeItem(LAST_BLUEPRINT_KEY);
-    } catch {
-      // best effort
-    }
   }, []);
 
   const handleReach = useCallback((scopeKey: string, rep: number) => {
@@ -540,10 +554,68 @@ export function FabricatorPage() {
   const dismantleTimeSecs = dismantlingData?.dismantling?.blueprint?.dismantleTimeSecs ?? 0;
   const dismantleEfficiency = dismantlingData?.dismantling?.blueprint?.efficiency ?? 0.5;
 
+  /*
+   * Some resources are consumed by crafting but never returned by dismantling — the game
+   * lists them in dismantleBlacklistResources. Applying the efficiency to every input
+   * overstated the return on 840 of 1589 blueprints, and 20 of them actually recover
+   * nothing at all. The blueprint's own computed returns carry that flag per resource.
+   */
+  const dismantleBlacklist = useMemo(
+    () =>
+      new Set(
+        (selected?.dismantle?.returns ?? [])
+          .filter((entry) => entry.blacklisted)
+          .map((entry) => entry.name),
+      ),
+    [selected],
+  );
+
+  const dismantleRows = useMemo(
+    () =>
+      requiredResources.map((resource) => {
+        const blacklisted = dismantleBlacklist.has(resource.resourceName);
+        return {
+          resource,
+          blacklisted,
+          yieldAmount: blacklisted
+            ? 0
+            : Math.round(resource.totalScu * dismantleEfficiency * 1000) / 1000,
+        };
+      }),
+    [requiredResources, dismantleBlacklist, dismantleEfficiency],
+  );
+
+  const recoversNothing =
+    dismantleRows.length > 0 && dismantleRows.every((row) => row.yieldAmount === 0);
+
+  /*
+   * The closing band is whichever of Materials / Dismantle / Field data have
+   * something to show, and they are gated on different data — dismantle timing
+   * is missing for plenty of blueprints. Dividing 12 by the count that will
+   * actually render keeps the row full instead of leaving a four-column hole
+   * whenever one of them drops out.
+   */
+  const showMaterials = detailReady && requiredResources.length > 0;
+  const showDismantle = showMaterials && dismantleTimeSecs > 0;
+  const closingPanelCount = [showMaterials, showDismantle, detailReady].filter(Boolean).length;
+  const closingPanelSpan = closingPanelCount > 0 ? Math.floor(12 / closingPanelCount) : 12;
+
   const inInventory = selected ? inventoryIds.includes(selected.id) : false;
   const isFavorite = selected ? favoriteIds.includes(selected.id) : false;
 
-  const heroImage = selected?.media?.primaryVisual?.imageUrl ?? selected?.media?.image?.imageUrl ?? null;
+  /*
+   * `primaryVisual` is not reliably the item: for ~30% of the catalogue (the
+   * CQ7 included) the importer falls back to the manufacturer's corporate photo
+   * and stores it under both `primaryVisual` and `manufacturerLogo`. Showing
+   * that as the hero claims a render exists when none does, so it is detected
+   * by identity with the logo and de-emphasised rather than presented as art.
+   */
+  const manufacturerLogoUrl = selected?.media?.manufacturerLogo?.imageUrl ?? null;
+  const primaryVisualUrl = selected?.media?.primaryVisual?.imageUrl ?? null;
+  const itemRender = selected?.media?.image?.imageUrl
+    ?? (primaryVisualUrl && primaryVisualUrl !== manufacturerLogoUrl ? primaryVisualUrl : null);
+  const heroImage = itemRender ?? primaryVisualUrl ?? manufacturerLogoUrl;
+  const heroIsManufacturer = !itemRender && Boolean(heroImage);
   const topStanding = entry?.standings?.length
     ? [...entry.standings].sort((a, b) => (b.minReputation ?? 0) - (a.minReputation ?? 0))[0]
     : null;
@@ -576,8 +648,19 @@ export function FabricatorPage() {
     '&:hover': { color: 'primary.main' },
   } as const;
 
+  /*
+   * 95% of the available width rather than a fixed cap: the work grid is 12
+   * columns of cards, so the panels track the page and the old 1760px ceiling
+   * stopped giving them room on large displays. The remaining 5% is what keeps
+   * the cards off the window edge. Narrow viewports keep every pixel — there is
+   * nothing to spare below lg.
+   */
   return (
-    <PageLayout width="full" component="main" sx={{ maxWidth: 1760, gap: 1.125, py: 1.375, px: { xs: 1.25, md: 1.625 } }}>
+    <PageLayout
+      width="full"
+      component="main"
+      sx={{ maxWidth: { xs: 'none', lg: '95%' }, gap: 1.125, py: 1.375, px: { xs: 1.25, md: 1.625 } }}
+    >
       {missionRewardsLoading && !missionRewards && !selected && (
         <Box sx={{ maxWidth: 640 }}>
           <AppProgressBar sx={{ mb: 1.5 }} />
@@ -656,14 +739,108 @@ export function FabricatorPage() {
             }}
           >
             {heroImage && (
-              <Box
-                component="img"
-                src={heroImage}
-                alt=""
-                sx={{ width: 46, height: 46, objectFit: 'cover', borderRadius: '8px', flexShrink: 0, border: `1px solid ${theme.palette.ui.border}` }}
-              />
+              <AppOverlayPanel
+                ariaLabel={t('Blueprint visual', 'Visuel du blueprint')}
+                trigger={
+                  /*
+                    Height is pinned to the 84px the identity text beside it
+                    already measures, so the plate never makes the strip taller.
+                    Width follows the image instead of being square: renders come
+                    in two clusters, 16:9 landscape and the same ratio rotated to
+                    portrait, so a fixed landscape plate would strand the portrait
+                    half in a sliver surrounded by dead space. The bounds keep the
+                    title from wandering — never narrower than the old square,
+                    never wider than a full 16:9 at this height.
+
+                    Sizing the height by `align-self: stretch` would loop here:
+                    with no explicit width the image sets the width, aspect-ratio
+                    turns that into height, and the strip blows out to ~500px.
+                  */
+                  <ButtonBase
+                    aria-label={t('Enlarge the visual', 'Agrandir le visuel')}
+                    sx={{
+                      height: 84,
+                      minWidth: 84,
+                      maxWidth: 148,
+                      flexShrink: 0,
+                      display: 'grid',
+                      placeItems: 'center',
+                      padding: '3px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme.palette.ui.border}`,
+                      backgroundColor: 'ui.bgElev',
+                      overflow: 'hidden',
+                      cursor: 'zoom-in',
+                      transition: 'border-color 140ms ease',
+                      // The plate clips, so scaling the image reads as a zoom
+                      // into the frame rather than the frame itself growing.
+                      '& img': { transition: 'transform 220ms cubic-bezier(0.22,1,0.36,1)' },
+                      '&:hover': { borderColor: theme.palette.ui.borderAccent },
+                      '&:hover img': { transform: 'scale(1.06)' },
+                    }}
+                  >
+                    {/*
+                      Intrinsically sized rather than stretched to the box: the
+                      caps fix the rendered height, the width then falls out of
+                      the image's own ratio, and that width is what the plate
+                      shrink-wraps to — so a 16:9 render fills the plate edge to
+                      edge and only portrait ones sit letterboxed inside the
+                      84px floor. Cropping to a square instead (`cover`) showed
+                      the middle of a barrel and nothing identifiable.
+
+                      Both caps have to be pixels, not percentages. A percentage
+                      max-height is ignored while the browser computes intrinsic
+                      width, so the plate would shrink-wrap to the image's full
+                      natural width — it pinned to 148px for every item and
+                      portrait renders overflowed to 249px tall and got clipped.
+                      84px plate less 3px padding and 1px border each side is the
+                      76px below; 148 less the same 8px is the 140.
+                    */}
+                    <Box
+                      component="img"
+                      src={heroImage}
+                      alt=""
+                      loading="lazy"
+                      sx={{
+                        maxWidth: 140,
+                        maxHeight: 76,
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain',
+                        ...(heroIsManufacturer ? { opacity: 0.5 } : null),
+                      }}
+                    />
+                  </ButtonBase>
+                }
+              >
+                <Box sx={{ display: 'grid', gap: 1, justifyItems: 'center', maxWidth: 'min(88vw, 440px)' }}>
+                  <Box
+                    component="img"
+                    src={heroImage}
+                    alt={selected.name}
+                    sx={{
+                      maxWidth: '100%',
+                      maxHeight: '58vh',
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      backgroundColor: 'ui.bgElev',
+                    }}
+                  />
+                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.62rem', color: 'text.disabled', textAlign: 'center' }}>
+                    {heroIsManufacturer
+                      ? t('Manufacturer mark — no item render available', 'Marque du fabricant — aucun visuel de l’objet')
+                      : selected.name}
+                  </Typography>
+                </Box>
+              </AppOverlayPanel>
             )}
-            <Box sx={{ minWidth: 0 }}>
+            {/*
+              An explicit basis is what keeps the strip on one line: flex wraps
+              on an item's hypothetical size, and letting the description set
+              that (basis `auto`) would push the whole block below the image at
+              every viewport width.
+            */}
+            <Box sx={{ minWidth: 0, flex: '1 1 260px' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.125, flexWrap: 'wrap' }}>
                 <Typography
                   component="h1"
@@ -687,6 +864,7 @@ export function FabricatorPage() {
                   </Box>
                 )}
               </Typography>
+              <ItemDescription blueprint={selected} />
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 'auto', flexShrink: 0 }}>
@@ -791,7 +969,13 @@ export function FabricatorPage() {
           </Box>
 
           {/* ── Bento work grid ── */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 1.125, alignItems: 'start' }}>
+          {/*
+            Cards stretch to their row rather than sizing to content: with three
+            panels of unrelated natural heights sharing a band, `start` left a
+            ragged bottom edge that read as accidental. Stretching gives every
+            row a flat baseline, which is what makes the grid look deliberate.
+          */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 1.125, alignItems: 'stretch' }}>
             {/* Craft simulator */}
             {detailReady ? (
               <BentoPanel
@@ -855,11 +1039,19 @@ export function FabricatorPage() {
                 span={5}
                 right={
                   <ButtonBase
-                    onClick={() => setRadarOpen((v) => !v)}
-                    aria-expanded={radarOpen}
-                    sx={{ ...ghostButtonSx, border: `1px solid ${theme.palette.ui.borderStrong}`, borderRadius: '6px' }}
+                    onClick={toggleRadar}
+                    aria-pressed={radarOpen}
+                    title={radarOpen
+                      ? t('Show the stat meters', 'Afficher les barres de stats')
+                      : t('Show the impact radar', 'Afficher le radar d’impact')}
+                    sx={{
+                      ...ghostButtonSx,
+                      border: `1px solid ${radarOpen ? theme.palette.ui.borderAccent : theme.palette.ui.borderStrong}`,
+                      borderRadius: '6px',
+                      ...(radarOpen ? { color: 'primary.main', backgroundColor: alpha(theme.palette.primary.main, 0.13) } : null),
+                    }}
                   >
-                    {t('RADAR', 'RADAR')} {radarOpen ? '▴' : '▾'}
+                    {t('RADAR', 'RADAR')}
                   </ButtonBase>
                 }
                 bodySx={{ p: 1.75 }}
@@ -904,22 +1096,27 @@ export function FabricatorPage() {
                     </Box>
                   </Box>
 
-                  <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '9px 14px', alignContent: 'start' }}>
-                    {statMeters.length > 0 ? (
-                      statMeters.map((meter) => <StatMeterRow key={meter.key} meter={meter} />)
-                    ) : (
-                      <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.disabled' }}>
-                        {t('No modifiable stats', 'Aucune stat modifiable')}
-                      </Typography>
-                    )}
-                  </Box>
+                  {/*
+                    The radar takes the meters' place rather than unfolding below
+                    them: both read the same projection, so showing them at once
+                    only made the panel taller than the card beside it.
+                  */}
+                  {radarOpen ? (
+                    <Box className="if-appear" sx={{ minWidth: 0 }}>
+                      <StatImpactRadar blueprint={selected} projectedStats={projectedStats} />
+                    </Box>
+                  ) : (
+                    <Box className="if-appear" sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '9px 14px', alignContent: 'start' }}>
+                      {statMeters.length > 0 ? (
+                        statMeters.map((meter) => <StatMeterRow key={meter.key} meter={meter} />)
+                      ) : (
+                        <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.disabled' }}>
+                          {t('No modifiable stats', 'Aucune stat modifiable')}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
                 </Box>
-
-                {radarOpen && (
-                  <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.ui.border}` }}>
-                    <StatImpactRadar blueprint={selected} projectedStats={projectedStats} />
-                  </Box>
-                )}
               </BentoPanel>
             )}
 
@@ -929,9 +1126,6 @@ export function FabricatorPage() {
                 lanes={lanes}
                 progress={progress}
                 onReach={handleReach}
-                missionPicks={missionPicks}
-                onToggleMissionPick={toggleMissionPick}
-                onSetTierPicks={setTierPicks}
               />
             ) : (
               <BentoPanel accent={theme.palette.domain.blue} title={t('Acquisition routes', 'Routes d’acquisition')} span={12} bodySx={{ p: 1.5 }}>
@@ -947,11 +1141,11 @@ export function FabricatorPage() {
             )}
 
             {/* Materials & sourcing */}
-            {detailReady && requiredResources.length > 0 && (
+            {showMaterials && (
               <BentoPanel
                 accent={theme.palette.domain.green}
                 title={t('Materials & sourcing', 'Matériaux & sourcing')}
-                span={5}
+                span={closingPanelSpan}
                 right={
                   <BentoHero
                     value={totalRequiredScu > 0 ? formatResourceQuantity(totalRequiredScu, 'scu', lang) : String(requiredResources.length)}
@@ -1055,11 +1249,11 @@ export function FabricatorPage() {
             )}
 
             {/* Dismantle yield */}
-            {detailReady && dismantleTimeSecs > 0 && requiredResources.length > 0 && (
+            {showDismantle && (
               <BentoPanel
                 accent={theme.palette.domain.orange}
                 title={t('Dismantle yield', 'Rendement démontage')}
-                span={4}
+                span={closingPanelSpan}
                 right={
                   <>
                     <Typography
@@ -1074,40 +1268,96 @@ export function FabricatorPage() {
                     <BentoHero value={`${Math.round(dismantleEfficiency * 100)}%`} unit={t('recovery', 'récup.')} color={theme.palette.domain.orange} />
                   </>
                 }
-                bodySx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '6px 14px' }}
               >
+                {/* Same header/row/rule language as Materials & sourcing. */}
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: DISMANTLE_GRID,
+                    gap: 1,
+                    px: 1.5,
+                    py: 0.625,
+                    borderBottom: `1px solid ${theme.palette.ui.border}`,
+                  }}
+                >
+                  <span />
+                  <Typography sx={materialHeadSx}>{t('Material', 'Matériau')}</Typography>
+                  <Typography sx={{ ...materialHeadSx, textAlign: 'right' }}>{t('Yield', 'Rendement')}</Typography>
+                </Box>
+                {dismantleRows.map(({ resource, blacklisted, yieldAmount }) => (
+                  <Box
+                    key={resource.resourceName}
+                    title={
+                      blacklisted
+                        ? t(
+                            'Consumed by crafting but never returned by dismantling.',
+                            'Consommé par le craft mais jamais rendu au démontage.',
+                          )
+                        : undefined
+                    }
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: DISMANTLE_GRID,
+                      gap: 1,
+                      alignItems: 'center',
+                      px: 1.5,
+                      py: 0.75,
+                      borderBottom: `1px solid ${theme.palette.ui.border}`,
+                      opacity: blacklisted ? 0.55 : 1,
+                      '&:hover': { backgroundColor: alpha(theme.palette.domain.orange, 0.06) },
+                    }}
+                  >
+                    <ResourceIcon name={resource.resourceName} size={18} />
+                    <Typography sx={{ minWidth: 0, fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {resource.resourceName}
+                      {blacklisted && (
+                        <Box component="span" sx={{ ml: 0.5, fontSize: '0.6rem', color: 'text.disabled', fontWeight: 500 }}>
+                          {t('not recoverable', 'non récupérable')}
+                        </Box>
+                      )}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontFamily: FONT_MONO,
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        textAlign: 'right',
+                        whiteSpace: 'nowrap',
+                        color: blacklisted ? 'text.disabled' : undefined,
+                      }}
+                    >
+                      {blacklisted
+                        ? '—'
+                        : formatResourceQuantity(yieldAmount, resource.quantityUnit, lang)}
+                    </Typography>
+                  </Box>
+                ))}
                 <Typography
                   sx={{
-                    gridColumn: '1 / -1',
+                    px: 1.5,
+                    py: 1,
                     fontFamily: FONT_MONO,
                     fontSize: '0.57rem',
                     lineHeight: 1.45,
                     color: 'text.disabled',
                   }}
                 >
-                  {t(
-                    `Derived from the crafted item's runtime composition × ${dismantleEfficiency} — no static per-item table.`,
-                    `Dérivé de la composition runtime de l’objet crafté × ${dismantleEfficiency} — pas de table statique par objet.`,
-                  )}
+                  {recoversNothing
+                    ? t(
+                        'Every input of this recipe is blacklisted — dismantling returns nothing.',
+                        'Tous les intrants de cette recette sont blacklistés — le démontage ne rend rien.',
+                      )
+                    : t(
+                        `Recipe inputs × ${dismantleEfficiency}. Blacklisted resources are consumed by crafting but never returned.`,
+                        `Intrants de la recette × ${dismantleEfficiency}. Les ressources blacklistées sont consommées par le craft mais jamais rendues.`,
+                      )}
                 </Typography>
-                {requiredResources.map((resource) => (
-                  <Box key={resource.resourceName} sx={{ display: 'flex', alignItems: 'center', gap: 0.875, minWidth: 0 }}>
-                    <ResourceIcon name={resource.resourceName} size={15} />
-                    <Typography sx={{ flex: 1, minWidth: 0, fontSize: '0.74rem', color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {resource.resourceName}
-                    </Typography>
-                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.74rem', fontWeight: 700 }}>
-                      {formatResourceQuantity(Math.round(resource.totalScu * dismantleEfficiency * 1000) / 1000, resource.quantityUnit, lang)}
-                    </Typography>
-                  </Box>
-                ))}
               </BentoPanel>
             )}
 
             {/* Field data */}
             {detailReady && (
-              <BentoPanel title={t('Field data', 'Données objet')} span={3} bodySx={{ p: 1.5 }}>
-                <ItemDescription blueprint={selected} />
+              <BentoPanel title={t('Field data', 'Données objet')} span={closingPanelSpan} bodySx={{ p: 1.5 }}>
                 {hasBlueprintFieldData(selected) ? (
                   <FieldDataBody blueprint={selected} />
                 ) : (
