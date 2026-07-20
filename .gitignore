@@ -33,8 +33,11 @@ yarn-debug.log*
 yarn-error.log*
 .tmp/
 
-# Coverage
+# Coverage and browser test artifacts
 coverage/
+client/coverage/
+client/test-results/
+client/playwright-report/
 
 # IDE / Editor
 .vscode/

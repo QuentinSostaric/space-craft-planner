@@ -1,13 +1,7 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { AppButton } from './ui/controls';
+import { AppDialog } from './ui/overlays';
+import { DownloadOutlinedIcon } from '../ui/icons';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -70,11 +64,52 @@ export function OnboardingDialog() {
         ? t('Install the desktop app', 'Installer l app desktop', 'Desktop-App installieren')
         : t('Setup complete', 'Configuration terminee', 'Einrichtung abgeschlossen');
 
+  const footer = (
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+      <AppButton variant="ghost" onClick={() => { void markDismissed(); }} disabled={busy} sx={{ minHeight: 44 }}>
+        {t('Later', 'Plus tard', 'Spaeter')}
+      </AppButton>
+      {step === 'rsi' && (
+        <CitizenIdSignInButton
+          environment={citizenIdBrandEnvironment}
+          disabled={busy || !citizenIdRsiLinkEnabled}
+          onClick={() => { linkRsiAccountWithCitizenId('/account'); }}
+        />
+      )}
+      {step === 'desktop' && (
+        <>
+          <Box
+            component="a"
+            href={getDesktopInstallerUrl()}
+            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, minHeight: 44, px: 2, borderRadius: 0.75, textDecoration: 'none', backgroundColor: 'primary.main', color: 'primary.contrastText', fontWeight: 700 }}
+          >
+            <DownloadOutlinedIcon />
+            {t('Download app', 'Telecharger l app', 'App herunterladen')}
+          </Box>
+          <AppButton variant="secondary" onClick={() => { void markCompleted(); }} disabled={busy} sx={{ minHeight: 44 }}>
+            {t('Done', 'Terminer', 'Fertig')}
+          </AppButton>
+        </>
+      )}
+      {step === 'complete' && (
+        <AppButton variant="primary" onClick={() => { void markCompleted(); }} disabled={busy} sx={{ minHeight: 44 }}>
+          {t('Finish', 'Terminer', 'Abschliessen')}
+        </AppButton>
+      )}
+    </Box>
+  );
+
   return (
-    <Dialog open maxWidth="sm" fullWidth aria-labelledby="onboarding-title">
-      <DialogTitle id="onboarding-title">{title}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2}>
+    <AppDialog
+      open
+      onOpenChange={() => undefined}
+      title={title}
+      dismissable={false}
+      width="min(35rem, calc(100vw - 1.5rem))"
+      footer={footer}
+      partSx={{ content: { px: { xs: 2, sm: 3 }, pb: 2 }, footer: { px: { xs: 2, sm: 3 }, pb: 2.5 } }}
+    >
+      <Stack spacing={2}>
           {step === 'rsi' && (
             <>
               <Typography sx={{ color: 'text.secondary' }}>
@@ -143,40 +178,7 @@ export function OnboardingDialog() {
               )}
             </Typography>
           )}
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2.5, gap: 1, flexWrap: 'wrap' }}>
-        <Button onClick={() => { void markDismissed(); }} disabled={busy}>
-          {t('Later', 'Plus tard', 'Spaeter')}
-        </Button>
-        {step === 'rsi' && (
-          <CitizenIdSignInButton
-            environment={citizenIdBrandEnvironment}
-            disabled={busy || !citizenIdRsiLinkEnabled}
-            onClick={() => { linkRsiAccountWithCitizenId('/account'); }}
-          />
-        )}
-        {step === 'desktop' && (
-          <>
-            <Button
-              component="a"
-              href={getDesktopInstallerUrl()}
-              variant="contained"
-              startIcon={<DownloadOutlinedIcon />}
-            >
-              {t('Download app', 'Telecharger l app', 'App herunterladen')}
-            </Button>
-            <Button variant="outlined" onClick={() => { void markCompleted(); }} disabled={busy}>
-              {t('Done', 'Terminer', 'Fertig')}
-            </Button>
-          </>
-        )}
-        {step === 'complete' && (
-          <Button variant="contained" onClick={() => { void markCompleted(); }} disabled={busy}>
-            {t('Finish', 'Terminer', 'Abschliessen')}
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      </Stack>
+    </AppDialog>
   );
 }

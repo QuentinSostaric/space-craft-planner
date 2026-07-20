@@ -29,7 +29,9 @@ export function resourceSlugFromPathname(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
-export function mainViewFromPathname(pathname: string): 'blueprints' | 'missions' | 'resources' | 'organizations' | 'planner' | 'changelog' | 'account' | 'privacy' {
+export function mainViewFromPathname(pathname: string): 'fabricator' | 'blueprints' | 'missions' | 'resources' | 'organizations' | 'planner' | 'changelog' | 'account' | 'privacy' {
+  if (pathname === '/' || pathname === '/fabricator' || pathname.startsWith('/fabricator/')) return 'fabricator';
+  if (pathname.startsWith('/item/')) return 'fabricator';
   if (pathname === '/missions' || pathname.startsWith('/missions/')) return 'missions';
   if (pathname === '/resources' || pathname.startsWith('/resources/')) return 'resources';
   if (pathname === '/organizations' || pathname.startsWith('/organizations/')) return 'organizations';

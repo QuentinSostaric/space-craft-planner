@@ -1,5 +1,5 @@
-import Box from '@mui/material/Box';
-import type { SxProps, Theme } from '@mui/material/styles';
+import { Box } from '../../ui/system';
+import type { SxProps, Theme } from '../../ui/system';
 
 const GLYPH_URLS = {
   'arrow-left': '/icons/ui/arrow-left.svg',
@@ -34,7 +34,7 @@ export function AppGlyph({
       role={ariaLabel ? 'img' : undefined}
       aria-label={ariaLabel}
       aria-hidden={ariaLabel ? undefined : 'true'}
-      sx={{
+      sx={[{
         display: 'inline-block',
         width: size,
         height: size,
@@ -48,8 +48,7 @@ export function AppGlyph({
         WebkitMaskRepeat: 'no-repeat',
         maskPosition: 'center',
         WebkitMaskPosition: 'center',
-        ...sx,
-      }}
+      }, sx]}
     />
   );
 }

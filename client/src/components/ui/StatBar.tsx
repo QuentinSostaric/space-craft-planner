@@ -1,19 +1,24 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import { useTheme, alpha } from '@mui/material/styles';
-import { TEXT_LABEL } from '../../theme';
+import { Box, Typography, useTheme, alpha } from '../../ui/system';
+import { FONT_MONO, TEXT_LABEL } from '../../theme';
 
 interface StatBarProps {
   label: string;
   value: string;
   /** Fill percentage 0–100 */
   fill: number;
+  /** Domain hue for the gauge (theme.palette.domain.*). Defaults to the brand accent. */
+  color?: string;
   ariaLabel?: string;
 }
 
-export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
+export function StatBar({ label, value, fill, color, ariaLabel }: StatBarProps) {
   const theme = useTheme();
   const clampedFill = Math.max(0, Math.min(100, fill));
+  // Domain hue → single-hue gauge; default keeps the original brand gradient.
+  const fillBackground = color
+    ? `linear-gradient(90deg, ${alpha(color, 0.45)} 0%, ${color} 100%)`
+    : `linear-gradient(90deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.main} 100%)`;
+  const valueColor = color ?? theme.palette.primary.main;
 
   return (
     <Box
@@ -53,7 +58,7 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
             left: 0,
             height: '100%',
             width: `${clampedFill}%`,
-            background: `linear-gradient(90deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.main} 100%)`,
+            background: fillBackground,
             transition: 'width 400ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
@@ -63,8 +68,10 @@ export function StatBar({ label, value, fill, ariaLabel }: StatBarProps) {
         sx={{
           minWidth: 45,
           textAlign: 'right',
+          fontFamily: FONT_MONO,
+          fontVariantNumeric: 'tabular-nums',
           fontSize: TEXT_LABEL,
-          color: 'primary.main',
+          color: valueColor,
           fontWeight: 700,
         }}
       >

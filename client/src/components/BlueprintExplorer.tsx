@@ -1,28 +1,7 @@
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Collapse, IconButton, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { AppButton, AppSelect, AppTextField, AppToggleGroup } from './ui/controls';
+import { CloseIcon, FilterListOffOutlinedIcon, TuneIcon, StarIcon, FlagIcon, Inventory2Icon, ExpandMoreIcon } from '../ui/icons';
 import { type ElementType, useCallback, useEffect, useMemo, useState } from 'react';
-import Autocomplete from '@mui/material/Autocomplete';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Collapse from '@mui/material/Collapse';
-import FormControl from '@mui/material/FormControl';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Typography from '@mui/material/Typography';
-import CloseIcon from '@mui/icons-material/Close';
-import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
-import TuneIcon from '@mui/icons-material/Tune';
-import StarIcon from '@mui/icons-material/Star';
-import FlagIcon from '@mui/icons-material/Flag';
-import Inventory2Icon from '@mui/icons-material/Inventory2';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { AppGlyph } from './ui/AppGlyph';
 import { Panel } from './ui/Panel';
 import { useCraft } from '../store/CraftContext';
 import { useFilters } from '../store/FilterContext';
@@ -43,7 +22,6 @@ import type {
   BlueprintSort,
   CategoryFilter,
   CraftTimeBucket,
-  LegalityFilter,
   Lang,
   LibrarySegment,
   LocalizedString,
@@ -52,6 +30,8 @@ import type {
   StandingBucket,
 } from '../types';
 import { TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
+import { ResponsiveFilters } from './ui/page';
+import { AppChip } from './ui/data-display/AppChip';
 
 type LocalizedOption = { label: LocalizedString };
 
@@ -552,7 +532,7 @@ export function BlueprintExplorer() {
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
           gap: 0.75,
-          '& .MuiPaper-root': {
+          '& > *': {
             minHeight: { xs: 46, md: 50 },
             px: { xs: 1, md: 1.1 },
             py: { xs: 0.75, md: 0.85 },
@@ -573,7 +553,7 @@ export function BlueprintExplorer() {
               opacity: 0.55,
             },
           },
-          '& .MuiTypography-caption': {
+          '& > * > span:first-of-type': {
             fontSize: { xs: TEXT_LABEL, md: TEXT_LABEL },
             letterSpacing: '0.08em',
             mb: 0.25,
@@ -591,10 +571,12 @@ export function BlueprintExplorer() {
         <PageStatCard
           label={t('Mission-linked', 'Liees aux missions')}
           value={String(blueprintStats.missionLinkedCount)}
+          domain="blue"
         />
         <PageStatCard
           label={t('Required materials', 'Materiaux requis')}
           value={String(blueprintStats.materialCount)}
+          domain="green"
         />
       </Box>
 
@@ -602,6 +584,24 @@ export function BlueprintExplorer() {
         <DatasetTooOldNotice variant="caption" />
       )}
 
+      <ResponsiveFilters
+        title={t('Blueprint filters and sorting', 'Filtres et tri des blueprints')}
+        triggerLabel={t('Filters and sort', 'Filtres et tri')}
+        closeLabel={t('Show results', 'Afficher les résultats')}
+        dismissLabel={t('Close filters', 'Fermer les filtres')}
+        summary={
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {hasActiveFilters
+              ? t('Filters active', 'Filtres actifs')
+              : t('All blueprints', 'Tous les blueprints')}
+          </Typography>
+        }
+        actions={hasActiveFilters ? (
+          <AppButton variant="secondary" size="sm" onClick={clearAllFilters}>
+            {t('Reset', 'Reinitialiser', 'Zurucksetzen')}
+          </AppButton>
+        ) : undefined}
+      >
       {/* ── Primary toolbar ── */}
       <Box
         sx={{
@@ -617,67 +617,44 @@ export function BlueprintExplorer() {
         }}
       >
         {/* Search */}
-        <TextField
+        <AppTextField
           type="search"
-          size="small"
           placeholder={t('Search blueprints...', 'Rechercher des blueprints...', 'Blueprints suchen...')}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
-                  <AppGlyph name="search" size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{
+          onValueChange={setSearchQuery}
+          ariaLabel={t('Search blueprints', 'Rechercher des blueprints')}
+          fieldSx={{
             flex: '1 1 auto',
             maxWidth: 360,
             minWidth: 140,
-            '& .MuiInputBase-root': { fontSize: '.8rem', height: 32 },
           }}
+          sx={{ fontSize: '.8rem' }}
         />
 
         {/* Library segment toggle */}
-        <ToggleButtonGroup
+        <AppToggleGroup
           value={librarySegment}
-          exclusive
-          onChange={(_e, val) => {
-            if (val) setLibrarySegment(val as LibrarySegment);
-          }}
-          size="small"
-          aria-label={t('Library filter', 'Filtre bibliotheque')}
-          sx={{
-            flexShrink: 0,
-            '& .MuiToggleButton-root': {
-              fontSize: '.75rem',
-              px: { xs: 0.75, sm: 1.25 },
-              minWidth: 0,
-              minHeight: 32,
-              lineHeight: 1.1,
-            },
-          }}
-        >
-          {SEGMENTS.map((segment) => (
-            <ToggleButton
-              key={segment.value}
-              value={segment.value}
-              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}
-            >
-              {segment.icon && <segment.icon sx={{ fontSize: '.75rem', flexShrink: 0 }} />}
-              <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {getOptionText(segment, lang)}
-              </Box>
-              {segment.value === 'inventory' && inventoryIds.length > 0 && (
-                <Box component="span" sx={{ fontSize: '.75rem', opacity: 0.7, flexShrink: 0 }}>
-                  {inventoryIds.length}
+          options={SEGMENTS.map((segment) => ({
+            value: segment.value,
+            label: (
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                {segment.icon && <segment.icon sx={{ fontSize: '.75rem', flexShrink: 0 }} />}
+                <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {getOptionText(segment, lang)}
                 </Box>
-              )}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+                {segment.value === 'inventory' && inventoryIds.length > 0 && (
+                  <Box component="span" sx={{ fontSize: '.75rem', opacity: 0.7, flexShrink: 0 }}>
+                    {inventoryIds.length}
+                  </Box>
+                )}
+              </Box>
+            ),
+          }))}
+          onValueChange={(value) => setLibrarySegment(value)}
+          ariaLabel={t('Library filter', 'Filtre bibliotheque')}
+          sx={{ flexShrink: 0 }}
+          partSx={{ button: { fontSize: '.75rem', px: { xs: 0.75, sm: 1.25 }, minHeight: 32, lineHeight: 1.1 } }}
+        />
 
         {/* Sync button — desktop + logged in */}
         {showSyncButton && (
@@ -690,58 +667,36 @@ export function BlueprintExplorer() {
         <Box sx={{ flex: '1 1 auto' }} />
 
         {/* Sort select */}
-        <FormControl
-          size="small"
-          sx={{
-            minWidth: 160,
-            flexShrink: 0,
-            '& .MuiInputBase-root': { height: 32, fontSize: '.75rem' },
-          }}
-        >
-          <Select
-            value={blueprintSort}
-            onChange={(event) => setBlueprintSort(event.target.value as BlueprintSort)}
-            displayEmpty
-            inputProps={{ 'aria-label': t('Sort blueprints', 'Trier les blueprints') }}
-          >
-            {SORT_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {getOptionText(option, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <AppSelect
+          value={blueprintSort}
+          options={SORT_OPTIONS.map((option) => ({ value: option.value, label: getOptionText(option, lang) }))}
+          onValueChange={(value) => { if (value) setBlueprintSort(value); }}
+          ariaLabel={t('Sort blueprints', 'Trier les blueprints')}
+          fieldSx={{ minWidth: 160, flexShrink: 0 }}
+        />
 
         {/* Filtres avancés toggle */}
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<TuneIcon sx={{ fontSize: '0.9rem !important' }} />}
-          endIcon={
-            <ExpandMoreIcon
-              sx={{
-                fontSize: '0.9rem !important',
-                transition: 'transform 200ms ease',
-                transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-              }}
-            />
-          }
+        <AppButton
+          size="sm"
+          variant="secondary"
+          ariaPressed={advancedOpen}
           onClick={() => setAdvancedOpen((o) => !o)}
           sx={{
             flexShrink: 0,
             minHeight: 32,
             fontSize: '.75rem',
             px: 1.25,
+            gap: 0.6,
             borderColor: advancedFilterCount > 0 ? 'primary.main' : 'divider',
             color: advancedFilterCount > 0 ? 'primary.main' : 'text.secondary',
           }}
         >
+          <TuneIcon sx={{ fontSize: '0.9rem !important' }} />
           {t('Advanced filters', 'Filtres avancés')}
           {advancedFilterCount > 0 && (
             <Box
               component="span"
               sx={{
-                ml: 0.75,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -758,15 +713,22 @@ export function BlueprintExplorer() {
               {advancedFilterCount}
             </Box>
           )}
-        </Button>
+          <ExpandMoreIcon
+            sx={{
+              fontSize: '0.9rem !important',
+              transition: 'transform 200ms ease',
+              transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          />
+        </AppButton>
 
         {/* Reset all filters */}
         {hasActiveFilters && (
-          <Button
-            variant="outlined"
+          <AppButton
+            variant="secondary"
             startIcon={<FilterListOffOutlinedIcon />}
             onClick={clearAllFilters}
-            size="small"
+            size="sm"
             sx={{
               minHeight: 32,
               whiteSpace: 'nowrap',
@@ -776,7 +738,7 @@ export function BlueprintExplorer() {
             }}
           >
             {t('Reset', 'Reinitialiser', 'Zurucksetzen')}
-          </Button>
+          </AppButton>
         )}
 
         {/* Active blueprint pill */}
@@ -827,22 +789,16 @@ export function BlueprintExplorer() {
         sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
       >
         {CATEGORY_FILTERS.map(({ value, ...option }) => (
-          <Chip
+          <AppChip
             key={value}
             label={getOptionText(option, lang)}
-            size="small"
-            variant={categoryFilter === value ? 'filled' : 'outlined'}
+            size="sm"
+            tone="primary"
+            outlined={categoryFilter !== value}
+            selected={categoryFilter === value}
+            ariaLabel={`${t('Filter by', 'Filtrer par')} ${getOptionText(option, lang)}`}
             onClick={() => setCategoryFilter(value)}
-            sx={{
-              fontSize: '.75rem',
-              height: 26,
-              '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' },
-              ...(categoryFilter === value && {
-                backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                color: 'text.primary',
-                borderColor: 'primary.main',
-              }),
-            }}
+            sx={{ maxWidth: 180 }}
           />
         ))}
       </Box>
@@ -871,78 +827,49 @@ export function BlueprintExplorer() {
               mb: 1.5,
             }}
           >
-            <Autocomplete
-              size="small"
-              options={manufacturers}
+            <AppSelect
+              label={t('Manufacturer', 'Fabricant')}
               value={manufacturerFilter}
-              onChange={(_e, val) => setManufacturerFilter(val)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('Manufacturer', 'Fabricant')}
-                  placeholder={t('Manufacturer', 'Fabricant')}
-                  sx={{ '& .MuiInputBase-root': { fontSize: '.75rem' } }}
-                />
-              )}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={manufacturers.map((option) => ({ label: option, value: option }))}
+              onValueChange={setManufacturerFilter}
+              clearable
+              filterable
+              placeholder={t('Manufacturer', 'Fabricant')}
             />
-            <Autocomplete
-              size="small"
-              options={materials}
+            <AppSelect
+              label={t('Required material', 'Materiau requis')}
               value={materialFilter}
-              onChange={(_e, val) => setMaterialFilter(val)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('Required material', 'Materiau requis')}
-                  placeholder={t('Required material', 'Materiau requis')}
-                  sx={{ '& .MuiInputBase-root': { fontSize: '.75rem' } }}
-                />
-              )}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={materials.map((option) => ({ label: option, value: option }))}
+              onValueChange={setMaterialFilter}
+              clearable
+              filterable
+              placeholder={t('Required material', 'Materiau requis')}
             />
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL, ml: 0.25 }}>
                 {t('Legality', 'Légalité')}
               </Typography>
-              <ToggleButtonGroup
+              <AppToggleGroup
                 value={legalityFilter}
-                exclusive
-                onChange={(_e, val) => {
-                  if (val) setLegalityFilter(val as LegalityFilter);
-                }}
-                size="small"
-                aria-label={t('Legality filter', 'Filtre légalité')}
-                sx={{
-                  height: 36,
-                  width: '100%',
-                  '& .MuiToggleButton-root': {
-                    fontSize: '.75rem',
-                    px: 0.5,
-                    flex: 1,
-                    lineHeight: 1.1,
-                  },
-                }}
-              >
-                <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
-                <ToggleButton value="lawful">{t('Lawful', 'Legal')}</ToggleButton>
-                <ToggleButton value="unlawful">{t('Unlawful', 'Illegal')}</ToggleButton>
-              </ToggleButtonGroup>
+                options={[
+                  { value: 'all', label: t('All', 'Tous') },
+                  { value: 'lawful', label: t('Lawful', 'Legal') },
+                  { value: 'unlawful', label: t('Unlawful', 'Illegal') },
+                ]}
+                onValueChange={(value) => setLegalityFilter(value)}
+                ariaLabel={t('Legality filter', 'Filtre légalité')}
+                sx={{ width: '100%' }}
+                partSx={{ root: { width: '100%' }, button: { flex: 1, fontSize: '.75rem', px: 0.5, minHeight: 36, lineHeight: 1.1 } }}
+              />
             </Box>
-            <Autocomplete
-              size="small"
-              options={locations}
+            <AppSelect
+              label={t('Mission location', 'Lieu de mission')}
               value={locationFilter}
-              onChange={(_e, val) => setLocationFilter(val)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('Mission location', 'Lieu de mission')}
-                  placeholder={t('Mission location', 'Lieu de mission')}
-                  sx={{ '& .MuiInputBase-root': { fontSize: '.75rem' } }}
-                />
-              )}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={locations.map((option) => ({ label: option, value: option }))}
+              onValueChange={setLocationFilter}
+              clearable
+              filterable
+              placeholder={t('Mission location', 'Lieu de mission')}
             />
           </Box>
 
@@ -959,229 +886,182 @@ export function BlueprintExplorer() {
               gap: 1,
             }}
           >
-            <Autocomplete
-              size="small"
-              options={weaponTypes}
+            <AppSelect
+              label={t('Weapon type', "Type d'arme")}
               value={weaponTypeFilter}
-              onChange={(_e, val) => setWeaponTypeFilter(val)}
-              renderInput={(params) => <TextField {...params} label={t('Weapon type', "Type d'arme")} placeholder={t('Weapon type', "Type d'arme")} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={weaponTypes.map((option) => ({ label: option, value: option }))}
+              onValueChange={setWeaponTypeFilter}
+              clearable
+              filterable
+              placeholder={t('Weapon type', "Type d'arme")}
             />
-            <Autocomplete
-              size="small"
-              options={ammoTypes}
+            <AppSelect
+              label={t('Ammo type', 'Type de munition')}
               value={ammoTypeFilter}
-              onChange={(_e, val) => setAmmoTypeFilter(val)}
-              renderInput={(params) => <TextField {...params} label={t('Ammo type', 'Type de munition')} placeholder={t('Ammo type', 'Type de munition')} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={ammoTypes.map((option) => ({ label: option, value: option }))}
+              onValueChange={setAmmoTypeFilter}
+              clearable
+              filterable
+              placeholder={t('Ammo type', 'Type de munition')}
             />
-            <Autocomplete
-              size="small"
-              options={ammoFlavors}
+            <AppSelect
+              label={t('Ammo flavor', 'Famille de munition')}
               value={ammoFlavorFilter}
-              onChange={(_e, val) => setAmmoFlavorFilter(val)}
-              renderInput={(params) => <TextField {...params} label={t('Ammo flavor', 'Famille de munition')} placeholder={t('Ammo flavor', 'Famille de munition')} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={ammoFlavors.map((option) => ({ label: option, value: option }))}
+              onValueChange={setAmmoFlavorFilter}
+              clearable
+              filterable
+              placeholder={t('Ammo flavor', 'Famille de munition')}
             />
-            <Autocomplete
-              size="small"
-              options={armorTypes}
+            <AppSelect
+              label={t('Armor type', "Type d'armure")}
               value={armorTypeFilter}
-              onChange={(_e, val) => setArmorTypeFilter(val)}
-              renderInput={(params) => <TextField {...params} label={t('Armor type', "Type d'armure")} placeholder={t('Armor type', "Type d'armure")} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={armorTypes.map((option) => ({ label: option, value: option }))}
+              onValueChange={setArmorTypeFilter}
+              clearable
+              filterable
+              placeholder={t('Armor type', "Type d'armure")}
             />
-            <Autocomplete
-              size="small"
-              options={armorSlots}
+            <AppSelect
+              label={t('Armor slot', "Emplacement d'armure")}
               value={armorSlotFilter}
-              onChange={(_e, val) => setArmorSlotFilter(val)}
-              renderInput={(params) => <TextField {...params} label={t('Armor slot', "Emplacement d'armure")} placeholder={t('Armor slot', "Emplacement d'armure")} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={armorSlots.map((option) => ({ label: option, value: option }))}
+              onValueChange={setArmorSlotFilter}
+              clearable
+              filterable
+              placeholder={t('Armor slot', "Emplacement d'armure")}
             />
             {shipComponentFiltersEnabled && (
-              <Autocomplete
-                size="small"
-                options={shipComponentFamilies}
+              <AppSelect
+                label={t('Ship component family', 'Famille de composant')}
                 value={shipComponentFamilyFilter}
-                onChange={(_e, val) => setShipComponentFamilyFilter(val)}
-                getOptionLabel={(value) => getShipComponentFamilyLabel(value, lang)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Ship component family', 'Famille de composant')}
-                    placeholder={t('Ship component family', 'Famille de composant')}
-                  />
-                )}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+                options={shipComponentFamilies.map((value) => ({ label: getShipComponentFamilyLabel(value, lang), value }))}
+                onValueChange={setShipComponentFamilyFilter}
+                clearable
+                filterable
+                placeholder={t('Ship component family', 'Famille de composant')}
               />
             )}
             {shipComponentFiltersEnabled && (
-              <Autocomplete
-                size="small"
-                options={shipComponentProfiles}
-                value={
-                  shipComponentProfiles.find((option) => option.value === shipComponentProfileFilter) ?? null
-                }
-                onChange={(_e, val) => setShipComponentProfileFilter(val?.value ?? null)}
-                getOptionLabel={(option) => option.label}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Ship component profile', 'Profil de composant')}
-                    placeholder={t('Ship component profile', 'Profil de composant')}
-                  />
-                )}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              <AppSelect
+                label={t('Ship component profile', 'Profil de composant')}
+                value={shipComponentProfileFilter}
+                options={shipComponentProfiles.map((option) => ({ label: option.label, value: option.value }))}
+                onValueChange={(value) => setShipComponentProfileFilter(value ?? null)}
+                clearable
+                filterable
+                placeholder={t('Ship component profile', 'Profil de composant')}
               />
             )}
             {shipComponentFiltersEnabled && (
-              <Autocomplete
-                size="small"
-                options={shipComponentSizes}
+              <AppSelect
+                label={t('Ship component size', 'Taille composant')}
                 value={shipComponentSizeFilter}
-                onChange={(_e, val) => setShipComponentSizeFilter(val)}
-                getOptionLabel={(value) => `S${value}`}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Ship component size', 'Taille composant')}
-                    placeholder={t('Ship component size', 'Taille composant')}
-                  />
-                )}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+                options={shipComponentSizes.map((value) => ({ label: `S${value}`, value }))}
+                onValueChange={setShipComponentSizeFilter}
+                clearable
+                filterable
+                placeholder={t('Ship component size', 'Taille composant')}
               />
             )}
             {shipComponentFiltersEnabled && (
-              <Autocomplete
-                size="small"
-                options={shipComponentGrades}
+              <AppSelect
+                label={t('Ship component grade', 'Grade composant')}
                 value={shipComponentGradeFilter}
-                onChange={(_e, val) => setShipComponentGradeFilter(val)}
-                getOptionLabel={(value) => `Grade ${value}`}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Ship component grade', 'Grade composant')}
-                    placeholder={t('Ship component grade', 'Grade composant')}
-                  />
-                )}
-                slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+                options={shipComponentGrades.map((value) => ({ label: `Grade ${value}`, value }))}
+                onValueChange={setShipComponentGradeFilter}
+                clearable
+                filterable
+                placeholder={t('Ship component grade', 'Grade composant')}
               />
             )}
-            <FormControl size="small">
-              <Select
-                value={rarityFilter}
-                onChange={(event) => setRarityFilter(event.target.value as RarityFilter)}
-                inputProps={{ 'aria-label': t('Rarity filter', 'Filtre rareté') }}
-              >
-                {RARITY_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {getOptionText(option, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small">
-              <Select
-                value={slotCountFilter}
-                onChange={(event) => setSlotCountFilter(event.target.value as SlotCountFilter)}
-                inputProps={{ 'aria-label': t('Slot count filter', 'Filtre nombre de slots') }}
-              >
-                {SLOT_COUNT_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {getOptionText(option, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small">
-              <Select
-                value={craftTimeFilter}
-                onChange={(event) => setCraftTimeFilter(event.target.value as CraftTimeBucket)}
-                inputProps={{ 'aria-label': t('Craft time filter', 'Filtre temps de craft') }}
-              >
-                {CRAFT_TIME_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {getOptionText(option, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Autocomplete
-              size="small"
-              options={acquisitionEmployers}
+            <AppSelect
+              value={rarityFilter}
+              options={RARITY_OPTIONS.map((option) => ({ value: option.value, label: getOptionText(option, lang) }))}
+              onValueChange={(value) => { if (value) setRarityFilter(value); }}
+              ariaLabel={t('Rarity filter', 'Filtre rareté')}
+            />
+            <AppSelect
+              value={slotCountFilter}
+              options={SLOT_COUNT_OPTIONS.map((option) => ({ value: option.value, label: getOptionText(option, lang) }))}
+              onValueChange={(value) => { if (value) setSlotCountFilter(value); }}
+              ariaLabel={t('Slot count filter', 'Filtre nombre de slots')}
+            />
+            <AppSelect
+              value={craftTimeFilter}
+              options={CRAFT_TIME_OPTIONS.map((option) => ({ value: option.value, label: getOptionText(option, lang) }))}
+              onValueChange={(value) => { if (value) setCraftTimeFilter(value); }}
+              ariaLabel={t('Craft time filter', 'Filtre temps de craft')}
+            />
+            <AppSelect
+              label={t('Mission employer', 'Employeur de mission')}
               value={acquisitionEmployerFilter}
-              onChange={(_e, val) => setAcquisitionEmployerFilter(val)}
-              renderInput={(params) => <TextField {...params} label={t('Mission employer', 'Employeur de mission')} placeholder={t('Mission employer', 'Employeur de mission')} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={acquisitionEmployers.map((option) => ({ label: option, value: option }))}
+              onValueChange={setAcquisitionEmployerFilter}
+              clearable
+              filterable
+              placeholder={t('Mission employer', 'Employeur de mission')}
             />
-            <Autocomplete
-              size="small"
-              options={acquisitionScales}
+            <AppSelect
+              label={t('Acquisition scale', "Portée d'acquisition")}
               value={acquisitionScaleFilter}
-              onChange={(_e, val) => setAcquisitionScaleFilter(val)}
-              getOptionLabel={(value) => value}
-              renderInput={(params) => <TextField {...params} label={t('Acquisition scale', "Portée d'acquisition")} placeholder={t('Acquisition scale', "Portée d'acquisition")} />}
-              slotProps={{ listbox: { sx: { fontSize: '.75rem' } } }}
+              options={acquisitionScales.map((option) => ({ label: option, value: option }))}
+              onValueChange={setAcquisitionScaleFilter}
+              clearable
+              filterable
+              placeholder={t('Acquisition scale', "Portée d'acquisition")}
             />
-            <FormControl size="small">
-              <Select
-                value={acquisitionStandingFilter}
-                onChange={(event) => setAcquisitionStandingFilter(event.target.value as StandingBucket)}
-                inputProps={{ 'aria-label': t('Acquisition standing filter', 'Filtre réputation acquisition') }}
-              >
-                {STANDING_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {getOptionText(option, lang)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <AppSelect
+              value={acquisitionStandingFilter}
+              options={STANDING_OPTIONS.map((option) => ({ value: option.value, label: getOptionText(option, lang) }))}
+              onValueChange={(value) => { if (value) setAcquisitionStandingFilter(value); }}
+              ariaLabel={t('Acquisition standing filter', 'Filtre réputation acquisition')}
+            />
           </Box>
 
           {/* Active advanced filter chips */}
           {(advancedFilterCount > 0 || rarityFilter !== 'all') && (
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
-              {weaponTypeFilter && <Chip label={`${t('Weapon', 'Arme')}: ${weaponTypeFilter}`} size="small" />}
-              {ammoTypeFilter && <Chip label={`${t('Ammo', 'Munitions')}: ${ammoTypeFilter}`} size="small" />}
-              {ammoFlavorFilter && <Chip label={`${t('Flavor', 'Famille')}: ${ammoFlavorFilter}`} size="small" />}
-              {armorTypeFilter && <Chip label={`${t('Armor', 'Armure')}: ${armorTypeFilter}`} size="small" />}
-              {armorSlotFilter && <Chip label={`${t('Slot', 'Slot')}: ${armorSlotFilter}`} size="small" />}
+              {weaponTypeFilter && <AppChip label={`${t('Weapon', 'Arme')}: ${weaponTypeFilter}`} size="small" />}
+              {ammoTypeFilter && <AppChip label={`${t('Ammo', 'Munitions')}: ${ammoTypeFilter}`} size="small" />}
+              {ammoFlavorFilter && <AppChip label={`${t('Flavor', 'Famille')}: ${ammoFlavorFilter}`} size="small" />}
+              {armorTypeFilter && <AppChip label={`${t('Armor', 'Armure')}: ${armorTypeFilter}`} size="small" />}
+              {armorSlotFilter && <AppChip label={`${t('Slot', 'Slot')}: ${armorSlotFilter}`} size="small" />}
               {shipComponentFiltersEnabled && shipComponentFamilyFilter && (
-                <Chip
+                <AppChip
                   label={`${t('Component family', 'Famille composant')}: ${getShipComponentFamilyLabel(shipComponentFamilyFilter, lang)}`}
                   size="small"
                 />
               )}
               {shipComponentFiltersEnabled && shipComponentProfileFilter && (
-                <Chip
+                <AppChip
                   label={`${t('Component profile', 'Profil composant')}: ${shipComponentProfiles.find((option) => option.value === shipComponentProfileFilter)?.label ?? humanizeToken(shipComponentProfileFilter)}`}
                   size="small"
                 />
               )}
               {shipComponentFiltersEnabled && shipComponentSizeFilter && (
-                <Chip
+                <AppChip
                   label={`${t('Component size', 'Taille composant')}: S${shipComponentSizeFilter}`}
                   size="small"
                 />
               )}
               {shipComponentFiltersEnabled && shipComponentGradeFilter && (
-                <Chip
+                <AppChip
                   label={`${t('Component grade', 'Grade composant')}: ${shipComponentGradeFilter}`}
                   size="small"
                 />
               )}
-              {rarityFilter !== 'all' && <Chip label={`${t('Rarity', 'Rareté')}: ${getOptionText(RARITY_OPTIONS.find((option) => option.value === rarityFilter) ?? RARITY_OPTIONS[0], lang)}`} size="small" />}
-              {slotCountFilter !== 'all' && <Chip label={`${t('Slots', 'Slots')}: ${slotCountFilter}`} size="small" />}
-              {craftTimeFilter !== 'all' && <Chip label={`${t('Craft time', 'Temps de craft')}: ${craftTimeFilter}`} size="small" />}
-              {acquisitionEmployerFilter && <Chip label={`${t('Employer', 'Employeur')}: ${acquisitionEmployerFilter}`} size="small" />}
-              {acquisitionScaleFilter && <Chip label={`${t('Scale', 'Portée')}: ${acquisitionScaleFilter}`} size="small" />}
-              {acquisitionStandingFilter !== 'all' && <Chip label={`${t('Standing', 'Réputation')}: ${getStandingLabel(acquisitionStandingFilter, lang)}`} size="small" />}
+              {rarityFilter !== 'all' && <AppChip label={`${t('Rarity', 'Rareté')}: ${getOptionText(RARITY_OPTIONS.find((option) => option.value === rarityFilter) ?? RARITY_OPTIONS[0], lang)}`} size="small" />}
+              {slotCountFilter !== 'all' && <AppChip label={`${t('Slots', 'Slots')}: ${slotCountFilter}`} size="small" />}
+              {craftTimeFilter !== 'all' && <AppChip label={`${t('Craft time', 'Temps de craft')}: ${craftTimeFilter}`} size="small" />}
+              {acquisitionEmployerFilter && <AppChip label={`${t('Employer', 'Employeur')}: ${acquisitionEmployerFilter}`} size="small" />}
+              {acquisitionScaleFilter && <AppChip label={`${t('Scale', 'Portée')}: ${acquisitionScaleFilter}`} size="small" />}
+              {acquisitionStandingFilter !== 'all' && <AppChip label={`${t('Standing', 'Réputation')}: ${getStandingLabel(acquisitionStandingFilter, lang)}`} size="small" />}
             </Stack>
           )}
         </Panel>
       </Collapse>
+      </ResponsiveFilters>
     </Box>
   );
 }

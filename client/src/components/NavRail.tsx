@@ -1,30 +1,16 @@
-import Box from '@mui/material/Box';
-import Avatar from '@mui/material/Avatar';
-import Typography from '@mui/material/Typography';
-import ButtonBase from '@mui/material/ButtonBase';
-import Badge from '@mui/material/Badge';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import FlagIcon from '@mui/icons-material/Flag';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-import DifferenceOutlinedIcon from '@mui/icons-material/DifferenceOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
-import { useCallback, useMemo, useState } from 'react';
+import { Box, Typography, ButtonBase, useMediaQuery, alpha, useTheme } from '../ui/system';
+import { Avatar, Badge } from './ui/primitives';
+import { AppMenu } from './ui/overlays';
+import { PersonOutlineOutlinedIcon, DescriptionOutlinedIcon, FlagIcon, AssignmentIcon, GroupsOutlinedIcon, MoreHorizIcon, ScienceOutlinedIcon, DifferenceOutlinedIcon, TravelExploreOutlinedIcon } from '../ui/icons';
+import { useCallback, useMemo } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { FONT_BODY, TEXT_LABEL_SM} from '../theme';
+import { FONT_BODY, FONT_MONO, TEXT_LABEL_SM } from '../theme';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 
 export type MainView =
+  | 'fabricator'
   | 'blueprints'
   | 'missions'
   | 'resources'
@@ -34,10 +20,11 @@ export type MainView =
   | 'account'
   | 'privacy';
 
-const DESKTOP_WIDTH = 84;
-const DESKTOP_ICON_SIZE = 20;
+export const NAV_RAIL_DESKTOP_WIDTH = 198;
+const DESKTOP_WIDTH = NAV_RAIL_DESKTOP_WIDTH;
+const DESKTOP_ICON_SIZE = 19;
 const MOBILE_ICON_SIZE = 20;
-const DESKTOP_LABEL_FONT_SIZE = TEXT_LABEL_SM; // 11px — readable, not tiny
+const DESKTOP_LABEL_FONT_SIZE = '0.8125rem'; // 13px — full-width sidebar rows
 const MOBILE_LABEL_FONT_SIZE = TEXT_LABEL_SM;
 
 interface NavRailProps {
@@ -67,22 +54,23 @@ function NavItem({ active, label, icon, href, onNavigate }: NavItemProps) {
       sx={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: 0.55,
+        justifyContent: 'flex-start',
+        flexDirection: 'row',
+        gap: 1.25,
         width: '100%',
-        minHeight: 70,
-        px: 0.5,
-        py: 0.85,
+        minHeight: 38,
+        px: 2,
+        py: 0.75,
         position: 'relative',
+        textAlign: 'left',
         transition: 'background-color 160ms ease, color 160ms ease',
         color: active ? 'primary.main' : 'text.secondary',
         '&::before': {
           content: '""',
           position: 'absolute',
           left: 0,
-          top: '20%',
-          bottom: '20%',
+          top: 6,
+          bottom: 6,
           width: 3,
           backgroundColor: 'primary.main',
           borderRadius: '0 3px 3px 0',
@@ -100,15 +88,13 @@ function NavItem({ active, label, icon, href, onNavigate }: NavItemProps) {
         zIndex: 1,
       }}
     >
-      <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          width: 24, 
-          height: 24,
+      <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 22,
+          height: 22,
           flexShrink: 0,
-          transition: 'transform 180ms ease',
-          transform: `scale(${active ? 1.08 : 1})`,
       }}>
         {icon}
       </Box>
@@ -120,23 +106,39 @@ function NavItem({ active, label, icon, href, onNavigate }: NavItemProps) {
           lineHeight: 1.2,
           textTransform: 'none',
           letterSpacing: '0.01em',
-          textAlign: 'center',
-          whiteSpace: 'normal',
           pointerEvents: 'none',
-          width: '100%',
-          maxWidth: 76,
+          flex: 1,
+          minWidth: 0,
+          whiteSpace: 'nowrap',
           overflow: 'hidden',
-          opacity: 1,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          transform: 'translateX(0)',
-          transition: 'opacity 160ms ease, transform 180ms ease, max-width 180ms ease',
+          textOverflow: 'ellipsis',
         }}
       >
         {label}
       </Typography>
     </ButtonBase>
+  );
+}
+
+function NavSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      component="div"
+      sx={{
+        fontFamily: FONT_MONO,
+        fontSize: '0.625rem',
+        fontWeight: 600,
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        color: 'text.disabled',
+        px: 2,
+        pt: 2.25,
+        pb: 0.5,
+        userSelect: 'none',
+      }}
+    >
+      {children}
+    </Typography>
   );
 }
 
@@ -217,7 +219,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   const { plannerTodoItems } = useCraft();
   const theme = useTheme();
   const isCompactLayout = useMediaQuery(theme.breakpoints.down('md'));
-  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   // Only open tasks: an actionable number, unlike the old goals+tasks+resources
   // aggregate whose meaning was impossible to read from the badge alone.
   const plannerBadgeCount = useMemo(
@@ -230,6 +231,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
     [account?.incomingCraftRequests],
   );
 
+  const goToFabricator = useCallback(() => onChangeView('fabricator'), [onChangeView]);
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
   const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
   const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
@@ -245,7 +247,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={pendingIncomingCraftRequestCount}
           color="error"
           invisible={pendingIncomingCraftRequestCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
         >
           {user ? (
             <Avatar
@@ -273,11 +274,19 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   // the "More" overflow menu so each tab keeps a comfortable touch target.
   const mobileItems = [
     {
+      key: 'fabricator',
+      active: mainView === 'fabricator',
+      label: t('Fabricator', 'Fabricator'),
+      icon: <TravelExploreOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
+      href: '/',
+      onNavigate: goToFabricator,
+    },
+    {
       key: 'blueprints',
       active: mainView === 'blueprints',
       label: t('Blueprints', 'Blueprints'),
       icon: <DescriptionOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />,
-      href: '/',
+      href: '/blueprints',
       onNavigate: goToBlueprints,
     },
     {
@@ -305,7 +314,6 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           badgeContent={plannerBadgeCount}
           color="primary"
           invisible={plannerBadgeCount === 0}
-          sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
         >
           <AssignmentIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
         </Badge>
@@ -367,78 +375,69 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
               onNavigate={item.onNavigate}
             />
           ))}
-          <ButtonBase
-            onClick={(event) => setMoreAnchor(event.currentTarget)}
-            aria-haspopup="menu"
-            aria-expanded={moreAnchor ? 'true' : undefined}
-            aria-label={t('More', 'Plus', 'Mehr')}
-            sx={{
-              minWidth: 0,
-              minHeight: 58,
-              px: 0.5,
-              py: 0.75,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 0.45,
-              position: 'relative',
-              color: moreActive ? 'primary.main' : 'text.secondary',
-              backgroundColor: moreActive ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                left: 8,
-                right: 8,
-                top: 0,
-                height: 2,
-                borderRadius: '0 0 2px 2px',
-                backgroundColor: 'primary.main',
-                opacity: moreActive ? 1 : 0,
-                transition: 'opacity 160ms ease',
-              },
+          <AppMenu
+            items={moreItems.map((item) => ({
+              key: item.key,
+              label: item.label,
+              icon: item.icon,
+              active: item.active,
+              onSelect: item.onNavigate,
+            }))}
+            sx={{ minWidth: 220 }}
+            partSx={{
+              action: { minHeight: 44, gap: 1.25 },
+              menuitem: { '&.app-menu-item-active': { backgroundColor: 'brand.accentSoft' } },
             }}
           >
-            <Badge
-              variant="dot"
-              color="error"
-              invisible={pendingIncomingCraftRequestCount === 0}
-            >
-              <MoreHorizIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
-            </Badge>
-            <Typography
+            <ButtonBase
+              aria-label={t('More', 'Plus', 'Mehr')}
               sx={{
-                fontFamily: FONT_BODY,
-                fontWeight: 600,
-                fontSize: MOBILE_LABEL_FONT_SIZE,
-                lineHeight: 1.1,
-                letterSpacing: '0.01em',
+                minWidth: 0,
+                minHeight: 58,
+                px: 0.5,
+                py: 0.75,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 0.45,
+                position: 'relative',
+                color: moreActive ? 'primary.main' : 'text.secondary',
+                backgroundColor: moreActive ? (theme) => alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 8,
+                  right: 8,
+                  top: 0,
+                  height: 2,
+                  borderRadius: '0 0 2px 2px',
+                  backgroundColor: 'primary.main',
+                  opacity: moreActive ? 1 : 0,
+                  transition: 'opacity 160ms ease',
+                },
               }}
             >
-              {t('More', 'Plus', 'Mehr')}
-            </Typography>
-          </ButtonBase>
-          <Menu
-            anchorEl={moreAnchor}
-            open={Boolean(moreAnchor)}
-            onClose={() => setMoreAnchor(null)}
-            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          >
-            {moreItems.map((item) => (
-              <MenuItem
-                key={item.key}
-                selected={item.active}
-                onClick={() => {
-                  setMoreAnchor(null);
-                  item.onNavigate();
+              <Badge
+                variant="dot"
+                color="error"
+                invisible={pendingIncomingCraftRequestCount === 0}
+              >
+                <MoreHorizIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />
+              </Badge>
+              <Typography
+                sx={{
+                  fontFamily: FONT_BODY,
+                  fontWeight: 600,
+                  fontSize: MOBILE_LABEL_FONT_SIZE,
+                  lineHeight: 1.1,
+                  letterSpacing: '0.01em',
                 }}
               >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText>{item.label}</ListItemText>
-              </MenuItem>
-            ))}
-          </Menu>
+                {t('More', 'Plus', 'Mehr')}
+              </Typography>
+            </ButtonBase>
+          </AppMenu>
         </Box>
       </Box>
     );
@@ -467,21 +466,47 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 0.5,
-          py: 2,
+          gap: 0.25,
+          pt: 0.5,
+          pb: 1.5,
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
         }}
       >
+        <NavSectionLabel>{t('Craft', 'Fabrication', 'Fertigung')}</NavSectionLabel>
+        <NavItem
+          active={mainView === 'fabricator'}
+          label={t('Fabricator', 'Fabricator')}
+          icon={<TravelExploreOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
+          href="/"
+          onNavigate={goToFabricator}
+        />
         <NavItem
           active={mainView === 'blueprints'}
           label={t('Blueprints', 'Blueprints')}
           icon={<DescriptionOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-          href="/"
+          href="/blueprints"
           onNavigate={goToBlueprints}
         />
+        <NavItem
+          active={mainView === 'planner'}
+          label={t('Planner', 'Planificateur')}
+          icon={
+            <Badge
+              badgeContent={plannerBadgeCount}
+              color="primary"
+              invisible={plannerBadgeCount === 0}
+            >
+              <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
+            </Badge>
+          }
+          href="/planner"
+          onNavigate={goToPlanner}
+        />
+
+        <NavSectionLabel>{t('Universe', 'Univers', 'Universum')}</NavSectionLabel>
         <NavItem
           active={mainView === 'missions'}
           label={t('Missions', 'Missions')}
@@ -496,6 +521,21 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           href="/resources"
           onNavigate={goToResources}
         />
+
+        {canAccessOrganizations && (
+          <>
+            <NavSectionLabel>{t('Community', 'Communauté', 'Community')}</NavSectionLabel>
+            <NavItem
+              active={mainView === 'organizations'}
+              label={t('Organizations', 'Organisations', 'Organisationen')}
+              icon={<GroupsOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
+              href="/organizations"
+              onNavigate={goToOrganizations}
+            />
+          </>
+        )}
+
+        <NavSectionLabel>{t('Reference', 'Référence', 'Referenz')}</NavSectionLabel>
         <NavItem
           active={mainView === 'changelog'}
           label={t('Changelog', 'Changelog')}
@@ -503,49 +543,75 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           href="/changelog"
           onNavigate={goToChangelog}
         />
-        {canAccessOrganizations && (
-          <NavItem
-            active={mainView === 'organizations'}
-            label={t('Organizations', 'Organisations', 'Organisationen')}
-            icon={<GroupsOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />}
-            href="/organizations"
-            onNavigate={goToOrganizations}
-          />
-        )}
-        <Box
+      </Box>
+
+      {/* Profile row pinned at the bottom of the sidebar */}
+      <Box
+        sx={{
+          flexShrink: 0,
+          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+          backgroundColor: 'background.paper',
+        }}
+      >
+        <ButtonBase
+          component="a"
+          href="/account"
+          onClick={(event) => {
+            if (!shouldHandleInternalLinkClick(event)) return;
+            event.preventDefault();
+            goToAccount();
+          }}
+          aria-current={mainView === 'account' ? 'page' : undefined}
           sx={{
-            mt: 'auto',
-            position: 'sticky',
-            bottom: 0,
-            pt: 1,
-            backgroundColor: 'background.paper',
-            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: 1.25,
+            width: '100%',
+            px: 2,
+            py: 1.25,
+            textAlign: 'left',
+            transition: 'background-color 160ms ease',
+            backgroundColor: mainView === 'account'
+              ? (theme) => alpha(theme.palette.primary.main, 0.08)
+              : 'transparent',
+            '&:hover': {
+              backgroundColor: (theme) => alpha(theme.palette.text.primary, 0.04),
+            },
           }}
         >
-          <NavItem
-            active={mainView === 'planner'}
-            label={t('Planner', 'Planificateur')}
-            icon={
-              <Badge
-                badgeContent={plannerBadgeCount}
-                color="primary"
-                invisible={plannerBadgeCount === 0}
-                sx={{ '& .MuiBadge-badge': { fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
-              >
-                <AssignmentIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />
-              </Badge>
-            }
-            href="/planner"
-            onNavigate={goToPlanner}
-          />
-          <NavItem
-            active={mainView === 'account'}
-            label={t('Account', 'Compte', 'Konto')}
-            icon={accountIcon(DESKTOP_ICON_SIZE)}
-            href="/account"
-            onNavigate={goToAccount}
-          />
-        </Box>
+          {accountIcon(24)}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              sx={{
+                fontFamily: FONT_BODY,
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                lineHeight: 1.2,
+                color: mainView === 'account' ? 'primary.main' : 'text.primary',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {user ? user.displayName : t('Account', 'Compte', 'Konto')}
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: FONT_MONO,
+                fontSize: '0.625rem',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'text.disabled',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {user ? t('Account', 'Compte', 'Konto') : t('Sign in', 'Connexion', 'Anmelden')}
+            </Typography>
+          </Box>
+        </ButtonBase>
       </Box>
     </Box>
   );

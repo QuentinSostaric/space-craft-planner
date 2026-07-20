@@ -1,5 +1,4 @@
-import { styled, keyframes } from '@mui/material/styles';
-import { Box } from '@mui/material';
+import { styled, keyframes, Box } from '../../ui/system';
 
 // ─── Animations ──────────────────────────────────────────────────────────────
 

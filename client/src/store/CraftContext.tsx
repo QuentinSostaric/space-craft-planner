@@ -12,6 +12,7 @@ import {
 import { FilterProvider } from './FilterContext';
 import { useAuth } from '../auth/AuthContext';
 import { itemSlugFromPathname, navigateToPath, toSlug } from '../utils/slug';
+import { BUILD_INDEX_MAX } from '../hooks/useCraftSimulator';
 import type {
   AppMode,
   Blueprint,
@@ -89,6 +90,24 @@ export const DEFAULT_INVENTORY_IDS = [
 ] as const;
 
 const INVENTORY_SEED_VERSION = 1;
+
+/**
+ * Bring a stored goal onto the current build-index scale. Goals written before
+ * the index moved to the game's 0–1000 range carry no `qualityScoreScale`, so
+ * an absent marker means 0–100.
+ */
+export function normalizeGoalScale(goal: CraftGoal): CraftGoal {
+  const scale = goal.qualityScoreScale ?? 100;
+  if (scale === BUILD_INDEX_MAX) return goal;
+  const factor = BUILD_INDEX_MAX / scale;
+  return {
+    ...goal,
+    qualityScore: typeof goal.qualityScore === 'number'
+      ? Math.min(BUILD_INDEX_MAX, Math.round(goal.qualityScore * factor))
+      : 0,
+    qualityScoreScale: BUILD_INDEX_MAX,
+  };
+}
 const DEFAULT_CONNECTED_CONTINUOUS_FLUSH_MS = 1_200;
 
 type DatasetSelectionsStorage =
@@ -156,7 +175,7 @@ interface CraftState {
   }) => void;
   assignQuality: (slotId: string, quality: number | undefined) => void;
   clearAssignments: () => void;
-  addGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
+  addGoal: (score: number, projectedStats: ItemStats, quantity?: number, blueprintOverride?: Blueprint, assignmentsOverride?: Record<string, number | undefined>) => void;
   ensureGoal: (score: number, projectedStats: ItemStats, quantity?: number) => void;
   removeGoal: (goalId: string) => void;
   updateGoalQuantity: (goalId: string, quantity: number) => void;
@@ -565,7 +584,19 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     setInventorySeedVersion(INVENTORY_SEED_VERSION);
   }, [account, inventorySeedVersion, setInventorySeedVersion, setLocalInventoryIds]);
 
-  const goals = account?.planner.goals ?? localGoals;
+  /*
+   * Normalising on read rather than migrating storage once, because a goal can
+   * live in either of two places: localStorage, or the server snapshot behind
+   * `account`. A stored migration flag could only ever have converted whichever
+   * copy this device owns, leaving every signed-in user's server goals showing
+   * an old 0–100 score against the new 0–1000 thresholds. Carrying the scale on
+   * the goal fixes both at once, and is idempotent — re-reading an already
+   * converted goal is a no-op, so there is no way to multiply one twice.
+   */
+  const goals = useMemo(
+    () => (account?.planner.goals ?? localGoals).map(normalizeGoalScale),
+    [account?.planner.goals, localGoals],
+  );
   const plannerTodoItems = account?.planner.todoItems ?? localPlannerTodoItems;
   const plannerResourceRequirements =
     account?.planner.resourceRequirements ?? localPlannerResourceRequirements;
@@ -1189,7 +1220,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
     if (nextBlueprint) {
       navigateToPath(`/item/${toSlug(nextBlueprint.name)}`, { blueprintId: nextBlueprint.id });
     } else if (itemSlugFromPathname(window.location.pathname)) {
-      navigateToPath('/');
+      navigateToPath('/blueprints');
     }
   }, [activeDataset.blueprints, activeDataset.datasetId]);
 
@@ -1415,17 +1446,19 @@ export function CraftProvider({ children }: { children: ReactNode }) {
   );
 
   const addGoal = useCallback(
-    (qualityScore: number, projectedStats: ItemStats, quantity = 1) => {
-      if (!activeBlueprint) return;
+    (qualityScore: number, projectedStats: ItemStats, quantity = 1, blueprintOverride?: Blueprint, assignmentsOverride?: Record<string, number | undefined>) => {
+      const goalBlueprint = blueprintOverride ?? activeBlueprint;
+      if (!goalBlueprint) return;
 
       const goal: CraftGoal = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        blueprintId: activeBlueprint.id,
-        blueprintName: activeBlueprint.name,
-        category: activeBlueprint.category,
-        slotAssignments: { ...slotAssignments },
+        blueprintId: goalBlueprint.id,
+        blueprintName: goalBlueprint.name,
+        category: goalBlueprint.category,
+        slotAssignments: { ...(assignmentsOverride ?? slotAssignments) },
         quantity,
         qualityScore,
+        qualityScoreScale: BUILD_INDEX_MAX,
         projectedStats,
         createdAt: Date.now(),
       };
@@ -1464,6 +1497,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
             slotAssignments: { ...slotAssignments },
             quantity,
             qualityScore,
+            qualityScoreScale: BUILD_INDEX_MAX,
             projectedStats,
             createdAt: Date.now(),
           };
@@ -1492,6 +1526,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
           slotAssignments: { ...slotAssignments },
           quantity,
           qualityScore,
+          qualityScoreScale: BUILD_INDEX_MAX,
           projectedStats,
           createdAt: Date.now(),
         };
@@ -1548,7 +1583,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
             ...snapshot.planner,
             goals: snapshot.planner.goals.map((goal) =>
               goal.id === goalId
-                ? { ...goal, slotAssignments: updatedAssignments, qualityScore, projectedStats }
+                ? { ...goal, slotAssignments: updatedAssignments, qualityScore, qualityScoreScale: BUILD_INDEX_MAX, projectedStats }
                 : goal,
             ),
           },
@@ -1559,7 +1594,7 @@ export function CraftProvider({ children }: { children: ReactNode }) {
       setLocalGoals((prev) =>
         prev.map((goal) =>
           goal.id === goalId
-            ? { ...goal, slotAssignments: updatedAssignments, qualityScore, projectedStats }
+            ? { ...goal, slotAssignments: updatedAssignments, qualityScore, qualityScoreScale: BUILD_INDEX_MAX, projectedStats }
             : goal,
         ),
       );

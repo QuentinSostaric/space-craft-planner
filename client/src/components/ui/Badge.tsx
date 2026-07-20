@@ -1,6 +1,6 @@
+import { useTheme, alpha } from '../../ui/system';
+import { AppChip } from './data-display/AppChip';
 import type { ReactNode } from 'react';
-import Chip from '@mui/material/Chip';
-import { useTheme, alpha } from '@mui/material/styles';
 import type { ItemCategory } from '../../types';
 import { CATEGORY_LABELS } from '../../types';
 import { loc, useI18n } from '../../i18n/I18nContext';
@@ -15,11 +15,11 @@ export function QualityBadge({ qualityValue, size = 'md' }: QualityBadgeProps) {
   const { t } = useI18n();
   const label = `Q${Math.round(qualityValue)}`;
   return (
-    <Chip
+    <AppChip
       label={label}
-      size="small"
-      variant="outlined"
-      aria-label={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
+      size="sm"
+      outlined
+      ariaLabel={`${t('Quality', 'Qualite')} ${Math.round(qualityValue)}`}
       sx={{
         fontFamily: FONT_MONO,
         fontSize: TEXT_LABEL,
@@ -39,11 +39,11 @@ export function MinQualityBadge({ minQuality, size = 'md' }: MinQualityBadgeProp
   const { t } = useI18n();
   const label = `>= ${Math.round(minQuality)}`;
   return (
-    <Chip
+    <AppChip
       label={label}
-      size="small"
-      variant="outlined"
-      aria-label={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
+      size="sm"
+      outlined
+      ariaLabel={`${t('Minimum quality', 'Qualite minimale')} ${Math.round(minQuality)}`}
       sx={{
         fontFamily: FONT_MONO,
         fontSize: TEXT_LABEL,
@@ -100,7 +100,7 @@ export function CategoryBadge({ category, iconOnly = false, shimmer = false }: C
   const label = loc(CATEGORY_LABELS[category], lang) || fallbackLabel;
   const iconName = CAT_GAME_ICON[category] ?? 'utilities';
   return (
-    <Chip
+    <AppChip
       icon={
         <GameIcon
           name={iconName}
@@ -110,21 +110,22 @@ export function CategoryBadge({ category, iconOnly = false, shimmer = false }: C
         />
       }
       label={!iconOnly ? label : undefined}
-      size="small"
-      variant="outlined"
-      aria-label={label}
+      size="sm"
+      outlined
+      ariaLabel={label}
       sx={{
         borderColor: 'divider',
         color: 'text.secondary',
         height: 24,
         backgroundColor: alpha(theme.palette.text.primary, 0.02),
-        '& .MuiChip-icon': {
-          ml: 0.5,
-          mr: iconOnly ? 0.5 : 0,
+        '& > :first-child': {
+          marginLeft: 4,
+          marginRight: iconOnly ? 4 : 0,
         },
         ...(iconOnly && {
           width: 24,
-          '& .MuiChip-label': { display: 'none' },
+          padding: 0,
+          '& > span': { display: 'none' },
         }),
       }}
     />
@@ -148,10 +149,10 @@ export function Badge({ children, variant = 'default' }: BadgeProps) {
   const current = colors[variant];
 
   return (
-    <Chip
+    <AppChip
       label={children}
-      size="small"
-      variant="outlined"
+      size="sm"
+      outlined
       sx={{
         color: current.color,
         borderColor: current.border,

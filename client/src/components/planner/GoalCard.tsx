@@ -1,18 +1,14 @@
+import { Box, IconButton, Typography, useTheme } from '../../ui/system';
+import { Card, CardContent } from '../ui/primitives';
+import { DragIndicatorIcon } from '../../ui/icons';
 import { memo, useCallback, useMemo, type DragEventHandler, type SyntheticEvent } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import { useTheme } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { CategoryBadge } from '../ui/Badge';
 import type { CraftGoal } from '../../types';
 import { FONT_HEADING, FONT_MONO, TEXT_LABEL} from '../../theme';
 import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
+import { PlannerNumberInput } from './PlannerControls';
 
 interface GoalCardProps {
   goal: CraftGoal;
@@ -125,7 +121,7 @@ export const GoalCard = memo(function GoalCard({
               {goal.blueprintName}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}>
-              {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/100
+              {t('Build index', 'Indice de build')}: <strong>{goal.qualityScore}</strong>/1000
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.25, position: 'relative', zIndex: 2 }}>
@@ -133,7 +129,7 @@ export const GoalCard = memo(function GoalCard({
               size="small"
               onClick={(event) => { handleStopPropagation(event); onEdit(); }}
               aria-label={`${t('Edit', 'Modifier')} ${goal.blueprintName}`}
-              sx={{ fontSize: '.75rem' }}
+              sx={{ minWidth: 44, minHeight: 44, fontSize: '.75rem' }}
             >
               ✎
             </IconButton>
@@ -141,7 +137,7 @@ export const GoalCard = memo(function GoalCard({
               size="small"
               onClick={(event) => { handleStopPropagation(event); onRemove(); }}
               aria-label={`${t('Remove', 'Supprimer')} ${goal.blueprintName}`}
-              sx={{ fontSize: TEXT_LABEL, color: 'error.main' }}
+              sx={{ minWidth: 44, minHeight: 44, fontSize: TEXT_LABEL, color: 'error.main' }}
             >
               ✕
             </IconButton>
@@ -155,27 +151,29 @@ export const GoalCard = memo(function GoalCard({
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.max(1, goal.quantity - 1)); }}
             aria-label={t('Decrease', 'Réduire')}
-            sx={{ width: 22, height: 22, fontSize: TEXT_LABEL, position: 'relative', zIndex: 2 }}
+            sx={{ width: 44, height: 44, fontSize: TEXT_LABEL, position: 'relative', zIndex: 2 }}
           >
             −
           </IconButton>
-          <TextField
-            type="number"
-            size="small"
-            value={goal.quantity}
-            onClick={handleStopPropagation}
-            onFocus={handleStopPropagation}
-            onChange={(event) =>
-              onQtyChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
-            }
-            slotProps={{ htmlInput: { min: 1, max: 99, style: { width: 32, textAlign: 'center', padding: '2px 4px', fontSize: '.75rem' } } }}
-            sx={{ width: 48, position: 'relative', zIndex: 2 }}
-          />
+          <Box onClick={handleStopPropagation} onFocus={handleStopPropagation} sx={{ position: 'relative', zIndex: 2 }}>
+            <PlannerNumberInput
+              value={goal.quantity}
+              onValueChange={(value) => {
+                if (value !== '') onQtyChange(Math.max(1, Math.min(99, Math.round(value))));
+              }}
+              onBlur={(value) => onQtyChange(value === '' ? 1 : Math.max(1, Math.min(99, Math.round(value))))}
+              min={1}
+              max={99}
+              step={1}
+              ariaLabel={t('Goal quantity', 'Quantité de l’objectif')}
+              sx={{ width: 64, textAlign: 'center', fontSize: '.75rem' }}
+            />
+          </Box>
           <IconButton
             size="small"
             onClick={(event) => { handleStopPropagation(event); onQtyChange(Math.min(99, goal.quantity + 1)); }}
             aria-label={t('Increase', 'Augmenter')}
-            sx={{ width: 22, height: 22, fontSize: TEXT_LABEL, position: 'relative', zIndex: 2 }}
+            sx={{ width: 44, height: 44, fontSize: TEXT_LABEL, position: 'relative', zIndex: 2 }}
           >
             +
           </IconButton>

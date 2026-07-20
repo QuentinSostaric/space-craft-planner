@@ -1,9 +1,8 @@
+import { Box, Collapse, IconButton, Paper, Typography, useTheme, alpha } from '../../ui/system';
+import type { SxProps, Theme } from '../../ui/system';
+import { ExpandMoreIcon } from '../../ui/icons';
+import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import { useTheme, alpha } from '@mui/material/styles';
-import type { SxProps, Theme } from '@mui/material/styles';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
 export interface PanelProps {
@@ -12,6 +11,25 @@ export interface PanelProps {
   title?: ReactNode;
   subtitle?: string;
   action?: ReactNode;
+  /**
+   * Hero value: the panel's single headline number, rendered big and bold
+   * on the right side of the header (before `action`).
+   */
+  heroValue?: ReactNode;
+  /** Small muted unit/context rendered right after the hero value. */
+  heroUnit?: string;
+  /**
+   * Domain accent color (CSS color). Tints the panel's left edge, the
+   * eyebrow tick and the hero value — use theme.palette.domain.* hues.
+   */
+  accent?: string;
+  /** Show a chevron in the header that collapses the panel body. */
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+  /** Accessible label for the collapse toggle. */
+  collapseLabel?: string;
+  /** Heading level used when `title` is a string. */
+  titleComponent?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
   noPad?: boolean;
   dense?: boolean;
   variant?: 'default' | 'raised' | 'sunken';
@@ -28,6 +46,13 @@ export function Panel({
   title,
   subtitle,
   action,
+  heroValue,
+  heroUnit,
+  accent,
+  collapsible = false,
+  defaultCollapsed = false,
+  collapseLabel = 'Toggle section',
+  titleComponent = 'h2',
   noPad = false,
   dense = false,
   variant = 'default',
@@ -36,6 +61,10 @@ export function Panel({
   className,
 }: PanelProps) {
   const theme = useTheme();
+  const generatedId = useId();
+  const titleId = title != null ? `panel-${generatedId}-title` : undefined;
+  const bodyId = `panel-${generatedId}-body`;
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const VARIANT_SX = {
     default: {
@@ -55,7 +84,8 @@ export function Panel({
     },
   };
 
-  const hasHeader = eyebrow != null || title != null || subtitle != null || action != null;
+  const hasHeader = eyebrow != null || title != null || subtitle != null || action != null
+    || heroValue != null || collapsible;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const PaperAs = Paper as any;
@@ -65,13 +95,17 @@ export function Panel({
       elevation={0}
       component={component}
       className={className}
-      sx={{
-        ...VARIANT_SX[variant],
-        padding: hasHeader || noPad ? 0 : dense ? theme.spacing(1.25) : theme.spacing(2),
-        transition: 'all 200ms ease',
-        overflow: 'hidden',
-        ...sx,
-      }}
+      aria-labelledby={titleId}
+      sx={[
+        VARIANT_SX[variant],
+        {
+          padding: hasHeader || noPad ? 0 : dense ? theme.spacing(1.25) : theme.spacing(2),
+          transition: 'all 200ms ease',
+          overflow: 'hidden',
+        },
+        accent ? { boxShadow: `inset 2px 0 0 0 ${accent}` } : null,
+        sx,
+      ]}
     >
       {hasHeader && (
         <Box
@@ -83,7 +117,7 @@ export function Panel({
             gap: 1.5,
             px: dense ? 1.5 : 2.5,
             py: dense ? 1 : 1.5,
-            borderBottom: `1px solid ${theme.palette.ui.border}`,
+            borderBottom: collapsed ? 'none' : `1px solid ${theme.palette.ui.border}`,
           }}
         >
           {/* Left: eyebrow + title + subtitle */}
@@ -104,9 +138,9 @@ export function Panel({
                     content: '""',
                     display: 'block',
                     width: 14,
-                    height: 1,
+                    height: accent ? 2 : 1,
                     flexShrink: 0,
-                    backgroundColor: theme.palette.text.disabled,
+                    backgroundColor: accent ?? theme.palette.text.disabled,
                   },
                 }}
               >
@@ -116,6 +150,8 @@ export function Panel({
             {title != null && (
               typeof title === 'string' ? (
                 <Typography
+                  id={titleId}
+                  component={titleComponent}
                   sx={{
                     fontFamily: FONT_DISPLAY,
                     fontWeight: 600,
@@ -145,19 +181,73 @@ export function Panel({
             )}
           </Box>
 
-          {/* Right: action */}
-          {action && (
-            <Box sx={{ flexShrink: 0 }}>
+          {/* Right: hero value + action + collapse chevron */}
+          {(heroValue != null || action || collapsible) && (
+            <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+              {heroValue != null && (
+                <Typography
+                  component="div"
+                  sx={{
+                    fontFamily: FONT_DISPLAY,
+                    fontWeight: 800,
+                    fontSize: dense ? '1.0625rem' : '1.25rem',
+                    lineHeight: 1,
+                    letterSpacing: '-0.01em',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'text.primary',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: 0.5,
+                  }}
+                >
+                  {heroValue}
+                  {heroUnit && (
+                    <Box
+                      component="span"
+                      sx={{
+                        fontFamily: FONT_MONO,
+                        fontWeight: 500,
+                        fontSize: '0.6875rem',
+                        letterSpacing: '0.04em',
+                        color: accent ?? theme.palette.text.disabled,
+                      }}
+                    >
+                      {heroUnit}
+                    </Box>
+                  )}
+                </Typography>
+              )}
               {action}
+              {collapsible && (
+                <IconButton
+                  size="small"
+                  onClick={() => setCollapsed((prev) => !prev)}
+                  aria-label={collapseLabel}
+                  aria-expanded={!collapsed}
+                  aria-controls={bodyId}
+                  sx={{ p: 0.25 }}
+                >
+                  <ExpandMoreIcon
+                    sx={{
+                      fontSize: 18,
+                      transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                      transition: 'transform 180ms ease',
+                    }}
+                  />
+                </IconButton>
+              )}
             </Box>
           )}
         </Box>
       )}
 
       {/* Body */}
-      <Box sx={noPad ? undefined : { p: dense ? 1.5 : 2.5 }}>
-        {children}
-      </Box>
+      <Collapse in={!collapsible || !collapsed} timeout={180} unmountOnExit={false}>
+        <Box id={bodyId} aria-hidden={collapsible && collapsed ? true : undefined} sx={noPad ? undefined : { p: dense ? 1.5 : 2.5 }}>
+          {children}
+        </Box>
+      </Collapse>
     </PaperAs>
   );
 }

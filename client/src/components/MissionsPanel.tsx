@@ -1,44 +1,23 @@
+import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Card, Link } from './ui/primitives';
+import { AppProgressBar } from './ui/feedback';
+import { AppChip } from './ui/data-display/AppChip';
+import { BusinessOutlinedIcon, FilterListOffOutlinedIcon, FlagIcon, ImageNotSupportedOutlinedIcon, LeaderboardOutlinedIcon, MilitaryTechOutlinedIcon, PaidOutlinedIcon, ChevronRightIcon, OpenInNewIcon, PlaceOutlinedIcon, PublicOutlinedIcon, TravelExploreOutlinedIcon, VerifiedOutlinedIcon } from '../ui/icons';
 import { memo, startTransition, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { alpha, useTheme } from '@mui/material/styles';
-import Autocomplete from '@mui/material/Autocomplete';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import FormControl from '@mui/material/FormControl';
-import InputAdornment from '@mui/material/InputAdornment';
-import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import LinearProgress from '@mui/material/LinearProgress';
-import Typography from '@mui/material/Typography';
-import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
-import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
-import FlagIcon from '@mui/icons-material/Flag';
-import ImageNotSupportedOutlinedIcon from '@mui/icons-material/ImageNotSupportedOutlined';
-import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
-import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
-import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
-import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
 import { BlueprintCard } from './BlueprintGrid';
 import { AppGlyph } from './ui/AppGlyph';
+import { AppButton, AppSelect, AppTextField } from './ui/controls';
+import { SurfaceState } from './ui/feedback';
+import { PageHeader, PageLayout, ResponsiveFilters } from './ui/page';
 import { CategoryBadge } from './ui/Badge';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { PageStatCard } from './ui/PageStatCard';
+import { Panel } from './ui/Panel';
 import { ScaleBadge } from './ui/RarityBadge';
 import { StarCitizenLicensedIcon, getLocationIconName } from './ui/StarCitizenLicensedIcon';
 import { loc, useI18n } from '../i18n/I18nContext';
+import { formatUec } from './fabricator/AcquisitionRoutes';
 import { useCraft } from '../store/CraftContext';
 import {
   formatProbabilityPercent,
@@ -59,6 +38,7 @@ import type {
   MissionEmployerRef,
   MissionSort,
   MissionRequiredStanding,
+  MissionPayouts,
   MissionRewardFactionGroup,
   Resource,
   LocalizedString,
@@ -292,6 +272,178 @@ function MissionFact({
   );
 }
 
+/**
+ * Payout facts for one contract.
+ *
+ * Contract generator missions carry no aUEC: the game computes the payout server-side from
+ * the difficulty tiers. So this shows an amount only when the contract declares one, the
+ * difficulty band otherwise, and — separately labelled — the employer's declared range,
+ * which comes from that employer's other missions and is never this contract's pay.
+ */
+function MissionPayoutFact({
+  contract,
+  group,
+}: {
+  contract: MissionContract;
+  group: MissionRewardFactionGroup;
+}) {
+  const { t, lang } = useI18n();
+  const explicitReward = contract.payout?.rewardUec ?? null;
+  const difficulty = contract.difficulty ?? null;
+  const employerRange = group.payoutRange ?? null;
+
+  if (explicitReward === null && !difficulty && !employerRange) {
+    return null;
+  }
+
+  return (
+    <MissionFact
+      icon={<PaidOutlinedIcon fontSize="small" />}
+      label={t('Payout', 'Paiement')}
+      value={
+        <Stack spacing={0.5}>
+          {explicitReward !== null && explicitReward > 0 ? (
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatUec(explicitReward)}</Typography>
+          ) : (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {t('Calculated in game from difficulty', 'Calculé en jeu selon la difficulté')}
+            </Typography>
+          )}
+          {difficulty && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('Difficulty', 'Difficulté')}: {lang === 'fr' ? difficulty.label.fr : difficulty.label.en}
+              {' '}({difficulty.weightedRank}/{difficulty.maxRank})
+            </Typography>
+          )}
+          {employerRange && (
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              {t('This employer pays', 'Cet employeur paie')} {formatUec(employerRange.minRewardUec)}
+              {' – '}{formatUec(employerRange.maxRewardUec)}
+              {' '}({t('across', 'sur')} {employerRange.missionCount} {t('missions', 'missions')})
+            </Typography>
+          )}
+        </Stack>
+      }
+    />
+  );
+}
+
+const PAYOUT_PAGE_SIZE = 25;
+
+/**
+ * The mission broker missions that declare a real aUEC reward.
+ *
+ * These are a different set from the contracts listed below on this page: contract
+ * generator missions reward blueprints but never declare an amount, while these declare an
+ * amount but never reward blueprints. Keeping them in their own section avoids implying
+ * that either number applies to the other.
+ */
+function MissionPayoutsSection({ payouts }: { payouts: MissionPayouts | null }) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+
+  const matching = useMemo(
+    () =>
+      category
+        ? payouts?.missions.filter((mission) => mission.category === category) ?? []
+        : payouts?.missions ?? [],
+    [payouts, category],
+  );
+  const visible = expanded ? matching : matching.slice(0, PAYOUT_PAGE_SIZE);
+
+  if (!payouts || payouts.missionCount === 0) {
+    return null;
+  }
+
+  return (
+    <Panel
+      component="section"
+      title={t('Mission payouts', 'Paiements de mission')}
+      titleComponent="h2"
+      variant="raised"
+    >
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        {t(
+          'Missions that declare a reward in the game files. Contracts rewarding blueprints compute their payout in game and are listed separately below.',
+          'Missions déclarant une récompense dans les fichiers du jeu. Les contrats récompensant des blueprints calculent leur paiement en jeu et sont listés séparément ci-dessous.',
+        )}
+      </Typography>
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 1.5, mt: 1.5 }}>
+        <PageStatCard label={t('Missions', 'Missions')} value={String(payouts.missionCount)} domain="blue" />
+        <PageStatCard label={t('Median', 'Médiane')} value={formatUec(payouts.medianRewardUec)} domain="magenta" />
+        <PageStatCard label={t('Highest', 'Maximum')} value={formatUec(payouts.maxRewardUec)} />
+      </Box>
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1.5 }}>
+        <AppChip
+          label={t('All', 'Toutes')}
+          size="sm"
+          color={category === null ? 'primary' : undefined}
+          variant={category === null ? 'filled' : 'outlined'}
+          onClick={() => setCategory(null)}
+        />
+        {payouts.categories.map((name) => (
+          <AppChip
+            key={name}
+            label={name}
+            size="sm"
+            color={category === name ? 'primary' : undefined}
+            variant={category === name ? 'filled' : 'outlined'}
+            onClick={() => setCategory(name)}
+          />
+        ))}
+      </Box>
+
+      <Stack spacing={0} sx={{ mt: 1.5 }}>
+        {visible.map((mission) => (
+          <Box
+            key={mission.id}
+            sx={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 1.5,
+              py: 0.75,
+              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {mission.title}
+                {mission.titleIsTemplated && (
+                  <Box component="span" sx={{ color: 'text.disabled' }} title={t(
+                    'The game fills this title in at runtime.',
+                    'Le jeu complète ce titre au runtime.',
+                  )}> *</Box>
+                )}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {[mission.giver, mission.lawful ? t('Lawful', 'Légale') : t('Unlawful', 'Illégale')]
+                  .filter(Boolean)
+                  .join(' · ')}
+                {mission.buyInUec > 0 && ` · ${t('Buy-in', 'Mise')} ${formatUec(mission.buyInUec)}`}
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ fontFamily: FONT_MONO, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              {formatUec(mission.rewardUec)}
+              {mission.maxRewardUec != null && ` – ${formatUec(mission.maxRewardUec)}`}
+              {mission.plusBonuses && '+'}
+            </Typography>
+          </Box>
+        ))}
+      </Stack>
+
+      {matching.length > visible.length && (
+        <AppButton variant="secondary" size="sm" onClick={() => setExpanded(true)} sx={{ mt: 1.5 }}>
+          {t('Show all', 'Tout afficher')} ({matching.length})
+        </AppButton>
+      )}
+    </Panel>
+  );
+}
+
 function MissionsFilterBar({
   locations,
   employers,
@@ -342,8 +494,18 @@ function MissionsFilterBar({
     standingBucketFilter !== 'all' ||
     rewardBlueprintFilter !== null ||
     resourceObjectiveMode !== 'all';
+  const compactControlSx = { minHeight: 32, fontSize: TEXT_LABEL };
+  const stringOptions = (options: string[]) => options.map((value) => ({ label: value, value }));
+  const resetFilters = () => {
+    onLocationChange(null);
+    onEmployerChange(null);
+    onLegalityChange('all');
+    onStandingBucketChange('all');
+    onRewardBlueprintChange(null);
+    onResourceObjectiveModeChange('all');
+  };
 
-  return (
+  const filters = (
     <Paper
       variant="outlined"
       component="section"
@@ -361,134 +523,135 @@ function MissionsFilterBar({
         direction={{ xs: 'column', xl: 'row' }}
         spacing={1}
         justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', xl: 'center' }}
+        alignItems={{ xs: 'stretch', xl: 'center' }}
       >
         <Box>
-          <Typography
-            variant="overline"
-            sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}
-          >
+          <Typography variant="overline" sx={{ color: 'secondary.main', letterSpacing: '0.12em' }}>
             {t('Mission filters', 'Filtres missions', 'Missionsfilter')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {t(
-              'Search across every mission field, then use a few high-value filters for employer, theater, reward, standing and legality.',
-              'Recherche dans tous les champs mission, puis utilise quelques filtres clés pour employeur, théâtre, récompense, réputation et légalité.',
-              'Suche über alle Missionsfelder und nutze wenige starke Filter für Arbeitgeber, Einsatzraum, Belohnung, Ruf und Legalität.',
+              'Search across every mission field, then filter by employer, theater, reward, standing and legality.',
+              'Recherchez dans tous les champs, puis filtrez par employeur, théâtre, récompense, réputation et légalité.',
+              'Suche über alle Missionsfelder und filtere nach Arbeitgeber, Einsatzraum, Belohnung, Ruf und Legalität.',
             )}
           </Typography>
         </Box>
         {hasActiveFilters && (
-          <Button
-            variant="outlined"
-            startIcon={<FilterListOffOutlinedIcon />}
-            onClick={() => {
-              onLocationChange(null);
-              onEmployerChange(null);
-              onLegalityChange('all');
-              onStandingBucketChange('all');
-              onRewardBlueprintChange(null);
-              onResourceObjectiveModeChange('all');
-            }}
-            sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          <AppButton
+            variant="secondary"
+            size="sm"
+            icon={<FilterListOffOutlinedIcon />}
+            onClick={resetFilters}
+            ariaLabel={t('Reset mission filters', 'Réinitialiser les filtres de mission')}
+            sx={{ whiteSpace: 'nowrap', alignSelf: { xs: 'flex-start', xl: 'center' } }}
           >
-            {t('Reset filters', 'Reinitialiser', 'Filter zurucksetzen')}
-          </Button>
+            {t('Reset filters', 'Réinitialiser', 'Filter zurücksetzen')}
+          </AppButton>
         )}
       </Stack>
 
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField
-          type="search"
-          size="small"
-          placeholder={t('Search contracts...', 'Rechercher des contrats...')}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
-                  <AppGlyph name="search" size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{ flex: { xs: '1 1 100%', sm: '1 1 200px' }, '& .MuiInputBase-root': { fontSize: '0.875rem', height: 32 } }}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) minmax(210px, 0.45fr)' }, gap: 1 }}>
+        <Box sx={{ position: 'relative' }}>
+          <Box sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, color: 'text.secondary', lineHeight: 0, pointerEvents: 'none' }}>
+            <AppGlyph name="search" size={18} />
+          </Box>
+          <AppTextField
+            type="search"
+            placeholder={t('Search contracts...', 'Rechercher des contrats...')}
+            value={search}
+            onValueChange={onSearchChange}
+            ariaLabel={t('Search missions', 'Rechercher des missions')}
+            sx={{ ...compactControlSx, width: '100%', pl: 4 }}
+          />
+        </Box>
+        <AppSelect
+          value={sortBy}
+          options={MISSION_SORT_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+          onValueChange={(value) => { if (value) onSortChange(value); }}
+          ariaLabel={t('Sort missions', 'Trier les missions')}
+          sx={compactControlSx}
         />
-        <FormControl
-          size="small"
-          sx={{ minWidth: { xs: '100%', sm: 210 }, '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL } }}
-        >
-          <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as MissionSort)} inputProps={{ 'aria-label': t('Sort missions', 'Trier les missions') }}>
-            {MISSION_SORT_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <ToggleButtonGroup
-          value={legalityFilter}
-          exclusive
-          onChange={(_event, value) => { if (value) onLegalityChange(value); }}
-          size="small"
-          aria-label={t('Legality filter', 'Filtre de legalite')}
-          sx={{ height: 32, '& .MuiToggleButton-root': { fontSize: TEXT_LABEL, px: 1.5 } }}
-        >
-          <ToggleButton value="all">{t('All', 'Tous')}</ToggleButton>
-          <ToggleButton value="lawful" sx={{ '&.Mui-selected': { color: theme.palette.success.main } }}>
-            {t('Lawful', 'Legal')}
-          </ToggleButton>
-          <ToggleButton value="unlawful" sx={{ '&.Mui-selected': { color: theme.palette.error.main } }}>
-            {t('Unlawful', 'Illegal')}
-          </ToggleButton>
-        </ToggleButtonGroup>
       </Box>
+
+      <Box role="group" aria-label={t('Legality filter', 'Filtre de légalité')} sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+        {[
+          { value: 'all', label: t('All', 'Tous') },
+          { value: 'lawful', label: t('Lawful', 'Légal') },
+          { value: 'unlawful', label: t('Unlawful', 'Illégal') },
+        ].map((option) => (
+          <AppButton
+            key={option.value}
+            variant={legalityFilter === option.value ? 'primary' : 'secondary'}
+            size="sm"
+            ariaPressed={legalityFilter === option.value}
+            ariaLabel={`${t('Show', 'Afficher')} ${option.label.toLowerCase()}`}
+            onClick={() => onLegalityChange(option.value)}
+          >
+            {option.label}
+          </AppButton>
+        ))}
+      </Box>
+
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
-        <Autocomplete
-          size="small"
-          options={employers}
+        <AppSelect
           value={employerFilter}
-          onChange={(_event, value) => onEmployerChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Employer', 'Employeur')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
+          options={stringOptions(employers)}
+          onValueChange={onEmployerChange}
+          placeholder={t('Employer', 'Employeur')}
+          ariaLabel={t('Filter by employer', 'Filtrer par employeur')}
+          clearable
+          filterable
+          sx={compactControlSx}
         />
-        <Autocomplete
-          size="small"
-          options={locations}
+        <AppSelect
           value={locationFilter}
-          onChange={(_event, value) => onLocationChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Location', 'Lieu')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
+          options={stringOptions(locations)}
+          onValueChange={onLocationChange}
+          placeholder={t('Location', 'Lieu')}
+          ariaLabel={t('Filter by location', 'Filtrer par lieu')}
+          clearable
+          filterable
+          sx={compactControlSx}
         />
-        <Autocomplete
-          size="small"
-          options={rewardBlueprints}
+        <AppSelect
           value={rewardBlueprintFilter}
-          onChange={(_event, value) => onRewardBlueprintChange(value)}
-          renderInput={(params) => <TextField {...params} placeholder={t('Reward blueprint', 'Blueprint recompense')} sx={{ '& .MuiInputBase-root': { fontSize: TEXT_LABEL, minHeight: 32 } }} />}
-          slotProps={{ listbox: { sx: { fontSize: TEXT_LABEL } } }}
+          options={stringOptions(rewardBlueprints)}
+          onValueChange={onRewardBlueprintChange}
+          placeholder={t('Reward blueprint', 'Blueprint récompense')}
+          ariaLabel={t('Filter by reward blueprint', 'Filtrer par blueprint récompense')}
+          clearable
+          filterable
+          sx={compactControlSx}
         />
-        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: TEXT_LABEL } }}>
-          <Select value={standingBucketFilter} onChange={(event) => onStandingBucketChange(event.target.value as StandingBucket)} inputProps={{ 'aria-label': t('Standing requirement', 'Prérequis réputation') }}>
-            {STANDING_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ '& .MuiInputBase-root': { minHeight: 32, fontSize: TEXT_LABEL } }}>
-          <Select value={resourceObjectiveMode} onChange={(event) => onResourceObjectiveModeChange(event.target.value as 'all' | 'with' | 'without')} inputProps={{ 'aria-label': t('Resource objective filter', 'Filtre objectif ressource') }}>
-            {RESOURCE_OBJECTIVE_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {loc(option.label, lang)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <AppSelect
+          value={standingBucketFilter}
+          options={STANDING_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+          onValueChange={(value) => { if (value) onStandingBucketChange(value); }}
+          ariaLabel={t('Standing requirement', 'Prérequis réputation')}
+          sx={compactControlSx}
+        />
+        <AppSelect
+          value={resourceObjectiveMode}
+          options={RESOURCE_OBJECTIVE_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+          onValueChange={(value) => { if (value) onResourceObjectiveModeChange(value); }}
+          ariaLabel={t('Resource objective filter', 'Filtre objectif ressource')}
+          sx={compactControlSx}
+        />
       </Box>
     </Paper>
+  );
+
+  return (
+    <ResponsiveFilters
+      title={t('Mission filters and sort', 'Filtres et tri des missions')}
+      triggerLabel={t('Filters and sort', 'Filtres et tri')}
+      closeLabel={t('Show missions', 'Afficher les missions')}
+      dismissLabel={t('Close mission filters', 'Fermer les filtres de mission')}
+      summary={hasActiveFilters ? t('Filters active', 'Filtres actifs') : t('All missions', 'Toutes les missions')}
+    >
+      {filters}
+    </ResponsiveFilters>
   );
 }
 
@@ -510,15 +673,14 @@ const ContractRow = memo(function ContractRow({
   const dropChance = getMissionBlueprintDropChance(contract);
   const isLawful = (group.faction?.factionType?.toLowerCase() ?? '') !== 'unlawful';
   const scale = contract.availability.derivedScale;
+  const href = missionPathFromSlug(getMissionSlug(contract, group));
 
   return (
     <Box
       component="tr"
-      onClick={() => onOpen(contract, group)}
       sx={{
-        cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr auto', sm: 'minmax(0,1fr) minmax(0,0.5fr) minmax(0,0.5fr) 80px' },
+        gridTemplateColumns: { xs: 'minmax(0, 1fr) auto', sm: 'minmax(0,1fr) minmax(0,0.5fr) minmax(0,0.5fr) 96px' },
         alignItems: 'center',
         gap: 1,
         px: 2,
@@ -528,17 +690,34 @@ const ContractRow = memo(function ContractRow({
         transition: 'background-color 120ms',
       }}
     >
-      {/* Name + employer */}
       <Box component="td" sx={{ minWidth: 0 }}>
-        <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'text.primary' }}>
-          {contractName}
-        </Typography>
+        <Box
+          component="a"
+          href={href}
+          onClick={(event) => {
+            if (!shouldHandleInternalLinkClick(event)) return;
+            event.preventDefault();
+            onOpen(contract, group);
+          }}
+          aria-label={`${t('Open mission dossier', 'Ouvrir le dossier mission')}: ${contractName}`}
+          sx={{
+            display: 'inline-block',
+            maxWidth: '100%',
+            color: 'text.primary',
+            textDecoration: 'none',
+            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+            '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 },
+          }}
+        >
+          <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', color: 'inherit' }}>
+            {contractName}
+          </Typography>
+        </Box>
         <Typography noWrap sx={{ fontSize: TEXT_LABEL, color: 'text.secondary' }}>
           {employerName}{primaryLocation ? ` · ${primaryLocation}` : ''}
         </Typography>
       </Box>
 
-      {/* Scale + legality — hidden xs */}
       <Box component="td" sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: 0.25, minWidth: 0 }}>
         {scale && (
           <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary', whiteSpace: 'nowrap' }}>
@@ -550,21 +729,31 @@ const ContractRow = memo(function ContractRow({
         </Typography>
       </Box>
 
-      {/* Pool — hidden xs */}
       <Box component="td" sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 0 }}>
         <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary' }}>
           {blueprintCount} bp
         </Typography>
       </Box>
 
-      {/* Drop chance */}
-      <Box component="td" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
+      <Box component="td" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75, flexShrink: 0 }}>
         {dropChance > 0 && (
           <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'primary.main' }}>
             {formatProbabilityPercent(dropChance)}
           </Typography>
         )}
-        <ChevronRightIcon sx={{ fontSize: '0.9rem', color: 'text.disabled' }} />
+        <Box
+          component="a"
+          href={href}
+          onClick={(event) => {
+            if (!shouldHandleInternalLinkClick(event)) return;
+            event.preventDefault();
+            onOpen(contract, group);
+          }}
+          aria-label={`${t('Open mission dossier', 'Ouvrir le dossier mission')}: ${contractName}`}
+          sx={{ display: 'inline-flex', color: 'text.secondary', p: 0.5, borderRadius: 1 }}
+        >
+          <ChevronRightIcon sx={{ fontSize: '1rem' }} />
+        </Box>
       </Box>
     </Box>
   );
@@ -1049,7 +1238,7 @@ function MissionHero({
         <Stack spacing={1.25}>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
             <ScaleBadge scale={contract.availability.derivedScale} label={formatScaleLabel(contract.availability.derivedScale, lang)} />
-            <Chip
+            <AppChip
               label={factionType === 'unlawful' ? t('Unlawful', 'Illegal') : t('Lawful', 'Legal')}
               size="small"
               color={factionType === 'unlawful' ? 'error' : 'success'}
@@ -1072,7 +1261,7 @@ function MissionHero({
               {locations.map((location) => {
                 const iconName = getLocationIconName(location);
                 return (
-                  <Chip
+                  <AppChip
                     key={location}
                     label={location}
                     size="small"
@@ -1128,23 +1317,32 @@ function MissionDetail({
   const blueprintDropChance = getMissionBlueprintDropChance(contract);
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
-      <Stack spacing={2}>
-        <Button
-          variant="outlined"
-          color="inherit"
-          startIcon={<AppGlyph name="arrow-left" size={18} />}
-          onClick={onBack}
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          {t('Back to missions', 'Retour aux missions')}
-        </Button>
-
-        <MissionHero contract={contract} group={group} />
+    <>
+      <PageHeader
+        variant="compact"
+        eyebrow={t('Mission dossier', 'Dossier de mission')}
+        title={getMissionContractName(contract)}
+        description={`${employer?.displayName ?? group.contractorDisplayName}${localities[0] ? ` · ${localities[0]}` : ''}`}
+        actions={(
+          <AppButton
+            variant="secondary"
+            size="sm"
+            icon={<AppGlyph name="arrow-left" size={18} />}
+            onClick={onBack}
+            ariaLabel={t('Back to missions', 'Retour aux missions')}
+          >
+            {t('Back to missions', 'Retour aux missions')}
+          </AppButton>
+        )}
+      />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
+        <Stack spacing={2}>
+          <MissionHero contract={contract} group={group} />
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={2.25} divider={<Divider flexItem />}>
             <MissionFact icon={<BusinessOutlinedIcon fontSize="small" />} label={t('Mission name', 'Mission')} value={getMissionContractName(contract)} />
+            <MissionPayoutFact contract={contract} group={group} />
               <MissionFact
                 icon={<VerifiedOutlinedIcon fontSize="small" />}
                 label={t('Employer', 'Employeur')}
@@ -1254,7 +1452,7 @@ function MissionDetail({
                   {localities.length > 0 ? localities.map((location) => {
                     const iconName = getLocationIconName(location);
                     return (
-                      <Chip
+                      <AppChip
                         key={location}
                         label={location}
                         size="small"
@@ -1277,7 +1475,7 @@ function MissionDetail({
                 contract.minimumRequiredStandings.length > 0 ? (
                   <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                     {contract.minimumRequiredStandings.map((standing: MissionRequiredStanding, index) => (
-                      <Chip
+                      <AppChip
                         key={`${standing.factionName ?? 'standing'}-${index}`}
                         label={formatStandingLabel(standing, lang)}
                         size="small"
@@ -1308,7 +1506,7 @@ function MissionDetail({
                     {contract.resourceObjectives.length > 0 && (
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                         {contract.resourceObjectives.map((objective) => (
-                          <Chip
+                          <AppChip
                             key={`${objective.resourceId}-${objective.minScu}-${objective.maxScu}`}
                             label={`${objective.displayName} ${objective.minScu}-${objective.maxScu} SCU`}
                             size="small"
@@ -1352,17 +1550,17 @@ function MissionDetail({
               )}
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              <Chip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
-              <Chip
+              <AppChip label={`${missionBlueprints.length} ${t('lootable blueprints', 'blueprints recuperables')}`} size="small" />
+              <AppChip
                 label={`${formatProbabilityPercent(blueprintDropChance)} ${t('blueprint chance', 'chance blueprint', 'Blueprint-Chance')}`}
                 size="small"
                 variant="outlined"
               />
-              <Chip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
+              <AppChip label={formatScaleLabel(contract.availability.derivedScale, lang)} size="small" variant="outlined" />
               {localities[0] && (() => {
                 const iconName = getLocationIconName(localities[0]);
                 return (
-                  <Chip
+                  <AppChip
                     label={localities[0]}
                     size="small"
                     variant="outlined"
@@ -1408,8 +1606,9 @@ function MissionDetail({
             ))}
           </Box>
         )}
-      </Stack>
-    </Box>
+        </Stack>
+      </Box>
+    </>
   );
 }
 
@@ -1711,28 +1910,36 @@ export function MissionsPanel() {
 
   if (missionRewardsLoading) {
     return (
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <LinearProgress />
-        <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {t('Loading mission rewards...', 'Chargement des recompenses de mission...')}
-          </Typography>
-        </Box>
-      </Box>
+      <PageLayout width="wide" component="main">
+        <SurfaceState
+          tone="loading"
+          title={t('Loading mission rewards...', 'Chargement des récompenses de mission...')}
+        />
+      </PageLayout>
     );
   }
 
   if (missionRewardsError) {
-    return <Box sx={{ p: 3, color: 'error.main' }}><Typography>{missionRewardsError}</Typography></Box>;
+    return (
+      <PageLayout width="wide" component="main">
+        <SurfaceState
+          tone="error"
+          title={t('Mission rewards unavailable', 'Récompenses de mission indisponibles')}
+          description={missionRewardsError}
+        />
+      </PageLayout>
+    );
   }
 
   if (!missionRewards || missionRewards.factionGroups.length === 0) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-        <FlagIcon sx={{ mb: 1, opacity: 0.4, fontSize: '3rem' }} />
-        <Typography variant="body1" sx={{ fontWeight: 700 }}>{t('No mission data', 'Aucune donnee de mission')}</Typography>
-        <DatasetTooOldNotice />
-      </Box>
+      <PageLayout width="wide" component="main">
+        <SurfaceState
+          title={t('No mission data', 'Aucune donnée de mission')}
+          icon={<FlagIcon sx={{ opacity: 0.55, fontSize: '3rem' }} />}
+          description={<DatasetTooOldNotice />}
+        />
+      </PageLayout>
     );
   }
 
@@ -1745,18 +1952,12 @@ export function MissionsPanel() {
   };
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2.5,
-        p: { xs: 2, sm: 3 },
-        maxWidth: 1600,
-        mx: 'auto',
-        animation: 'if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both',
-      }}
+    <PageLayout
+      width="wide"
+      component="main"
+      sx={{ animation: 'if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both' }}
     >
-      {factionsLoading && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }} />}
+      {factionsLoading && <AppProgressBar sx={{ position: 'fixed', top: 0, left: 0, right: 0, borderRadius: 0, zIndex: 9999 }} />}
 
       {selectedMission ? (
         <MissionDetail
@@ -1775,55 +1976,41 @@ export function MissionsPanel() {
         />
       ) : (
         <>
-          {/* View header */}
-          <Box>
-            <Typography
-              component="h1"
-              sx={{
-                fontFamily: FONT_DISPLAY,
-                fontWeight: 700,
-                fontSize: { xs: '1.75rem', md: '2rem' },
-                letterSpacing: '-0.018em',
-                lineHeight: 1.1,
-                color: 'text.primary',
-                mb: 0.5,
-              }}
-            >
-              {t('Missions', 'Missions')}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: '64ch' }}>
-              {t(
-                'Explore contracts, faction employers and blueprint rewards across the published dataset.',
-                'Explorez les contrats, les employeurs de faction et les récompenses de blueprints du dataset publié.',
+          {/*
+            A slug that resolves to nothing used to drop the user on the full
+            index with no explanation, so a broken deep link was indistinguishable
+            from a working one — and the acquisition rail links here by deriving
+            slugs, which is exactly the case that can go stale. This stays a
+            notice rather than an error page because faction contracts load
+            lazily, so "no match yet" is not the same as "no such mission".
+          */}
+          {selectedMissionSlug && (
+            <SurfaceState
+              tone="error"
+              title={t('Mission not found', 'Mission introuvable')}
+              description={t(
+                `Nothing in this dataset matches “${selectedMissionSlug}”. Showing every contract instead.`,
+                `Rien dans ce dataset ne correspond à « ${selectedMissionSlug} ». Affichage de tous les contrats à la place.`,
               )}
-            </Typography>
-          </Box>
+            />
+          )}
+          <PageHeader
+            title={t('Missions', 'Missions')}
+            description={t(
+              'Explore contracts, faction employers and blueprint rewards across the published dataset.',
+              'Explorez les contrats, les employeurs de faction et les récompenses de blueprints du dataset publié.',
+            )}
+            stats={(
+              <>
+                <PageStatCard label={t('Contracts', 'Contrats')} value={String(missionPageStats.contractCount)} domain="blue" />
+                <PageStatCard label={t('Employers', 'Employeurs')} value={String(missionPageStats.employerCount)} domain="magenta" />
+                <PageStatCard label={t('Factions', 'Factions')} value={String(missionPageStats.factionCount)} domain="magenta" />
+                <PageStatCard label={t('Rewarded blueprints', 'Blueprints récompensés')} value={String(missionPageStats.rewardedBlueprintCount)} />
+              </>
+            )}
+          />
 
-          {/* Stat cards grid */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 1.5,
-            }}
-          >
-            <PageStatCard
-              label={t('Contracts', 'Contrats')}
-              value={String(missionPageStats.contractCount)}
-            />
-            <PageStatCard
-              label={t('Employers', 'Employeurs')}
-              value={String(missionPageStats.employerCount)}
-            />
-            <PageStatCard
-              label={t('Factions', 'Factions')}
-              value={String(missionPageStats.factionCount)}
-            />
-            <PageStatCard
-              label={t('Rewarded blueprints', 'Blueprints récompensés')}
-              value={String(missionPageStats.rewardedBlueprintCount)}
-            />
-          </Box>
+          <MissionPayoutsSection payouts={missionRewards?.missionPayouts ?? null} />
 
           {/* Filter bar */}
           <MissionsFilterBar
@@ -1857,17 +2044,24 @@ export function MissionsPanel() {
             >
               {filteredContracts.length} {t('contracts', 'contrats')}
             </Typography>
-            <ToggleButtonGroup
-              value={missionView}
-              exclusive
-              size="small"
-              onChange={(_e, val) => { if (val) setMissionView(val as 'cards' | 'rows'); }}
-              aria-label={t('View mode', 'Mode vue')}
-              sx={{ '& .MuiToggleButton-root': { px: 1.25, py: 0.35, fontSize: TEXT_LABEL, textTransform: 'none' } }}
-            >
-              <ToggleButton value="cards">{t('Cards', 'Cartes')}</ToggleButton>
-              <ToggleButton value="rows">{t('Rows', 'Lignes')}</ToggleButton>
-            </ToggleButtonGroup>
+            <Box role="group" aria-label={t('View mode', 'Mode d’affichage')} sx={{ display: 'flex', gap: 0.75 }}>
+              <AppButton
+                variant={missionView === 'cards' ? 'primary' : 'secondary'}
+                size="sm"
+                ariaPressed={missionView === 'cards'}
+                onClick={() => setMissionView('cards')}
+              >
+                {t('Cards', 'Cartes')}
+              </AppButton>
+              <AppButton
+                variant={missionView === 'rows' ? 'primary' : 'secondary'}
+                size="sm"
+                ariaPressed={missionView === 'rows'}
+                onClick={() => setMissionView('rows')}
+              >
+                {t('Rows', 'Lignes')}
+              </AppButton>
+            </Box>
           </Box>
 
           {/* Contract grid / rows */}
@@ -1929,6 +2123,6 @@ export function MissionsPanel() {
           )}
         </>
       )}
-    </Box>
+    </PageLayout>
   );
 }

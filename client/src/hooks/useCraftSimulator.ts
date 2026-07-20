@@ -134,11 +134,14 @@ export function calcProjectedStats(
   return result;
 }
 
+/** Upper bound of the build index, matching the game's material quality scale. */
+export const BUILD_INDEX_MAX = 1000;
+
 /**
- * Quality score 0–100 based on the average quality potential across assigned slots.
- * Uses the full game scale: t = qualityValue / 1000, clamped to [0,1].
- * Quality 500 maps to 50 (neutral midpoint), 1000 maps to 100.
- * Penalised by unfilled slot ratio.
+ * Quality score on the same 0–1000 scale the game uses for material quality, so
+ * the build index and the slot sliders can be read against each other directly.
+ * t = qualityValue / 1000, clamped to [0,1]; quality 500 maps to 500 (neutral
+ * midpoint), 1000 maps to 1000. Penalised by unfilled slot ratio.
  */
 export function calcQualityScore(
   blueprint: Blueprint,
@@ -154,7 +157,7 @@ export function calcQualityScore(
     if (qualityValue === undefined) continue;
     if (slot.minQuality !== null && qualityValue < slot.minQuality) continue;
     const t = Math.max(0, Math.min(1, qualityValue / 1000));
-    total += t * 100;
+    total += t * BUILD_INDEX_MAX;
     filled++;
   }
 

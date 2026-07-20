@@ -1,8 +1,6 @@
+import { Box, Typography, Paper } from '../ui/system';
+import { AppButton } from './ui/controls';
 import { Component, type ReactNode, type ErrorInfo } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import { FONT_HEADING } from '../theme';
 
 interface Props { children: ReactNode }
@@ -72,13 +70,13 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               {this.state.error.message}
             </Typography>
-            <Button
-              variant="contained"
-              color="error"
+            <AppButton
+              variant="danger"
               onClick={() => this.setState({ error: null })}
+              sx={{ minHeight: 44 }}
             >
               Retry
-            </Button>
+            </AppButton>
           </Paper>
         </Box>
       );

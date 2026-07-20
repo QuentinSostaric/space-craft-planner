@@ -1,6 +1,4 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import { useTheme, alpha } from '@mui/material/styles';
+import { Box, Typography, useTheme, alpha } from '../../ui/system';
 import type { Rarity } from '../../types';
 import { useI18n } from '../../i18n/I18nContext';
 import { TEXT_LABEL } from '../../theme';

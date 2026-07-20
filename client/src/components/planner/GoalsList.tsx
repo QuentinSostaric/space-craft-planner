@@ -1,9 +1,6 @@
+import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
+import { AppChip } from '../ui/data-display';
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
@@ -148,9 +145,9 @@ export function GoalsList() {
             {t('Build queue', 'File de craft')}
           </Typography>
         </Box>
-        <Chip
-          size="small"
-          variant="outlined"
+        <AppChip
+          size="sm"
+          outlined
           label={`${orderedGoals.length} ${t('goals', 'objectifs')}`}
         />
       </Box>

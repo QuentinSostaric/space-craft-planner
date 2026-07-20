@@ -1,8 +1,6 @@
+import { Box, Paper, Typography, alpha, useTheme } from '../../ui/system';
+import { AppProgressBar } from '../ui/feedback';
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
-import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
 import { useLocalPersist } from '../../hooks/useLocalPersist';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
@@ -12,7 +10,6 @@ import { formatResourceQuantity } from '../../utils/crafting';
 import { StarCitizenLicensedIcon } from '../ui/StarCitizenLicensedIcon';
 import type { AggregatedResource } from '../../types';
 import { ResourceRow } from './ResourceRow';
-import { alpha, useTheme } from '@mui/material/styles';
 import { FONT_HEADING, FONT_MONO } from '../../theme';
 
 export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[] }) {
@@ -179,11 +176,7 @@ export function ResourcesList({ aggregated }: { aggregated: AggregatedResource[]
               .join(' • ') || t('No totals', 'Pas de total')}
           </Typography>
         </Box>
-        <LinearProgress
-          variant="determinate"
-          value={globalPct}
-          sx={{ height: 6, borderRadius: 999 }}
-        />
+        <AppProgressBar value={globalPct} />
       </Box>
 
       <Box

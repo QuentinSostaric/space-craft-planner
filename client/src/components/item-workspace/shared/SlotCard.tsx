@@ -1,17 +1,8 @@
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Slider from '@mui/material/Slider';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import { useTheme, alpha } from '@mui/material/styles';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import CloseIcon from '@mui/icons-material/Close';
-import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
+import { Box, IconButton, Typography, useTheme, alpha } from '../../../ui/system';
+import { Card } from '../../ui/primitives';
+import { AppSelect, AppSlider } from '../../ui/controls';
+import { AppChip } from '../../ui/data-display/AppChip';
+import { AddIcon, RemoveIcon, CloseIcon, Inventory2OutlinedIcon as InventoryIcon } from '../../../ui/icons';
 import { useI18n, loc } from '../../../i18n/I18nContext';
 import { ResourceIcon } from '../../ui/ResourceIcon';
 import { GameIcon } from '../../ui/GameIcon';
@@ -94,12 +85,15 @@ export function SlotCard({
 
   return (
     <Card
-      variant="outlined"
+      component="article"
+      role="listitem"
+      aria-label={`${requirementName} — ${loc(slot.label, lang)}`}
       sx={{
+        border: '1px solid',
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
-          md: 'minmax(210px, 0.92fr) minmax(220px, 1fr) 74px minmax(92px, 118px) 34px',
+          md: 'minmax(140px, 0.92fr) minmax(150px, 1fr) 68px minmax(80px, 118px) 30px',
         },
         gap: { xs: 0.85, md: 1 },
         alignItems: 'center',
@@ -207,7 +201,7 @@ export function SlotCard({
             {isAssigned ? `${qualityPercent}%` : '-'}
           </Typography>
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '24px 1fr 24px', gap: 0.45, alignItems: 'center', overflow: 'hidden' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '44px minmax(0, 1fr) 44px', md: '32px minmax(0, 1fr) 32px' }, gap: 0.45, alignItems: 'center' }}>
           <IconButton
             onClick={() => nudge(-QUALITY_STEP)}
             size="small"
@@ -217,33 +211,32 @@ export function SlotCard({
           >
             <RemoveIcon sx={{ fontSize: '0.86rem' }} />
           </IconButton>
-          <Slider
+          <AppSlider
             min={0}
             max={1000}
+            step={QUALITY_STEP}
             value={currentQuality}
-            onChange={(_e, val) => onQualityChange(clampQualityValue(val as number))}
-            aria-label={t(
+            onValueChange={(value) => onQualityChange(clampQualityValue(value))}
+            label={t(
               `Quality for ${requirementName}`,
               `Qualite pour ${requirementName}`,
               `Qualitat fur ${requirementName}`,
             )}
-            getAriaValueText={(v) => `${v} / 1000`}
-            size="small"
-            valueLabelDisplay="off"
+            formatValue={(value) => `${Math.round(value / 10)}% quality, ${value} of 1000`}
             marks={[
-              { value: 500 },
-              ...(deadZoneEnd > 0 && deadZoneEnd !== 500 ? [{ value: deadZoneEnd }] : []),
+              { value: 500, label: t('Standard', 'Standard') },
+              ...(deadZoneEnd > 0 && deadZoneEnd !== 500
+                ? [{ value: deadZoneEnd, label: `${Math.round(deadZoneEnd / 10)}%` }]
+                : []),
             ]}
-            sx={{
-              width: '100%',
-              mx: 0.5,
-              '& .MuiSlider-thumb': {
+            sx={{ width: '100%', minWidth: 0, '& > div:first-of-type': { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' } }}
+            partSx={{
+              handle: {
                 width: 16,
                 height: 16,
                 border: `3px solid ${isAssigned ? tone : theme.palette.text.secondary}`,
                 backgroundColor: theme.palette.background.paper,
                 boxShadow: `0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px ${alpha(isAssigned ? tone : theme.palette.text.secondary, 0.14)}`,
-                '&:hover': { boxShadow: `0 2px 6px rgba(0,0,0,0.3), 0 0 0 4px ${alpha(isAssigned ? tone : theme.palette.text.secondary, 0.14)}` },
               },
             }}
           />
@@ -301,59 +294,60 @@ export function SlotCard({
           flexWrap: 'wrap',
         }}
       >
-        <TextField
+        <Box
+          component="input"
           type="number"
-          size="small"
+          min={0}
+          max={1000}
+          step={QUALITY_STEP}
           value={isAssigned ? Math.round(currentQuality) : ''}
           placeholder="-"
-          onChange={(e) => {
-            if (e.target.value === '') {
+          aria-label={t(
+            `Quality value for ${requirementName}`,
+            `Valeur qualité pour ${requirementName}`,
+            `Qualitätswert für ${requirementName}`,
+          )}
+          onChange={(event) => {
+            if (event.currentTarget.value === '') {
               onQualityChange(undefined);
               return;
             }
-            onQualityChange(clampQualityValue(Number(e.target.value)));
-          }}
-          slotProps={{
-            htmlInput: {
-              min: 0,
-              max: 1000,
-              'aria-label': t(
-                `Quality value for ${requirementName}`,
-                `Valeur qualité pour ${requirementName}`,
-                `Qualitätswert für ${requirementName}`,
-              ),
-              style: { width: 50, textAlign: 'center', padding: '2px 4px', fontSize: TEXT_LABEL, fontFamily: FONT_MONO },
-            },
+            onQualityChange(clampQualityValue(Number(event.currentTarget.value)));
           }}
           sx={{
             width: 68,
-            '& .MuiInputBase-root': {
-              height: 27,
-              backgroundColor: alpha(theme.palette.background.default, 0.24),
-            },
+            minHeight: { xs: 44, md: 32 },
+            border: `1px solid ${theme.palette.ui.border}`,
+            borderRadius: 0.75,
+            backgroundColor: alpha(theme.palette.background.default, 0.24),
+            color: 'text.primary',
+            textAlign: 'center',
+            px: 0.5,
+            fontSize: TEXT_LABEL,
+            fontFamily: FONT_MONO,
           }}
         />
         <Typography variant="caption" sx={{ fontSize: TEXT_LABEL, color: 'text.secondary', whiteSpace: 'nowrap' }}>
           {formatSlotQuantity(slot)}
         </Typography>
         {slot.quantityMultiplier != null && (
-          <Chip
+          <AppChip
             label={`x${slot.quantityMultiplier}`}
-            size="small"
+            size="sm"
             variant="outlined"
             sx={{ fontSize: TEXT_LABEL, height: 20 }}
           />
         )}
         {slot.minQuality != null && slot.minQuality > 0 && (
-          <Chip
+          <AppChip
             label={`MIN ${slot.minQuality}`}
-            size="small"
+            size="sm"
             variant="outlined"
             sx={{
-              height: 20,
               color: 'warning.main',
               borderColor: alpha(theme.palette.warning.main, 0.35),
-              '& .MuiChip-label': { fontSize: TEXT_LABEL, fontWeight: 800 },
+              fontSize: TEXT_LABEL,
+              fontWeight: 800,
             }}
           />
         )}
@@ -385,36 +379,22 @@ export function SlotCard({
           <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: TEXT_LABEL, flexShrink: 0 }}>
             {t('Inventory lot', 'Lot d\'inventaire')}
           </Typography>
-          <Select
-            size="small"
-            displayEmpty
-            value=""
-            onChange={(e) => {
-              const id = e.target.value as string;
+          <AppSelect
+            value={null}
+            options={inventoryLots.map((lot) => ({
+              value: lot.id,
+              label: `${lot.qty}× Q${lot.quality}`,
+            }))}
+            placeholder={`— ${t('Manual', 'Manuel')} —`}
+            onValueChange={(id) => {
               if (!id) return;
-              const found = inventoryLots.find((l) => l.id === id);
+              const found = inventoryLots.find((lot) => lot.id === id);
               if (found) onQualityChange(found.quality);
             }}
-            sx={{
-              ml: 'auto',
-              minWidth: 140,
-              height: 24,
-              fontSize: TEXT_LABEL,
-              fontFamily: FONT_MONO,
-              '& .MuiSelect-select': { py: '2px', px: 1 },
-              backgroundColor: alpha(theme.palette.background.default, 0.3),
-            }}
-            aria-label={t('Select inventory lot', 'Sélectionner un lot d\'inventaire')}
-          >
-            <MenuItem value="" sx={{ fontSize: TEXT_LABEL, fontStyle: 'italic', color: 'text.disabled' }}>
-              — {t('Manual', 'Manuel')} —
-            </MenuItem>
-            {inventoryLots.map((lot) => (
-              <MenuItem key={lot.id} value={lot.id} sx={{ fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}>
-                {lot.qty}× Q{lot.quality}
-              </MenuItem>
-            ))}
-          </Select>
+            ariaLabel={t('Select inventory lot', 'Sélectionner un lot d\'inventaire')}
+            sx={{ ml: 'auto', minWidth: 140, minHeight: 44, fontSize: TEXT_LABEL, fontFamily: FONT_MONO, backgroundColor: alpha(theme.palette.background.default, 0.3) }}
+            partSx={{ input: { py: 0.5, px: 1 }, trigger: { width: 36 } }}
+          />
         </Box>
       )}
     </Card>

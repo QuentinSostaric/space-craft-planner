@@ -1,10 +1,7 @@
+import { Box, Typography, alpha, useTheme } from '../ui/system';
+import { Card, CardMedia } from './ui/primitives';
+import { AppChip } from './ui/data-display/AppChip';
 import { memo, useMemo, useState } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardMedia from '@mui/material/CardMedia';
-import Chip from '@mui/material/Chip';
-import Typography from '@mui/material/Typography';
-import { alpha, useTheme } from '@mui/material/styles';
 import { loc, useI18n } from '../i18n/I18nContext';
 import type { ShipComponentEntry } from '../types';
 import {
@@ -98,6 +95,7 @@ export const ShipComponentCard = memo(function ShipComponentCard({
       role="listitem"
       sx={{
         height: '100%',
+        '&:hover img': { transform: 'scale(1.05)' },
         display: 'flex',
         flexDirection: 'column',
         borderColor: 'divider',
@@ -154,9 +152,6 @@ export const ShipComponentCard = memo(function ShipComponentCard({
                     : 'none',
                 p: thumbMode === 'logo' ? 2 : 0,
                 transition: 'transform 300ms ease',
-                '.MuiCard-root:hover &': {
-                  transform: 'scale(1.05)',
-                },
               }}
             />
           ) : (
@@ -256,22 +251,16 @@ export const ShipComponentCard = memo(function ShipComponentCard({
         {chipMetrics.length > 0 && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
             {chipMetrics.map((metric) => (
-              <Chip
+              <AppChip
                 key={metric.id}
                 label={`${renderMetricLabel(metric, lang)}: ${metric.value}`}
-                size="small"
-                variant="outlined"
+                size="sm"
+                outlined
                 sx={{
                   maxWidth: '100%',
-                  height: 24,
                   borderColor: 'divider',
                   color: 'text.secondary',
                   backgroundColor: alpha(theme.palette.text.primary, 0.02),
-                  '& .MuiChip-label': {
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  },
                 }}
               />
             ))}

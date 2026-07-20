@@ -1,25 +1,16 @@
-import { forwardRef } from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import MuiTooltip from '@mui/material/Tooltip';
+import type { AriaAttributes, ReactElement, ReactNode } from 'react';
+import { AppTooltip } from './overlays/AppTooltip';
 
-interface TooltipProps {
+export interface TooltipProps {
   content: ReactNode;
-  children: ReactElement;
+  children: ReactElement<{ className?: string } & AriaAttributes>;
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
-  function Tooltip({ content, children, position = 'top' }, ref) {
-    return (
-      <MuiTooltip
-        ref={ref}
-        title={content ?? ''}
-        placement={position}
-        enterDelay={400}
-        enterNextDelay={200}
-      >
-        {children}
-      </MuiTooltip>
-    );
-  },
-);
+export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
+  return (
+    <AppTooltip content={content} position={position}>
+      {children}
+    </AppTooltip>
+  );
+}

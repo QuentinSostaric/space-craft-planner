@@ -1,28 +1,11 @@
+import { Box, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
+import type { Theme } from '../ui/system';
+import { Table, TableBody, TableCell, TableHead, TableRow } from './ui/primitives';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Alert from '@mui/material/Alert';
-import { alpha, useTheme } from '@mui/material/styles';
-import type { Theme } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import FormControl from '@mui/material/FormControl';
-import InputAdornment from '@mui/material/InputAdornment';
-import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Select from '@mui/material/Select';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { fetchPublishedDatasetById } from '../hooks/gameDataApi';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
 import type {
   Blueprint,
   DatasetSummary,
@@ -35,6 +18,10 @@ import type {
 } from '../types';
 import { GPP_LABELS, GPP_LOWER_IS_BETTER, STAT_LABELS, STAT_LOWER_IS_BETTER } from '../types';
 import { PageStatCard } from './ui/PageStatCard';
+import { AppChip } from './ui/data-display/AppChip';
+import { AppSelect, AppTextField } from './ui/controls';
+import { SurfaceState } from './ui/feedback';
+import { PageHeader, PageLayout, ResponsiveFilters } from './ui/page';
 
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary) {
   const channelOrder = a.channel.localeCompare(b.channel);
@@ -172,6 +159,7 @@ type StatusFilter = 'all' | ChangeStatus;
 type ChangeDomain = 'stats' | 'modifiers' | 'materials' | 'craft' | 'identity' | 'resources';
 type DomainFilter = 'all' | ChangeDomain;
 type ImpactFilter = 'all' | 'buffs' | 'nerfs' | 'neutral';
+type SortOption = 'status' | 'name' | 'type';
 type ChangeTone = 'positive' | 'negative' | 'neutral' | 'added' | 'removed';
 
 interface StructuredChangeDetail {
@@ -508,36 +496,20 @@ function DatasetSelect({
   onChange: (datasetId: string) => void;
 }) {
   return (
-    <FormControl size="small" sx={{ minWidth: 0, flex: 1 }}>
-      <Typography component="label" variant="caption" sx={{ color: 'text.secondary', mb: 0.5, fontSize: TEXT_LABEL, fontWeight: 500 }}>
-        {label}
-      </Typography>
-      <Select
-        value={value}
-        displayEmpty
-        onChange={(event) => onChange(event.target.value)}
-        renderValue={(selected) => {
-          const dataset = datasets.find((entry) => entry.datasetId === selected);
-          return dataset ? datasetOptionLabel(dataset) : label;
-        }}
-      >
-        {datasets.map((dataset) => (
-          <MenuItem key={dataset.datasetId} value={dataset.datasetId}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>{datasetOptionLabel(dataset)}</Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>{dataset.label}</Typography>
-            </Box>
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <AppSelect
+      label={label}
+      value={value}
+      options={datasets.map((dataset) => ({
+        value: dataset.datasetId,
+        label: `${datasetOptionLabel(dataset)} — ${dataset.label}`,
+      }))}
+      onValueChange={(datasetId) => {
+        if (datasetId) onChange(datasetId);
+      }}
+      ariaLabel={label}
+      fieldSx={{ minWidth: 0, flex: 1 }}
+    />
   );
-}
-
-function statusColor(status: ChangeStatus) {
-  if (status === 'Added') return 'success.main';
-  if (status === 'Removed') return 'error.main';
-  return 'warning.main';
 }
 
 function toneColor(tone: ChangeTone, theme: Theme) {
@@ -651,6 +623,7 @@ function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
 }
 
 export function DatasetChangelogPage() {
+  const theme = useTheme();
   const { activeDataset, availableDatasets } = useCraft();
   const { lang, t } = useI18n();
   const datasetCacheRef = useRef<Record<string, GameDataset>>({});
@@ -664,6 +637,7 @@ export function DatasetChangelogPage() {
   const [domainFilter, setDomainFilter] = useState<DomainFilter>('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [impactFilter, setImpactFilter] = useState<ImpactFilter>('all');
+  const [sortOption, setSortOption] = useState<SortOption>('status');
 
   const selectableDatasets = useMemo(() => {
     const byId = new Map<string, DatasetSummary>();
@@ -754,7 +728,15 @@ export function DatasetChangelogPage() {
     removed: flatRows.filter((row) => row.status === 'Removed').length,
     statRows: flatRows.filter((row) => row.domains.includes('stats')).length,
   }), [flatRows]);
-  const filteredRows = useMemo(() => filterFlatChangeRows(flatRows, searchQuery, statusFilter, domainFilter, typeFilter, impactFilter), [domainFilter, flatRows, impactFilter, searchQuery, statusFilter, typeFilter]);
+  const filteredRows = useMemo(() => {
+    const rows = filterFlatChangeRows(flatRows, searchQuery, statusFilter, domainFilter, typeFilter, impactFilter);
+    const statusOrder: Record<ChangeStatus, number> = { Added: 0, Changed: 1, Removed: 2 };
+    return [...rows].sort((a, b) => {
+      if (sortOption === 'name') return a.name.localeCompare(b.name) || a.type.localeCompare(b.type);
+      if (sortOption === 'type') return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+      return statusOrder[a.status] - statusOrder[b.status] || a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+    });
+  }, [domainFilter, flatRows, impactFilter, searchQuery, sortOption, statusFilter, typeFilter]);
   const totalDelta = flatRows.length;
 
   useEffect(() => {
@@ -770,59 +752,31 @@ export function DatasetChangelogPage() {
   };
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2.5,
-        p: { xs: 2, sm: 3, lg: 4 },
-        maxWidth: 1600,
-        mx: 'auto',
-        width: '100%',
-        animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both',
-      }}
+    <PageLayout
+      width="wide"
+      sx={{ animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both' }}
     >
-      {/* View header */}
-      <Box>
-        <Typography
-          sx={{
-            fontFamily: FONT_MONO,
-            fontSize: TEXT_LABEL_SM,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'primary.main',
-            mb: 0.5,
-          }}
-        >
-          {t('Dataset', 'Dataset')}
-        </Typography>
-        <Typography variant="h4" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, lineHeight: 1.1 }}>
-          {t('Changelog', 'Changelog')}
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-          {loadedPair
-            ? `${loadedPair.target.label} vs ${loadedPair.base.label}`
-            : t('Compare published datasets and isolate gameplay stat, modifier, resource and material changes.', 'Comparez les datasets publies et isolez les changements de stats, modifiers, ressources et materiaux.')}
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow={t('Dataset', 'Dataset')}
+        title={t('Changelog', 'Changelog')}
+        description={loadedPair
+          ? `${loadedPair.target.label} vs ${loadedPair.base.label}`
+          : t('Compare published datasets and isolate gameplay stat, modifier, resource and material changes.', 'Comparez les datasets publies et isolez les changements de stats, modifiers, ressources et materiaux.')}
+        stats={
+          <>
+            <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} />
+            <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} accent={theme.palette.success.main} />
+            <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} accent={theme.palette.warning.main} />
+            <PageStatCard label={t('Stat rows', 'Lignes stats')} value={String(changeStats.statRows)} />
+          </>
+        }
+      />
 
-      {/* Stat cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
-          gap: 1.5,
-        }}
-      >
-        <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} />
-        <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} />
-        <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} />
-        <PageStatCard label={t('Stat rows', 'Lignes stats')} value={String(changeStats.statRows)} />
-      </Box>
-
-      {loading && <LinearProgress aria-label={t('Loading datasets', 'Chargement des datasets')} />}
-      {error && <Alert severity="error">{error}</Alert>}
-      {selectableDatasets.length === 0 && <Alert severity="info">{t('No published dataset is available yet.', 'Aucun dataset publie disponible.')}</Alert>}
+      {loading && !loadedPair && <SurfaceState tone="loading" title={t('Loading datasets', 'Chargement des datasets')} />}
+      {error && <SurfaceState tone="error" title={t('Unable to load datasets', 'Impossible de charger les datasets')} description={error} />}
+      {selectableDatasets.length === 0 && (
+        <SurfaceState title={t('No published dataset is available yet.', 'Aucun dataset publie disponible.')} />
+      )}
 
       {/* Comparator panel */}
       <Paper variant="outlined" sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden' }}>
@@ -831,7 +785,7 @@ export function DatasetChangelogPage() {
             <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.25 }}>
               {t('Comparator', 'Comparateur')}
             </Typography>
-            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
+            <Typography component="h2" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
               {t('Dataset selector', 'Sélecteur de datasets')}
             </Typography>
           </Box>
@@ -853,75 +807,93 @@ export function DatasetChangelogPage() {
               }}
             >
               <DatasetSelect label={t('Base dataset', 'Dataset de base')} value={baseDatasetId} datasets={selectableDatasets} onChange={setBaseDatasetId} />
-              <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', justifyContent: 'center', pb: 0.5 }}>
+              <Box aria-hidden="true" sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', justifyContent: 'center', pb: 0.5 }}>
                 <Typography sx={{ fontFamily: FONT_MONO, fontSize: '1rem', color: 'text.disabled' }}>→</Typography>
               </Box>
               <DatasetSelect label={t('Target dataset', 'Dataset cible')} value={targetDatasetId} datasets={selectableDatasets} onChange={setTargetDatasetId} />
             </Box>
 
             {/* Filters toolbar */}
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                flexWrap: 'wrap',
-                p: 1.5,
-                bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'ui.border',
-                borderRadius: 2,
-              }}
+            <ResponsiveFilters
+              title={t('Changelog filters', 'Filtres du changelog')}
+              triggerLabel={t('Filters', 'Filtres')}
+              closeLabel={t('Show changes', 'Afficher les changements')}
+              dismissLabel={t('Close filters', 'Fermer les filtres')}
+              summary={<Typography variant="caption" sx={{ color: 'text.secondary' }}>{filteredRows.length}/{totalDelta}</Typography>}
             >
-              <TextField
-                size="small"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t('Name, type, stat or modifier…', 'Nom, type, stat ou modifier…')}
-                sx={{ flex: '1 1 200px', '& .MuiInputBase-root': { fontSize: TEXT_LABEL_LG, height: 32 } }}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start" sx={{ color: 'text.disabled' }}>
-                        <SearchOutlinedIcon sx={{ fontSize: '1rem' }} />
-                      </InputAdornment>
-                    ),
-                  },
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: 'minmax(200px, 1fr) repeat(5, minmax(125px, auto))' },
+                  gap: 1.5,
+                  p: 1.5,
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'ui.border',
+                  borderRadius: 2,
                 }}
-              />
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
-                <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} displayEmpty>
-                  <MenuItem value="all">{t('All statuses', 'Tous statuts')}</MenuItem>
-                  <MenuItem value="Added">{t('Added', 'Ajouts')}</MenuItem>
-                  <MenuItem value="Changed">{t('Changed', 'Modifies')}</MenuItem>
-                  <MenuItem value="Removed">{t('Removed', 'Retires')}</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
-                <Select value={domainFilter} onChange={(event) => setDomainFilter(event.target.value as DomainFilter)} displayEmpty>
-                  <MenuItem value="all">{t('All domains', 'Tous domaines')}</MenuItem>
-                  <MenuItem value="stats">Stats</MenuItem>
-                  <MenuItem value="modifiers">Modifiers</MenuItem>
-                  <MenuItem value="materials">{t('Materials', 'Materiaux')}</MenuItem>
-                  <MenuItem value="resources">{t('Resources', 'Ressources')}</MenuItem>
-                  <MenuItem value="craft">Craft</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
-                <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} displayEmpty>
-                  <MenuItem value="all">{t('All types', 'Tous types')}</MenuItem>
-                  {typeOptions.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ '& .MuiInputBase-root': { height: 32, fontSize: TEXT_LABEL_LG } }}>
-                <Select value={impactFilter} onChange={(event) => setImpactFilter(event.target.value as ImpactFilter)} displayEmpty>
-                  <MenuItem value="all">{t('All impacts', 'Tous impacts')}</MenuItem>
-                  <MenuItem value="buffs">{t('Buffs', 'Buffs')}</MenuItem>
-                  <MenuItem value="nerfs">{t('Nerfs', 'Nerfs')}</MenuItem>
-                  <MenuItem value="neutral">{t('Neutral', 'Neutre')}</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
+              >
+                <AppTextField
+                  type="search"
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                  placeholder={t('Name, type, stat or modifier…', 'Nom, type, stat ou modifier…')}
+                  ariaLabel={t('Search changes', 'Rechercher dans les changements')}
+                />
+                <AppSelect
+                  value={statusFilter}
+                  options={[
+                    { value: 'all', label: t('All statuses', 'Tous statuts') },
+                    { value: 'Added', label: t('Added', 'Ajouts') },
+                    { value: 'Changed', label: t('Changed', 'Modifies') },
+                    { value: 'Removed', label: t('Removed', 'Retires') },
+                  ]}
+                  onValueChange={(value) => setStatusFilter(value ?? 'all')}
+                  ariaLabel={t('Filter by status', 'Filtrer par statut')}
+                />
+                <AppSelect
+                  value={domainFilter}
+                  options={[
+                    { value: 'all', label: t('All domains', 'Tous domaines') },
+                    { value: 'stats', label: 'Stats' },
+                    { value: 'modifiers', label: 'Modifiers' },
+                    { value: 'materials', label: t('Materials', 'Materiaux') },
+                    { value: 'resources', label: t('Resources', 'Ressources') },
+                    { value: 'craft', label: 'Craft' },
+                    { value: 'identity', label: t('Identity', 'Identite') },
+                  ]}
+                  onValueChange={(value) => setDomainFilter(value ?? 'all')}
+                  ariaLabel={t('Filter by domain', 'Filtrer par domaine')}
+                />
+                <AppSelect
+                  value={typeFilter}
+                  options={[{ value: 'all', label: t('All types', 'Tous types') }, ...typeOptions.map((type) => ({ value: type, label: type }))]}
+                  onValueChange={(value) => setTypeFilter(value ?? 'all')}
+                  ariaLabel={t('Filter by type', 'Filtrer par type')}
+                />
+                <AppSelect
+                  value={impactFilter}
+                  options={[
+                    { value: 'all', label: t('All impacts', 'Tous impacts') },
+                    { value: 'buffs', label: t('Buffs', 'Buffs') },
+                    { value: 'nerfs', label: t('Nerfs', 'Nerfs') },
+                    { value: 'neutral', label: t('Neutral', 'Neutre') },
+                  ]}
+                  onValueChange={(value) => setImpactFilter(value ?? 'all')}
+                  ariaLabel={t('Filter by impact', 'Filtrer par impact')}
+                />
+                <AppSelect
+                  value={sortOption}
+                  options={[
+                    { value: 'status', label: t('Sort: status', 'Tri : statut') },
+                    { value: 'name', label: t('Sort: name', 'Tri : nom') },
+                    { value: 'type', label: t('Sort: type', 'Tri : type') },
+                  ]}
+                  onValueChange={(value) => setSortOption(value ?? 'status')}
+                  ariaLabel={t('Sort changes', 'Trier les changements')}
+                />
+              </Box>
+            </ResponsiveFilters>
           </Stack>
         </Box>
       </Paper>
@@ -934,83 +906,102 @@ export function DatasetChangelogPage() {
               <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.25 }}>
                 {t('History', 'Historique')}
               </Typography>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
+              <Typography component="h2" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
                 {t('All changes', 'Tous les changements')}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Chip
-                size="small"
+              <AppChip
+                size="sm"
                 label={`+${changeStats.added} ${t('added', 'ajoutés')}`}
-                sx={{ color: 'success.main', borderColor: 'success.main', height: 22, '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
-                variant="outlined"
+                tone="success"
+                outlined
+                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 }}
               />
-              <Chip
-                size="small"
+              <AppChip
+                size="sm"
                 label={`~${changeStats.changed} ${t('changed', 'modifiés')}`}
-                sx={{ color: 'warning.main', borderColor: 'warning.main', height: 22, '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 } }}
-                variant="outlined"
+                tone="warning"
+                outlined
+                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 }}
               />
             </Box>
           </Box>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.paper' }}>
-                <TableCell sx={monoHeaderSx}>{t('Name', 'Nom')}</TableCell>
-                <TableCell sx={monoHeaderSx}>Type</TableCell>
-                <TableCell sx={monoHeaderSx}>Status</TableCell>
-                <TableCell sx={{ ...monoHeaderSx, display: { xs: 'none', md: 'table-cell' } }}>
-                  {t('Stats / modifiers', 'Stats / modifiers')}
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} sx={{ borderColor: 'ui.border', py: 3, textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                      {lang === 'fr' ? 'Aucune difference detectee entre ces deux datasets.' : 'No differences detected between these datasets.'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    sx={{
-                      '&:hover': { bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04) },
-                      '& td': { borderColor: 'ui.border' },
-                    }}
-                  >
-                    <TableCell sx={{ borderColor: 'ui.border' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY }}>{row.name}</Typography>
-                    </TableCell>
-                    <TableCell sx={{ borderColor: 'ui.border' }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM }}>{row.type}</Typography>
-                    </TableCell>
-                    <TableCell sx={{ borderColor: 'ui.border' }}>
-                      <Chip
-                        label={row.status}
-                        size="small"
-                        variant="outlined"
+          {filteredRows.length === 0 ? (
+            <SurfaceState
+              title={lang === 'fr' ? 'Aucune différence ne correspond aux filtres sélectionnés.' : 'No differences match the selected filters.'}
+              sx={{ my: 3 }}
+            />
+          ) : (
+            <>
+              <Box sx={{ display: { xs: 'none', md: 'block' }, overflowX: 'auto' }}>
+                <Table size="small" aria-label={t('Dataset changes', 'Changements du dataset')}>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'background.paper' }}>
+                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Name', 'Nom')}</TableCell>
+                      <TableCell component="th" scope="col" sx={monoHeaderSx}>Type</TableCell>
+                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Status', 'Statut')}</TableCell>
+                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Stats / modifiers', 'Stats / modifiers')}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredRows.map((row) => (
+                      <TableRow
+                        key={row.id}
                         sx={{
-                          height: 20,
-                          color: statusColor(row.status),
-                          borderColor: statusColor(row.status),
-                          '& .MuiChip-label': { fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700, px: 0.75 },
+                          '&:hover': { bgcolor: (rowTheme) => alpha(rowTheme.palette.primary.main, 0.04) },
+                          '& td, & th': { borderColor: 'ui.border' },
                         }}
+                      >
+                        <TableCell component="th" scope="row" sx={{ borderColor: 'ui.border' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY }}>{row.name}</Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM }}>{row.type}</Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <AppChip
+                            label={row.status}
+                            size="sm"
+                            outlined
+                            tone={row.status === 'Added' ? 'success' : row.status === 'Removed' ? 'danger' : 'warning'}
+                            sx={{ height: 20, fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ borderColor: 'ui.border' }}>
+                          <ChangeDetailsCell row={row} lang={lang} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+
+              <Stack role="list" aria-label={t('Dataset changes', 'Changements du dataset')} spacing={1} sx={{ display: { xs: 'flex', md: 'none' }, p: 1.5 }}>
+                {filteredRows.map((row) => (
+                  <Paper key={row.id} component="article" role="listitem" variant="outlined" sx={{ p: 1.5, borderColor: 'ui.border', bgcolor: 'background.paper' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography component="h3" variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY, overflowWrap: 'anywhere' }}>{row.name}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM }}>{row.type}</Typography>
+                      </Box>
+                      <AppChip
+                        label={row.status}
+                        ariaLabel={`${t('Status', 'Statut')}: ${row.status}`}
+                        size="sm"
+                        outlined
+                        tone={row.status === 'Added' ? 'success' : row.status === 'Removed' ? 'danger' : 'warning'}
+                        sx={{ flexShrink: 0, height: 20, fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 }}
                       />
-                    </TableCell>
-                    <TableCell sx={{ borderColor: 'ui.border', display: { xs: 'none', md: 'table-cell' } }}>
-                      <ChangeDetailsCell row={row} lang={lang} />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </Box>
+                    <ChangeDetailsCell row={row} lang={lang} />
+                  </Paper>
+                ))}
+              </Stack>
+            </>
+          )}
         </Paper>
       )}
-    </Box>
+    </PageLayout>
   );
 }

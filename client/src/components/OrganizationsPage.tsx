@@ -1,30 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import CardMedia from '@mui/material/CardMedia';
-import Checkbox from '@mui/material/Checkbox';
-import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Divider from '@mui/material/Divider';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import InputAdornment from '@mui/material/InputAdornment';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import FilterListOffOutlinedIcon from '@mui/icons-material/FilterListOffOutlined';
-import HandymanOutlinedIcon from '@mui/icons-material/HandymanOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Avatar, CardMedia } from './ui/primitives';
+import { AppAlert } from './ui/feedback';
+import { FilterListOffOutlinedIcon, HandymanOutlinedIcon, SearchOutlinedIcon } from '../ui/icons';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 import { useI18n } from '../i18n/I18nContext';
@@ -37,6 +15,12 @@ import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfinit
 import { ResourceIcon } from './ui/ResourceIcon';
 import { Panel } from './ui/Panel';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
+import { AppButton, AppCheckbox, AppSelect, AppTextArea, AppTextField } from './ui/controls';
+import { AppDialog } from './ui/overlays';
+import { PageHeader } from './ui/page/PageHeader';
+import { PageLayout } from './ui/page/PageLayout';
+import { SurfaceState } from './ui/feedback/SurfaceState';
+import { AppChip } from './ui/data-display/AppChip';
 import { CitizenIdSignInButton, type CitizenIdBrandEnvironment } from './CitizenIdBrand';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -126,6 +110,31 @@ function buildOrganizationResourceSearchHaystack(row: SharedResourceRow): string
 
 function normalizeComparableText(value: string | null | undefined): string {
   return String(value ?? '').trim().toLowerCase();
+}
+
+function handleTabKeyDown<T extends string>(
+  event: KeyboardEvent<HTMLButtonElement>,
+  tabIds: readonly T[],
+  activeId: T,
+  onChange: (id: T) => void,
+) {
+  const currentIndex = tabIds.indexOf(activeId);
+  let nextIndex = currentIndex;
+
+  if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabIds.length;
+  else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+  else if (event.key === 'Home') nextIndex = 0;
+  else if (event.key === 'End') nextIndex = tabIds.length - 1;
+  else return;
+
+  event.preventDefault();
+  const nextId = tabIds[nextIndex];
+  onChange(nextId);
+  requestAnimationFrame(() => {
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-tab-id="${nextId}"]`)
+      ?.focus();
+  });
 }
 
 /** Derive a stable accent colour from an org's SID (deterministic, palette-safe). */
@@ -455,29 +464,20 @@ function OrganizationDetail({
     organization.status === 'verified_admin' ? theme.palette.success.main : theme.palette.primary.main;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
-      {/* Breadcrumb */}
-      <Stack direction="row" spacing={0.75} alignItems="center">
-        <Typography
-          component="a"
-          href="#"
-          onClick={(e: React.MouseEvent) => { e.preventDefault(); onBack(); }}
-          sx={{
-            fontFamily: FONT_MONO,
-            fontSize: TEXT_LABEL,
-            color: 'text.secondary',
-            textDecoration: 'none',
-            cursor: 'pointer',
-            '&:hover': { color: 'text.primary' },
-          }}
-        >
-          {t('Organizations', 'Organisations', 'Organisationen')}
-        </Typography>
-        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.disabled' }}>/</Typography>
-        <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, color: 'text.primary' }}>
-          {organization.name}
-        </Typography>
-      </Stack>
+    <PageLayout>
+      <Box component="nav" aria-label={t('Breadcrumb', 'Fil d Ariane', 'Breadcrumb')}>
+        <Stack component="ol" direction="row" spacing={0.75} alignItems="center" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+          <Box component="li">
+            <AppButton variant="ghost" size="sm" onClick={onBack}>
+              {t('Organizations', 'Organisations', 'Organisationen')}
+            </AppButton>
+          </Box>
+          <Box component="li" aria-hidden="true" sx={{ color: 'text.disabled' }}>/</Box>
+          <Box component="li" aria-current="page" sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL }}>
+            {organization.name}
+          </Box>
+        </Stack>
+      </Box>
 
       {/* Hero Panel */}
       <Panel noPad>
@@ -513,35 +513,20 @@ function OrganizationDetail({
           </Avatar>
 
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              sx={{
-                fontFamily: FONT_DISPLAY,
-                fontWeight: 700,
-                fontSize: { xs: '1.5rem', md: '1.9rem' },
-                lineHeight: 1.1,
-                letterSpacing: '-0.015em',
-              }}
-            >
-              {organization.name}
-            </Typography>
+            <PageHeader
+              title={organization.name}
+              variant="compact"
+              meta={`[${organization.sid}]`}
+            />
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-              <Typography
-                sx={{
-                  fontFamily: FONT_MONO,
-                  fontSize: TEXT_LABEL,
-                  color: 'text.secondary',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                [{organization.sid}]
-              </Typography>
-              <Chip
+
+              <AppChip
                 label={
                   organization.status === 'verified_admin'
                     ? t('Admin', 'Admin', 'Admin')
                     : t('Member', 'Membre', 'Mitglied')
                 }
-                size="small"
+                size="sm"
                 sx={{
                   height: 20,
                   fontSize: TEXT_LABEL_SM,
@@ -549,16 +534,16 @@ function OrganizationDetail({
                   backgroundColor: alpha(roleBadgeColor, 0.15),
                   color: roleBadgeColor,
                   border: `1px solid ${alpha(roleBadgeColor, 0.35)}`,
-                  '& .MuiChip-label': { px: 1 },
+
                 }}
               />
               {organization.syncStatus === 'stale' && (
-                <Chip
+                <AppChip
                   label={t('Stale', 'Obsolete', 'Veraltet')}
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  sx={{ height: 20, fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO, '& .MuiChip-label': { px: 1 } }}
+                  size="sm"
+                  tone="warning"
+                  outlined
+                  sx={{ height: 20, fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO }}
                 />
               )}
             </Stack>
@@ -585,58 +570,68 @@ function OrganizationDetail({
           </Stack>
         </Box>
 
-        {/* Tabs inside hero panel */}
-        <Tabs
-          value={assetTab}
-          onChange={(_event, value: 'resources' | 'blueprints' | 'members') => setAssetTab(value)}
-          variant="scrollable"
-          allowScrollButtonsMobile
+        <Box
+          role="tablist"
           aria-label={t('Organization tabs', 'Onglets organisation', 'Organisations-Tabs')}
-          sx={{ px: 1, '& .MuiTabs-indicator': { backgroundColor: orgColor } }}
+          sx={{ display: 'flex', gap: 0.75, p: 1, overflowX: 'auto' }}
         >
-          <Tab
-            id="org-tab-resources"
-            aria-controls="org-tabpanel-resources"
-            value="resources"
-            label={
-              loadState.status === 'success'
-                ? t(`Resource marketplace (${loadState.resourceRows.length})`, `Marketplace ressources (${loadState.resourceRows.length})`, `Ressourcen-Marketplace (${loadState.resourceRows.length})`)
-                : t('Resource marketplace', 'Marketplace ressources', 'Ressourcen-Marketplace')
-            }
-          />
-          <Tab
-            id="org-tab-blueprints"
-            aria-controls="org-tabpanel-blueprints"
-            value="blueprints"
-            label={
-              loadState.status === 'success'
-                ? t(`Blueprint marketplace (${loadState.blueprintRows.length})`, `Marketplace blueprints (${loadState.blueprintRows.length})`, `Blueprint-Marketplace (${loadState.blueprintRows.length})`)
-                : t('Blueprint marketplace', 'Marketplace blueprints', 'Blueprint-Marketplace')
-            }
-          />
-          <Tab
-            id="org-tab-members"
-            aria-controls="org-tabpanel-members"
-            value="members"
-            label={t('Members', 'Membres', 'Mitglieder')}
-          />
-        </Tabs>
+          {([
+            { id: 'resources' as const, label: loadState.status === 'success'
+              ? t(`Resource marketplace (${loadState.resourceRows.length})`, `Marketplace ressources (${loadState.resourceRows.length})`, `Ressourcen-Marketplace (${loadState.resourceRows.length})`)
+              : t('Resource marketplace', 'Marketplace ressources', 'Ressourcen-Marketplace') },
+            { id: 'blueprints' as const, label: loadState.status === 'success'
+              ? t(`Blueprint marketplace (${loadState.blueprintRows.length})`, `Marketplace blueprints (${loadState.blueprintRows.length})`, `Blueprint-Marketplace (${loadState.blueprintRows.length})`)
+              : t('Blueprint marketplace', 'Marketplace blueprints', 'Blueprint-Marketplace') },
+            { id: 'members' as const, label: t('Members', 'Membres', 'Mitglieder') },
+          ]).map((tab) => (
+            <Box
+              component="button"
+              type="button"
+              key={tab.id}
+              role="tab"
+              id={`org-tab-${tab.id}`}
+              data-tab-id={tab.id}
+              aria-label={tab.label}
+              aria-selected={assetTab === tab.id}
+              aria-controls={`org-tabpanel-${tab.id}`}
+              tabIndex={assetTab === tab.id ? 0 : -1}
+              onClick={() => setAssetTab(tab.id)}
+              onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) =>
+                handleTabKeyDown(event, ['resources', 'blueprints', 'members'] as const, assetTab, setAssetTab)}
+              sx={{
+                minHeight: 44,
+                px: 1.5,
+                whiteSpace: 'nowrap',
+                borderRadius: 1,
+                border: `1px solid ${assetTab === tab.id ? orgColor : theme.palette.divider}`,
+                backgroundColor: assetTab === tab.id ? alpha(orgColor, 0.12) : 'transparent',
+                color: assetTab === tab.id ? 'text.primary' : 'text.secondary',
+                font: 'inherit',
+                cursor: 'pointer',
+                '&:hover': { color: 'text.primary', borderColor: orgColor },
+              }}
+            >
+              {tab.label}
+            </Box>
+          ))}
+        </Box>
       </Panel>
 
       {/* Alerts */}
-      {notice && <Alert severity="success" variant="outlined">{notice}</Alert>}
-      {error && <Alert severity="error" variant="outlined">{error}</Alert>}
+      {notice && <AppAlert severity="success">{notice}</AppAlert>}
+      {error && <AppAlert severity="error">{error}</AppAlert>}
 
       {/* Loading state */}
       {loadState.status === 'loading' && (
-        <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress aria-label={t('Loading organization data', 'Chargement des donnees de l organisation', 'Organisationsdaten werden geladen')} />
-        </Box>
+        <SurfaceState
+          tone="loading"
+          title={t('Loading organization data', 'Chargement des donnees de l organisation', 'Organisationsdaten werden geladen')}
+        />
       )}
 
       {/* Error state */}
       {loadState.status === 'error' && (
-        <Alert severity="error" variant="outlined">{loadState.error}</Alert>
+        <SurfaceState tone="error" title={loadState.error} />
       )}
 
       {/* Tab panels */}
@@ -660,54 +655,50 @@ function OrganizationDetail({
             >
               {/* Filters toolbar */}
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }}>
-                <TextField
-                  size="small"
-                  placeholder={t('Search resources or owners', 'Rechercher ressources ou propriétaires', 'Ressourcen oder Besitzer suchen')}
-                  value={resourceSearch}
-                  onChange={(event) => setResourceSearch(event.target.value)}
-                  sx={{ flex: '1 1 200px', minWidth: 160 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchOutlinedIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-                <TextField
-                  select
-                  size="small"
+                <Box sx={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
+                  <SearchOutlinedIcon
+                    aria-hidden="true"
+                    sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, color: 'text.secondary' }}
+                  />
+                  <AppTextField
+                    type="search"
+                    ariaLabel={t('Search resources or owners', 'Rechercher ressources ou propriétaires', 'Ressourcen oder Besitzer suchen')}
+                    placeholder={t('Search resources or owners', 'Rechercher ressources ou propriétaires', 'Ressourcen oder Besitzer suchen')}
+                    value={resourceSearch}
+                    onValueChange={setResourceSearch}
+                    sx={{ pl: 4.5 }}
+                  />
+                </Box>
+                <AppSelect
                   label={t('Owner', 'Propriétaire', 'Besitzer')}
                   value={resourceOwnerFilter ?? 'all'}
-                  onChange={(event) => setResourceOwnerFilter(event.target.value === 'all' ? null : event.target.value)}
+                  options={[
+                    { label: t('All owners', 'Tous les propriétaires', 'Alle Besitzer'), value: 'all' },
+                    ...resourceOwnerOptions.map((ownerHandle) => ({ label: ownerHandle, value: ownerHandle })),
+                  ]}
+                  onValueChange={(value) => setResourceOwnerFilter(value === 'all' || value == null ? null : value)}
                   sx={{ minWidth: 140 }}
-                >
-                  <MenuItem value="all">{t('All owners', 'Tous les propriétaires', 'Alle Besitzer')}</MenuItem>
-                  {resourceOwnerOptions.map((ownerHandle) => (
-                    <MenuItem key={ownerHandle} value={ownerHandle}>{ownerHandle}</MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  select
-                  size="small"
+                />
+                <AppSelect
                   label={t('Quality', 'Qualité', 'Qualität')}
                   value={resourceQualityFilter}
-                  onChange={(event) => setResourceQualityFilter(event.target.value as 'all' | 'with-quality' | 'no-quality')}
+                  options={[
+                    { label: t('All qualities', 'Toutes les qualités', 'Alle Qualitäten'), value: 'all' },
+                    { label: t('With quality', 'Avec qualité', 'Mit Qualität'), value: 'with-quality' },
+                    { label: t('No quality', 'Sans qualité', 'Ohne Qualität'), value: 'no-quality' },
+                  ]}
+                  onValueChange={(value) => setResourceQualityFilter((value ?? 'all') as 'all' | 'with-quality' | 'no-quality')}
                   sx={{ minWidth: 130 }}
-                >
-                  <MenuItem value="all">{t('All qualities', 'Toutes les qualités', 'Alle Qualitäten')}</MenuItem>
-                  <MenuItem value="with-quality">{t('With quality', 'Avec qualité', 'Mit Qualität')}</MenuItem>
-                  <MenuItem value="no-quality">{t('No quality', 'Sans qualité', 'Ohne Qualität')}</MenuItem>
-                </TextField>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<FilterListOffOutlinedIcon />}
+                />
+                <AppButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<FilterListOffOutlinedIcon />}
                   onClick={() => { setResourceSearch(''); setResourceOwnerFilter(null); setResourceQualityFilter('all'); }}
                   sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {t('Reset', 'Réinitialiser', 'Zurücksetzen')}
-                </Button>
+                </AppButton>
               </Stack>
 
               {resourceGroups.length === 0 ? (
@@ -822,16 +813,16 @@ function OrganizationDetail({
                                     </Typography>
                                   )}
                                 </Box>
-                                <Chip
+                                <AppChip
                                   label={`×${formatResourceQuantity(row.quantity, row.quantityUnit, lang, 'compact')}`}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, height: 22, '& .MuiChip-label': { px: 0.75 } }}
+                                  size="sm"
+                                  outlined
+                                  sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL, height: 22 }}
                                 />
                                 {row.quality != null && qualityTone ? (
-                                  <Chip
+                                  <AppChip
                                     label={formatQualityLabel(row.quality, lang)}
-                                    size="small"
+                                    size="sm"
                                     sx={{
                                       fontFamily: FONT_MONO,
                                       fontSize: TEXT_LABEL,
@@ -839,7 +830,7 @@ function OrganizationDetail({
                                       bgcolor: alpha(qualityTone, 0.15),
                                       color: qualityTone,
                                       border: `1px solid ${alpha(qualityTone, 0.35)}`,
-                                      '& .MuiChip-label': { px: 0.75 },
+
                                     }}
                                   />
                                 ) : (
@@ -869,86 +860,76 @@ function OrganizationDetail({
               title={t('Shared blueprints', 'Blueprints partagés', 'Geteilte Blueprints')}
               action={
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <TextField
-                    size="small"
-                    placeholder={t('Search blueprints or owners', 'Rechercher blueprints ou propriétaires', 'Blueprints oder Besitzer suchen')}
-                    value={blueprintSearch}
-                    onChange={(event) => setBlueprintSearch(event.target.value)}
-                    sx={{ width: { xs: 160, md: 220 } }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchOutlinedIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                  <TextField
-                    select
-                    size="small"
+                  <Box sx={{ position: 'relative', width: { xs: 160, md: 220 } }}>
+                    <SearchOutlinedIcon
+                      aria-hidden="true"
+                      sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, color: 'text.secondary' }}
+                    />
+                    <AppTextField
+                      type="search"
+                      ariaLabel={t('Search blueprints or owners', 'Rechercher blueprints ou propriétaires', 'Blueprints oder Besitzer suchen')}
+                      placeholder={t('Search blueprints or owners', 'Rechercher blueprints ou propriétaires', 'Blueprints oder Besitzer suchen')}
+                      value={blueprintSearch}
+                      onValueChange={setBlueprintSearch}
+                      sx={{ pl: 4.5 }}
+                    />
+                  </Box>
+                  <AppSelect
                     label={t('Category', 'Catégorie', 'Kategorie')}
                     value={categoryFilter}
-                    onChange={(event) => setCategoryFilter(event.target.value as 'all' | ItemCategory)}
-                    sx={{ minWidth: 140 }}
-                  >
-                    <MenuItem value="all">{t('All categories', 'Toutes les catégories', 'Alle Kategorien')}</MenuItem>
-                    {categoryOptions.map((category) => (
-                      <MenuItem key={category} value={category}>
-                        {CATEGORY_LABELS[category]
+                    options={[
+                      { label: t('All categories', 'Toutes les catégories', 'Alle Kategorien'), value: 'all' },
+                      ...categoryOptions.map((category) => ({
+                        value: category,
+                        label: CATEGORY_LABELS[category]
                           ? CATEGORY_LABELS[category][lang] ?? CATEGORY_LABELS[category].en
-                          : category}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    size="small"
+                          : category,
+                      })),
+                    ]}
+                    onValueChange={(value) => setCategoryFilter((value ?? 'all') as 'all' | ItemCategory)}
+                    sx={{ minWidth: 140 }}
+                  />
+                  <AppSelect
                     label={t('Manufacturer', 'Fabricant', 'Hersteller')}
                     value={manufacturerFilter}
-                    onChange={(event) => setManufacturerFilter(event.target.value)}
+                    options={[
+                      { label: t('All manufacturers', 'Tous les fabricants', 'Alle Hersteller'), value: 'all' },
+                      ...manufacturerOptions.map((manufacturer) => ({ label: manufacturer, value: manufacturer })),
+                    ]}
+                    onValueChange={(value) => setManufacturerFilter(value ?? 'all')}
                     sx={{ minWidth: 140 }}
-                  >
-                    <MenuItem value="all">{t('All manufacturers', 'Tous les fabricants', 'Alle Hersteller')}</MenuItem>
-                    {manufacturerOptions.map((manufacturer) => (
-                      <MenuItem key={manufacturer} value={manufacturer}>{manufacturer}</MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    size="small"
+                  />
+                  <AppSelect
                     label={t('Owner', 'Propriétaire', 'Besitzer')}
                     value={blueprintOwnerFilter ?? 'all'}
-                    onChange={(event) =>
-                      setBlueprintOwnerFilter(event.target.value === 'all' ? null : event.target.value)
-                    }
+                    options={[
+                      { label: t('All owners', 'Tous les propriétaires', 'Alle Besitzer'), value: 'all' },
+                      ...blueprintOwnerOptions.map((ownerHandle) => ({ label: ownerHandle, value: ownerHandle })),
+                    ]}
+                    onValueChange={(value) => setBlueprintOwnerFilter(value === 'all' || value == null ? null : value)}
                     sx={{ minWidth: 140 }}
-                  >
-                    <MenuItem value="all">{t('All owners', 'Tous les propriétaires', 'Alle Besitzer')}</MenuItem>
-                    {blueprintOwnerOptions.map((ownerHandle) => (
-                      <MenuItem key={ownerHandle} value={ownerHandle}>{ownerHandle}</MenuItem>
-                    ))}
-                  </TextField>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<FilterListOffOutlinedIcon />}
+                  />
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    icon={<FilterListOffOutlinedIcon />}
                     onClick={() => { setBlueprintSearch(''); setCategoryFilter('all'); setManufacturerFilter('all'); setBlueprintOwnerFilter(null); }}
                     sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                   >
                     {t('Reset', 'Réinitialiser', 'Zurücksetzen')}
-                  </Button>
+                  </AppButton>
                 </Stack>
               }
             >
               <Stack spacing={1.5}>
                 {loadState.hiddenBlueprintCount > 0 && (
-                  <Alert severity="info" variant="outlined">
+                  <AppAlert severity="info">
                     {t(
                       `${loadState.hiddenBlueprintCount} shared blueprint entries are hidden because they are not present in the currently loaded dataset.`,
                       `${loadState.hiddenBlueprintCount} entrées partagées sont masquées car elles ne sont pas présentes dans le dataset actuellement chargé.`,
                       `${loadState.hiddenBlueprintCount} geteilte Blueprint-Einträge sind ausgeblendet, weil sie im aktuell geladenen Datensatz fehlen.`,
                     )}
-                  </Alert>
+                  </AppAlert>
                 )}
 
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1196,45 +1177,54 @@ function OrganizationDetail({
       )}
 
       {/* Craft Request Dialog */}
-      <Dialog
+      <AppDialog
         open={Boolean(craftRequestDialog)}
-        onClose={closeCraftRequestDialog}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="craft-request-dialog-title"
+        onOpenChange={(open) => { if (!open) closeCraftRequestDialog(); }}
+        width="min(36rem, calc(100vw - 2rem))"
+        title={craftRequestDialog
+          ? t(
+              `Request craft from ${craftRequestDialog.row.ownerHandle}`,
+              `Demander un craft à ${craftRequestDialog.row.ownerHandle}`,
+              `Craft bei ${craftRequestDialog.row.ownerHandle} anfragen`,
+            )
+          : t('Request craft', 'Demander craft', 'Craft anfragen')}
+        footer={
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <AppButton variant="ghost" onClick={closeCraftRequestDialog} disabled={Boolean(requestBusyKey)}>
+              {t('Cancel', 'Annuler', 'Abbrechen')}
+            </AppButton>
+            <AppButton
+              variant="primary"
+              onClick={submitCraftRequest}
+              disabled={!craftRequestDialog || Boolean(requestBusyKey)}
+            >
+              {requestBusyKey
+                ? t('Sending...', 'Envoi...', 'Sende...')
+                : t('Send request', 'Envoyer la demande', 'Anfrage senden')}
+            </AppButton>
+          </Box>
+        }
       >
-        <DialogTitle id="craft-request-dialog-title">
-          {craftRequestDialog
-            ? t(
-                `Request craft from ${craftRequestDialog.row.ownerHandle}`,
-                `Demander un craft à ${craftRequestDialog.row.ownerHandle}`,
-                `Craft bei ${craftRequestDialog.row.ownerHandle} anfragen`,
-              )
-            : t('Request craft', 'Demander craft', 'Craft anfragen')}
-        </DialogTitle>
-        <DialogContent dividers>
           <Stack spacing={2}>
             {craftRequestDialog && (
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   `You are requesting ${craftRequestDialog.row.blueprint.name} from ${craftRequestDialog.row.ownerDisplay || craftRequestDialog.row.ownerHandle}.`,
                   `Tu demandes ${craftRequestDialog.row.blueprint.name} à ${craftRequestDialog.row.ownerDisplay || craftRequestDialog.row.ownerHandle}.`,
                   `Du fragst ${craftRequestDialog.row.blueprint.name} bei ${craftRequestDialog.row.ownerDisplay || craftRequestDialog.row.ownerHandle} an.`,
                 )}
-              </Alert>
+              </AppAlert>
             )}
             {craftRequestDialog?.error && (
-              <Alert severity="error" variant="outlined">{craftRequestDialog.error}</Alert>
+              <AppAlert severity="error">{craftRequestDialog.error}</AppAlert>
             )}
-            <TextField
+            <AppTextArea
               label={t('Comment (optional)', 'Commentaire (optionnel)', 'Kommentar (optional)')}
               value={craftRequestDialog?.comment ?? ''}
-              onChange={(event) => {
-                const nextComment = event.target.value;
+              onValueChange={(nextComment) => {
                 updateCraftRequestDialog((current) => ({ ...current, comment: nextComment, error: null }));
               }}
-              multiline
-              minRows={4}
+              rows={4}
               placeholder={t(
                 'Add useful details for the crafter.',
                 'Ajoute des détails utiles pour le crafteur.',
@@ -1245,34 +1235,26 @@ function OrganizationDetail({
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                 {t('Resources', 'Ressources', 'Ressourcen')}
               </Typography>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={craftRequestDialog?.resourcesOption === 'has_resources'}
-                    onChange={(event) => {
-                      updateCraftRequestDialog((current) => ({
-                        ...current,
-                        resourcesOption: event.target.checked ? 'has_resources' : 'unspecified',
-                        error: null,
-                      }));
-                    }}
-                  />
-                }
+              <AppCheckbox
+                checked={craftRequestDialog?.resourcesOption === 'has_resources'}
+                onCheckedChange={(checked) => {
+                  updateCraftRequestDialog((current) => ({
+                    ...current,
+                    resourcesOption: checked ? 'has_resources' : 'unspecified',
+                    error: null,
+                  }));
+                }}
                 label={t('I have the resources', 'J ai les ressources', 'Ich habe die Ressourcen')}
               />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={craftRequestDialog?.resourcesOption === 'buy_resources'}
-                    onChange={(event) => {
-                      updateCraftRequestDialog((current) => ({
-                        ...current,
-                        resourcesOption: event.target.checked ? 'buy_resources' : 'unspecified',
-                        error: null,
-                      }));
-                    }}
-                  />
-                }
+              <AppCheckbox
+                checked={craftRequestDialog?.resourcesOption === 'buy_resources'}
+                onCheckedChange={(checked) => {
+                  updateCraftRequestDialog((current) => ({
+                    ...current,
+                    resourcesOption: checked ? 'buy_resources' : 'unspecified',
+                    error: null,
+                  }));
+                }}
                 label={t(
                   'I will buy the resources',
                   'Je t achète les ressources',
@@ -1288,23 +1270,8 @@ function OrganizationDetail({
               </Typography>
             </Stack>
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button variant="outlined" onClick={closeCraftRequestDialog} disabled={Boolean(requestBusyKey)}>
-            {t('Cancel', 'Annuler', 'Abbrechen')}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={submitCraftRequest}
-            disabled={!craftRequestDialog || Boolean(requestBusyKey)}
-          >
-            {requestBusyKey
-              ? t('Sending...', 'Envoi...', 'Sende...')
-              : t('Send request', 'Envoyer la demande', 'Anfrage senden')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      </AppDialog>
+    </PageLayout>
   );
 }
 
@@ -1407,13 +1374,13 @@ function OrganizationCard({
         <Divider sx={{ mb: 1.5 }} />
 
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 'auto' }}>
-          <Chip
+          <AppChip
             label={
               organization.status === 'verified_admin'
                 ? t('Admin', 'Admin', 'Admin')
                 : t('Member', 'Membre', 'Mitglied')
             }
-            size="small"
+            size="sm"
             sx={{
               height: 20,
               fontSize: TEXT_LABEL_SM,
@@ -1421,26 +1388,26 @@ function OrganizationCard({
               backgroundColor: alpha(roleBadgeColor, 0.15),
               color: roleBadgeColor,
               border: `1px solid ${alpha(roleBadgeColor, 0.35)}`,
-              '& .MuiChip-label': { px: 1 },
+
             }}
           />
-          <Button
-            variant="outlined"
-            size="small"
+          <AppButton
+            variant="ghost"
+            size="sm"
             onClick={() => onOpen(organization)}
             sx={{ whiteSpace: 'nowrap', fontSize: TEXT_LABEL }}
           >
             {t('Marketplace', 'Marketplace', 'Marketplace')}
-          </Button>
+          </AppButton>
         </Stack>
 
         {organization.syncStatus === 'stale' && (
-          <Chip
+          <AppChip
             label={t('Snapshot stale', 'Snapshot obsolète', 'Snapshot veraltet')}
-            size="small"
-            color="warning"
-            variant="outlined"
-            sx={{ alignSelf: 'flex-start', mt: 1, fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO, height: 20, '& .MuiChip-label': { px: 1 } }}
+            size="sm"
+            tone="warning"
+            outlined
+            sx={{ alignSelf: 'flex-start', mt: 1, fontSize: TEXT_LABEL_SM, fontFamily: FONT_MONO, height: 20 }}
           />
         )}
       </Box>
@@ -1469,44 +1436,30 @@ function OrganizationList({
   const theme = useTheme();
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3, lg: 4 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
-      {/* View header */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <Box sx={{ flex: 1, minWidth: 280 }}>
-          <Typography
-            sx={{
-              fontFamily: FONT_DISPLAY,
-              fontWeight: 700,
-              fontSize: { xs: '1.9rem', md: '2.2rem' },
-              lineHeight: 1,
-              letterSpacing: '-0.015em',
-            }}
-          >
-            {t('Organizations', 'Organisations', 'Organisationen')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 720 }}>
-            {t(
-              'Each organization has an internal marketplace where members share blueprints and resources. Resources are listed by quality and quantity — several lots of the same material can coexist.',
-              'Chaque org dispose d un marketplace interne où les membres partagent blueprints et ressources. Les ressources sont listées par qualité et quantité — plusieurs lots du même matériau peuvent coexister.',
-              'Jede Organisation hat einen internen Marketplace, auf dem Mitglieder Blueprints und Ressourcen teilen. Ressourcen werden nach Qualität und Menge aufgelistet — mehrere Lose desselben Materials können nebeneinander existieren.',
-            )}
-          </Typography>
-        </Box>
-        <CitizenIdSignInButton
-          environment={citizenIdBrandEnvironment}
-          onClick={onSyncCitizenId}
-          disabled={!citizenIdRsiLinkEnabled}
-          sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-        />
-      </Box>
+    <PageLayout>
+      <PageHeader
+        title={t('Organizations', 'Organisations', 'Organisationen')}
+        description={t(
+          'Each organization has an internal marketplace where members share blueprints and resources. Resources are listed by quality and quantity — several lots of the same material can coexist.',
+          'Chaque org dispose d un marketplace interne où les membres partagent blueprints et ressources. Les ressources sont listées par qualité et quantité — plusieurs lots du même matériau peuvent coexister.',
+          'Jede Organisation hat einen internen Marketplace, auf dem Mitglieder Blueprints und Ressourcen teilen. Ressourcen werden nach Qualität und Menge aufgelistet — mehrere Lose desselben Materials können nebeneinander existieren.',
+        )}
+        actions={
+          <CitizenIdSignInButton
+            environment={citizenIdBrandEnvironment}
+            onClick={onSyncCitizenId}
+            disabled={!citizenIdRsiLinkEnabled}
+          />
+        }
+      />
 
-      <Alert severity="info" variant="outlined">
+      <AppAlert severity="info">
         {t(
           'Public RSI organizations are imported automatically from Citizen iD. Re-sync here after changing organization visibility or granting new scopes; manual SID linking remains a fallback on the account page.',
           'Les organisations RSI publiques sont importees automatiquement depuis Citizen iD. Relance la synchro ici apres avoir change la visibilite des organisations ou accepte de nouveaux scopes ; le lien manuel par SID reste disponible sur la page compte.',
           'Oeffentliche RSI-Organisationen werden automatisch aus Citizen iD importiert. Synchronisiere hier erneut, wenn sich Org-Sichtbarkeit oder Scopes geaendert haben; manuelle SID-Verknuepfung bleibt auf der Kontoseite als Fallback verfuegbar.',
         )}
-      </Alert>
+      </AppAlert>
 
       {/* Accessible org grid */}
       {accessibleOrganizations.length === 0 ? (
@@ -1570,18 +1523,18 @@ function OrganizationList({
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
               {lockedOrganizations.map((org) => (
-                <Chip
+                <AppChip
                   key={org.sid}
                   label={`${org.name} (${org.sid})`}
-                  size="small"
-                  variant="outlined"
+                  size="sm"
+                  outlined
                 />
               ))}
             </Stack>
           </Stack>
         </Paper>
       )}
-    </Box>
+    </PageLayout>
   );
 }
 
@@ -1630,34 +1583,34 @@ export function OrganizationsPage() {
     : null;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       {/* Sync banners */}
       {(authError || syncError || syncStatus === 'pending' || syncStatus === 'syncing' || !account?.rsi?.handle) && (
         <Box sx={{ px: { xs: 2, sm: 3, lg: 4 }, pt: { xs: 2, sm: 3 }, maxWidth: 1600, mx: 'auto', width: '100%' }}>
           <Stack spacing={1}>
             {authError && (
-              <Alert severity="error" variant="outlined">{authError}</Alert>
+              <AppAlert severity="error">{authError}</AppAlert>
             )}
             {syncError && (
-              <Alert severity="error" variant="outlined">{syncError}</Alert>
+              <AppAlert severity="error">{syncError}</AppAlert>
             )}
             {(syncStatus === 'pending' || syncStatus === 'syncing') && (
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   'Cloud changes are still syncing. Newly shared blueprints and craft request updates may take a moment to settle.',
                   'Les changements cloud se synchronisent encore. Les blueprints fraîchement partagés et les mises à jour de demandes de craft peuvent prendre un court instant.',
                   'Cloud-Änderungen werden noch synchronisiert. Neu geteilte Blueprints und Craft-Anfragen können einen kurzen Moment brauchen.',
                 )}
-              </Alert>
+              </AppAlert>
             )}
             {!account?.rsi?.handle && (
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   'Link an RSI account first from the account page to access organization-shared blueprints and resources.',
                   'Lie d abord un compte RSI depuis la page compte pour accéder aux blueprints et ressources partagés d organisation.',
                   'Verknüpfe zuerst auf der Kontoseite ein RSI-Konto, um auf organisationsgeteilte Blueprints und Ressourcen zuzugreifen.',
                 )}
-              </Alert>
+              </AppAlert>
             )}
           </Stack>
         </Box>

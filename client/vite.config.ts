@@ -23,15 +23,15 @@ export default defineConfig({
             return undefined;
           }
 
-          if (id.includes('node_modules/@mui/icons-material/')) {
-            return 'mui-icons';
+          if (
+            id.includes('node_modules/primereact/') ||
+            id.includes('node_modules/primeicons/')
+          ) {
+            return 'prime-vendor';
           }
 
-          if (
-            id.includes('node_modules/@mui/') ||
-            id.includes('node_modules/@emotion/')
-          ) {
-            return 'mui-core';
+          if (id.includes('node_modules/chart.js/')) {
+            return 'charts';
           }
 
           if (
@@ -49,6 +49,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Tailscale access: the machine's MagicDNS name and any tailnet FQDN.
+    allowedHosts: ['qcomputer', '.ts.net'],
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8788',

@@ -1,5 +1,5 @@
-import Box from '@mui/material/Box';
-import Button, { type ButtonProps } from '@mui/material/Button';
+import { Box } from '../ui/system';
+import { AppButton, type AppButtonProps } from './ui/controls/AppButton';
 
 export type CitizenIdBrandEnvironment = 'production' | 'unstable';
 
@@ -45,7 +45,7 @@ export function CitizenIdIcon({
   );
 }
 
-type CitizenIdSignInButtonProps = Omit<ButtonProps, 'children' | 'startIcon'> & {
+type CitizenIdSignInButtonProps = Omit<AppButtonProps, 'children' | 'icon'> & {
   environment?: CitizenIdBrandEnvironment;
 };
 
@@ -55,9 +55,9 @@ export function CitizenIdSignInButton({
   ...buttonProps
 }: CitizenIdSignInButtonProps) {
   return (
-    <Button
-      variant="contained"
-      startIcon={<CitizenIdIcon environment={environment} size={24} variant="light" />}
+    <AppButton
+      variant="primary"
+      icon={<CitizenIdIcon environment={environment} size={24} variant="light" />}
       sx={[
         {
           backgroundColor: '#212126',
@@ -70,19 +70,13 @@ export function CitizenIdSignInButton({
             backgroundColor: '#0E0E0F',
             boxShadow: 'none',
           },
-          '&.Mui-disabled': {
-            backgroundColor: '#212126',
-            color: 'rgba(240, 240, 240, 0.42)',
-          },
-          '& .MuiButton-startIcon': {
-            mr: 1,
-          },
+          minHeight: 44,
         },
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
       {...buttonProps}
     >
       Sign in with Citizen iD
-    </Button>
+    </AppButton>
   );
 }

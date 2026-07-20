@@ -1,7 +1,6 @@
+import { Box, Typography } from '../ui/system';
+import { AppButton } from './ui/controls';
 import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 import { useI18n } from '../i18n/I18nContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { LS_KEYS } from '../types';
@@ -53,7 +52,7 @@ export function CookieConsentBanner() {
       aria-label={t('Cookie notice', 'Avis sur les cookies', 'Cookie-Hinweis')}
       sx={{
         position: 'fixed',
-        bottom: 0,
+        bottom: { xs: 'calc(64px + env(safe-area-inset-bottom, 0px))', md: 0 },
         left: 0,
         right: 0,
         zIndex: 1500,
@@ -81,14 +80,14 @@ export function CookieConsentBanner() {
               'Diese Website verwendet ausschließlich für die Authentifizierung notwendige Cookies. Es werden keine Tracking- oder Werbe-Cookies verwendet.',
             )}
       </Typography>
-      <Button
-        variant="contained"
-        size="small"
+      <AppButton
+        variant="primary"
+        size="sm"
         onClick={handleDismiss}
         sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
       >
         {t('Got it', 'Compris', 'Verstanden')}
-      </Button>
+      </AppButton>
     </Box>
   );
 }

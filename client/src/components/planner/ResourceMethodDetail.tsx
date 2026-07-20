@@ -1,20 +1,8 @@
+import { Box, Skeleton, Typography, alpha } from '../../ui/system';
+import { List, ListItem, ListItemButton, Table, TableBody, TableCell, TableHead, TableRow } from '../ui/primitives';
+import { AppChip } from '../ui/data-display';
+import { FlagIcon, MilitaryTechOutlinedIcon, TravelExploreOutlinedIcon } from '../../ui/icons';
 import { useEffect, useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import Skeleton from '@mui/material/Skeleton';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import FlagIcon from '@mui/icons-material/Flag';
-import MilitaryTechOutlinedIcon from '@mui/icons-material/MilitaryTechOutlined';
-import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
-import { alpha } from '@mui/material/styles';
 import { useCraft } from '../../store/CraftContext';
 import { useI18n } from '../../i18n/I18nContext';
 import {
@@ -337,25 +325,25 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', mt: 0.65 }}>
                   {factionName && (
-                    <Chip
+                    <AppChip
                       label={factionName}
-                      size="small"
-                      variant="outlined"
+                      size="sm"
+                      outlined
                       sx={{ fontSize: TEXT_LABEL, height: 18 }}
                     />
                   )}
-                  <Chip
+                  <AppChip
                     icon={<MissionActivityIcon kind={activityKind} />}
                     label={activityLabel}
-                    size="small"
-                    variant="outlined"
+                    size="sm"
+                    outlined
                     sx={{ fontSize: TEXT_LABEL, height: 18 }}
                   />
-                  <Chip
+                  <AppChip
                     label={formatScaleLabel(contract.availability.derivedScale, lang)}
-                    size="small"
-                    variant="outlined"
-                    color="primary"
+                    size="sm"
+                    outlined
+                    tone="primary"
                     sx={{ fontSize: TEXT_LABEL, height: 18 }}
                   />
                 </Box>
@@ -364,10 +352,10 @@ export function ResourceMethodDetail({ resourceName, method }: ResourceMethodDet
                     {localities.slice(0, 2).map((location) => {
                       const iconName = getLocationIconName(location);
                       return (
-                        <Chip
+                        <AppChip
                           key={location}
-                          size="small"
-                          variant="outlined"
+                          size="sm"
+                          outlined
                           icon={
                             iconName ? <StarCitizenLicensedIcon name={iconName} size={12} dimmed /> : undefined
                           }

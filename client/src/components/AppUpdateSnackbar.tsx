@@ -1,9 +1,7 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import LinearProgress from '@mui/material/LinearProgress';
-import Snackbar from '@mui/material/Snackbar';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { Stack, Typography } from '../ui/system';
+import { AppButton } from './ui/controls';
+import { AppProgressBar } from './ui/feedback';
+import { AppSnackbar } from './ui/feedback';
 import { useI18n } from '../i18n/I18nContext';
 import { formatBytes, useAppUpdate } from '../hooks/useAppUpdate';
 
@@ -19,42 +17,38 @@ export function AppUpdateSnackbar() {
   const progressLabel = isDownloading && contentLength ? `${formatBytes(downloaded)} / ${formatBytes(contentLength)}` : null;
 
   return (
-    <Snackbar open anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} sx={{ maxWidth: { xs: 'calc(100vw - 24px)', sm: 520 } }}>
-      <Alert
-        severity={status === 'error' ? 'error' : 'info'}
-        role={status === 'error' ? undefined : 'status'}
-        variant="filled"
-        action={
-          <Button color="inherit" size="small" onClick={triggerUpdate} disabled={isDownloading}>
-            {mode === 'web' ? t('Refresh', 'Rafraichir', 'Neu laden') : t('Update', 'Mettre a jour', 'Aktualisieren')}
-          </Button>
-        }
-        sx={{ width: '100%', alignItems: 'center' }}
-      >
-        <Stack spacing={0.75} sx={{ minWidth: { xs: 0, sm: 320 } }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {status === 'error'
-              ? t('Update unavailable', 'Mise a jour indisponible', 'Update nicht verfugbar')
-              : t(
-                  `Version ${availableVersion ?? ''} is available`,
-                  `Version ${availableVersion ?? ''} disponible`,
-                  `Version ${availableVersion ?? ''} verfugbar`,
-                )}
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.9 }}>
-            {error ??
-              (mode === 'web'
-                ? t('Reload the app with a fresh cache.', 'Recharge l app avec un cache neuf.', 'Ladt die App mit frischem Cache neu.')
-                : t('Download and install the matching desktop release.', 'Telecharge et installe la release desktop compatible.', 'Ladt das passende Desktop-Release herunter und installiert es.'))}
-          </Typography>
-          {isDownloading && (
-            <Stack spacing={0.5}>
-              <LinearProgress color="inherit" aria-label={t('Update download progress', 'Progression du téléchargement')} />
-              {progressLabel && <Typography variant="caption">{progressLabel}</Typography>}
-            </Stack>
-          )}
-        </Stack>
-      </Alert>
-    </Snackbar>
+    <AppSnackbar
+      open
+      severity={status === 'error' ? 'error' : 'info'}
+      action={(
+        <AppButton variant="ghost" size="sm" onClick={triggerUpdate} disabled={isDownloading} sx={{ minHeight: 44 }}>
+          {mode === 'web' ? t('Refresh', 'Rafraichir', 'Neu laden') : t('Update', 'Mettre a jour', 'Aktualisieren')}
+        </AppButton>
+      )}
+    >
+      <Stack spacing={0.75} sx={{ minWidth: { xs: 0, sm: 320 } }}>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          {status === 'error'
+            ? t('Update unavailable', 'Mise a jour indisponible', 'Update nicht verfugbar')
+            : t(
+                `Version ${availableVersion ?? ''} is available`,
+                `Version ${availableVersion ?? ''} disponible`,
+                `Version ${availableVersion ?? ''} verfugbar`,
+              )}
+        </Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9 }}>
+          {error ??
+            (mode === 'web'
+              ? t('Reload the app with a fresh cache.', 'Recharge l app avec un cache neuf.', 'Ladt die App mit frischem Cache neu.')
+              : t('Download and install the matching desktop release.', 'Telecharge et installe la release desktop compatible.', 'Ladt das passende Desktop-Release herunter und installiert es.'))}
+        </Typography>
+        {isDownloading && (
+          <Stack spacing={0.5}>
+            <AppProgressBar label={t('Update download progress', 'Progression du téléchargement')} />
+            {progressLabel && <Typography variant="caption">{progressLabel}</Typography>}
+          </Stack>
+        )}
+      </Stack>
+    </AppSnackbar>
   );
 }

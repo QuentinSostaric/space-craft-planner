@@ -1,31 +1,8 @@
+import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
+import { Card, CardContent } from '../ui/primitives';
+import { AppAlert } from '../ui/feedback';
+import { CloudSyncOutlinedIcon, ForumOutlinedIcon, HubOutlinedIcon, Inventory2OutlinedIcon, KeyboardArrowLeftIcon as KeyboardArrowLeft, KeyboardArrowRightIcon as KeyboardArrowRight, MarkEmailUnreadOutlinedIcon, SmartToyOutlinedIcon, VerifiedUserOutlinedIcon } from '../../ui/icons';
 import { useState } from 'react';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import MuiButton from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Divider from '@mui/material/Divider';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import MobileStepper from '@mui/material/MobileStepper';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Step from '@mui/material/Step';
-import StepLabel from '@mui/material/StepLabel';
-import Stepper from '@mui/material/Stepper';
-import Typography from '@mui/material/Typography';
-import CloudSyncOutlinedIcon from '@mui/icons-material/CloudSyncOutlined';
-import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
-import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
-import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
-import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutlined';
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
-import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
-import { alpha, useTheme } from '@mui/material/styles';
 import accountScreenOne from '../../assets/account_1.png';
 import accountScreenTwo from '../../assets/account_2.png';
 import accountScreenThree from '../../assets/account_3.png';
@@ -35,6 +12,7 @@ import citizenIdIconProd from '../../assets/citizenid/prod-icon-light.png';
 import citizenIdLogoDev from '../../assets/citizenid/dev-logo-light.png';
 import citizenIdIconDev from '../../assets/citizenid/dev-icon-light.png';
 import { useI18n } from '../../i18n/I18nContext';
+import { AppButton } from '../ui/controls/AppButton';
 
 interface AccountGuestViewProps {
   enabled: boolean;
@@ -270,21 +248,20 @@ export function AccountGuestView({
               </Box>
 
               {!enabled && (
-                <Alert severity="warning" variant="outlined">
+                <AppAlert severity="warning">
                   {t(
                     'Citizen iD OAuth is not configured in the current environment yet, so the login call-to-action is temporarily disabled.',
                     'Le OAuth Citizen iD n est pas encore configure dans cet environnement, donc le bouton de connexion est temporairement desactive.',
                     'Citizen iD OAuth ist in dieser Umgebung noch nicht konfiguriert, daher ist die Login-Aktion vorubergehend deaktiviert.',
                   )}
-                </Alert>
+                </AppAlert>
               )}
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} useFlexGap flexWrap="wrap">
-                <MuiButton
-                  variant="contained"
-                  disableElevation
+                <AppButton
+                  variant="primary"
                   disabled={!enabled}
-                  startIcon={
+                  icon={
                     <Box
                       component="img"
                       src={citizenIdIcon}
@@ -307,17 +284,14 @@ export function AccountGuestView({
                     '&:hover': {
                       backgroundColor: '#0E0E0F',
                     },
-                    '&.Mui-disabled': {
-                      backgroundColor: alpha('#212126', 0.5),
-                      color: alpha('#F0F0F0', 0.5),
-                    },
+
                   }}
                 >
                   {t('Sign in with Citizen iD', 'Se connecter avec Citizen iD', 'Mit Citizen iD anmelden')}
-                </MuiButton>
-                <MuiButton
-                  variant="outlined"
-                  startIcon={discordIcon}
+                </AppButton>
+                <AppButton
+                  variant="secondary"
+                  icon={discordIcon}
                   onClick={onInviteBot}
                   sx={{
                     minHeight: 48,
@@ -335,7 +309,7 @@ export function AccountGuestView({
                   }}
                 >
                   {t('Add the Discord bot', 'Ajouter le bot Discord', 'Discord-Bot hinzufugen')}
-                </MuiButton>
+                </AppButton>
               </Stack>
 
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -367,38 +341,39 @@ export function AccountGuestView({
               </Typography>
             </Box>
 
-            <Stepper orientation="vertical" sx={{ '& .MuiStepConnector-line': { borderColor: alpha(theme.palette.primary.main, 0.22) } }}>
-              {accountJourneySteps.map((step) => (
-                <Step key={step.title} expanded>
-                  <StepLabel StepIconComponent={() => (
-                    <Box
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: '50%',
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: 'primary.main',
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
-                        backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                      }}
-                    >
-                      {step.icon}
-                    </Box>
-                  )}
+            <Box component="ol" sx={{ display: 'grid', gap: 1.25, listStyle: 'none', p: 0, m: 0 }}>
+              {accountJourneySteps.map((step, index) => (
+                <Box
+                  component="li"
+                  key={step.title}
+                  sx={{ display: 'grid', gridTemplateColumns: '36px minmax(0, 1fr)', gap: 1.25, alignItems: 'start' }}
+                >
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'primary.main',
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                    }}
                   >
+                    {index + 1}
+                  </Box>
+                  <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {step.title}
                     </Typography>
-                  </StepLabel>
-                  <Box sx={{ ml: 5.5, mt: -0.35, pb: 1.75 }}>
-                    <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 760 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.4, maxWidth: 760 }}>
                       {step.body}
                     </Typography>
                   </Box>
-                </Step>
+                </Box>
               ))}
-            </Stepper>
+            </Box>
           </Stack>
         </Paper>
 
@@ -571,32 +546,32 @@ export function AccountGuestView({
             </>
           )}
 
-          <MobileStepper
-            variant="dots"
-            steps={3}
-            position="static"
-            activeStep={activeStep}
-            nextButton={
-              <MuiButton
-                size="small"
-                onClick={() => setActiveStep((s) => s + 1)}
-                disabled={activeStep === 2}
-              >
-                {t('Next', 'Suivant', 'Weiter')}
-                <KeyboardArrowRight />
-              </MuiButton>
-            }
-            backButton={
-              <MuiButton
-                size="small"
-                onClick={() => setActiveStep((s) => s - 1)}
-                disabled={activeStep === 0}
-              >
-                <KeyboardArrowLeft />
-                {t('Back', 'Précédent', 'Zurück')}
-              </MuiButton>
-            }
-          />
+          <Box
+            component="nav"
+            aria-label={t('Account feature screenshots', 'Captures des fonctions du compte', 'Screenshots der Kontofunktionen')}
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, p: 1.25 }}
+          >
+            <AppButton
+              size="sm"
+              icon={<KeyboardArrowLeft />}
+              onClick={() => setActiveStep((s) => s - 1)}
+              disabled={activeStep === 0}
+            >
+              {t('Back', 'Précédent', 'Zurück')}
+            </AppButton>
+            <Typography variant="caption" aria-live="polite">
+              {activeStep + 1} / 3
+            </Typography>
+            <AppButton
+              size="sm"
+              icon={<KeyboardArrowRight />}
+              iconPosition="right"
+              onClick={() => setActiveStep((s) => s + 1)}
+              disabled={activeStep === 2}
+            >
+              {t('Next', 'Suivant', 'Weiter')}
+            </AppButton>
+          </Box>
         </Card>
       </Stack>
 
@@ -648,13 +623,19 @@ export function AccountGuestView({
 
               <Divider />
 
-              <List disablePadding aria-label={t('Bot workflow steps', 'Etapes du workflow bot')} sx={{ display: 'grid', gap: 1.25 }}>
+              <Box
+                component="ol"
+                aria-label={t('Bot workflow steps', 'Etapes du workflow bot', 'Bot-Workflow-Schritte')}
+                sx={{ display: 'grid', gap: 1.25, listStyle: 'none', p: 0, m: 0 }}
+              >
                 {botWorkflowItems.map((item) => (
-                  <ListItem
+                  <Box
+                    component="li"
                     key={item.title}
-                    disableGutters
                     sx={{
-                      alignItems: 'flex-start',
+                      display: 'grid',
+                      gridTemplateColumns: '34px minmax(0, 1fr)',
+                      alignItems: 'start',
                       gap: 1.2,
                       p: 1.25,
                       borderRadius: 2,
@@ -662,30 +643,32 @@ export function AccountGuestView({
                       backgroundColor: alpha(theme.palette.background.default, 0.22),
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 34, color: 'primary.main', mt: 0.2 }}>
+                    <Box aria-hidden="true" sx={{ color: 'primary.main', mt: 0.2 }}>
                       {item.icon}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.title}
-                      primaryTypographyProps={{ fontWeight: 700, lineHeight: 1.15 }}
-                      secondary={item.body}
-                      secondaryTypographyProps={{ color: 'text.secondary', sx: { mt: 0.45 } }}
-                    />
-                  </ListItem>
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.15 }}>
+                        {item.title}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.45 }}>
+                        {item.body}
+                      </Typography>
+                    </Box>
+                  </Box>
                 ))}
-              </List>
+              </Box>
 
-              <Alert severity="info" variant="outlined">
+              <AppAlert severity="info">
                 {t(
                   'The bot can DM people who either share a Discord server with it or install it as an app. That is why the owner invite link still matters for organization workflows.',
                   'Le bot peut envoyer des DM aux personnes qui partagent un serveur Discord avec lui ou qui l installent comme application. C est pour cela que le lien d ajout du bot reste important pour les workflows d organisation.',
                   'Der Bot kann Personen direkt anschreiben, die entweder einen Discord-Server mit ihm teilen oder ihn als App installieren. Deshalb bleibt der Einladungslink fur Organisations-Workflows wichtig.',
                 )}
-              </Alert>
+              </AppAlert>
 
-              <MuiButton
-                variant="outlined"
-                startIcon={discordIcon}
+              <AppButton
+                variant="secondary"
+                icon={discordIcon}
                 onClick={onInviteBot}
                 sx={{
                   alignSelf: 'flex-start',
@@ -698,7 +681,7 @@ export function AccountGuestView({
                 }}
               >
                 {t('Add the bot to a Discord server', 'Ajouter le bot sur un serveur Discord', 'Bot zu einem Discord-Server hinzufugen')}
-              </MuiButton>
+              </AppButton>
             </Stack>
           </CardContent>
         </Card>
