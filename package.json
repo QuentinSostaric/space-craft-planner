@@ -39,6 +39,11 @@
     "miniflare": "^4.20260722.0",
     "wrangler": "^4.114.0"
   },
+  "overrides": {
+    "dompurify": ">=3.4.12",
+    "shell-quote": ">=1.9.0",
+    "sharp": ">=0.35.0"
+  },
   "engines": {
     "node": ">=24 <25"
   },
