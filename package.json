@@ -35,8 +35,9 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
-    "concurrently": "^9.1.2",
-    "wrangler": "4.110.0"
+    "concurrently": "^10.0.4",
+    "miniflare": "^4.20260722.0",
+    "wrangler": "^4.114.0"
   },
   "engines": {
     "node": ">=24 <25"
