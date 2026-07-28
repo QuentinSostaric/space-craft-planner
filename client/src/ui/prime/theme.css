@@ -85,7 +85,17 @@ html[data-theme='light'] {
  * win over layered ones regardless of specificity, so this keeps per-instance
  * styling authoritative — without the layer, things like the slot slider's
  * quality tone are silently overridden by the theme's flat `--sc-primary`.
+ *
+ * The order statement below matters just as much. PrimeReact injects each
+ * component's structural CSS into its own `primereact` layer at runtime, i.e.
+ * after this file has loaded — so without an explicit order that layer lands
+ * last and wins, and skin rules that collide with a structural reset are
+ * dropped on the floor (the option lists' `padding: 0` ate their own padding
+ * that way). Naming both layers here fixes the order regardless of injection
+ * time: structure first, our skin over it, per-instance `sx` over everything.
  */
+@layer primereact, sc-prime;
+
 @layer sc-prime {
 
 .p-component {
@@ -131,6 +141,66 @@ html[data-theme='light'] {
 .p-dialog {
   border-radius: var(--sc-radius-overlay);
   overflow: hidden;
+}
+
+/*
+ * Option lists. `primereact.min.css` stacks the rows but ships no padding, no
+ * hover and no selected state — panels came out as bare text lines running
+ * edge to edge with nothing marking the current value. Dropdown and
+ * autocomplete share the geometry so a list reads the same in both.
+ */
+.p-dropdown-panel,
+.p-autocomplete-panel {
+  border-radius: var(--sc-radius-panel);
+  overflow: hidden;
+}
+
+.p-dropdown-panel .p-dropdown-items,
+.p-autocomplete-panel .p-autocomplete-items {
+  padding: 0.25rem;
+}
+
+.p-dropdown-panel .p-dropdown-item,
+.p-autocomplete-panel .p-autocomplete-item {
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--sc-radius-control);
+  color: var(--sc-text);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.p-dropdown-panel .p-dropdown-item:not(.p-disabled):hover,
+.p-dropdown-panel .p-dropdown-item.p-focus,
+.p-autocomplete-panel .p-autocomplete-item:not(.p-disabled):hover,
+.p-autocomplete-panel .p-autocomplete-item.p-focus {
+  background: var(--sc-surface-3);
+}
+
+.p-dropdown-panel .p-dropdown-item.p-highlight,
+.p-autocomplete-panel .p-autocomplete-item.p-highlight {
+  background: var(--highlight-bg);
+  color: var(--highlight-text-color);
+}
+
+.p-dropdown-panel .p-dropdown-item.p-disabled,
+.p-autocomplete-panel .p-autocomplete-item.p-disabled {
+  color: var(--sc-text-disabled);
+  cursor: default;
+}
+
+.p-dropdown-panel .p-dropdown-empty-message,
+.p-autocomplete-panel .p-autocomplete-empty-message {
+  padding: 0.5rem 0.6rem;
+  color: var(--sc-text-secondary);
+}
+
+/* The filter box, when a select opts into `filterable`. */
+.p-dropdown-panel .p-dropdown-header {
+  padding: 0.4rem;
+  border-bottom: 1px solid var(--sc-border);
+  background: transparent;
 }
 
 .p-dialog .p-dialog-header,

@@ -358,7 +358,11 @@ export function Header() {
               onValueChange={(value) => { if (value) void setActiveDatasetId(value); }}
               ariaLabel={t('PTU dataset', 'Dataset PTU')}
               sx={{ width: { xs: 92, md: 250 }, display: { xs: 'none', sm: 'inline-flex' } }}
-              partSx={{ root: { minHeight: { xs: 44, md: 34 }, backgroundColor: 'ui.surface2' }, input: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL, px: 1.25 } }}
+              partSx={{
+                root: { minHeight: { xs: 44, md: 34 }, backgroundColor: 'ui.surface2' },
+                input: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL, px: 1.25 },
+                item: { fontFamily: FONT_MONO, fontSize: TEXT_LABEL },
+              }}
             />
           )}
 
