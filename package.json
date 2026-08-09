@@ -31,9 +31,12 @@
     "planner:purge-goals": "node scripts/purgePlannerGoals.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.908.0"
+    "@aws-sdk/client-s3": "^3.908.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.2.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@tauri-apps/cli": "^2.11.2",
     "concurrently": "^9.1.2",
     "wrangler": "4.110.0"

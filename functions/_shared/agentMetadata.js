@@ -134,9 +134,8 @@ export function buildMarkdownResponse(request, env) {
 
 export function buildServerCard(origin) {
   return {
-    $schema: 'https://static.modelcontextprotocol.io/schemas/mcp-server-card/v1.json',
     version: '1.0',
-    protocolVersion: '2025-06-18',
+    protocolVersion: '2026-07-28',
     serverInfo: {
       name: 'item-fabricator-webmcp',
       title: DEFAULT_SITE_NAME,
@@ -145,7 +144,7 @@ export function buildServerCard(origin) {
     description: DEFAULT_SITE_DESCRIPTION,
     transport: {
       type: 'streamable-http',
-      endpoint: `${origin}/`,
+      endpoint: `${origin}/mcp`,
     },
     capabilities: {
       tools: {

@@ -9,6 +9,7 @@ function shouldBypass(pathname) {
   if (pathname.startsWith('/api/')) return true;
   if (pathname.startsWith('/ingest/')) return true;
   if (pathname.startsWith('/.well-known/')) return true;
+  if (pathname === '/mcp') return true;
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return true;
   return /\.[a-z0-9]+$/iu.test(pathname);
 }
