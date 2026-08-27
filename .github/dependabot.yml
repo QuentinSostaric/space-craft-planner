@@ -12,6 +12,7 @@ updates:
     groups:
       weekly-updates:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: cargo
     directory: /src-tauri
@@ -25,6 +26,7 @@ updates:
     groups:
       weekly-updates:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -38,3 +40,4 @@ updates:
     groups:
       weekly-updates:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
