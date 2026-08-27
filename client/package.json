@@ -22,7 +22,7 @@
     "chart.js": "^4.5.1",
     "posthog-js": "^1.376.0",
     "primeicons": "^8.0.0",
-    "primereact": "^10.9.8",
+    "primereact": "^11.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
