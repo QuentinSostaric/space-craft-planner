@@ -306,7 +306,7 @@ fn api_base_url() -> Result<Url, String> {
 
 fn generate_url_secret(bytes_length: usize) -> Result<String, String> {
     let mut bytes = vec![0_u8; bytes_length];
-    getrandom::getrandom(&mut bytes).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut bytes).map_err(|e| e.to_string())?;
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     Ok(bytes
         .iter()
