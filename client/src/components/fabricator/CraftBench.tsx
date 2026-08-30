@@ -12,8 +12,8 @@ import {
   NUMERIC_ITEM_STAT_KEYS,
   STAT_LABELS,
   STAT_LOWER_IS_BETTER,
-  STAT_UNITS,
 } from '../../types';
+import { formatStatValue } from '../../utils/statFormatting';
 import {
   clampQualityValue,
   formatSlotQuantity,
@@ -469,7 +469,6 @@ interface StatMeter {
   base: number;
   final: number;
   deltaPct: number;
-  unit: string;
   fillBase: number;
   fillFinal: number;
   improved: boolean;
@@ -496,7 +495,6 @@ export function buildStatMeters(
         base: baseVal,
         final: finalVal,
         deltaPct: baseVal !== 0 ? (finalVal / baseVal - 1) * 100 : 0,
-        unit: STAT_UNITS[key] ?? '',
         fillBase: Math.min(100, (Math.abs(baseVal) / maxRef) * 100),
         fillFinal: Math.min(100, (Math.abs(finalVal) / maxRef) * 100),
         improved: lowerIsBetter ? delta < 0 : delta > 0,
@@ -504,11 +502,6 @@ export function buildStatMeters(
       };
     })
     .slice(0, 12);
-}
-
-function formatMeterValue(value: number): string {
-  const abs = Math.abs(value);
-  return abs < 10 ? value.toFixed(2) : abs < 100 ? value.toFixed(1) : String(Math.round(value));
 }
 
 export function StatMeterRow({ meter }: { meter: StatMeter }) {
@@ -534,11 +527,18 @@ export function StatMeterRow({ meter }: { meter: StatMeter }) {
           {meter.label}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, flexShrink: 0, fontFamily: FONT_MONO }}>
-          <Typography sx={{ fontSize: '0.6rem', color: 'text.disabled' }}>{formatMeterValue(meter.base)}</Typography>
+          <Typography
+            title={t('Base value', 'Valeur de base')}
+            sx={{ fontSize: '0.6rem', color: 'text.disabled' }}
+          >
+            {formatStatValue(meter.key, meter.base)}
+          </Typography>
           <Typography sx={{ fontSize: '0.56rem', color: 'text.disabled' }}>→</Typography>
-          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: 'text.primary' }}>
-            {formatMeterValue(meter.final)}
-            {meter.unit}
+          <Typography
+            title={t('Projected value', 'Valeur projetée')}
+            sx={{ fontSize: '0.72rem', fontWeight: 700, color: 'text.primary' }}
+          >
+            {formatStatValue(meter.key, meter.final)}
           </Typography>
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color }}>
             {meter.neutral ? '—' : `${meter.improved ? '▲' : '▼'}${Math.abs(meter.deltaPct).toFixed(0)}%`}

@@ -10,13 +10,13 @@ import {
   NUMERIC_ITEM_STAT_KEYS,
   STAT_LABELS,
   STAT_LOWER_IS_BETTER,
-  STAT_UNITS,
 } from '../../types';
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
 import { SlotCard } from './shared/SlotCard';
 import { StatImpactRadar } from './shared/StatImpactRadar';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../../theme';
+import { formatStatValue } from '../../utils/statFormatting';
 
 interface CraftSectionProps {
   blueprint: Blueprint;
@@ -31,13 +31,6 @@ interface CraftSectionProps {
   hideReference?: boolean;
 }
 
-function formatStatValue(key: NumericItemStatKey, value: number): string {
-  const unit = STAT_UNITS[key];
-  const abs = Math.abs(value);
-  const formatted = abs < 10 ? value.toFixed(2) : abs < 100 ? value.toFixed(1) : String(Math.round(value));
-  return unit ? `${formatted} ${unit}` : formatted;
-}
-
 interface StatRow {
   key: NumericItemStatKey;
   label: string;
@@ -45,7 +38,6 @@ interface StatRow {
   finalVal: number;
   delta: number;
   deltaPct: number;
-  unit: string;
   fillBase: number;
   fillFinal: number;
   isImproved: boolean;
@@ -64,13 +56,12 @@ function buildStatRows(blueprint: Blueprint, projectedStats: ItemStats, lang: 'e
       const lowerIsBetter = STAT_LOWER_IS_BETTER.has(key);
       const isImproved = lowerIsBetter ? delta < 0 : delta > 0;
       const isNeutral = Math.abs(deltaPct) < 0.005;
-      const unit = STAT_UNITS[key] ?? '';
       const maxRef = Math.max(Math.abs(baseVal), Math.abs(finalVal)) * 1.2 || 1;
       const fillBase = Math.min(100, (Math.abs(baseVal) / maxRef) * 100);
       const fillFinal = Math.min(100, (Math.abs(finalVal) / maxRef) * 100);
       const labelObj = STAT_LABELS[key] ?? { en: String(key), fr: String(key) };
       const label = loc(labelObj, lang);
-      return { key, label, baseVal, finalVal, delta, deltaPct, unit, fillBase, fillFinal, isImproved, isNeutral };
+      return { key, label, baseVal, finalVal, delta, deltaPct, fillBase, fillFinal, isImproved, isNeutral };
     })
     .slice(0, 12);
 }

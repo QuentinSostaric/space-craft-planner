@@ -1,6 +1,6 @@
 {
   "name": "item-fabricator",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
@@ -31,15 +31,15 @@
     "planner:purge-goals": "node scripts/purgePlannerGoals.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.908.0"
+    "@aws-sdk/client-s3": "^3.1116.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
-    "concurrently": "^9.1.2",
-    "wrangler": "4.110.0"
+    "concurrently": "^10.0.5",
+    "wrangler": "4.125.0"
   },
   "overrides": {
-    "dompurify": ">=3.4.12",
+    "dompurify": ">=3.4.13",
     "shell-quote": ">=1.9.0",
     "sharp": ">=0.35.0"
   },
