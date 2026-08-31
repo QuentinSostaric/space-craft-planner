@@ -1,13 +1,14 @@
 import type { NumericItemStatKey } from '../types';
-import { STAT_UNITS } from '../types';
+import { STAT_PERCENT_KEYS, STAT_UNITS } from '../types';
 
 export function formatStatValue(key: NumericItemStatKey, value: number): string {
-  const abs = Math.abs(value);
+  const displayValue = STAT_PERCENT_KEYS.has(key) ? value * 100 : value;
+  const abs = Math.abs(displayValue);
   const formatted = abs < 10
-    ? value.toFixed(2)
+    ? displayValue.toFixed(2)
     : abs < 100
-      ? value.toFixed(1)
-      : String(Math.round(value));
+      ? displayValue.toFixed(1)
+      : String(Math.round(displayValue));
   const unit = STAT_UNITS[key] ?? '';
 
   if (unit === 'x') {

@@ -1,6 +1,6 @@
 import { AutoComplete } from 'primereact/autocomplete';
 import type { AutoCompleteProps as PrimeAutoCompleteProps } from 'primereact/autocomplete';
-import type { FocusEventHandler, ReactNode } from 'react';
+import { useCallback, useRef, type FocusEventHandler, type ReactNode } from 'react';
 import { useTheme, type SxValue } from '../../../ui/system';
 import {
   compilePrimePartClasses,
@@ -17,7 +17,7 @@ export interface AppAutocompleteProps<T extends object> {
   value: T | string | null;
   suggestions: readonly T[];
   getOptionLabel: (option: T) => string;
-  itemTemplate?: (option: T) => ReactNode;
+  itemTemplate?: (option: T, selectOption: () => void) => ReactNode;
   selectedItemTemplate?: (option: T) => ReactNode;
   onValueChange: (value: T | string | null) => void;
   onQueryChange: (query: string) => void;
@@ -71,6 +71,11 @@ export function AppAutocomplete<T extends object>({
   partSx,
 }: AppAutocompleteProps<T>) {
   const theme = useTheme();
+  const autocompleteRef = useRef<AutoComplete<T>>(null);
+  const selectOption = useCallback((option: T) => {
+    autocompleteRef.current?.hide();
+    onValueChange(option);
+  }, [onValueChange]);
 
   return (
     <FieldShell
@@ -84,11 +89,12 @@ export function AppAutocomplete<T extends object>({
     >
       {({ inputId, labelId, descriptionId }) => (
         <AutoComplete<T>
+          ref={autocompleteRef}
           inputId={inputId}
           value={value ?? ''}
           suggestions={[...suggestions] as PrimeAutoCompleteProps<T>['suggestions']}
           field={undefined}
-          itemTemplate={(option) => itemTemplate?.(option) ?? getOptionLabel(option)}
+          itemTemplate={(option) => itemTemplate?.(option, () => selectOption(option)) ?? getOptionLabel(option)}
           selectedItemTemplate={(option) => selectedItemTemplate?.(option) ?? getOptionLabel(option)}
           onChange={(event) => onValueChange((event.value ?? null) as T | string | null)}
           completeMethod={(event) => onQueryChange(event.query)}

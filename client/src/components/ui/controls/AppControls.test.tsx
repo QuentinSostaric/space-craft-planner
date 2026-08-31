@@ -2,8 +2,9 @@ import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders, screen, waitFor } from '../../../test/render';
+import { fireEvent, renderWithProviders, screen, waitFor } from '../../../test/render';
 import { AppCheckbox } from './AppCheckbox';
+import { AppAutocomplete } from './AppAutocomplete';
 import { AppSelect } from './AppSelect';
 import { AppSlider } from './AppSlider';
 import { AppTextField } from './AppTextField';
@@ -38,6 +39,28 @@ function ControlledSelect({ onChange }: { onChange: (value: string | null) => vo
   );
 }
 
+function ControlledAutocomplete({ onChange }: { onChange: (value: { id: string; label: string } | string | null) => void }) {
+  const [value, setValue] = useState<{ id: string; label: string } | string | null>(null);
+  const [query, setQuery] = useState('');
+  const suggestions = query ? [{ id: 'cq7', label: 'CQ7 Rifle' }] : [];
+  return (
+    <AppAutocomplete
+      value={value}
+      suggestions={suggestions}
+      getOptionLabel={(option) => option.label}
+      onValueChange={(nextValue) => {
+        setValue(nextValue);
+        onChange(nextValue);
+      }}
+      onQueryChange={setQuery}
+      ariaLabel="Global search"
+      itemTemplate={(option, selectOption) => (
+        <button type="button" onClick={selectOption}>{option.label}</button>
+      )}
+    />
+  );
+}
+
 describe('Prime-native controls', () => {
   it('wires labels and emits direct text values', async () => {
     const user = userEvent.setup();
@@ -64,6 +87,18 @@ describe('Prime-native controls', () => {
     await user.click(option);
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('standard'));
+  });
+
+  it('lets a suggestion button select an autocomplete option', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithProviders(<ControlledAutocomplete onChange={onChange} />);
+
+    await user.type(screen.getByRole('combobox', { name: 'Global search' }), 'cq');
+    const suggestionButton = await screen.findByRole('button', { name: 'CQ7 Rifle', hidden: true });
+    fireEvent.click(suggestionButton);
+
+    expect(onChange).toHaveBeenCalledWith({ id: 'cq7', label: 'CQ7 Rifle' });
   });
 
   it('toggles a labelled checkbox from the keyboard', async () => {

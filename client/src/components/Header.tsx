@@ -2,7 +2,7 @@ import { Box, Divider, IconButton, Typography, useMediaQuery, alpha, useTheme } 
 import { AppBar, Toolbar } from './ui/primitives';
 import { AppAutocomplete, AppButton, AppSelect, AppToggleGroup } from './ui/controls';
 import { AppTooltip } from './ui/overlays';
-import { SearchIcon, DownloadOutlinedIcon, LightModeOutlinedIcon, DarkModeOutlinedIcon, SystemUpdateAltIcon, FiberManualRecordIcon, VisibilityOutlinedIcon } from '../ui/icons';
+import { SearchIcon, DownloadOutlinedIcon, LightModeOutlinedIcon, DarkModeOutlinedIcon, SystemUpdateAltIcon, FiberManualRecordIcon, VisibilityOutlinedIcon, ChevronRightIcon } from '../ui/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -16,7 +16,7 @@ import {
   navigateToPath,
   resourcePathFromSlug,
 } from '../utils/slug';
-import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
+import { getMissionContractName, getObtainableBlueprintIds, isPlaceholderResource } from '../utils/crafting';
 import { useScLog } from '../hooks/ScLogSyncContext';
 
 import { useAuth } from '../auth/AuthContext';
@@ -152,10 +152,13 @@ export function Header() {
   }, [activeDataset.missionRewards?.factionGroups, ensureFactionContractsLoaded, factionContractsByFactionId]);
 
   const globalSearchOptions = useMemo<GlobalSearchOption[]>(() => {
-    const bps: GlobalSearchOption[] = activeDataset.blueprints.map((bp) => ({
+    const obtainableBlueprintIds = getObtainableBlueprintIds(activeDataset.missionRewards);
+    const bps: GlobalSearchOption[] = activeDataset.blueprints
+      .filter((bp) => obtainableBlueprintIds.has(bp.id))
+      .map((bp) => ({
       kind: 'blueprint', key: `blueprint:${bp.id}`, label: bp.name,
       description: [bp.manufacturer, bp.category].filter(Boolean).join(' / '), blueprint: bp,
-    }));
+      }));
     const res: GlobalSearchOption[] = activeDataset.resources
       .filter((r) => !isPlaceholderResource(r))
       .map((r) => ({ kind: 'resource', key: `resource:${r.id}`, label: r.name, description: t('Resource', 'Ressource', 'Ressource'), resource: r }));
@@ -167,7 +170,7 @@ export function Header() {
       }
     }
     return [...bps, ...res, ...missions];
-  }, [activeDataset.blueprints, activeDataset.missionRewards?.factionGroups, activeDataset.resources, factionContractsByFactionId, t]);
+  }, [activeDataset.blueprints, activeDataset.missionRewards?.blueprintAcquisitionGraph, activeDataset.missionRewards?.factionGroups, activeDataset.resources, factionContractsByFactionId, t]);
 
   const searchSuggestions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -272,12 +275,46 @@ export function Header() {
             partSx={{
               root: { width: '100%' },
               panel: { maxWidth: 'calc(100vw - 24px)' },
-              item: { minHeight: 44, py: 0.75 },
+              item: { minHeight: 44, p: 0.5 },
             }}
-            itemTemplate={(option) => (
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>{option.label}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_BODY, letterSpacing: 0 }}>{option.description}</Typography>
+            itemTemplate={(option, selectOption) => (
+              <Box
+                component="button"
+                type="button"
+                tabIndex={-1}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  selectOption();
+                }}
+                aria-label={`${option.label}${option.description ? ` — ${option.description}` : ''}`}
+                sx={{
+                  width: '100%',
+                  minWidth: 0,
+                  minHeight: 40,
+                  px: 1,
+                  py: 0.625,
+                  border: '1px solid',
+                  borderColor: 'transparent',
+                  borderRadius: 1,
+                  backgroundColor: 'transparent',
+                  color: 'inherit',
+                  font: 'inherit',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  transition: 'background-color 120ms ease, border-color 120ms ease',
+                  '&:hover': { backgroundColor: 'ui.surface2', borderColor: 'ui.borderStrong' },
+                  '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 },
+                }}
+              >
+                <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>{option.label}</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_BODY, letterSpacing: 0 }}>{option.description}</Typography>
+                </Box>
+                <ChevronRightIcon sx={{ flexShrink: 0, fontSize: 14, color: 'text.disabled' }} />
               </Box>
             )}
           />

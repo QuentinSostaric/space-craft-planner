@@ -23,6 +23,7 @@ import {
   clampQualityValue,
   formatQualityLabel,
   formatResourceQuantity,
+  getObtainableBlueprintIds,
   isPlaceholderResource,
   isResourceSlot,
 } from '../utils/crafting';
@@ -408,7 +409,7 @@ export function AccountPage() {
   const importDialogOpen = Boolean(account && localImportPlan.hasPendingImport && !importModalDismissed);
 
   const obtainableBlueprintIds = useMemo(
-    () => new Set((missionRewards?.blueprintAcquisitionGraph ?? []).map((entry) => entry.blueprint.id)),
+    () => getObtainableBlueprintIds(missionRewards),
     [missionRewards],
   );
   const totalObtainableBlueprintCount = obtainableBlueprintIds.size;

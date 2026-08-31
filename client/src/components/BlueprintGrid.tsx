@@ -13,7 +13,7 @@ import { getMainContentScrollRoot, useInfiniteScroll } from '../hooks/useInfinit
 import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { MaterialChips } from './ui/MaterialChips';
-import { getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
+import { getObtainableBlueprintIds, getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
 import { SurfaceState } from './ui/feedback';
@@ -704,11 +704,7 @@ export function BlueprintGrid() {
   }, [missionRewards]);
 
   const obtainableIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const entry of missionRewards?.blueprintAcquisitionGraph ?? []) {
-      ids.add(entry.blueprint.id);
-    }
-    return ids;
+    return getObtainableBlueprintIds(missionRewards);
   }, [missionRewards]);
 
   // Build legality-based blueprint id set from acquisition graph (slim chunk)

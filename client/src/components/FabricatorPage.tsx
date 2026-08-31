@@ -254,8 +254,8 @@ function KpiTile({
 
 /** Shared column template for the Materials & sourcing table. */
 const MATERIAL_GRID = '18px minmax(0, 1fr) 68px 58px 24px';
-/** Dismantle has no sourcing columns, but keeps the icon gutter and the rule. */
-const DISMANTLE_GRID = '18px minmax(0, 1fr) 68px';
+/** Dismantle compares the minimum recipe composition with the nominal return. */
+const DISMANTLE_GRID = '18px minmax(0, 1fr) 68px 68px';
 
 const materialHeadSx = {
   fontFamily: FONT_MONO,
@@ -551,42 +551,37 @@ export function FabricatorPage() {
     });
   }, [selected]);
 
-  const dismantleTimeSecs = dismantlingData?.dismantling?.blueprint?.dismantleTimeSecs ?? 0;
-  const dismantleEfficiency = dismantlingData?.dismantling?.blueprint?.efficiency ?? 0.5;
+  const dismantleEstimate = selected?.dismantle ?? null;
+  const dismantleTimeSecs = dismantleEstimate?.dismantleTimeSecs
+    ?? dismantlingData?.dismantling?.blueprint?.dismantleTimeSecs
+    ?? 0;
+  const dismantleEfficiency = dismantleEstimate?.efficiency
+    ?? dismantlingData?.dismantling?.blueprint?.efficiency
+    ?? 0;
+  const dismantleIsDeterministic = dismantleEstimate?.deterministic !== false;
 
   /*
-   * Some resources are consumed by crafting but never returned by dismantling — the game
-   * lists them in dismantleBlacklistResources. Applying the efficiency to every input
-   * overstated the return on 840 of 1589 blueprints, and 20 of them actually recover
-   * nothing at all. The blueprint's own computed returns carry that flag per resource.
+   * The dataset owns the nominal-yield algorithm. In particular, it unfolds item costs
+   * (harvestable containers) into their resource composition and applies the game's
+   * blacklist by GUID. Recomputing from the visible material rows dropped those item costs
+   * on 254 blueprints and relied on fragile display-name matching.
    */
-  const dismantleBlacklist = useMemo(
-    () =>
-      new Set(
-        (selected?.dismantle?.returns ?? [])
-          .filter((entry) => entry.blacklisted)
-          .map((entry) => entry.name),
-      ),
-    [selected],
-  );
-
   const dismantleRows = useMemo(
-    () =>
-      requiredResources.map((resource) => {
-        const blacklisted = dismantleBlacklist.has(resource.resourceName);
-        return {
-          resource,
-          blacklisted,
-          yieldAmount: blacklisted
-            ? 0
-            : Math.round(resource.totalScu * dismantleEfficiency * 1000) / 1000,
-        };
-      }),
-    [requiredResources, dismantleBlacklist, dismantleEfficiency],
+    () => (dismantleEstimate?.returns ?? []).map((entry) => ({
+      ...entry,
+      costScu: entry.costScu * qty,
+      yieldScu: entry.yieldScu * qty,
+    })),
+    [dismantleEstimate, qty],
   );
-
-  const recoversNothing =
-    dismantleRows.length > 0 && dismantleRows.every((row) => row.yieldAmount === 0);
+  const dismantleTotalCostScu = dismantleRows.reduce((sum, row) => sum + row.costScu, 0);
+  const dismantleTotalYieldScu = dismantleRows.reduce((sum, row) => sum + row.yieldScu, 0);
+  const dismantleEffectiveRatio = dismantleTotalCostScu > 0
+    ? dismantleTotalYieldScu / dismantleTotalCostScu
+    : null;
+  const recoversNothing = dismantleIsDeterministic
+    && dismantleRows.length > 0
+    && dismantleRows.every((row) => row.yieldScu === 0);
 
   /*
    * The closing band is whichever of Materials / Dismantle / Field data have
@@ -596,7 +591,7 @@ export function FabricatorPage() {
    * whenever one of them drops out.
    */
   const showMaterials = detailReady && requiredResources.length > 0;
-  const showDismantle = showMaterials && dismantleTimeSecs > 0;
+  const showDismantle = detailReady && Boolean(dismantleEstimate) && dismantleTimeSecs > 0;
   const closingPanelCount = [showMaterials, showDismantle, detailReady].filter(Boolean).length;
   const closingPanelSpan = closingPanelCount > 0 ? Math.floor(12 / closingPanelCount) : 12;
 
@@ -1248,11 +1243,11 @@ export function FabricatorPage() {
               </BentoPanel>
             )}
 
-            {/* Dismantle yield */}
+            {/* Nominal dismantle estimate */}
             {showDismantle && (
               <BentoPanel
                 accent={theme.palette.domain.orange}
-                title={t('Dismantle yield', 'Rendement démontage')}
+                title={t('Estimated dismantle return', 'Estimation du démontage')}
                 span={closingPanelSpan}
                 right={
                   <>
@@ -1265,73 +1260,141 @@ export function FabricatorPage() {
                         ? `${Math.floor(dismantleTimeSecs / 60)}m ${dismantleTimeSecs % 60 ? `${dismantleTimeSecs % 60}s` : ''}`.trim()
                         : `${dismantleTimeSecs}s`}
                     </Typography>
-                    <BentoHero value={`${Math.round(dismantleEfficiency * 100)}%`} unit={t('recovery', 'récup.')} color={theme.palette.domain.orange} />
+                    <BentoHero
+                      value={dismantleEffectiveRatio == null ? '—' : `${Math.round(dismantleEffectiveRatio * 100)}%`}
+                      unit={t('estimated', 'estimé')}
+                      color={theme.palette.domain.orange}
+                    />
                   </>
                 }
               >
-                {/* Same header/row/rule language as Materials & sourcing. */}
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: DISMANTLE_GRID,
-                    gap: 1,
-                    px: 1.5,
-                    py: 0.625,
-                    borderBottom: `1px solid ${theme.palette.ui.border}`,
-                  }}
-                >
-                  <span />
-                  <Typography sx={materialHeadSx}>{t('Material', 'Matériau')}</Typography>
-                  <Typography sx={{ ...materialHeadSx, textAlign: 'right' }}>{t('Yield', 'Rendement')}</Typography>
-                </Box>
-                {dismantleRows.map(({ resource, blacklisted, yieldAmount }) => (
+                <Box sx={{ px: 1.5, py: 1.125, borderBottom: `1px solid ${theme.palette.ui.border}` }}>
                   <Box
-                    key={resource.resourceName}
-                    title={
-                      blacklisted
-                        ? t(
-                            'Consumed by crafting but never returned by dismantling.',
-                            'Consommé par le craft mais jamais rendu au démontage.',
-                          )
-                        : undefined
-                    }
                     sx={{
-                      display: 'grid',
-                      gridTemplateColumns: DISMANTLE_GRID,
-                      gap: 1,
+                      display: 'flex',
                       alignItems: 'center',
-                      px: 1.5,
-                      py: 0.75,
-                      borderBottom: `1px solid ${theme.palette.ui.border}`,
-                      opacity: blacklisted ? 0.55 : 1,
-                      '&:hover': { backgroundColor: alpha(theme.palette.domain.orange, 0.06) },
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      mb: 0.5,
                     }}
                   >
-                    <ResourceIcon name={resource.resourceName} size={18} />
-                    <Typography sx={{ minWidth: 0, fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {resource.resourceName}
-                      {blacklisted && (
-                        <Box component="span" sx={{ ml: 0.5, fontSize: '0.6rem', color: 'text.disabled', fontWeight: 500 }}>
-                          {t('not recoverable', 'non récupérable')}
-                        </Box>
-                      )}
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        height: 17,
+                        px: 0.75,
+                        border: `1px solid ${alpha(theme.palette.domain.orange, 0.5)}`,
+                        borderRadius: '4px',
+                        backgroundColor: alpha(theme.palette.domain.orange, 0.1),
+                        color: theme.palette.domain.orange,
+                        fontFamily: FONT_MONO,
+                        fontSize: '0.52rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      {dismantleIsDeterministic
+                        ? t('CALCULATED ESTIMATE', 'ESTIMATION CALCULÉE')
+                        : t('VARIABLE RECIPE', 'RECETTE VARIABLE')}
+                    </Box>
+                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.57rem', color: 'text.disabled' }}>
+                      {qty > 1 ? t(`${qty} items`, `${qty} objets`) : t('per item', 'par objet')}
                     </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1 }}>
+                    <Typography sx={{ fontSize: '0.72rem', fontWeight: 700 }}>
+                      {dismantleIsDeterministic
+                        ? t(
+                            `Minimum recipe composition × ${Math.round(dismantleEfficiency * 100)}% base efficiency`,
+                            `Composition minimale de la recette × ${Math.round(dismantleEfficiency * 100)} % d’efficacité de base`,
+                          )
+                        : t(
+                            'This recipe contains a material choice, so it has no single return estimate.',
+                            'Cette recette contient un choix de matériaux : elle n’a donc pas d’estimation unique.',
+                          )}
+                    </Typography>
+                    {dismantleIsDeterministic && (
+                      <Typography sx={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: '0.68rem', fontWeight: 800, color: theme.palette.domain.orange }}>
+                        ≈ {formatResourceQuantity(dismantleTotalYieldScu, 'scu', lang)}
+                      </Typography>
+                    )}
+                  </Box>
+                  {dismantleIsDeterministic && (
                     <Typography
                       sx={{
                         fontFamily: FONT_MONO,
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        textAlign: 'right',
-                        whiteSpace: 'nowrap',
-                        color: blacklisted ? 'text.disabled' : undefined,
+                        fontSize: '0.56rem',
+                        color: 'text.disabled',
+                        mt: 0.375,
                       }}
                     >
-                      {blacklisted
-                        ? '—'
-                        : formatResourceQuantity(yieldAmount, resource.quantityUnit, lang)}
+                      {t(
+                        'The game provides the efficiency and blacklist; material amounts are inferred from the blueprint composition.',
+                        'Le jeu fournit l’efficacité et la blacklist ; les quantités sont déduites de la composition du blueprint.',
+                      )}
                     </Typography>
-                  </Box>
-                ))}
+                  )}
+                </Box>
+
+                {dismantleIsDeterministic && (
+                  <>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: DISMANTLE_GRID,
+                        gap: 1,
+                        px: 1.5,
+                        py: 0.625,
+                        borderBottom: `1px solid ${theme.palette.ui.border}`,
+                      }}
+                    >
+                      <span />
+                      <Typography sx={materialHeadSx}>{t('Material', 'Matériau')}</Typography>
+                      <Typography sx={{ ...materialHeadSx, textAlign: 'right' }}>{t('Recipe', 'Recette')}</Typography>
+                      <Typography sx={{ ...materialHeadSx, textAlign: 'right' }}>{t('Estimate', 'Estimation')}</Typography>
+                    </Box>
+                    {dismantleRows.map((entry) => (
+                      <Box
+                        key={entry.name}
+                        title={entry.blacklisted
+                          ? t(
+                              'Consumed by crafting but never returned by dismantling.',
+                              'Consommé par le craft mais jamais rendu au démontage.',
+                            )
+                          : undefined}
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: DISMANTLE_GRID,
+                          gap: 1,
+                          alignItems: 'center',
+                          px: 1.5,
+                          py: 0.75,
+                          borderBottom: `1px solid ${theme.palette.ui.border}`,
+                          opacity: entry.blacklisted ? 0.58 : 1,
+                          '&:hover': { backgroundColor: alpha(theme.palette.domain.orange, 0.06) },
+                        }}
+                      >
+                        <ResourceIcon name={entry.name} size={18} />
+                        <Typography sx={{ minWidth: 0, fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {entry.name}
+                          {entry.blacklisted && (
+                            <Box component="span" sx={{ ml: 0.5, fontSize: '0.58rem', color: 'text.disabled', fontWeight: 500 }}>
+                              {t('not recoverable', 'non récupérable')}
+                            </Box>
+                          )}
+                        </Typography>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.68rem', color: 'text.secondary', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {formatResourceQuantity(entry.costScu, 'scu', lang)}
+                        </Typography>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.76rem', fontWeight: 800, color: entry.blacklisted ? 'text.disabled' : theme.palette.domain.orange, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {entry.blacklisted ? '—' : formatResourceQuantity(entry.yieldScu, 'scu', lang)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </>
+                )}
                 <Typography
                   sx={{
                     px: 1.5,
@@ -1342,14 +1405,19 @@ export function FabricatorPage() {
                     color: 'text.disabled',
                   }}
                 >
-                  {recoversNothing
+                  {!dismantleIsDeterministic
+                    ? t(
+                        'Choose the recipe materials in game to know the composition that will be dismantled.',
+                        'Choisissez les matériaux de la recette en jeu pour connaître la composition qui sera démontée.',
+                      )
+                    : recoversNothing
                     ? t(
                         'Every input of this recipe is blacklisted — dismantling returns nothing.',
                         'Tous les intrants de cette recette sont blacklistés — le démontage ne rend rien.',
                       )
                     : t(
-                        `Recipe inputs × ${dismantleEfficiency}. Blacklisted resources are consumed by crafting but never returned.`,
-                        `Intrants de la recette × ${dismantleEfficiency}. Les ressources blacklistées sont consommées par le craft mais jamais rendues.`,
+                        'Nominal estimate only. The actual crafted instance may contain more allocated material; blacklisted resources always return zero.',
+                        'Estimation nominale uniquement. L’objet fabriqué peut contenir davantage de matière allouée ; les ressources blacklistées rendent toujours zéro.',
                       )}
                 </Typography>
               </BentoPanel>

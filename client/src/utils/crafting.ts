@@ -79,6 +79,21 @@ export function getMissionContractName(contract: MissionNameLike | null | undefi
   return formatContractName(contract?.contractDebugName ?? null);
 }
 
+type BlueprintAcquisitionGraphLike = {
+  blueprintAcquisitionGraph?: Array<{ blueprint: { id: string } }> | null;
+};
+
+/** Blueprint ids that the game exposes through at least one acquisition route. */
+export function getObtainableBlueprintIds(
+  missionRewards: BlueprintAcquisitionGraphLike | null | undefined,
+): Set<string> {
+  return new Set(
+    (missionRewards?.blueprintAcquisitionGraph ?? [])
+      .map((entry) => entry.blueprint.id)
+      .filter(Boolean),
+  );
+}
+
 type MissionChanceLike = {
   blueprintDropChance?: number | null;
   rewardedBlueprints?: Array<{
@@ -240,7 +255,13 @@ export function formatQuantityValue(
   quantityUnit: MaterialSlotQuantityUnit | 'mixed',
 ): string {
   const amount = Number(value ?? 0);
-  const precision = quantityUnit === 'count' ? 2 : 3;
+  const precision = quantityUnit === 'count'
+    ? 2
+    : Math.abs(amount) > 0 && Math.abs(amount) < 0.001
+      ? 6
+      : Math.abs(amount) < 0.01
+        ? 4
+        : 3;
   const wholeNumberThreshold = quantityUnit === 'count' ? 100 : 10;
 
   if (amount >= wholeNumberThreshold) {
