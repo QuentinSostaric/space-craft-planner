@@ -79,6 +79,21 @@ export function getMissionContractName(contract: MissionNameLike | null | undefi
   return formatContractName(contract?.contractDebugName ?? null);
 }
 
+type BlueprintAcquisitionGraphLike = {
+  blueprintAcquisitionGraph?: Array<{ blueprint: { id: string } }> | null;
+};
+
+/** Blueprint ids that the game exposes through at least one acquisition route. */
+export function getObtainableBlueprintIds(
+  missionRewards: BlueprintAcquisitionGraphLike | null | undefined,
+): Set<string> {
+  return new Set(
+    (missionRewards?.blueprintAcquisitionGraph ?? [])
+      .map((entry) => entry.blueprint.id)
+      .filter(Boolean),
+  );
+}
+
 type MissionChanceLike = {
   blueprintDropChance?: number | null;
   rewardedBlueprints?: Array<{
