@@ -135,16 +135,32 @@ fn desktop_session_path() -> Option<PathBuf> {
 }
 
 fn read_desktop_session_token() -> Option<String> {
-    if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
-        if let Ok(token) = entry.get_password() {
-            if let Ok(token) = validate_session_token(&token) {
-                return Some(token.to_string());
-            }
+    let fallback_path = desktop_session_path();
+    restore_desktop_session_token(
+        || {
+            keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER)
+                .ok()?
+                .get_password()
+                .ok()
+        },
+        fallback_path.as_deref(),
+    )
+}
+
+fn restore_desktop_session_token<F>(
+    read_from_credential_store: F,
+    fallback_path: Option<&Path>,
+) -> Option<String>
+where
+    F: FnOnce() -> Option<String>,
+{
+    if let Some(token) = read_from_credential_store() {
+        if let Ok(token) = validate_session_token(&token) {
+            return Some(token.to_string());
         }
     }
 
-    let path = desktop_session_path()?;
-    let content = read_file_bounded_lossy(&path, MAX_SESSION_TOKEN_BYTES).ok()?;
+    let content = read_file_bounded_lossy(fallback_path?, MAX_SESSION_TOKEN_BYTES).ok()?;
     validate_session_token(&content)
         .ok()
         .map(ToString::to_string)
@@ -154,22 +170,18 @@ fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
     match token {
         Some(value) => {
             let value = validate_session_token(value)?;
-
-            // Prefer the platform credential store and verify persistence before deleting
-            // the file fallback. Some Linux keyring backends report success without storing.
-            if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
-                if entry.set_password(value).is_ok()
+            let path = desktop_session_path()
+                .ok_or_else(|| "Unable to resolve session file path.".to_string())?;
+            persist_desktop_session_token(value, &path, |value| {
+                let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) else {
+                    return false;
+                };
+                entry.set_password(value).is_ok()
                     && entry
                         .get_password()
                         .ok()
                         .is_some_and(|stored| stored == value)
-                {
-                    remove_session_fallback_file()?;
-                    return Ok(());
-                }
-            }
-
-            write_session_fallback_file(value)
+            })
         }
         None => {
             let mut keyring_error = None;
@@ -190,6 +202,21 @@ fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
     }
 }
 
+fn persist_desktop_session_token<F>(
+    value: &str,
+    fallback_path: &Path,
+    store_in_credential_store: F,
+) -> Result<(), String>
+where
+    F: FnOnce(&str) -> bool,
+{
+    // A same-process credential-store round trip does not prove the backend is
+    // durable. Keep the hardened fallback across restarts even when it succeeds.
+    write_session_fallback_file(value, fallback_path)?;
+    let _ = store_in_credential_store(value);
+    Ok(())
+}
+
 fn validate_session_token(value: &str) -> Result<&str, String> {
     let value = value.trim();
     if value.is_empty()
@@ -201,9 +228,7 @@ fn validate_session_token(value: &str) -> Result<&str, String> {
     Ok(value)
 }
 
-fn write_session_fallback_file(value: &str) -> Result<(), String> {
-    let path =
-        desktop_session_path().ok_or_else(|| "Unable to resolve session file path.".to_string())?;
+fn write_session_fallback_file(value: &str, path: &Path) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or_else(|| "Unable to resolve session directory.".to_string())?;
@@ -239,10 +264,10 @@ fn write_session_fallback_file(value: &str) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     if path.exists() {
-        std::fs::remove_file(&path)
+        std::fs::remove_file(path)
             .map_err(|error| format!("Unable to replace desktop session: {error}"))?;
     }
-    if let Err(error) = std::fs::rename(&temp_path, &path) {
+    if let Err(error) = std::fs::rename(&temp_path, path) {
         let _ = std::fs::remove_file(&temp_path);
         return Err(format!("Unable to install desktop session: {error}"));
     }
@@ -1367,6 +1392,37 @@ mod tests {
         assert!(validate_session_token("\x7f").is_err());
         assert!(validate_session_token("a".repeat(MAX_SESSION_TOKEN_BYTES + 1).as_str()).is_err());
         assert!(validate_session_token("valid-token-123").is_ok());
+    }
+
+    #[test]
+    fn desktop_session_survives_restart_after_credential_store_round_trip() {
+        let root = create_test_channel_dir("desktop_session_restart");
+        let fallback_path = root.join("desktop-session.token");
+        let token = "restart-safe-session-token";
+        let mut credential_store_value = None;
+
+        persist_desktop_session_token(token, &fallback_path, |value| {
+            credential_store_value = Some(value.to_string());
+            true
+        })
+        .unwrap();
+
+        assert_eq!(credential_store_value.as_deref(), Some(token));
+        assert_eq!(
+            restore_desktop_session_token(|| None, Some(&fallback_path)).as_deref(),
+            Some(token)
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(&fallback_path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
