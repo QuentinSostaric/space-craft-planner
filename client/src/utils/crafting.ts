@@ -240,7 +240,13 @@ export function formatQuantityValue(
   quantityUnit: MaterialSlotQuantityUnit | 'mixed',
 ): string {
   const amount = Number(value ?? 0);
-  const precision = quantityUnit === 'count' ? 2 : 3;
+  const precision = quantityUnit === 'count'
+    ? 2
+    : Math.abs(amount) > 0 && Math.abs(amount) < 0.001
+      ? 6
+      : Math.abs(amount) < 0.01
+        ? 4
+        : 3;
   const wholeNumberThreshold = quantityUnit === 'count' ? 100 : 10;
 
   if (amount >= wholeNumberThreshold) {

@@ -14,7 +14,9 @@ describe('formatStatValue', () => {
   });
 
   it('uses compact conventional formatting for percentages and temperatures', () => {
-    expect(formatStatValue('damageResistanceKinetic', 30)).toBe('30.0%');
+    expect(formatStatValue('damageResistanceKinetic', 0.3)).toBe('30.0%');
+    expect(formatStatValue('hullScrapingEfficiency', 0.9)).toBe('90.0%');
+    expect(formatStatValue('selfRepairHealthRatio', 0.2)).toBe('20.0%');
     expect(formatStatValue('temperatureMin', -75)).toBe('-75.0 °C');
   });
 });

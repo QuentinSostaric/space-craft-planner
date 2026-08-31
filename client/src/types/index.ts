@@ -489,15 +489,15 @@ Object.assign(STAT_UNITS, {
   quantumFuelRequirement: 'SCU/km',
   quantumSpoolUpTime: 's',
   quantumCooldownTime: 's',
-  radarMinAimAssistDistance: 'x',
-  radarMaxAimAssistDistance: 'x',
-  hullScrapingEfficiency: 'x',
-  hullScrapingRadius: 'x',
+  radarMinAimAssistDistance: 'm',
+  radarMaxAimAssistDistance: 'm',
+  hullScrapingEfficiency: '%',
+  hullScrapingRadius: 'm',
   hullScrapingSpeed: 'x',
-  tractorForce: 'x',
-  tractorFullStrengthDistance: 'x',
-  tractorMaxDistance: 'x',
-  tractorMaxVolume: 'x',
+  tractorForce: 'N',
+  tractorFullStrengthDistance: 'm',
+  tractorMaxDistance: 'm',
+  tractorMaxVolume: '',
   flowSpeed: 'SCU/s',
   hydrogenFlowSpeed: 'SCU/s',
   quantumFlowSpeed: 'SCU/s',
@@ -510,6 +510,8 @@ export const STAT_PERCENT_KEYS = new Set<NumericItemStatKey>([
   'damageResistanceDistortion',
   'damageResistanceBiochemical',
   'damageResistanceStun',
+  'selfRepairHealthRatio',
+  'hullScrapingEfficiency',
 ]);
 
 export const STAT_LOWER_IS_BETTER = new Set<NumericItemStatKey>([
@@ -686,8 +688,13 @@ export interface BlueprintDismantle {
   efficiency: number;
   dismantleTimeSecs: number;
   returns: BlueprintDismantleReturn[];
-  totalYieldScu: number;
+  totalYieldScu: number | null;
   hasBlacklistedInputs: boolean;
+  /** False when the recipe contains a player choice and has no single nominal return. */
+  deterministic?: boolean;
+  /** Dismantle output is inferred from composition, not a per-item result table. */
+  yieldKind?: 'nominal';
+  calculationBasis?: 'minimum-recipe-composition';
 }
 
 export interface Blueprint {
