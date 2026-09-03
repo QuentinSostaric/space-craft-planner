@@ -230,9 +230,7 @@ function KpiTile({
           lineHeight: 1,
           color: 'text.primary',
           fontVariantNumeric: 'tabular-nums',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          overflowWrap: 'anywhere',
         }}
       >
         {value}
@@ -653,7 +651,6 @@ export function FabricatorPage() {
   return (
     <PageLayout
       width="full"
-      component="main"
       sx={{ maxWidth: { xs: 'none', lg: '95%' }, gap: 1.125, py: 1.375, px: { xs: 1.25, md: 1.625 } }}
     >
       {missionRewardsLoading && !missionRewards && !selected && (

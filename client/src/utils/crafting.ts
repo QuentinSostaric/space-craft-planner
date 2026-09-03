@@ -65,14 +65,18 @@ type MissionNameLike = {
   } | null;
 };
 
+function hasUnresolvedMissionToken(value: string): boolean {
+  return /<[^>]+>|\{\{[^}]+\}\}|\{[^}]+\}/.test(value);
+}
+
 export function getMissionContractName(contract: MissionNameLike | null | undefined): string {
   const displayText = contract?.title?.displayText?.trim();
-  if (displayText) {
+  if (displayText && !hasUnresolvedMissionToken(displayText)) {
     return displayText;
   }
 
   const template = contract?.title?.template?.trim();
-  if (template) {
+  if (template && !hasUnresolvedMissionToken(template)) {
     return template;
   }
 

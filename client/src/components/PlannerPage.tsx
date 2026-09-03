@@ -6,6 +6,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { useLocalPersist } from '../hooks/useLocalPersist';
 import { LS_KEYS } from '../types';
 import { AppButton, AppSelect, AppTextArea, AppTextField } from './ui/controls';
+import { AppDialog } from './ui/overlays';
 import { PageHeader, PageLayout } from './ui/page';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../theme';
 import { trackEvent } from '../analytics/posthog';
@@ -25,8 +26,8 @@ export interface PlannerNote {
 const DEFAULT_NOTES: PlannerNote[] = [
   {
     id: 'demo-1',
-    title: 'Getting started',
-    body: '# Getting started\n\n- [ ] Assign materials to blueprint slots\n- [ ] Check missions for blueprint drops\n- [ ] Add blueprints with **@bp:id** and resources with **@res:id**\n',
+    title: 'Plan your first craft',
+    body: '# Plan your first craft\n\n- [ ] Choose a blueprint in Blueprints\n- [ ] Open it in the Fabricator\n- [ ] List the materials you need\n- [ ] Check the missions that can unlock it\n',
     tag: 'note',
     pinned: true,
     updatedAt: Date.now(),
@@ -275,6 +276,7 @@ export function PlannerPage() {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
   const [copied, setCopied] = useState(false);
+  const [pendingDeleteNote, setPendingDeleteNote] = useState<PlannerNote | null>(null);
 
   const activeNote = useMemo(() => notes.find((n) => n.id === activeId) ?? notes[0] ?? null, [notes, activeId]);
 
@@ -331,9 +333,9 @@ export function PlannerPage() {
       <PageHeader
         title={t('Planner', 'Planificateur', 'Planer')}
         description={t(
-          'Research notebook in markdown format. Check tasks, reference a blueprint with @bp:id or a resource with @res:id.',
-          'Carnet de recherche au format markdown. Coche les tâches, référence un blueprint avec @bp:id ou une ressource avec @res:id.',
-          'Forschungsnotizbuch im Markdown-Format. Aufgaben abhaken und Baupläne mit @bp:id oder Ressourcen mit @res:id referenzieren.',
+          'Keep a checklist for your next craft. You can add blueprint and resource references from edit mode when you need them.',
+          'Gardez une checklist pour votre prochain craft. Vous pouvez ajouter des références de blueprints et de ressources depuis le mode édition si nécessaire.',
+          'Behalten Sie eine Checkliste für Ihren nächsten Craft. Bei Bedarf können Sie im Bearbeitungsmodus Bauplan- und Ressourcenreferenzen hinzufügen.',
         )}
         actions={(
           <AppButton variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
@@ -482,7 +484,7 @@ export function PlannerPage() {
                   />
                   <IconButton
                     size="small"
-                    onClick={() => removeNote(activeNote.id)}
+                    onClick={() => setPendingDeleteNote(activeNote)}
                     title={t('Delete note', 'Supprimer la note')}
                     aria-label={t('Delete note', 'Supprimer la note')}
                     sx={{ minWidth: 44, minHeight: 44, color: 'error.main' }}
@@ -567,6 +569,37 @@ export function PlannerPage() {
           )}
         </Box>
       </Box>
+      <AppDialog
+        open={pendingDeleteNote !== null}
+        onOpenChange={(open) => { if (!open) setPendingDeleteNote(null); }}
+        title={t('Delete this note?', 'Supprimer cette note ?', 'Diese Notiz löschen?')}
+        description={t(
+          'This action permanently removes the note from this device.',
+          'Cette action supprime définitivement la note de cet appareil.',
+          'Diese Aktion entfernt die Notiz dauerhaft von diesem Gerät.',
+        )}
+        closeLabel={t('Close', 'Fermer', 'Schließen')}
+        footer={(
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+            <AppButton variant="secondary" onClick={() => setPendingDeleteNote(null)}>
+              {t('Keep note', 'Conserver la note', 'Notiz behalten')}
+            </AppButton>
+            <AppButton
+              variant="danger"
+              onClick={() => {
+                if (pendingDeleteNote) removeNote(pendingDeleteNote.id);
+                setPendingDeleteNote(null);
+              }}
+            >
+              {t('Delete note', 'Supprimer la note', 'Notiz löschen')}
+            </AppButton>
+          </Box>
+        )}
+      >
+        <Typography variant="body2" sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>
+          {pendingDeleteNote?.title || t('Untitled', 'Sans titre', 'Ohne Titel')}
+        </Typography>
+      </AppDialog>
     </PageLayout>
   );
 }

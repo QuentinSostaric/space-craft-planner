@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 import { isTauriRuntime } from '../services/apiBaseUrl';
 import { LS_KEYS } from '../types';
+import { setAnalyticsConsent, type AnalyticsConsent } from '../analytics/posthog';
+import { navigateToPath } from '../utils/slug';
 
 function readStorage(key: string): string | null {
   try {
@@ -41,8 +43,9 @@ export function CookieConsentBanner() {
 
   if (dismissed) return null;
 
-  const handleDismiss = () => {
+  const handleChoice = (analyticsConsent: Exclude<AnalyticsConsent, null>) => {
     writeStorage(LS_KEYS.COOKIE_CONSENT, '1');
+    setAnalyticsConsent(analyticsConsent);
     setDismissed(true);
   };
 
@@ -70,23 +73,42 @@ export function CookieConsentBanner() {
       <Typography variant="body2" sx={{ flex: 1, minWidth: 220, color: 'text.secondary' }}>
         {isDesktop
           ? t(
-              'This app stores your authentication credentials securely on your device and uses local storage for your preferences. No tracking or advertising data is collected.',
-              "Cette application stocke vos identifiants d'authentification de manière sécurisée sur votre appareil et utilise le stockage local pour vos préférences. Aucune donnée de suivi ou publicitaire n'est collectée.",
-              'Diese App speichert Ihre Anmeldedaten sicher auf Ihrem Gerät und verwendet lokalen Speicher für Ihre Einstellungen. Es werden keine Tracking- oder Werbedaten gesammelt.',
+              'This app uses essential local storage for your session and preferences. Optional usage analytics help improve the app; they never record sessions or advertising data.',
+              "Cette application utilise un stockage local essentiel pour votre session et vos préférences. Des statistiques d'usage optionnelles aident à améliorer l'app ; elles n'enregistrent ni sessions ni données publicitaires.",
+              'Diese App verwendet wesentlichen lokalen Speicher für Sitzung und Einstellungen. Optionale Nutzungsanalysen helfen bei der Verbesserung; Sitzungen oder Werbedaten werden nicht aufgezeichnet.',
             )
           : t(
-              'This site uses strictly necessary cookies for authentication only. No tracking or advertising cookies are used.',
-              "Ce site utilise uniquement des cookies strictement nécessaires à l'authentification. Aucun cookie de suivi ou publicitaire n'est utilisé.",
-              'Diese Website verwendet ausschließlich für die Authentifizierung notwendige Cookies. Es werden keine Tracking- oder Werbe-Cookies verwendet.',
+              'This site uses essential cookies for authentication and preferences. Optional usage analytics help improve the app; they never record sessions or advertising data.',
+              "Ce site utilise des cookies essentiels pour l'authentification et les préférences. Des statistiques d'usage optionnelles aident à améliorer l'app ; elles n'enregistrent ni sessions ni données publicitaires.",
+              'Diese Website verwendet wesentliche Cookies für Authentifizierung und Einstellungen. Optionale Nutzungsanalysen helfen bei der Verbesserung; Sitzungen oder Werbedaten werden nicht aufgezeichnet.',
             )}
       </Typography>
+      <Box
+        component="a"
+        href="/privacy"
+        onClick={(event) => {
+          event.preventDefault();
+          navigateToPath('/privacy');
+        }}
+        sx={{ color: 'brand.blue', minHeight: 44, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}
+      >
+        {t('Privacy details', 'Détails de confidentialité', 'Datenschutzdetails')}
+      </Box>
       <AppButton
-        variant="primary"
+        variant="secondary"
         size="sm"
-        onClick={handleDismiss}
+        onClick={() => handleChoice('denied')}
         sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
       >
-        {t('Got it', 'Compris', 'Verstanden')}
+        {t('Essential only', 'Essentiel uniquement', 'Nur erforderlich')}
+      </AppButton>
+      <AppButton
+        variant="secondary"
+        size="sm"
+        onClick={() => handleChoice('granted')}
+        sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+      >
+        {t('Allow analytics', "Autoriser l'analyse", 'Analytik erlauben')}
       </AppButton>
     </Box>
   );
