@@ -233,13 +233,13 @@ export function SlotRow({
             min={0}
             max={1000}
             step={QUALITY_STEP}
-            value={current}
+            value={assigned ? current : 0}
             onValueChange={(value) => onQualityChange(clampQualityValue(value))}
             label={t(`Quality for ${requirementName}`, `Qualité pour ${requirementName}`, `Qualität für ${requirementName}`)}
             formatValue={(value) => t(
-              `${Math.round(value / 10)}% quality, ${value} of 1000`,
-              `${Math.round(value / 10)}% de qualité, ${value} sur 1000`,
-              `${Math.round(value / 10)}% Qualität, ${value} von 1000`,
+              assigned ? `${Math.round(value / 10)}% quality, ${value} of 1000` : 'Quality not assigned',
+              assigned ? `${Math.round(value / 10)}% de qualité, ${value} sur 1000` : 'Qualité non définie',
+              assigned ? `${Math.round(value / 10)}% Qualität, ${value} von 1000` : 'Qualität nicht festgelegt',
             )}
             sx={{
               width: '100%',

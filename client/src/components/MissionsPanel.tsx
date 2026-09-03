@@ -1910,7 +1910,7 @@ export function MissionsPanel() {
 
   if (missionRewardsLoading) {
     return (
-      <PageLayout width="wide" component="main">
+      <PageLayout width="wide">
         <SurfaceState
           tone="loading"
           title={t('Loading mission rewards...', 'Chargement des récompenses de mission...')}
@@ -1921,7 +1921,7 @@ export function MissionsPanel() {
 
   if (missionRewardsError) {
     return (
-      <PageLayout width="wide" component="main">
+      <PageLayout width="wide">
         <SurfaceState
           tone="error"
           title={t('Mission rewards unavailable', 'Récompenses de mission indisponibles')}
@@ -1933,7 +1933,7 @@ export function MissionsPanel() {
 
   if (!missionRewards || missionRewards.factionGroups.length === 0) {
     return (
-      <PageLayout width="wide" component="main">
+      <PageLayout width="wide">
         <SurfaceState
           title={t('No mission data', 'Aucune donnée de mission')}
           icon={<FlagIcon sx={{ opacity: 0.55, fontSize: '3rem' }} />}
@@ -1954,7 +1954,6 @@ export function MissionsPanel() {
   return (
     <PageLayout
       width="wide"
-      component="main"
       sx={{ animation: 'if-fade-in 240ms cubic-bezier(0.22,1,0.36,1) both' }}
     >
       {factionsLoading && <AppProgressBar sx={{ position: 'fixed', top: 0, left: 0, right: 0, borderRadius: 0, zIndex: 9999 }} />}

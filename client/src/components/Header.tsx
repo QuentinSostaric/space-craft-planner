@@ -331,12 +331,7 @@ export function Header() {
                 {
                   value: 'live',
                   disabled: !availableChannels.has('live'),
-                  label: (
-                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', flexShrink: 0 }} />
-                      LIVE
-                    </Box>
-                  ),
+                  label: 'LIVE',
                 },
                 { value: 'ptu', disabled: !availableChannels.has('ptu'), label: 'PTU' },
               ]}

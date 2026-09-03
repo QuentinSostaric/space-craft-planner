@@ -645,6 +645,7 @@ export function BlueprintGrid() {
     acquisitionScaleFilter,
     acquisitionStandingFilter,
     blueprintSort,
+    setSearchQuery,
   } = useFilters();
   const { t } = useI18n();
   const { user } = useAuth();
@@ -998,6 +999,13 @@ export function BlueprintGrid() {
           ? t('Loading obtainable blueprints...', 'Chargement des blueprints obtenables...')
           : t('No obtainable blueprints found.', 'Aucun blueprint obtenable trouvé.'))
         : t('No blueprints found.', 'Aucun blueprint trouvé.');
+  const normalizedSearchQuery = searchQuery.trim();
+  const emptyDescription = normalizedSearchQuery
+    ? t(
+      `No results match “${normalizedSearchQuery}”.`,
+      `Aucun résultat ne correspond à « ${normalizedSearchQuery} ».`,
+    )
+    : undefined;
 
   const hasVisibleBlueprints = filteredBlueprints.length > 0;
   const hasVisibleShipComponents = filteredShipComponents.length > 0;
@@ -1006,7 +1014,6 @@ export function BlueprintGrid() {
   return (
     <PageLayout
       width="wide"
-      component="main"
       sx={{ flex: '1 0 auto', minHeight: 0, animation: 'if-fade-in 280ms ease both' }}
     >
       <PageHeader
@@ -1031,7 +1038,12 @@ export function BlueprintGrid() {
       {/* ── Grid area — IntersectionObserver root ── */}
       <Box sx={{ pb: 4 }}>
         {isCompletelyEmpty ? (
-          <SurfaceState title={emptyMessage} />
+          <SurfaceState
+            title={emptyMessage}
+            description={emptyDescription}
+            actionLabel={normalizedSearchQuery ? t('Clear search', 'Effacer la recherche') : undefined}
+            onAction={normalizedSearchQuery ? () => setSearchQuery('') : undefined}
+          />
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {hasVisibleBlueprints && (

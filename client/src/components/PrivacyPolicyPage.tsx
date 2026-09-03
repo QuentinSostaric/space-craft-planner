@@ -1,6 +1,9 @@
 import { Box, Typography, Divider } from '../ui/system';
 import { PageHeader, PageLayout } from './ui/page';
 import { useI18n } from '../i18n/I18nContext';
+import { AppButton } from './ui/controls';
+import { readAnalyticsConsent, setAnalyticsConsent, type AnalyticsConsent } from '../analytics/posthog';
+import { useState } from 'react';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -37,6 +40,32 @@ function Li({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AnalyticsPreference() {
+  const { t } = useI18n();
+  const [consent, setConsent] = useState<AnalyticsConsent>(readAnalyticsConsent);
+  const choose = (next: Exclude<AnalyticsConsent, null>) => {
+    setAnalyticsConsent(next);
+    setConsent(next);
+  };
+  const status = consent === 'granted'
+    ? t('Optional usage analytics are enabled.', "Les statistiques d'usage optionnelles sont activées.", 'Optionale Nutzungsanalysen sind aktiviert.')
+    : consent === 'denied'
+      ? t('Only essential storage is enabled.', "Seul le stockage essentiel est activé.", 'Nur wesentlicher Speicher ist aktiviert.')
+      : t('Choose whether to enable optional usage analytics.', "Choisissez si vous souhaitez activer les statistiques d'usage optionnelles.", 'Wählen Sie, ob optionale Nutzungsanalysen aktiviert werden sollen.');
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mr: 0.5 }}>{status}</Typography>
+      <AppButton size="sm" variant="secondary" onClick={() => choose('denied')}>
+        {t('Essential only', 'Essentiel uniquement', 'Nur erforderlich')}
+      </AppButton>
+      <AppButton size="sm" variant="secondary" onClick={() => choose('granted')}>
+        {t('Allow analytics', "Autoriser l'analyse", 'Analytik erlauben')}
+      </AppButton>
+    </Box>
+  );
+}
+
 export function PrivacyPolicyPage() {
   const { t } = useI18n();
 
@@ -45,7 +74,7 @@ export function PrivacyPolicyPage() {
       <PageHeader
         variant="reading"
         title={t('Privacy Policy', 'Politique de confidentialité', 'Datenschutzerklärung')}
-        meta={t('Last updated: May 2026', 'Dernière mise à jour : mai 2026', 'Letzte Aktualisierung: Mai 2026')}
+        meta={t('Last updated: September 2026', 'Dernière mise à jour : septembre 2026', 'Letzte Aktualisierung: September 2026')}
       />
 
       <Divider />
@@ -121,9 +150,16 @@ export function PrivacyPolicyPage() {
         <Section title={t('3. How we use your data', '3. Utilisation des données', '3. Verwendung der Daten')}>
           <P>
             {t(
-              'We use your data exclusively to provide the service: synchronising your saved preferences across your devices and sessions. We do not sell, share, or use your data for advertising or analytics purposes.',
-              'Nous utilisons vos données exclusivement pour fournir le service : synchroniser vos préférences sauvegardées entre vos appareils et vos sessions. Nous ne vendons, ne partageons ni n\'utilisons vos données à des fins publicitaires ou analytiques.',
-              'Wir verwenden Ihre Daten ausschließlich zur Bereitstellung des Dienstes: zur Synchronisierung Ihrer gespeicherten Einstellungen auf Ihren Geräten und Sitzungen. Wir verkaufen, teilen oder verwenden Ihre Daten nicht für Werbung oder Analysen.',
+              'We use your data to provide the service: synchronising your saved preferences across your devices and sessions. We do not sell or share your data for advertising.',
+              'Nous utilisons vos données pour fournir le service : synchroniser vos préférences sauvegardées entre vos appareils et vos sessions. Nous ne vendons ni ne partageons vos données à des fins publicitaires.',
+              'Wir verwenden Ihre Daten, um den Dienst bereitzustellen: gespeicherte Einstellungen über Geräte und Sitzungen zu synchronisieren. Wir verkaufen oder teilen Ihre Daten nicht für Werbung.',
+            )}
+          </P>
+          <P>
+            {t(
+              'If you opt in, we also collect limited usage analytics: feature events, page paths, app version, runtime, language, and a short technical error summary. Session recording, heatmaps, autocapture, advertising, and text capture are disabled.',
+              "Si vous l'autorisez, nous collectons aussi des statistiques d'usage limitées : événements de fonctionnalité, chemins de page, version de l'app, environnement, langue et bref résumé d'erreur technique. L'enregistrement de session, les heatmaps, l'autocapture, la publicité et la capture de texte sont désactivés.",
+              'Wenn Sie zustimmen, erfassen wir außerdem begrenzte Nutzungsanalysen: Funktionsereignisse, Seitenpfade, App-Version, Laufzeitumgebung, Sprache und eine kurze technische Fehlerzusammenfassung. Sitzungsaufzeichnung, Heatmaps, Autocapture, Werbung und Texterfassung sind deaktiviert.',
             )}
           </P>
         </Section>
@@ -154,10 +190,29 @@ export function PrivacyPolicyPage() {
               </Box>
               {'.'}
             </Li>
+            <Li>
+              <strong>PostHog</strong>
+              {t(
+                ': if you allow optional usage analytics, we use PostHog EU to process the limited product events described above.',
+                " : si vous autorisez les statistiques d'usage optionnelles, nous utilisons PostHog EU pour traiter les événements produit limités décrits ci-dessus.",
+                ': Wenn Sie optionalen Nutzungsanalysen zustimmen, verwenden wir PostHog EU zur Verarbeitung der oben beschriebenen begrenzten Produkt-Ereignisse.',
+              )}
+            </Li>
           </Ul>
         </Section>
 
-        <Section title={t('5. Your rights', '5. Vos droits', '5. Ihre Rechte')}>
+        <Section title={t('5. Optional analytics', '5. Statistiques optionnelles', '5. Optionale Analysen')}>
+          <P>
+            {t(
+              'You can change this choice at any time. Essential storage remains available whether or not you allow analytics.',
+              "Vous pouvez modifier ce choix à tout moment. Le stockage essentiel reste disponible, que vous autorisiez ou non les statistiques.",
+              'Sie können diese Auswahl jederzeit ändern. Wesentlicher Speicher bleibt verfügbar, unabhängig davon, ob Sie Analysen erlauben.',
+            )}
+          </P>
+          <AnalyticsPreference />
+        </Section>
+
+        <Section title={t('6. Your rights', '6. Vos droits', '6. Ihre Rechte')}>
           <P>
             {t(
               'You can delete your account and all associated data at any time from the Account page. Deletion is immediate and permanent.',
@@ -174,7 +229,7 @@ export function PrivacyPolicyPage() {
           </P>
         </Section>
 
-        <Section title={t('6. Contact', '6. Contact', '6. Kontakt')}>
+        <Section title={t('7. Contact', '7. Contact', '7. Kontakt')}>
           <P>
             {t(
               'For privacy-related inquiries, open an issue on ',

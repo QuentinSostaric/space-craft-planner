@@ -2,6 +2,7 @@ import { PostHogProvider } from '@posthog/react';
 import posthog, { type PostHog } from 'posthog-js';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getApiUrl, isTauriRuntime } from '../services/apiBaseUrl';
+import { LS_KEYS } from '../types';
 
 type AnalyticsValue = string | number | boolean | null | undefined;
 export type AnalyticsProperties = Record<string, AnalyticsValue>;
@@ -32,8 +33,48 @@ const MAX_QUEUED_EVENTS = 50;
 let client: PostHog | null = null;
 let initialized = false;
 let initializationComplete = false;
+let analyticsAllowed = false;
 let contextProperties: AnalyticsProperties = {};
 let queuedEvents: Array<{ name: string; properties?: AnalyticsProperties }> = [];
+
+export type AnalyticsConsent = 'granted' | 'denied' | null;
+
+const ANALYTICS_CONSENT_EVENT = 'sc-craft-analytics-consent-changed';
+
+function readStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    try {
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Storage can be unavailable in private browsing. The provider still
+      // honours the choice for the remainder of the current session.
+    }
+  }
+}
+
+export function readAnalyticsConsent(): AnalyticsConsent {
+  const value = readStorage(LS_KEYS.ANALYTICS_CONSENT);
+  return value === 'granted' || value === 'denied' ? value : null;
+}
+
+export function setAnalyticsConsent(consent: Exclude<AnalyticsConsent, null>): void {
+  writeStorage(LS_KEYS.ANALYTICS_CONSENT, consent);
+  window.dispatchEvent(new Event(ANALYTICS_CONSENT_EVENT));
+}
 
 function getBuildConfig(): PostHogConfig | null {
   const token = (import.meta.env.VITE_POSTHOG_TOKEN ?? '').trim();
@@ -132,7 +173,7 @@ function getCommonProperties(): AnalyticsProperties {
 }
 
 function capture(name: string, properties?: AnalyticsProperties): void {
-  if (!client) {
+  if (!analyticsAllowed || !client) {
     return;
   }
 
@@ -147,12 +188,20 @@ function capture(name: string, properties?: AnalyticsProperties): void {
 }
 
 async function initializeClient(): Promise<PostHog | null> {
+  if (!analyticsAllowed) {
+    return null;
+  }
   if (initialized) {
     return client;
   }
 
   initialized = true;
   const config = await loadConfig();
+  if (!analyticsAllowed) {
+    initialized = false;
+    initializationComplete = true;
+    return null;
+  }
   if (!config?.enabled) {
     initializationComplete = true;
     queuedEvents = [];
@@ -164,6 +213,7 @@ async function initializeClient(): Promise<PostHog | null> {
     ui_host: getUiHost(config.host),
     defaults: '2026-01-30',
     capture_pageview: 'history_change',
+    persistence: 'localStorage',
     person_profiles: 'identified_only',
     disable_session_recording: true,
     mask_all_text: true,
@@ -208,7 +258,7 @@ export function setAnalyticsContext(properties: AnalyticsProperties): void {
 // properties used for feature-flag targeting. No-ops when analytics is
 // disabled. Reloads flags so any identity-targeted flags resolve immediately.
 export function identifyUser(distinctId: string, properties?: AnalyticsProperties): void {
-  if (!client || !distinctId) {
+  if (!analyticsAllowed || !client || !distinctId) {
     return;
   }
 
@@ -222,7 +272,7 @@ export function identifyUser(distinctId: string, properties?: AnalyticsPropertie
 
 // Drop the identified person (logout) and fall back to an anonymous id.
 export function resetIdentity(): void {
-  if (!client) {
+  if (!analyticsAllowed || !client) {
     return;
   }
 
@@ -235,6 +285,9 @@ export function resetIdentity(): void {
 }
 
 export function trackEvent(name: string, properties?: AnalyticsProperties): void {
+  if (!analyticsAllowed) {
+    return;
+  }
   if (client) {
     capture(name, properties);
     return;
@@ -258,8 +311,9 @@ export function useAnalytics(): AnalyticsContextValue {
 }
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
-  const [analyticsClient, setAnalyticsClient] = useState<PostHog | null>(client);
-  const enabled = Boolean(analyticsClient);
+  const [consent, setConsent] = useState<AnalyticsConsent>(readAnalyticsConsent);
+  const [analyticsClient, setAnalyticsClient] = useState<PostHog | null>(null);
+  const enabled = consent === 'granted' && Boolean(analyticsClient);
   const value = useMemo<AnalyticsContextValue>(() => ({
     enabled,
     trackEvent,
@@ -267,7 +321,39 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   }), [enabled]);
 
   useEffect(() => {
+    const syncConsent = () => setConsent(readAnalyticsConsent());
+    window.addEventListener(ANALYTICS_CONSENT_EVENT, syncConsent);
+    window.addEventListener('storage', syncConsent);
+    return () => {
+      window.removeEventListener(ANALYTICS_CONSENT_EVENT, syncConsent);
+      window.removeEventListener('storage', syncConsent);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
+
+    if (consent !== 'granted') {
+      analyticsAllowed = false;
+      queuedEvents = [];
+      initializationComplete = true;
+      try {
+        client?.opt_out_capturing();
+        client?.reset();
+      } catch {
+        // Consent changes must never affect app behaviour.
+      }
+      setAnalyticsClient(null);
+      return () => { cancelled = true; };
+    }
+
+    analyticsAllowed = true;
+    initializationComplete = false;
+    try {
+      client?.opt_in_capturing();
+    } catch {
+      // A fresh client is initialized below when required.
+    }
     void initializeClient().then((nextClient) => {
       if (!cancelled) {
         setAnalyticsClient(nextClient);
@@ -277,7 +363,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [consent]);
 
   useEffect(() => {
     if (!enabled) {

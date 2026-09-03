@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatResourceQuantity, getObtainableBlueprintIds } from './crafting';
+import { formatResourceQuantity, getMissionContractName, getObtainableBlueprintIds } from './crafting';
 
 describe('formatResourceQuantity', () => {
   it('keeps sub-milli-SCU dismantle returns visible', () => {
@@ -29,5 +29,21 @@ describe('getObtainableBlueprintIds', () => {
 
   it('returns an empty catalog while acquisition data is unavailable', () => {
     expect(getObtainableBlueprintIds(null).size).toBe(0);
+  });
+});
+
+describe('getMissionContractName', () => {
+  it('falls back to the debug name when localized mission text contains unresolved tokens', () => {
+    expect(getMissionContractName({
+      contractDebugName: 'Mission_Deliver_Supplies',
+      title: { displayText: '<Location:Address>', template: '{Contractor} delivery' },
+    })).toBe('Deliver Supplies');
+  });
+
+  it('keeps a resolved localized mission title', () => {
+    expect(getMissionContractName({
+      contractDebugName: 'Mission_Deliver_Supplies',
+      title: { displayText: 'Supply run to Area18' },
+    })).toBe('Supply run to Area18');
   });
 });

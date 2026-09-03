@@ -23,6 +23,7 @@ export const LS_KEYS = {
   ORGANIZATIONS_ACCORDIONS: 'sc-craft-organizations-accordions',
   PLANNER_NOTES: 'sc-craft-planner-notes',
   COOKIE_CONSENT: 'sc-craft-cookie-consent',
+  ANALYTICS_CONSENT: 'sc-craft-analytics-consent',
 } as const;
 
 export interface GppModifierRange {

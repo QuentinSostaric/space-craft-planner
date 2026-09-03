@@ -1,6 +1,7 @@
 import { Fade, Paper, Box, Skeleton, Stack, Typography } from './ui/system';
 import { AppProgressBar, AppProgressSpinner } from './components/ui/feedback';
 import { AppDialog } from './components/ui/overlays/AppDialog';
+import { AppButton } from './components/ui/controls';
 import { createAppTheme, installGlobalStyles } from './theme';
 import { injectGlobalCss } from './ui/system';
 import { useTheme } from './hooks/useTheme';
@@ -783,6 +784,7 @@ function AppShell() {
     activeDataset,
     datasetLoading,
     datasetError,
+    refreshDatasets,
     ensureMissionRewardsLoaded,
     comparisonOpen,
   } = useCraft();
@@ -822,6 +824,28 @@ function AppShell() {
     !authLoading && !user && mainView === 'organizations'
       ? 'account'
       : mainView;
+
+  useEffect(() => {
+    const pageTitle =
+      guardedMainView === 'fabricator'
+        ? t('Fabricator', 'Fabricator', 'Fertigung')
+        : guardedMainView === 'blueprints'
+          ? t('Blueprints', 'Blueprints')
+          : guardedMainView === 'missions'
+            ? t('Missions', 'Missions')
+            : guardedMainView === 'resources'
+              ? t('Resources', 'Ressources', 'Ressourcen')
+              : guardedMainView === 'organizations'
+                ? t('Organizations', 'Organisations', 'Organisationen')
+                : guardedMainView === 'planner'
+                  ? t('Planner', 'Planificateur', 'Planer')
+                  : guardedMainView === 'changelog'
+                    ? t('Changelog', 'Changelog')
+                    : guardedMainView === 'account'
+                      ? t('Account', 'Compte', 'Konto')
+                      : t('Privacy Policy', 'Politique de confidentialité', 'Datenschutzerklärung');
+    document.title = `${pageTitle} · Item Fabricator`;
+  }, [guardedMainView, t]);
 
   useEffect(() => {
     if (previousFocusedViewRef.current === null) {
@@ -916,13 +940,22 @@ function AppShell() {
               <Typography variant="h6" sx={{ mb: 1, color: 'error.main' }}>
                 {t('Published dataset unavailable', 'Dataset publie indisponible')}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{datasetError}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+                {t(
+                  'The published dataset could not be reached. Check your connection and try again.',
+                  'Le dataset publié est inaccessible. Vérifiez votre connexion puis réessayez.',
+                  'Der veröffentlichte Datensatz ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
+                )}
+              </Typography>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                 {t(
                   'This app reads published datasets through the runtime API. The API must be available.',
                   'Cette app lit les datasets publies via l API runtime. L API doit etre disponible.',
                 )}
               </Typography>
+              <AppButton variant="secondary" size="sm" onClick={() => { void refreshDatasets(); }} sx={{ mt: 2 }}>
+                {t('Try again', 'Réessayer', 'Erneut versuchen')}
+              </AppButton>
             </Paper>
           </Box>
           <Footer />

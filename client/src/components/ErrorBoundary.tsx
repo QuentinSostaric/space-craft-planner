@@ -53,30 +53,25 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               Something went wrong
             </Typography>
-            <Typography
-              component="pre"
-              variant="caption"
-              sx={{
-                display: 'block',
-                fontSize: '.75rem',
-                opacity: 0.7,
-                mb: 3,
-                whiteSpace: 'pre-wrap',
-                textAlign: 'left',
-                p: 1.5,
-                backgroundColor: 'rgba(0,0,0,0.2)',
-                border: '1px solid rgba(255,255,255,0.05)',
-              }}
-            >
-              {this.state.error.message}
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3, lineHeight: 1.6 }}>
+              We couldn&apos;t load this part of the app. Try again or reload the page.
             </Typography>
-            <AppButton
-              variant="danger"
-              onClick={() => this.setState({ error: null })}
-              sx={{ minHeight: 44 }}
-            >
-              Retry
-            </AppButton>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <AppButton
+                variant="secondary"
+                onClick={() => this.setState({ error: null })}
+                sx={{ minHeight: 44 }}
+              >
+                Try again
+              </AppButton>
+              <AppButton
+                variant="primary"
+                onClick={() => window.location.reload()}
+                sx={{ minHeight: 44 }}
+              >
+                Reload page
+              </AppButton>
+            </Box>
           </Paper>
         </Box>
       );
