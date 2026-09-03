@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to build (for example v2.4.3)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -58,6 +63,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate release tag matches app version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: npm run release:check-version
 
       - name: Audit npm dependencies
         run: npm audit --audit-level=high
@@ -141,8 +151,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npm run tauri
-          tagName: ${{ github.event.release.tag_name || github.ref_name }}
-          releaseName: 'Item Fabricator ${{ github.event.release.tag_name || github.ref_name }}'
+          tagName: ${{ github.event.release.tag_name || inputs.release_tag }}
+          releaseName: 'Item Fabricator ${{ github.event.release.tag_name || inputs.release_tag }}'
           releaseBody: 'Desktop release for Item Fabricator.'
           releaseDraft: false
           prerelease: false

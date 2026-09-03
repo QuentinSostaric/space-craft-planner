@@ -35,6 +35,13 @@ git push origin v1.11.0
 # Then publish a GitHub Release for v1.11.0 in GitHub.
 ```
 
+The release tag must exactly match the root `package.json` version with a `v` prefix. The
+desktop workflow checks this before building, so a tag such as `v2.4.2` cannot accidentally
+publish binaries that still identify themselves as `2.4.1`.
+
+For a manual workflow run, provide that existing tag in the required `release_tag` input. Manual
+runs use the same version check as release-triggered runs.
+
 The `Desktop Release` workflow runs when a GitHub release is published or when an authorized
 maintainer starts it manually. It builds and uploads release assets for:
 

@@ -1,6 +1,6 @@
 {
   "name": "item-fabricator",
-  "version": "2.4.1",
+  "version": "2.4.3",
   "private": true,
   "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
@@ -15,6 +15,7 @@
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
+    "release:check-version": "node scripts/validateReleaseVersion.mjs",
     "config:check": "node scripts/validateConfiguration.mjs",
     "cloudflare:check": "wrangler pages functions build functions --project-directory . --outdir .tmp/ci-pages --compatibility-date 2024-09-23 && wrangler deploy --dry-run --config workers/discord-bot/wrangler.toml --outdir .tmp/ci-wrangler-bot",
     "discord:bot:dev": "wrangler dev --config workers/discord-bot/wrangler.toml --port 8790",

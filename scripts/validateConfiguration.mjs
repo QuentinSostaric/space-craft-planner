@@ -209,6 +209,13 @@ const releaseWorkflow = readRepoFile('.github/workflows/desktop-release.yml');
 if (!/build-desktop:\s*\n\s+permissions:\s*\n\s+contents: write/mu.test(releaseWorkflow)) {
   reportFailure('desktop-release.yml must scope contents: write to the release job only.');
 }
+if (
+  !/name: Validate release tag matches app version[\s\S]*?RELEASE_TAG:.*github\.event\.release\.tag_name.*inputs\.release_tag[\s\S]*?npm run release:check-version/u.test(
+    releaseWorkflow,
+  )
+) {
+  reportFailure('desktop-release.yml must reject release tags that do not match package.json.');
+}
 
 const secretWorkflow = readRepoFile('.github/workflows/secrets-scan.yml');
 if (!/gitleaks:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}/u.test(secretWorkflow)) {
