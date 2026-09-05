@@ -54,6 +54,7 @@ import {
   getNextAllowedRsiLinkAt,
   isRsiLinkRateLimited,
   readAccountRecord,
+  readAccountSessionEpoch,
   saveAccountInventoryResources,
   saveAccountOnboardingState,
   saveAccountOrganizationBlueprintShares,
@@ -90,6 +91,12 @@ import {
   syncCraftRequestStatusViaWorker,
 } from '../shared/discordBotRelay.mjs';
 import { scrapeRsiProfileByHandle, verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
+import {
+  clearRsiVerificationChallenge,
+  createRsiVerificationChallenge,
+  requireRsiVerificationChallenge,
+} from '../shared/rsiVerification.mjs';
+import { isTrustedAuthMutationRequest } from '../shared/authRequestSecurity.mjs';
 import { buildBlueprintCatalogPage } from '../shared/blueprintCatalog.mjs';
 
 const PORT = 8788;
@@ -422,13 +429,13 @@ async function ensureAccountForSession(session) {
 // sign in), so failures here must never block authentication.
 async function linkCitizenIdAccountDataBestEffort(accountId, user, tokenPayload) {
   try {
-    const { rsiLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, process.env);
+    const { rsiLink, organizations, organizationsComplete = false } = await resolveCitizenIdAccountData(tokenPayload, process.env);
     let account = rsiLink
       ? await saveRsiAccountLink(accountStore, accountId, rsiLink, user)
       : null;
-    if (organizations.length > 0) {
+    if (organizations.length > 0 || organizationsComplete) {
       const base = account ?? await ensureAccountForSession({ accountId, user });
-      account = await syncCitizenIdAccountOrganizations(accountStore, base, organizations);
+      account = await syncCitizenIdAccountOrganizations(accountStore, base, organizations, { organizationsComplete });
     }
     return account;
   } catch (error) {
@@ -449,6 +456,7 @@ async function handleDiscordLogin(request, response, url) {
     const state = await createDesktopOAuthState(accountStore, process.env, {
       flow: 'discord',
       callbackUrl: url.searchParams.get('desktopCallback'),
+      codeChallenge: url.searchParams.get('desktopCodeChallenge'),
     });
     const authorizationUrl = buildDiscordAuthorizationUrl(url.toString(), process.env, state);
     sendRedirect(response, authorizationUrl);
@@ -501,6 +509,7 @@ async function handleDiscordCallback(request, response, url) {
       const account = await upsertDiscordAccount(accountStore, user);
       const exchangeCode = await createDesktopExchangeCode(accountStore, {
         flow: 'discord',
+        codeChallenge: desktopState.codeChallenge,
         session: {
           provider: 'discord',
           user,
@@ -536,7 +545,7 @@ async function handleDiscordCallback(request, response, url) {
       process.env,
       user,
       account.accountId,
-      { crossSite: isDesktopReturnTo(returnTo) },
+      { crossSite: isDesktopReturnTo(returnTo), sessionEpoch: await readAccountSessionEpoch(accountStore, account.accountId) },
     );
 
     sendRedirect(response, returnTo, {
@@ -565,6 +574,7 @@ async function handleCitizenIdLogin(request, response, url) {
     const state = await createDesktopOAuthState(accountStore, process.env, {
       flow: 'citizenid',
       callbackUrl: url.searchParams.get('desktopCallback'),
+      codeChallenge: url.searchParams.get('desktopCodeChallenge'),
     });
     const authorizationUrl = buildCitizenIdAuthorizationUrl(url.toString(), process.env, state);
     sendRedirect(response, authorizationUrl);
@@ -606,6 +616,7 @@ async function handleCitizenIdCallback(request, response, url) {
       await linkCitizenIdAccountDataBestEffort(account.accountId, user, tokenPayload);
       const exchangeCode = await createDesktopExchangeCode(accountStore, {
         flow: 'citizenid',
+        codeChallenge: desktopState.codeChallenge,
         session: {
           provider: 'discord',
           user,
@@ -642,7 +653,7 @@ async function handleCitizenIdCallback(request, response, url) {
       process.env,
       user,
       account.accountId,
-      { crossSite: isDesktopReturnTo(returnTo) },
+      { crossSite: isDesktopReturnTo(returnTo), sessionEpoch: await readAccountSessionEpoch(accountStore, account.accountId) },
     );
 
     sendRedirect(response, returnTo, {
@@ -672,7 +683,7 @@ async function handleDesktopExchange(request, response) {
     return;
   }
 
-  const exchange = await consumeDesktopExchangeCode(accountStore, payload?.code);
+  const exchange = await consumeDesktopExchangeCode(accountStore, payload?.code, payload?.codeVerifier);
   if (!exchange?.session?.user?.id || !exchange.session.accountId) {
     sendError(response, 400, 'Invalid or expired desktop auth code.', {
       'Cache-Control': 'no-store',
@@ -948,6 +959,26 @@ async function handleAccountSharedResourcesUpdate(request, response) {
   );
 }
 
+async function handleRsiVerificationChallenge(request, response) {
+  const session = await requireAuthenticatedSession(request);
+  if (!session) {
+    sendError(response, 401, 'Authentication required.');
+    return;
+  }
+  try {
+    const payload = await readJsonBody(request);
+    const account = await ensureAccountForSession(session);
+    if (isRsiLinkRateLimited(account)) {
+      sendError(response, 429, 'You can link an RSI account only once every 5 days.');
+      return;
+    }
+    const challenge = await createRsiVerificationChallenge(accountStore, session.accountId, payload?.handle);
+    sendJson(response, 200, { challenge }, { 'Cache-Control': 'no-store' });
+  } catch (error) {
+    sendError(response, 400, error instanceof Error ? error.message : 'Failed to create verification code.');
+  }
+}
+
 async function handleRsiLink(request, response) {
   const session = await requireAuthenticatedSession(request);
   if (!session) {
@@ -1004,8 +1035,10 @@ async function handleRsiLink(request, response) {
       return;
     }
 
-    const verifiedLink = await verifyRsiHandleOwnership(null, handle, code);
+    const challenge = await requireRsiVerificationChallenge(accountStore, session.accountId, handle, code);
+    const verifiedLink = await verifyRsiHandleOwnership(null, challenge.handle, challenge.code);
     const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    await clearRsiVerificationChallenge(accountStore, session.accountId);
     const scrapedProfile = await scrapeRsiProfileByHandle(verifiedLink.handle);
     const scrapedOrganizations = [
       scrapedProfile.organization
@@ -1580,6 +1613,13 @@ const server = http.createServer(async (request, response) => {
 
   try {
     applyCorsHeaders(response, request);
+    if (path.startsWith('/api/auth/') && !isTrustedAuthMutationRequest({
+      url: url.toString(), method: request.method,
+      headers: new Headers(Object.entries(request.headers).filter(([, value]) => typeof value === 'string')),
+    }, { AUTH_PUBLIC_ORIGIN: getAllowedOrigin(request) ?? process.env.AUTH_PUBLIC_ORIGIN })) {
+      sendError(response, 403, 'Untrusted request origin.');
+      return;
+    }
 
     if (request.method === 'OPTIONS') {
       const allowedOrigin = getAllowedOrigin(request);
@@ -1685,6 +1725,11 @@ const server = http.createServer(async (request, response) => {
         response,
         decodeURIComponent(accountOrganizationDeleteMatch[1]),
       );
+      return;
+    }
+
+    if (request.method === 'POST' && path === '/api/auth/account/rsi-link/challenge') {
+      await handleRsiVerificationChallenge(request, response);
       return;
     }
 

@@ -24,6 +24,7 @@ export async function onRequest(context) {
       status: 204,
       headers: {
         ...CORS_HEADERS,
+        Vary: 'Origin',
         'Access-Control-Allow-Origin': corsOrigin,
         'Access-Control-Allow-Credentials': 'true',
       },
@@ -32,12 +33,18 @@ export async function onRequest(context) {
 
   const response = await context.next();
 
-  if (!corsOrigin) return response;
-
   const headers = new Headers(response.headers);
-  headers.set('Access-Control-Allow-Origin', corsOrigin);
-  headers.set('Access-Control-Allow-Credentials', 'true');
-  Object.entries(CORS_HEADERS).forEach(([k, v]) => headers.set(k, v));
+  const vary = (headers.get('Vary') ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+  if (!vary.some((value) => value.toLowerCase() === 'origin' || value === '*')) vary.push('Origin');
+  headers.set('Vary', vary.join(', '));
+  if (new URL(request.url).pathname.startsWith('/api/auth/')) {
+    headers.set('Cache-Control', 'private, no-store');
+  }
+  if (corsOrigin) {
+    headers.set('Access-Control-Allow-Origin', corsOrigin);
+    headers.set('Access-Control-Allow-Credentials', 'true');
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => headers.set(k, v));
+  }
 
   return new Response(response.body, {
     status: response.status,

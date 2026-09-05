@@ -101,6 +101,8 @@ export function createDefaultOrganizationRecord(metadata, { now } = {}) {
     blueprintSharingEnabled: true,
     deletedAt: null,
     memberSnapshot: [],
+    memberSnapshotVerifiedAt: null,
+    memberSnapshotComplete: false,
     lastLiveSyncAt: null,
     nextEligibleLiveSyncAt: null,
     staleAt: null,
@@ -139,6 +141,9 @@ export function normalizeOrganizationRecord(value, fallbackSid = null) {
     blueprintSharingEnabled: value?.blueprintSharingEnabled !== false,
     deletedAt: normalizeIsoTimestamp(value?.deletedAt),
     memberSnapshot,
+    memberSnapshotVerifiedAt: normalizeIsoTimestamp(value?.memberSnapshotVerifiedAt),
+    memberSnapshotComplete: value?.memberSnapshotComplete === true &&
+      Array.isArray(value.memberSnapshot) && value.memberSnapshot.length === memberSnapshot.length,
     lastLiveSyncAt: normalizeIsoTimestamp(value?.lastLiveSyncAt),
     nextEligibleLiveSyncAt: normalizeIsoTimestamp(value?.nextEligibleLiveSyncAt),
     staleAt: normalizeIsoTimestamp(value?.staleAt),
@@ -150,6 +155,16 @@ export function normalizeOrganizationRecord(value, fallbackSid = null) {
     createdAt: normalizeIsoTimestamp(value?.createdAt),
     updatedAt: normalizeIsoTimestamp(value?.updatedAt),
   };
+}
+
+// Organization metadata refreshes do not revalidate the legacy roster. Only a
+// separately dated, explicitly complete roster may grant or revoke membership.
+export function getVerifiedOrganizationMemberSnapshot(record, nowMs = Date.now()) {
+  const verifiedAt = Date.parse(record?.memberSnapshotVerifiedAt);
+  if (record?.memberSnapshotComplete !== true || !Array.isArray(record.memberSnapshot) ||
+      !Number.isFinite(verifiedAt) || verifiedAt > nowMs + 60000 ||
+      verifiedAt + ORGANIZATION_SNAPSHOT_STALE_MS <= nowMs) return null;
+  return record.memberSnapshot;
 }
 
 export async function readOrganizationRecord(store, sid) {

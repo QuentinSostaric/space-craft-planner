@@ -46,15 +46,14 @@ The Discord Worker does not embed an account ID. Operators select the account wi
 and should be restricted to the target account and Worker deployment; Pages continues to deploy
 through its Git integration, so CI has no Cloudflare token.
 
-Updater signing fails closed if either required Tauri signing secret is absent. Authenticode remains
+Updater signing fails closed if the required Tauri signing key is absent. Authenticode remains
 optional, but its certificate and password must be configured as a pair. Gitleaks adds focused
 rules for Cloudflare tokens, R2 credentials and signing material on top of its default rules.
 
 ## Breaking changes deliberately avoided
 
 - Checkout, setup-node and dependency review move to their Node 24 action releases; their existing
-  inputs remain compatible with GitHub-hosted runners. The Tauri action stays on its current v0
-  line instead of taking the newer v1 release semantics in a security-only change.
+  inputs remain compatible with GitHub-hosted runners. The Tauri action uses its pinned v1 release and the documented releaseAssetNamePattern input.
 - The Cloudflare Pages `compatibility_date` is not advanced automatically; that can alter runtime
   semantics and requires application regression testing.
 - Tauri and its Linux WebKit/GTK stack are not force-upgraded. `cargo audit` currently reports 17

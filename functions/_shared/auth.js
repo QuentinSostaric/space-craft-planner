@@ -88,7 +88,13 @@ import {
   syncCraftRequestStatusViaWorker,
 } from '../../shared/discordBotRelay.mjs';
 import { scrapeRsiProfileByHandle, verifyRsiHandleOwnership } from '../../shared/rsiLink.mjs';
+import {
+  clearRsiVerificationChallenge,
+  createRsiVerificationChallenge,
+  requireRsiVerificationChallenge,
+} from '../../shared/rsiVerification.mjs';
 import { getGameDataBucket } from './runtimeBuckets.js';
+import { readBoundedBody } from './requestBody.js';
 
 function noStoreJson(payload, init = {}) {
   const headers = new Headers(init.headers ?? {});
@@ -116,7 +122,7 @@ function redirectResponse(location, { status = 302, headers = {}, cookies = [] }
   // WebView2 does not follow HTTP redirects to virtual hostnames (tauri.localhost, localhost).
   // Return an HTML page with a JS redirect instead so the browser initiates the navigation itself.
   if (isDesktopReturnTo(location)) {
-    const target = JSON.stringify(location);
+    const target = JSON.stringify(location).replace(/</g, '\\u003c');
     const nonce = generateCspNonce();
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><script nonce="${nonce}">window.location.replace(${target});\x3c/script></head><body></body></html>`;
     responseHeaders.set('Content-Type', 'text/html;charset=utf-8');
@@ -215,13 +221,13 @@ async function ensureAccountForSession(accountStore, session) {
  */
 async function linkCitizenIdAccountDataBestEffort(accountStore, accountId, user, tokenPayload, env) {
   try {
-    const { rsiLink, organizations } = await resolveCitizenIdAccountData(tokenPayload, env);
+    const { rsiLink, organizations, organizationsComplete = false } = await resolveCitizenIdAccountData(tokenPayload, env);
     let account = rsiLink
       ? await saveRsiAccountLink(accountStore, accountId, rsiLink, user)
       : null;
-    if (organizations.length > 0) {
+    if (organizations.length > 0 || organizationsComplete) {
       const base = account ?? await ensureAccountForSession(accountStore, { accountId, user });
-      account = await syncCitizenIdAccountOrganizations(accountStore, base, organizations);
+      account = await syncCitizenIdAccountOrganizations(accountStore, base, organizations, { organizationsComplete });
     }
     return account;
   } catch (error) {
@@ -278,8 +284,14 @@ async function buildScopedDecoratedAccount(accountStore, account, env, datasetSc
 
 async function readAccountJsonFromRequest(request) {
   try {
-    return await request.json();
-  } catch {
+    const bytes = await readBoundedBody(request, 2 * 1024 * 1024);
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error('A JSON object is required.');
+    }
+    return payload;
+  } catch (error) {
+    if (error instanceof RangeError) throw error;
     throw new Error('Invalid JSON body.');
   }
 }
@@ -327,6 +339,7 @@ export async function handleDiscordLoginRequest(request, env) {
     const state = await createDesktopOAuthState(accountStore, env, {
       flow: 'discord',
       callbackUrl: requestUrl.searchParams.get('desktopCallback'),
+      codeChallenge: requestUrl.searchParams.get('desktopCodeChallenge'),
     });
     return redirectResponse(buildDiscordAuthorizationUrl(request, env, state));
   }
@@ -377,6 +390,7 @@ export async function handleDiscordCallbackRequest(request, env) {
       const account = await upsertDiscordAccount(accountStore, user);
       const exchangeCode = await createDesktopExchangeCode(accountStore, {
         flow: 'discord',
+        codeChallenge: desktopState.codeChallenge,
         session: {
           provider: 'discord',
           user,
@@ -439,6 +453,7 @@ export async function handleCitizenIdLoginRequest(request, env) {
     const state = await createDesktopOAuthState(accountStore, env, {
       flow: 'citizenid',
       callbackUrl: requestUrl.searchParams.get('desktopCallback'),
+      codeChallenge: requestUrl.searchParams.get('desktopCodeChallenge'),
     });
     return redirectResponse(buildCitizenIdAuthorizationUrl(request, env, state));
   }
@@ -481,6 +496,7 @@ export async function handleCitizenIdCallbackRequest(request, env) {
       await linkCitizenIdAccountDataBestEffort(accountStore, account.accountId, user, tokenPayload, env);
       const exchangeCode = await createDesktopExchangeCode(accountStore, {
         flow: 'citizenid',
+        codeChallenge: desktopState.codeChallenge,
         session: {
           provider: 'discord',
           user,
@@ -541,7 +557,7 @@ export async function handleDesktopExchangeRequest(request, env) {
   }
 
   const accountStore = getAccountStore(request, env);
-  const exchange = await consumeDesktopExchangeCode(accountStore, payload?.code);
+  const exchange = await consumeDesktopExchangeCode(accountStore, payload?.code, payload?.codeVerifier);
   if (!exchange?.session?.user?.id || !exchange.session.accountId) {
     return errorResponse(400, 'Invalid or expired desktop auth code.');
   }
@@ -732,6 +748,25 @@ export async function handleDeleteAccountRequest(request, env) {
   );
 }
 
+export async function handleRsiVerificationChallengeRequest(request, env) {
+  const session = await requireAuthenticatedSession(request, env);
+  if (!session) {
+    return errorResponse(401, 'Authentication required.');
+  }
+  try {
+    const payload = await readAccountJsonFromRequest(request);
+    const store = getAccountStore(request, env);
+    const account = await ensureAccountForSession(store, session);
+    if (isRsiLinkRateLimited(account)) {
+      return errorResponse(429, 'You can link an RSI account only once every 5 days.');
+    }
+    const challenge = await createRsiVerificationChallenge(store, session.accountId, payload?.handle);
+    return noStoreJson({ challenge });
+  } catch (error) {
+    return errorResponse(400, error instanceof Error ? error.message : 'Failed to create verification code.');
+  }
+}
+
 export async function handleRsiLinkRequest(request, env) {
   const session = await requireAuthenticatedSession(request, env);
   if (!session) {
@@ -767,8 +802,10 @@ export async function handleRsiLinkRequest(request, env) {
       );
     }
 
-    const verifiedLink = await verifyRsiHandleOwnership(null, handle, code);
+    const challenge = await requireRsiVerificationChallenge(accountStore, session.accountId, handle, code);
+    const verifiedLink = await verifyRsiHandleOwnership(null, challenge.handle, challenge.code);
     const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
+    await clearRsiVerificationChallenge(accountStore, session.accountId);
     const scrapedProfile = await scrapeRsiProfileByHandle(verifiedLink.handle);
     const scrapedOrganizations = [
       scrapedProfile.organization

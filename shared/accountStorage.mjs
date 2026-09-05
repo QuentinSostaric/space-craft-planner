@@ -1,10 +1,10 @@
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getJsonObject, listObjectKeys, putJsonObject } from './r2Storage.mjs';
 import {
   readOrganizationRecord,
   writeOrganizationRecord,
 } from './organizationStorage.mjs';
-import { normalizeRsiHandle, normalizeRsiLink } from './rsiLink.mjs';
+import { isVerifiedRsiLink, normalizeRsiHandle, normalizeRsiLink } from './rsiLink.mjs';
 import {
   isObject,
   normalizeIsoTimestamp,
@@ -960,24 +960,20 @@ export function getAccountSessionEpochKey(accountId) {
 
 export async function readAccountSessionEpoch(store, accountId) {
   if (typeof store?.readJson !== 'function') {
-    return 0;
+    throw new Error('Session revocation storage is unavailable.');
   }
-
-  let key;
-  try {
-    key = getAccountSessionEpochKey(accountId);
-  } catch {
-    return 0;
-  }
-
+  const key = getAccountSessionEpochKey(accountId);
   const payload = await store.readJson(key);
-  const epoch = Number(payload?.epoch);
-  return Number.isFinite(epoch) && epoch > 0 ? Math.floor(epoch) : 0;
+  if (payload === null) return 0;
+  if (!Number.isSafeInteger(payload?.epoch) || payload.epoch < 0) {
+    throw new Error('Invalid session revocation state.');
+  }
+  return payload.epoch;
 }
 
 export async function bumpAccountSessionEpoch(store, accountId) {
   if (typeof store?.writeJson !== 'function') {
-    return 0;
+    throw new Error('Session revocation storage is unavailable.');
   }
 
   const next = (await readAccountSessionEpoch(store, accountId)) + 1;
@@ -1250,13 +1246,17 @@ async function writeRsiHandleIndex(store, accountId, handle) {
   });
 }
 
-async function deleteRsiHandleIndex(store, handle) {
+async function deleteRsiHandleIndex(store, handle, accountId) {
   const normalizedHandle = normalizeRsiHandle(handle);
   if (!normalizedHandle) {
     return;
   }
 
-  await store.deleteObject(getRsiHandleIndexKey(normalizedHandle));
+  const key = getRsiHandleIndexKey(normalizedHandle);
+  const current = await store.readJson(key);
+  if (current?.accountId === accountId) {
+    await store.deleteObject(key);
+  }
 }
 
 export async function readAccountIdByRsiHandle(store, handle) {
@@ -1422,7 +1422,7 @@ export async function writeAccountRecord(store, accountRecord) {
 }
 
 export function getNextAllowedRsiLinkAt(account, now = Date.now()) {
-  if (account?.isAdmin) {
+  if (account?.isAdmin || (account?.rsi && !isVerifiedRsiLink(account.rsi))) {
     return null;
   }
 
@@ -1464,6 +1464,23 @@ export function createBucketAccountStore(bucket) {
         },
       });
     },
+    async consumeJson(key, validate = () => true) {
+      const object = await bucket.get(key);
+      if (!object) return null;
+      if (typeof object.etag !== 'string' || !object.etag) throw new Error('Atomic auth storage requires an ETag.');
+      const payload = JSON.parse(await object.text());
+      if (payload?.consumedAt || !await validate(payload)) return null;
+      // R2 conditional writes are atomic. Only the first consumer may replace
+      // the original ETag with a tombstone; read-then-delete allowed replays.
+      const claimed = await bucket.put(key, JSON.stringify({
+        consumedAt: new Date().toISOString(),
+        expiresAt: payload.expiresAt,
+      }), {
+        onlyIf: { etagMatches: object.etag },
+        httpMetadata: { contentType: 'application/json; charset=utf-8' },
+      });
+      return claimed ? payload : null;
+    },
     async deleteObject(key) {
       await bucket.delete(key);
     },
@@ -1499,6 +1516,29 @@ export function createS3AccountStore(client, bucketName) {
   return {
     async readJson(key) {
       return getJsonObject(client, bucketName, key);
+    },
+    async consumeJson(key, validate = () => true) {
+      let object;
+      try {
+        object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+      } catch (error) {
+        if (error?.name === 'NoSuchKey' || error?.$metadata?.httpStatusCode === 404) return null;
+        throw error;
+      }
+      const payload = JSON.parse(await object.Body.transformToString());
+      if (typeof object.ETag !== 'string' || !object.ETag) throw new Error('Atomic auth storage requires an ETag.');
+      if (payload?.consumedAt || !await validate(payload)) return null;
+      try {
+        await client.send(new PutObjectCommand({
+          Bucket: bucketName, Key: key, IfMatch: object.ETag,
+          Body: JSON.stringify({ consumedAt: new Date().toISOString(), expiresAt: payload.expiresAt }),
+          ContentType: 'application/json; charset=utf-8', CacheControl: 'no-store',
+        }));
+        return payload;
+      } catch (error) {
+        if (error?.name === 'PreconditionFailed' || error?.$metadata?.httpStatusCode === 412) return null;
+        throw error;
+      }
     },
     async writeJson(key, payload) {
       await putJsonObject(client, bucketName, key, payload, {
@@ -1934,7 +1974,10 @@ export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProf
 
   const existingIndexedAccountId = await readAccountIdByRsiHandle(store, normalizedRsiLink.handle);
   if (existingIndexedAccountId && existingIndexedAccountId !== accountId) {
-    throw new Error('This RSI handle is already linked to another account.');
+    const indexedAccount = await readAccountRecord(store, existingIndexedAccountId);
+    if (!isVerifiedRsiLink(normalizedRsiLink) || isVerifiedRsiLink(indexedAccount?.rsi)) {
+      throw new Error('This RSI handle is already linked to another account.');
+    }
   }
 
   const now = toIsoNow();
@@ -1987,7 +2030,7 @@ export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProf
     previousAccount: existing,
   });
   if (previousHandleKey && previousHandleKey !== nextHandleKey) {
-    await deleteRsiHandleIndex(store, existing.rsi?.handle);
+    await deleteRsiHandleIndex(store, existing.rsi?.handle, accountId);
   }
   await writeRsiHandleIndex(store, accountId, normalizedRsiLink.handle);
   return savedAccount;
@@ -2039,11 +2082,14 @@ export async function clearRsiAccountLink(store, accountId, fallbackProfile = nu
   const savedAccount = await writeNormalizedAccountRecord(store, nextRecord, {
     previousAccount: existing,
   });
-  await deleteRsiHandleIndex(store, existing.rsi?.handle);
+  await deleteRsiHandleIndex(store, existing.rsi?.handle, accountId);
   return savedAccount;
 }
 
 export async function deleteAccountRecord(store, accountId, fallbackProfile = null) {
+  // Revoke before deleting: an interrupted deletion must not leave live tokens
+  // able to recreate an account whose records were already removed.
+  await bumpAccountSessionEpoch(store, accountId);
   const existing = await readAccountRecord(store, accountId, fallbackProfile);
   if (existing) {
     await syncOrganizationShareIndexesForAccount(store, existing, null);
@@ -2056,13 +2102,9 @@ export async function deleteAccountRecord(store, accountId, fallbackProfile = nu
     }
   }
   if (existing?.rsi?.handle) {
-    await deleteRsiHandleIndex(store, existing.rsi.handle);
+    await deleteRsiHandleIndex(store, existing.rsi.handle, accountId);
   }
 
   await store.deleteObject(getAccountObjectKey(accountId));
 
-  // Revoke every outstanding session for this account. The epoch record lives
-  // outside the deleted account data, so a stale token can neither pass
-  // verification nor resurrect the account on a subsequent request.
-  await bumpAccountSessionEpoch(store, accountId);
 }

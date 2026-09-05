@@ -20,6 +20,8 @@ export function requireInternalPath(path: string): string {
   if (
     !trimmedPath.startsWith('/') ||
     trimmedPath.startsWith('//') ||
+    decodedPathname.startsWith('//') ||
+    /%(?:2f|5c|25)/iu.test(pathname) ||
     decodedPathname.includes('\\') ||
     CONTROL_CHARACTER_PATTERN.test(trimmedPath) ||
     CONTROL_CHARACTER_PATTERN.test(decodedPathname) ||

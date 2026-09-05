@@ -2,10 +2,15 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default desktop permissions",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
-    "core:default",
-    "updater:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:resources:allow-close",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
     "process:allow-restart",
     "allow-fetch-api-json",
     "allow-start-desktop-oauth",
@@ -18,5 +23,6 @@
     "allow-enable-auto-startup",
     "allow-disable-auto-startup",
     "allow-is-auto-startup-enabled"
-  ]
+  ],
+  "local": true
 }

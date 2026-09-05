@@ -104,7 +104,7 @@ function parseRsiOrganizationBlocks(html) {
 
 export function normalizeRsiHandle(value) {
   const handle = normalizeText(value);
-  return handle || null;
+  return /^[A-Za-z0-9_-]{1,64}$/.test(handle) ? handle : null;
 }
 
 export function normalizeRsiLink(value) {
@@ -123,7 +123,16 @@ export function normalizeRsiLink(value) {
     profileUrl: value.profileUrl ? String(value.profileUrl) : null,
     verifiedAt: value.verifiedAt ? String(value.verifiedAt) : null,
     verificationProvider: normalizeRsiVerificationProvider(value.verificationProvider),
+    verificationVersion: value.verificationVersion === 2 ? 2 : null,
+    verificationRequired: !isVerifiedRsiLink(value),
   };
+}
+
+export function isVerifiedRsiLink(value) {
+  return Boolean(normalizeRsiHandle(value?.handle)) &&
+    Number.isFinite(Date.parse(value?.verifiedAt)) &&
+    (value.verificationProvider === 'citizenid' ||
+      (value.verificationProvider === 'rsi-profile' && value.verificationVersion === 2));
 }
 
 function normalizeOrganizationMetadata(value, fallbackSid = null) {
@@ -258,8 +267,8 @@ export async function verifyRsiHandleOwnership(
   options = {},
 ) {
   const normalizedCode = String(verificationCode ?? '').trim().toUpperCase();
-  if (!normalizedCode) {
-    throw new Error('Verification code is required.');
+  if (!/^SC-[A-F0-9]{32}$/.test(normalizedCode)) {
+    throw new Error('A server-issued verification code is required.');
   }
 
   const { fetchImpl = fetch } = options;
@@ -274,5 +283,6 @@ export async function verifyRsiHandleOwnership(
     profileUrl: profile.profileUrl,
     verifiedAt: new Date().toISOString(),
     verificationProvider: 'rsi-profile',
+    verificationVersion: 2,
   });
 }

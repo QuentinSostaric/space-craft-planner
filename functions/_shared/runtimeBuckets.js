@@ -48,8 +48,8 @@ export function resolveRuntimeStorageScope(env, request = null) {
 export function getGameDataBucket(env, request = null) {
   const scope = resolveRuntimeStorageScope(env, request);
   if (scope === 'dev') {
-    return env?.GAME_DATA_DEV ?? env?.GAME_DATA ?? env?.GAME_DATA_PROD ?? null;
+    return env?.GAME_DATA_DEV ?? env?.GAME_DATA ?? null;
   }
 
-  return env?.GAME_DATA_PROD ?? env?.GAME_DATA ?? env?.GAME_DATA_DEV ?? null;
+  return env?.GAME_DATA_PROD ?? env?.GAME_DATA ?? null;
 }

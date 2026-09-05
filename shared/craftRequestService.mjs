@@ -4,7 +4,8 @@ import {
   readScopedAccountRecord,
   saveScopedCraftRequestCollections,
 } from './accountStorage.mjs';
-import { readOrganizationRecord } from './organizationStorage.mjs';
+import { getVerifiedOrganizationMemberSnapshot, readOrganizationRecord } from './organizationStorage.mjs';
+import { isVerifiedRsiLink } from './rsiLink.mjs';
 import {
   normalizeBaseUrl,
   normalizeComparableText,
@@ -268,6 +269,9 @@ export async function createOrganizationCraftRequest(
   if (!requesterAccount?.rsi?.handle) {
     throw new CraftRequestServiceError(400, 'Link an RSI account before sending craft requests.');
   }
+  if (!isVerifiedRsiLink(requesterAccount.rsi)) {
+    throw new CraftRequestServiceError(403, 'Verify your RSI account again before sending craft requests.');
+  }
   if (!hasVerifiedOrganizationMembership(requesterAccount, normalizedSid)) {
     throw new CraftRequestServiceError(
       403,
@@ -289,9 +293,12 @@ export async function createOrganizationCraftRequest(
     );
   }
   const requesterMember = findMemberByHandle(
-    organizationRecord?.memberSnapshot,
+    getVerifiedOrganizationMemberSnapshot(organizationRecord),
     requesterAccount.rsi.handle,
   );
+  if (getVerifiedOrganizationMemberSnapshot(organizationRecord) && !requesterMember) {
+    throw new CraftRequestServiceError(403, 'Your RSI account is no longer a member of this organization.');
+  }
   const requesterOrganizationRef = getOrganizationRefBySid(requesterAccount, normalizedSid);
   if (!requesterMember && !hasVerifiedOrganizationMembership(requesterAccount, normalizedSid)) {
     throw new CraftRequestServiceError(
@@ -321,11 +328,17 @@ export async function createOrganizationCraftRequest(
       'The selected shared blueprint owner account could not be loaded.',
     );
   }
+  if (!isVerifiedRsiLink(ownerAccount.rsi)) {
+    throw new CraftRequestServiceError(403, 'The selected owner must verify their RSI account again.');
+  }
 
   const ownerMember = findMemberByHandle(
-    organizationRecord?.memberSnapshot,
+    getVerifiedOrganizationMemberSnapshot(organizationRecord),
     ownerAccount.rsi?.handle ?? normalizedOwnerHandle,
   );
+  if (getVerifiedOrganizationMemberSnapshot(organizationRecord) && !ownerMember) {
+    throw new CraftRequestServiceError(403, 'The selected owner is no longer a member of this organization.');
+  }
   const ownerOrganizationRef = getOrganizationRefBySid(ownerAccount, normalizedSid);
   if (!ownerMember && !hasVerifiedOrganizationMembership(ownerAccount, normalizedSid)) {
     throw new CraftRequestServiceError(

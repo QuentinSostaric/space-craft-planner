@@ -23,14 +23,15 @@ function shouldBypass(pathname) {
 // set their own nonce-based CSP and are therefore left untouched below.
 const FALLBACK_CSP = [
   "default-src 'self'",
-  "base-uri 'self'",
+  "base-uri 'none'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' https://eu-assets.i.posthog.com",
+  "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' http://ipc.localhost https://ipc.localhost https://eu.i.posthog.com https://eu-assets.i.posthog.com",
+  "connect-src 'self'",
+  "frame-src 'none'",
   "form-action 'self'",
 ].join('; ');
 
@@ -47,7 +48,7 @@ function applySecurityHeaders(headers) {
     headers.set('X-Frame-Options', 'DENY');
   }
   if (!headers.has('Referrer-Policy')) {
-    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    headers.set('Referrer-Policy', 'no-referrer');
   }
   if (!headers.has('Strict-Transport-Security')) {
     headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

@@ -15,8 +15,10 @@ import {
 import { useI18n } from '../i18n/I18nContext';
 import {
   getDiscordBotInviteUrl,
+  requestRsiLinkChallenge,
   type AccountInventoryResourceQuantityUnit,
   type AccountInventoryResourceEntry,
+  type RsiLinkChallenge,
 } from '../services/authService';
 import { useCraft, DEFAULT_INVENTORY_IDS } from '../store/CraftContext';
 import {
@@ -52,7 +54,6 @@ function readAuthError(): string | null {
   return params.get('auth_error');
 }
 
-const RSI_VERIFICATION_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACCOUNT_BLUEPRINT_BATCH_SIZE = 24;
 const RESOURCE_BATCH_SCU_STEP = 0.000001;
 const ALL_RESOURCES_SHARE_OPTION = '__all__';
@@ -99,12 +100,6 @@ type ResourceBulkShareDraft = {
   minQuality: string;
   maxQuality: string;
 };
-
-function createRsiVerificationCode(length = 6): string {
-  const bytes = new Uint32Array(length);
-  globalThis.crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => RSI_VERIFICATION_ALPHABET[value % RSI_VERIFICATION_ALPHABET.length]).join('');
-}
 
 function blurFocusedElement() {
   if (document.activeElement instanceof HTMLElement) {
@@ -249,12 +244,21 @@ export function AccountPage() {
   const copyLiveToPtuAction = useAsyncAction();
   const onboardingAction = useAsyncAction();
   const [rsiDialogOpen, setRsiDialogOpen] = useState(false);
-  const [rsiCode, setRsiCode] = useState('');
+  const [rsiChallenge, setRsiChallenge] = useState<RsiLinkChallenge | null>(null);
+  const rsiCode = rsiChallenge?.code ?? '';
   const [rsiHandleInput, setRsiHandleInput] = useState('');
   const rsiAction = useAsyncAction();
   const rsiVerifyInFlightRef = useRef(false);
   const [rsiCopyFeedback, setRsiCopyFeedback] = useState<string | null>(null);
   const rsiUnlinkAction = useAsyncAction();
+  useEffect(() => {
+    if (!rsiChallenge) return;
+    const timer = window.setTimeout(() => {
+      setRsiChallenge(null);
+      setRsiCopyFeedback(null);
+    }, Math.max(0, Date.parse(rsiChallenge.expiresAt) - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [rsiChallenge]);
   const [blueprintCollectionError, setBlueprintCollectionError] = useState<string | null>(null);
   const [sharedBlueprintError, setSharedBlueprintError] = useState<string | null>(null);
   const [shareDialogBlueprintId, setShareDialogBlueprintId] = useState<string | null>(null);
@@ -392,7 +396,8 @@ export function AccountPage() {
   const linkedOrganizations = account?.organizations ?? [];
   const favoriteCount = favoriteSnapshotIds.length;
   const inventoryCount = inventorySnapshotIds.length;
-  const canManageOrganizations = Boolean(account?.rsi?.handle);
+  const rsiVerificationRequired = account?.rsi?.verificationRequired === true;
+  const canManageOrganizations = Boolean(account?.rsi?.handle) && !rsiVerificationRequired;
   const organizationClaimDialogTarget = linkedOrganizations.find(
     (organization) => organization.sid === organizationClaimDialogSid,
   ) ?? null;
@@ -923,7 +928,7 @@ export function AccountPage() {
     rsiAction.clearError();
     setRsiCopyFeedback(null);
     setRsiHandleInput(account?.rsi?.handle ?? '');
-    setRsiCode(createRsiVerificationCode());
+    setRsiChallenge(null);
     setRsiDialogOpen(true);
   };
 
@@ -957,7 +962,12 @@ export function AccountPage() {
     rsiVerifyInFlightRef.current = true;
     try {
       await rsiAction.run(async () => {
-        await linkRsiAccount(rsiHandleInput.trim(), rsiCode);
+        if (!rsiChallenge || Date.parse(rsiChallenge.expiresAt) <= Date.now()) {
+          setRsiChallenge(await requestRsiLinkChallenge(rsiHandleInput.trim()));
+          return;
+        }
+        await linkRsiAccount(rsiChallenge.handle, rsiChallenge.code);
+        setRsiChallenge(null);
         setRsiDialogOpen(false);
       }, t(
         'Failed to verify the RSI account.',
@@ -1718,6 +1728,23 @@ export function AccountPage() {
         </AppAlert>
       )}
 
+      {rsiVerificationRequired && (
+        <AppAlert severity="warning">
+          <Stack spacing={1} alignItems="flex-start">
+            <Typography>
+              {t(
+                'Please verify your RSI account again to restore access to organization sharing. Your saved inventory is preserved.',
+                'Verifie a nouveau ton compte RSI pour retablir le partage avec tes organisations. Ton inventaire est conserve.',
+                'Verifiziere dein RSI-Konto erneut, um die Organisationsfreigabe wieder zu aktivieren. Dein Inventar bleibt erhalten.',
+              )}
+            </Typography>
+            <Button variant="secondary" onClick={handleStartRsiLink}>
+              {t('Verify RSI account', 'Verifier le compte RSI', 'RSI-Konto verifizieren')}
+            </Button>
+          </Stack>
+        </AppAlert>
+      )}
+
       {user ? (
         <>
           {/* ── Hero Panel ── */}
@@ -2109,7 +2136,9 @@ export function AccountPage() {
                         {account?.rsi?.handle ? (
                           <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
                             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {`${account.rsi.handle} · ${t('verified', 'vérifié', 'verifiziert')}`}
+                              {`${account.rsi.handle} · ${rsiVerificationRequired
+                                ? t('verification required', 'verification requise', 'Verifizierung erforderlich')
+                                : t('verified', 'vérifié', 'verifiziert')}`}
                             </Typography>
                             {account.rsi.verificationProvider === 'citizenid' && (
                               <AppChip
@@ -2132,7 +2161,7 @@ export function AccountPage() {
                           </Typography>
                         )}
                       </Box>
-                      {account?.rsi?.handle ? (
+                      {canManageOrganizations ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -3420,7 +3449,7 @@ export function AccountPage() {
                     {t('RSI account', 'Compte RSI', 'RSI-Konto')}
                   </Typography>
 
-                  {!account?.rsi?.handle && (
+                  {(!account?.rsi?.handle || rsiVerificationRequired) && (
                     citizenIdRsiLinkEnabled ? (
                       <Stack spacing={1}>
                         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -4481,11 +4510,13 @@ export function AccountPage() {
             <Button
               variant="secondary"
               onClick={() => { void handleVerifyRsiLink(); }}
-              disabled={rsiAction.busy || !rsiHandleInput.trim() || !rsiCode}
+              disabled={rsiAction.busy || !rsiHandleInput.trim()}
             >
               {rsiAction.busy
-                ? t('Verifying...', 'Verification...', 'Verifiziere...')
-                : t('Verify and link', 'Verifier et lier', 'Verifizieren und verknupfen')}
+                ? t('Please wait...', 'Patiente...', 'Bitte warten...')
+                : rsiCode
+                  ? t('Verify and link', 'Verifier et lier', 'Verifizieren und verknupfen')
+                  : t('Get verification code', 'Obtenir un code', 'Verifizierungscode anfordern')}
             </Button>
           </Box>
         }
@@ -4501,9 +4532,9 @@ export function AccountPage() {
 
             <Typography sx={{ color: 'text.secondary' }}>
               {t(
-                'Paste this verification code into the short bio on your RSI profile, then enter the matching RSI handle below.',
-                'Colle ce code de verification dans la short bio de ton profil RSI, puis saisis le handle RSI correspondant ci-dessous.',
-                'Fuege diesen Verifizierungscode in die Kurzbiografie deines RSI-Profils ein und gib danach den passenden RSI-Handle unten ein.',
+                'Enter your RSI handle to get a verification code. Paste the code into the short bio on your RSI profile, then verify within 15 minutes.',
+                'Saisis ton handle RSI pour obtenir un code. Colle le code dans la short bio de ton profil RSI, puis verifie dans les 15 minutes.',
+                'Gib deinen RSI-Handle ein, um einen Code zu erhalten. Fuege ihn in die Kurzbiografie deines RSI-Profils ein und verifiziere innerhalb von 15 Minuten.',
               )}
             </Typography>
 
@@ -4519,7 +4550,19 @@ export function AccountPage() {
               </Link>
             </Typography>
 
-            <Paper
+            <AppTextField
+              label={t('RSI handle', 'Handle RSI', 'RSI-Handle')}
+              value={rsiHandleInput}
+              onValueChange={(value) => {
+                setRsiHandleInput(value);
+                setRsiChallenge(null);
+                setRsiCopyFeedback(null);
+              }}
+              disabled={rsiAction.busy}
+              autoFocus
+            />
+
+            {rsiChallenge && <Paper
               variant="outlined"
               sx={{
                 p: 2,
@@ -4534,8 +4577,9 @@ export function AccountPage() {
                   variant="h3"
                   sx={{
                     fontFamily: FONT_MONO,
-                    letterSpacing: '0.16em',
-                    lineHeight: 1,
+                    fontSize: '1.25rem',
+                    overflowWrap: 'anywhere',
+                    lineHeight: 1.4,
                   }}
                 >
                   {rsiCode}
@@ -4551,14 +4595,7 @@ export function AccountPage() {
                   </Typography>
                 )}
               </Stack>
-            </Paper>
-
-            <AppTextField
-              label={t('RSI handle', 'Handle RSI', 'RSI-Handle')}
-              value={rsiHandleInput}
-              onValueChange={setRsiHandleInput}
-              autoFocus
-            />
+            </Paper>}
 
             {rsiAction.error && (
               <AppAlert severity="error">

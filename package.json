@@ -1,8 +1,8 @@
 {
   "name": "item-fabricator",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "private": true,
-  "description": "Item Fabricator — Star Citizen crafting simulator, dismantling calculator and resource planner.",
+  "description": "Item Fabricator \u2014 Star Citizen crafting simulator, dismantling calculator and resource planner.",
   "workspaces": [
     "client"
   ],

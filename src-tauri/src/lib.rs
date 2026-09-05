@@ -1,9 +1,11 @@
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use tauri::Emitter;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -66,12 +68,16 @@ struct WatcherRuntime {
 
 pub struct DesktopAuthState {
     session_token: Mutex<Option<String>>,
+    session_generation: AtomicU64,
+    oauth_in_progress: AtomicBool,
 }
 
 impl DesktopAuthState {
     fn new() -> Self {
         Self {
             session_token: Mutex::new(read_desktop_session_token()),
+            session_generation: AtomicU64::new(0),
+            oauth_in_progress: AtomicBool::new(false),
         }
     }
 
@@ -80,15 +86,46 @@ impl DesktopAuthState {
     }
 
     fn set_token(&self, token: Option<String>) -> Result<(), String> {
+        let mut current = lock_unpoisoned(&self.session_token);
         if token.is_some() {
             write_desktop_session_token(token.as_deref())?;
-            *lock_unpoisoned(&self.session_token) = token;
+            *current = token;
+            self.session_generation.fetch_add(1, Ordering::Release);
             return Ok(());
         }
 
         let result = write_desktop_session_token(None);
-        *lock_unpoisoned(&self.session_token) = None;
+        *current = None;
+        self.session_generation.fetch_add(1, Ordering::Release);
         result
+    }
+
+    fn finish_oauth(&self, token: String, expected_generation: u64) -> Result<(), String> {
+        let mut current = lock_unpoisoned(&self.session_token);
+        if self.session_generation.load(Ordering::Acquire) != expected_generation {
+            return Err("Desktop session changed while authentication was in progress. Please sign in again.".to_string());
+        }
+        write_desktop_session_token(Some(&token))?;
+        *current = Some(token);
+        self.session_generation.fetch_add(1, Ordering::Release);
+        Ok(())
+    }
+
+    fn clear_token_if_matches(&self, rejected: &str) {
+        let mut current = lock_unpoisoned(&self.session_token);
+        if current.as_deref() == Some(rejected) {
+            let _ = write_desktop_session_token(None);
+            *current = None;
+            self.session_generation.fetch_add(1, Ordering::Release);
+        }
+    }
+}
+
+struct OAuthAttemptGuard<'a>(&'a AtomicBool);
+
+impl Drop for OAuthAttemptGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
     }
 }
 
@@ -162,14 +199,24 @@ fn desktop_session_path() -> Option<PathBuf> {
 fn read_desktop_session_token() -> Option<String> {
     let fallback_path = desktop_session_path();
     restore_desktop_session_token(
-        || {
-            keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER)
-                .ok()?
-                .get_password()
-                .ok()
-        },
+        || desktop_credential_entry().ok()?.get_password().ok(),
         fallback_path.as_deref(),
     )
+}
+
+fn desktop_credential_entry() -> Result<keyring::Entry, keyring::Error> {
+    // Tests must never read, overwrite, or delete the user's real credentials.
+    #[cfg(test)]
+    let service = format!(
+        "{KEYRING_SERVICE}.test.{}.{:?}",
+        std::process::id(),
+        std::thread::current().id()
+    );
+    #[cfg(test)]
+    let service = service.as_str();
+    #[cfg(not(test))]
+    let service = KEYRING_SERVICE;
+    keyring::Entry::new(service, KEYRING_SESSION_USER)
 }
 
 fn restore_desktop_session_token<F>(
@@ -206,21 +253,20 @@ fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
             // leave a plaintext fallback on disk. Only when the credential
             // store demonstrably fails (write error or read-back mismatch) do
             // we create the hardened fallback file.
-            let credential_store_ok =
-                match keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
-                    Ok(entry) => {
-                        if entry.set_password(value).is_ok() {
-                            // Verify the write by reading back immediately.
-                            entry
-                                .get_password()
-                                .ok()
-                                .is_some_and(|stored| stored == value)
-                        } else {
-                            false
-                        }
+            let credential_store_ok = match desktop_credential_entry() {
+                Ok(entry) => {
+                    if entry.set_password(value).is_ok() {
+                        // Verify the write by reading back immediately.
+                        entry
+                            .get_password()
+                            .ok()
+                            .is_some_and(|stored| stored == value)
+                    } else {
+                        false
                     }
-                    Err(_) => false,
-                };
+                }
+                Err(_) => false,
+            };
 
             if credential_store_ok {
                 // Credential store is healthy: ensure no fallback file exists.
@@ -235,7 +281,7 @@ fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
         None => {
             // Logout: clear both the credential store and any fallback file.
             let mut keyring_error = None;
-            if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+            if let Ok(entry) = desktop_credential_entry() {
                 match entry.delete_credential() {
                     Ok(()) | Err(keyring::Error::NoEntry) => {}
                     Err(error) => keyring_error = Some(error.to_string()),
@@ -269,6 +315,13 @@ fn write_session_fallback_file(value: &str, path: &Path) -> Result<(), String> {
         .ok_or_else(|| "Unable to resolve session directory.".to_string())?;
     std::fs::create_dir_all(parent)
         .map_err(|error| format!("Unable to create session directory: {error}"))?;
+    if !std::fs::symlink_metadata(parent)
+        .map_err(|error| format!("Unable to inspect session directory: {error}"))?
+        .file_type()
+        .is_dir()
+    {
+        return Err("Session directory must not be a symbolic link.".to_string());
+    }
 
     #[cfg(unix)]
     {
@@ -320,15 +373,46 @@ fn remove_session_fallback_file() -> Result<(), String> {
     }
 }
 
+fn open_regular_file(path: &Path) -> Result<std::fs::File, String> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        // Inspect the opened descriptor, and never follow a final-component
+        // symlink or block on a FIFO swapped in between inspection and open.
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x00200000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let file = options
+        .open(path)
+        .map_err(|_| "Unable to open regular file.".to_string())?;
+    let metadata = file
+        .metadata()
+        .map_err(|_| "Unable to inspect regular file.".to_string())?;
+    if !metadata.file_type().is_file() {
+        return Err("File is not a permitted regular file.".to_string());
+    }
+    Ok(file)
+}
+
 fn read_file_bounded_lossy(path: &Path, max_bytes: usize) -> Result<String, String> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|error| format!("Unable to inspect log file: {error}"))?;
-    if !metadata.file_type().is_file() || metadata.len() > max_bytes as u64 {
+    let file = open_regular_file(path)?;
+    let metadata = file.metadata().map_err(|error| error.to_string())?;
+    if metadata.len() > max_bytes as u64 {
         return Err(
             "Log file is not a permitted regular file or exceeds the size limit.".to_string(),
         );
     }
-    let bytes = std::fs::read(path).map_err(|error| format!("Unable to read log file: {error}"))?;
+    let mut bytes = Vec::new();
+    file.take(max_bytes.saturating_add(1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Unable to read file: {error}"))?;
     if bytes.len() > max_bytes {
         return Err("Log file exceeds the size limit.".to_string());
     }
@@ -510,8 +594,10 @@ async fn fetch_api_json(
         // Clear a stale/expired token when the server rejects it, but only if a
         // token was actually sent — avoids wiping a valid session on transient
         // gateway/proxy 401s that are unrelated to the application session.
-        if status == reqwest::StatusCode::UNAUTHORIZED && token.is_some() {
-            let _ = auth_state.set_token(None);
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            if let Some(token) = token.as_deref() {
+                auth_state.clear_token_if_matches(token);
+            }
         }
         let message = payload
             .get("message")
@@ -548,6 +634,16 @@ fn validate_authorization_url(value: &str) -> Result<String, String> {
         || url.host_str().is_none()
         || !url.username().is_empty()
         || url.password().is_some()
+        || url.fragment().is_some()
+        || url.port_or_known_default() != Some(443)
+        || !matches!(
+            (url.host_str(), url.path()),
+            (Some("discord.com"), "/oauth2/authorize")
+                | (
+                    Some("citizenid.space" | "citizenid.dev"),
+                    "/connect/authorize"
+                )
+        )
     {
         return Err("Desktop OAuth returned an unsafe authorization URL.".to_string());
     }
@@ -557,7 +653,13 @@ fn validate_authorization_url(value: &str) -> Result<String, String> {
 fn open_system_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("rundll32")
+        let system_root = std::env::var_os("SystemRoot")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .ok_or_else(|| "Unable to resolve the Windows system directory.".to_string())?;
+        // Avoid resolving a spoofed rundll32.exe in the application's current
+        // directory when launching the trusted HTTPS authorization URL.
+        std::process::Command::new(system_root.join("System32").join("rundll32.exe"))
             .args(["url.dll,FileProtocolHandler", url])
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -586,103 +688,155 @@ fn open_system_browser(url: &str) -> Result<(), String> {
     Err("Opening the system browser is not supported on this platform.".to_string())
 }
 
+fn parse_desktop_oauth_callback(
+    request: &str,
+    expected_path: &str,
+    expected_flow: &str,
+    expected_host: &str,
+) -> Option<Result<String, String>> {
+    let (headers, _) = request.split_once("\r\n\r\n")?;
+    let mut lines = headers.split("\r\n");
+    let mut request_parts = lines.next()?.split(' ');
+    if request_parts.next()? != "GET" {
+        return None;
+    }
+    let target = request_parts.next()?;
+    if !matches!(request_parts.next()?, "HTTP/1.0" | "HTTP/1.1")
+        || request_parts.next().is_some()
+        || target.contains('\\')
+        || target.bytes().any(|byte| byte <= b' ' || byte == 0x7f)
+        || target.split('?').next()? != expected_path
+    {
+        return None;
+    }
+    let mut host_seen = false;
+    for line in lines {
+        let (name, value) = line.split_once(':')?;
+        let value = value.trim();
+        if name.eq_ignore_ascii_case("host") {
+            if host_seen || value != expected_host {
+                return None;
+            }
+            host_seen = true;
+        } else if name.eq_ignore_ascii_case("origin")
+            || name.eq_ignore_ascii_case("transfer-encoding")
+            || (name.eq_ignore_ascii_case("content-length") && value != "0")
+        {
+            // A browser navigation callback has no Origin header or body.
+            // Reject cross-origin fetches and ambiguous request framing.
+            return None;
+        }
+    }
+    if !host_seen {
+        return None;
+    }
+    let url = Url::parse(&format!("http://{expected_host}{target}")).ok()?;
+    if url.fragment().is_some() || url.path() != expected_path {
+        return None;
+    }
+    let mut flow = None;
+    let mut code = None;
+    let mut error = None;
+    for (key, value) in url.query_pairs() {
+        let slot = match key.as_ref() {
+            "flow" => &mut flow,
+            "code" => &mut code,
+            "error" => &mut error,
+            _ => continue,
+        };
+        if slot.replace(value.into_owned()).is_some() {
+            return None;
+        }
+    }
+    if flow.as_deref() != Some(expected_flow) || (code.is_some() && error.is_some()) {
+        return None;
+    }
+    if let Some(error) = error {
+        return Some(Err(truncate_error_message(&error)));
+    }
+    let code = code?;
+    if code.is_empty()
+        || code.len() > 1024
+        || !code
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._~".contains(&byte))
+    {
+        return None;
+    }
+    Some(Ok(code))
+}
+
 async fn receive_desktop_oauth_callback(
     listener: TcpListener,
     expected_path: String,
     expected_flow: &str,
 ) -> Result<String, String> {
+    let expected_host = listener
+        .local_addr()
+        .map_err(|e| e.to_string())?
+        .to_string();
     let accept = async {
         loop {
             let (mut stream, _) = listener.accept().await.map_err(|e| e.to_string())?;
-            let mut buffer = vec![0_u8; 8192];
-            let bytes_read = match tokio::time::timeout(
+            let read_request = async {
+                let mut request = Vec::new();
+                let mut buffer = [0_u8; 1024];
+                while request.len() < 8192 {
+                    let bytes_read = stream.read(&mut buffer).await.ok()?;
+                    if bytes_read == 0 {
+                        return None;
+                    }
+                    request.extend_from_slice(&buffer[..bytes_read]);
+                    if request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                        return String::from_utf8(request).ok();
+                    }
+                }
+                None
+            };
+            let request = match tokio::time::timeout(
                 tokio::time::Duration::from_secs(OAUTH_CALLBACK_READ_TIMEOUT_SECS),
-                stream.read(&mut buffer),
+                read_request,
             )
             .await
             {
-                Ok(Ok(bytes_read)) if bytes_read > 0 => bytes_read,
-                Ok(Ok(_)) | Err(_) => continue,
-                Ok(Err(error)) => return Err(error.to_string()),
+                Ok(Some(request)) => request,
+                _ => continue,
             };
-            let request = String::from_utf8_lossy(&buffer[..bytes_read]);
-            let request_line = match request.lines().next() {
-                Some(value) => value,
-                None => {
-                    continue;
-                }
-            };
-            let mut request_parts = request_line.split_whitespace();
-            let method = request_parts.next();
-            let target = request_parts.next();
-            let version = request_parts.next();
-            if method != Some("GET")
-                || target.is_none()
-                || !matches!(version, Some("HTTP/1.0" | "HTTP/1.1"))
-                || request_parts.next().is_some()
-            {
-                continue;
-            }
-            let target = target.unwrap_or_default();
-            let url = match Url::parse(&format!("http://127.0.0.1{target}")) {
-                Ok(value) => value,
-                Err(_) => {
-                    continue;
-                }
-            };
-            if url.path() != expected_path {
-                let html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Item Fabricator</title></head><body>Invalid callback.</body></html>";
-                let response = format!(
-                    "HTTP/1.1 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    html.len(),
-                    html,
-                );
-                stream
-                    .write_all(response.as_bytes())
-                    .await
-                    .map_err(|e| e.to_string())?;
-                continue;
-            }
-            let code = url
-                .query_pairs()
-                .find(|(key, _)| key == "code")
-                .map(|(_, value)| value.to_string());
-            let flow = url
-                .query_pairs()
-                .find(|(key, _)| key == "flow")
-                .map(|(_, value)| value.to_string());
-            let error = url
-                .query_pairs()
-                .find(|(key, _)| key == "error")
-                .map(|(_, value)| value.to_string());
-
-            let html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Item Fabricator</title></head><body style=\"font-family:system-ui;background:#0b1220;color:#f8fafc;display:grid;place-items:center;min-height:100vh;margin:0\"><main><h1>Authentication complete</h1><p>You can return to Item Fabricator.</p></main></body></html>";
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                html.len(),
-                html,
+            let callback = parse_desktop_oauth_callback(
+                &request,
+                &expected_path,
+                expected_flow,
+                &expected_host,
             );
-            stream
-                .write_all(response.as_bytes())
-                .await
-                .map_err(|e| e.to_string())?;
-
-            if let Some(error) = error {
-                return Err(truncate_error_message(&error));
+            let (status, message) = match &callback {
+                Some(Ok(_)) => (
+                    "200 OK",
+                    "Authentication complete. You can return to Item Fabricator.",
+                ),
+                Some(Err(_)) => (
+                    "200 OK",
+                    "Authentication failed. You can return to Item Fabricator.",
+                ),
+                None => ("400 Bad Request", "Invalid callback."),
+            };
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; frame-ancestors 'none'\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{message}",
+                message.len(),
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+            if let Some(result) = callback {
+                return result;
             }
-            if flow.as_deref() != Some(expected_flow) {
-                return Err("Desktop OAuth callback flow did not match the request.".to_string());
-            }
-            let code = code
-                .filter(|value| !value.is_empty() && value.len() <= 1024)
-                .ok_or_else(|| "Desktop OAuth callback did not return a valid code.".to_string())?;
-            return Ok(code);
         }
     };
 
     tokio::time::timeout(tokio::time::Duration::from_secs(300), accept)
         .await
         .map_err(|_| "Desktop OAuth timed out.".to_string())?
+}
+
+fn desktop_code_challenge(verifier: &str) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
 
 #[tauri::command]
@@ -695,6 +849,15 @@ async fn start_desktop_oauth(
         return Err("Unsupported desktop OAuth flow.".to_string());
     }
 
+    auth_state
+        .oauth_in_progress
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .map_err(|_| "Desktop OAuth is already in progress.".to_string())?;
+    let _attempt_guard = OAuthAttemptGuard(&auth_state.oauth_in_progress);
+    let session_generation = auth_state.session_generation.load(Ordering::Acquire);
+    // The verifier stays in native memory; intercepted loopback codes cannot
+    // be exchanged by the browser, another webview, or a local process alone.
+    let code_verifier = generate_url_secret(64)?;
     let base_url = api_base_url()?;
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -712,7 +875,11 @@ async fn start_desktop_oauth(
     login_url
         .query_pairs_mut()
         .append_pair("desktop", "1")
-        .append_pair("desktopCallback", &callback);
+        .append_pair("desktopCallback", &callback)
+        .append_pair(
+            "desktopCodeChallenge",
+            &desktop_code_challenge(&code_verifier),
+        );
 
     let client = build_http_client()?;
     let mut login_request = client
@@ -742,7 +909,7 @@ async fn start_desktop_oauth(
     let exchange_response = client
         .post(exchange_url)
         .header(reqwest::header::ACCEPT, "application/json")
-        .json(&serde_json::json!({ "code": exchange_code }))
+        .json(&serde_json::json!({ "code": exchange_code, "codeVerifier": code_verifier }))
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -755,7 +922,7 @@ async fn start_desktop_oauth(
         .map_err(|error| format!("Non-JSON desktop exchange response - HTTP {status}: {error}"))?;
     validate_session_token(&payload.session_token)?;
 
-    auth_state.set_token(Some(payload.session_token))?;
+    auth_state.finish_oauth(payload.session_token, session_generation)?;
     Ok(payload.payload)
 }
 
@@ -862,13 +1029,8 @@ fn is_regular_file(path: &Path) -> bool {
 }
 
 fn read_file_tail_lossy(path: &Path, max_bytes: usize) -> Result<String, String> {
-    let metadata = std::fs::symlink_metadata(path)
-        .map_err(|error| format!("Unable to inspect file: {error}"))?;
-    if !metadata.file_type().is_file() {
-        return Err("File is not a permitted regular file.".to_string());
-    }
-    let mut file =
-        std::fs::File::open(path).map_err(|error| format!("Unable to open file: {error}"))?;
+    let mut file = open_regular_file(path)?;
+    let metadata = file.metadata().map_err(|error| error.to_string())?;
     if metadata.len() > max_bytes as u64 {
         file.seek(SeekFrom::End(-(max_bytes as i64)))
             .map_err(|error| format!("Unable to seek file: {error}"))?;
@@ -957,7 +1119,9 @@ fn collect_log_file_paths(channel_path: &Path) -> Vec<PathBuf> {
     }
 
     let logbackups_dir = channel_path.join("logbackups");
-    if logbackups_dir.is_dir() {
+    if std::fs::symlink_metadata(&logbackups_dir)
+        .is_ok_and(|metadata| metadata.file_type().is_dir())
+    {
         for entry in WalkDir::new(&logbackups_dir)
             .max_depth(1)
             .into_iter()
@@ -966,6 +1130,9 @@ fn collect_log_file_paths(channel_path: &Path) -> Vec<PathBuf> {
             let path = entry.path();
             if is_regular_file(path) && path.extension().is_some_and(|e| e == "log") {
                 paths.push(path.to_path_buf());
+                if paths.len() >= MAX_LOG_FILES {
+                    break;
+                }
             }
         }
     }
@@ -1095,7 +1262,7 @@ async fn run_log_watcher(
 
         // Read only new bytes since last position.
         let new_bytes = {
-            let mut f = match std::fs::File::open(&log_path) {
+            let mut f = match open_regular_file(&log_path) {
                 Ok(f) => f,
                 Err(_) => continue,
             };
@@ -1173,17 +1340,44 @@ fn get_watcher_status(state: tauri::State<'_, WatcherState>) -> WatcherStatus {
     }
 }
 
+#[cfg(any(windows, test))]
+fn startup_command(executable: &Path) -> Result<String, String> {
+    let path = executable
+        .to_str()
+        .ok_or_else(|| "Invalid executable path.".to_string())?;
+    if path.is_empty() || path.contains(['"', '\r', '\n', '\0']) {
+        return Err("Invalid executable path.".to_string());
+    }
+    // Run values are command lines. Quoting prevents a space in an install
+    // directory from turning an earlier path component into an executable.
+    Ok(format!("\"{path}\""))
+}
+
 // ─── Auto-startup (Windows only) ─────────────────────────────────────────────
 
 #[cfg(target_os = "windows")]
-fn get_run_key() -> Result<winreg::RegKey, String> {
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_ALL_ACCESS};
+fn get_run_key(access: u32) -> Result<winreg::RegKey, String> {
+    use winreg::enums::HKEY_CURRENT_USER;
     winreg::RegKey::predef(HKEY_CURRENT_USER)
-        .open_subkey_with_flags(
-            r"Software\Microsoft\Windows\CurrentVersion\Run",
-            KEY_ALL_ACCESS,
-        )
+        .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", access)
         .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn repair_legacy_auto_startup() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|error| error.to_string())?;
+    let key = get_run_key(winreg::enums::KEY_QUERY_VALUE | winreg::enums::KEY_SET_VALUE)?;
+    let current: Result<String, _> = key.get_value(APP_REGISTRY_NAME);
+    // Existing installations need the fix without requiring the user to
+    // disable and re-enable auto-startup. Only migrate our exact old value.
+    if current
+        .as_deref()
+        .is_ok_and(|value| value == exe.to_string_lossy().as_ref())
+    {
+        key.set_value(APP_REGISTRY_NAME, &startup_command(&exe)?)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -1191,8 +1385,8 @@ fn enable_auto_startup() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-        let key = get_run_key()?;
-        key.set_value(APP_REGISTRY_NAME, &exe.to_string_lossy().as_ref())
+        let key = get_run_key(winreg::enums::KEY_SET_VALUE)?;
+        key.set_value(APP_REGISTRY_NAME, &startup_command(&exe)?)
             .map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -1202,7 +1396,7 @@ fn enable_auto_startup() -> Result<(), String> {
 fn disable_auto_startup() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        let key = get_run_key()?;
+        let key = get_run_key(winreg::enums::KEY_SET_VALUE)?;
         key.delete_value(APP_REGISTRY_NAME)
             .map_err(|e| e.to_string())?;
     }
@@ -1213,7 +1407,7 @@ fn disable_auto_startup() -> Result<(), String> {
 fn is_auto_startup_enabled() -> bool {
     #[cfg(target_os = "windows")]
     {
-        if let Ok(key) = get_run_key() {
+        if let Ok(key) = get_run_key(winreg::enums::KEY_QUERY_VALUE) {
             let val: Result<String, _> = key.get_value(APP_REGISTRY_NAME);
             return val.is_ok();
         }
@@ -1225,6 +1419,8 @@ fn is_auto_startup_enabled() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    let _ = repair_legacy_auto_startup();
     tauri::Builder::default()
         .manage(WatcherState::new())
         .manage(DesktopAuthState::new())
@@ -1252,11 +1448,6 @@ mod tests {
     use super::*;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
-
-    // Unique keyring service per test to avoid cross-test contamination
-    fn test_keyring_service(test_name: &str) -> String {
-        format!("space.itemfab.desktop.test.{}", test_name)
-    }
 
     fn create_test_channel_dir(test_name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -1409,6 +1600,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn symlink_metadata_blocks_non_regular_files() {
         use std::os::unix::fs::symlink;
         let channel_dir = create_test_channel_dir("symlink_protection");
@@ -1437,7 +1629,7 @@ mod tests {
     #[test]
     fn desktop_session_prefers_credential_store_over_fallback() {
         // Clear keyring FIRST to ensure clean state from previous tests
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1480,11 +1672,13 @@ mod tests {
             // In environments without functional keyring, fallback IS expected.
             // The test still passes because write succeeded; we just can't assert
             // on the fallback behavior in this environment.
-            eprintln!("Note: keyring not functional in this environment; fallback created as expected");
+            eprintln!(
+                "Note: keyring not functional in this environment; fallback created as expected"
+            );
         }
 
         // Clean up keyring
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1497,7 +1691,7 @@ mod tests {
     fn desktop_session_cross_process_persistence() {
         // AGGRESSIVE ISOLATION: Clear keyring BEFORE setting up test channel
         // (previous tests may have left tokens in the shared keyring)
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1509,7 +1703,7 @@ mod tests {
         set_test_session_path_override(Some(fallback_path.clone()));
 
         // Clear keyring AGAIN after channel creation
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1559,7 +1753,7 @@ mod tests {
         );
 
         // Clean up keyring
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1572,7 +1766,7 @@ mod tests {
     fn desktop_session_fallback_cross_process_persistence() {
         // COMPLETE ISOLATION: Clear keyring aggressively BEFORE setting up test channel
         // (previous tests may have left tokens in the shared keyring)
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1587,7 +1781,7 @@ mod tests {
         let _ = fs::remove_file(&fallback_path);
 
         // Double-check keyring is empty
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1632,7 +1826,7 @@ mod tests {
         );
 
         // Clean up keyring
-        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_SESSION_USER) {
+        if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
@@ -1753,9 +1947,174 @@ mod tests {
 
     #[test]
     fn oauth_callback_validates_http_method_version_and_path() {
-        // This is tested indirectly via the integration flow, but we validate the
-        // parsing logic is strict about GET, HTTP/1.x, and exact path match.
-        // No direct unit test without spinning up a TCP listener; covered by
-        // the existing integration-style test.
+        let path = "/auth/desktop-callback/random-nonce";
+        let host = "127.0.0.1:43127";
+        let valid =
+            format!("GET {path}?flow=discord&code=one-use-code HTTP/1.1\r\nHost: {host}\r\n\r\n");
+        assert_eq!(
+            parse_desktop_oauth_callback(&valid, path, "discord", host),
+            Some(Ok("one-use-code".to_string()))
+        );
+        for invalid in [
+            valid.replace("GET", "POST"),
+            valid.replace("HTTP/1.1", "HTTP/2"),
+            valid.replace("random-nonce", "wrong-nonce"),
+            valid.replace("random-nonce", "other/../random-nonce"),
+            valid.replace("Host: 127.0.0.1", "Host: attacker.example"),
+            valid.replace("flow=discord", "flow=citizenid"),
+            valid.replace("flow=discord", "flow=discord&flow=discord"),
+            valid.replace("code=one-use-code", "code=one-use-code&code=second"),
+            valid.replace("code=one-use-code", "code=one-use-code&error=denied"),
+            valid.replace("code=one-use-code", "code=bad%0D%0Acode"),
+            valid.replace("code=one-use-code", "code=one-use-code#fragment"),
+            valid.replace("\r\n\r\n", "\r\nOrigin: https://attacker.example\r\n\r\n"),
+            valid.replace("\r\n\r\n", &format!("\r\nHost: {host}\r\n\r\n")),
+            valid.replace("\r\n\r\n", "\r\nTransfer-Encoding: chunked\r\n\r\n"),
+            valid.trim_end().to_string(),
+        ] {
+            assert!(
+                parse_desktop_oauth_callback(&invalid, path, "discord", host).is_none(),
+                "accepted malformed callback: {invalid}"
+            );
+        }
+        let denied = valid.replace("code=one-use-code", "error=access_denied");
+        assert_eq!(
+            parse_desktop_oauth_callback(&denied, path, "discord", host),
+            Some(Err("access_denied".to_string()))
+        );
+        assert!(parse_desktop_oauth_callback(&denied, path, "citizenid", host).is_none());
+    }
+
+    #[test]
+    fn oauth_listener_ignores_foreign_requests_and_reads_fragmented_callback() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let host = listener.local_addr().unwrap();
+                let callback = tauri::async_runtime::spawn(receive_desktop_oauth_callback(
+                    listener,
+                    "/auth/desktop-callback/secret".to_string(),
+                    "discord",
+                ));
+                let mut foreign = tokio::net::TcpStream::connect(host).await.unwrap();
+                foreign.write_all(format!(
+                    "GET /wrong?error=denied HTTP/1.1\r\nHost: {host}\r\n\r\n"
+                ).as_bytes()).await.unwrap();
+                let mut response = String::new();
+                foreign.read_to_string(&mut response).await.unwrap();
+                assert!(response.starts_with("HTTP/1.1 400"));
+
+                let mut browser = tokio::net::TcpStream::connect(host).await.unwrap();
+                browser.write_all(b"GET /auth/desktop-callback/secret?flow=discord&code=split-code HTTP/1.1\r\n").await.unwrap();
+                tokio::task::yield_now().await;
+                browser.write_all(format!("Host: {host}\r\n\r\n").as_bytes()).await.unwrap();
+                response.clear();
+                browser.read_to_string(&mut response).await.unwrap();
+                assert!(response.starts_with("HTTP/1.1 200"));
+                assert!(response.contains("Referrer-Policy: no-referrer"));
+                assert_eq!(callback.await.unwrap().unwrap(), "split-code");
+            });
+    }
+
+    #[test]
+    fn desktop_pkce_matches_rfc7636_sha256_vector() {
+        assert_eq!(
+            desktop_code_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+        let verifier = generate_url_secret(64).unwrap();
+        assert_eq!(verifier.len(), 64);
+        assert_eq!(desktop_code_challenge(&verifier).len(), 43);
+        assert_ne!(verifier, generate_url_secret(64).unwrap());
+    }
+
+    #[test]
+    fn startup_command_quotes_paths_with_spaces() {
+        assert_eq!(
+            startup_command(Path::new(r"C:\Program Files\Item Fabricator\app.exe")).unwrap(),
+            r#""C:\Program Files\Item Fabricator\app.exe""#
+        );
+        assert!(startup_command(Path::new("app.exe\" --injected")).is_err());
+    }
+
+    #[test]
+    fn stale_unauthorized_response_does_not_clear_a_new_session() {
+        let state = DesktopAuthState {
+            session_token: Mutex::new(Some("new-session".to_string())),
+            session_generation: AtomicU64::new(1),
+            oauth_in_progress: AtomicBool::new(false),
+        };
+        state.clear_token_if_matches("old-session");
+        assert_eq!(state.get_token().as_deref(), Some("new-session"));
+    }
+
+    #[test]
+    fn pending_oauth_cannot_restore_a_session_after_logout() {
+        let state = DesktopAuthState {
+            session_token: Mutex::new(None),
+            session_generation: AtomicU64::new(2),
+            oauth_in_progress: AtomicBool::new(false),
+        };
+        assert!(state.finish_oauth("late-session".to_string(), 1).is_err());
+        assert!(state.get_token().is_none());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn fallback_does_not_write_through_a_symlinked_session_directory() {
+        let root = create_test_channel_dir("symlinked_session_directory");
+        let unrelated = root.join("unrelated");
+        let session_dir = root.join("session");
+        fs::create_dir_all(&unrelated).unwrap();
+        std::os::unix::fs::symlink(&unrelated, &session_dir).unwrap();
+        assert!(write_session_fallback_file(
+            "test-token",
+            &session_dir.join("desktop-session.token")
+        )
+        .is_err());
+        assert!(!unrelated.join("desktop-session.token").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn scans_do_not_follow_symlinked_backup_directories() {
+        let root = create_test_channel_dir("symlinked_backup_directory");
+        let channel = root.join("channel");
+        let unrelated = root.join("unrelated");
+        fs::create_dir_all(&channel).unwrap();
+        fs::create_dir_all(&unrelated).unwrap();
+        fs::write(
+            unrelated.join("private.log"),
+            "Received Blueprint: Private: acquired",
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(&unrelated, channel.join("logbackups")).unwrap();
+        assert!(collect_log_file_paths(&channel).is_empty());
+        assert!(collect_log_lines(&channel).is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn authorization_urls_stay_on_known_identity_providers() {
+        for url in [
+            "https://attacker.example/oauth2/authorize",
+            "https://discord.com.attacker.example/oauth2/authorize",
+            "https://discord.com:444/oauth2/authorize",
+            "https://discord.com/oauth2/authorize#fragment",
+            "https://discord.com/channels/@me",
+        ] {
+            assert!(validate_authorization_url(url).is_err());
+        }
+        assert!(
+            validate_authorization_url("https://citizenid.space/connect/authorize?state=one")
+                .is_ok()
+        );
+        assert!(
+            validate_authorization_url("https://citizenid.dev/connect/authorize?state=one").is_ok()
+        );
     }
 }

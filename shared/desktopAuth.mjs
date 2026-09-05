@@ -69,6 +69,7 @@ export function isValidDesktopCallbackUrl(value) {
     return (
       url.protocol === 'http:' &&
       url.hostname === '127.0.0.1' &&
+      !url.username && !url.password && !url.hash &&
       Number(url.port) > 0 &&
       Number(url.port) <= 65535
     );
@@ -109,6 +110,7 @@ export async function cleanupExpiredDesktopAuthArtifacts(store, now = Date.now()
 export async function createDesktopOAuthState(store, env, {
   flow,
   callbackUrl,
+  codeChallenge,
   session = null,
 } = {}) {
   if (flow !== 'discord' && flow !== 'citizenid') {
@@ -116,6 +118,9 @@ export async function createDesktopOAuthState(store, env, {
   }
   if (!isValidDesktopCallbackUrl(callbackUrl)) {
     throw new Error('Invalid desktop callback URL.');
+  }
+  if (!/^[A-Za-z0-9_-]{43}$/.test(String(codeChallenge ?? ''))) {
+    throw new Error('Desktop authentication requires an updated app with PKCE support.');
   }
 
   await cleanupExpiredDesktopAuthArtifacts(store);
@@ -125,6 +130,7 @@ export async function createDesktopOAuthState(store, env, {
   await store.writeJson(`${DESKTOP_OAUTH_STATE_PREFIX}${nonce}.json`, {
     flow,
     callbackUrl,
+    codeChallenge,
     session,
     createdAt: new Date(now).toISOString(),
     expiresAt: now + DESKTOP_OAUTH_STATE_MAX_AGE_MS,
@@ -140,24 +146,16 @@ export async function consumeDesktopOAuthState(store, env, state, expectedFlow) 
   }
 
   const [, nonce, signature] = parts;
-  if (!nonce || !signature || signature !== await buildStateSignature(nonce, env)) {
+  if (!/^[A-Za-z0-9_-]{32}$/.test(nonce) || !/^[A-Za-z0-9_-]{43}$/.test(signature) || signature !== await buildStateSignature(nonce, env)) {
     return null;
   }
 
   const key = `${DESKTOP_OAUTH_STATE_PREFIX}${nonce}.json`;
-  const payload = await store.readJson(key);
-  await store.deleteObject(key);
-
-  if (
-    !payload ||
-    payload.flow !== expectedFlow ||
-    !isValidDesktopCallbackUrl(payload.callbackUrl) ||
-    Number(payload.expiresAt) < Date.now()
-  ) {
-    return null;
-  }
-
-  return payload;
+  if (!store?.consumeJson) throw new Error('Atomic auth storage is required.');
+  return store.consumeJson(key, (payload) =>
+    payload.flow === expectedFlow && isValidDesktopCallbackUrl(payload.callbackUrl) &&
+    /^[A-Za-z0-9_-]{43}$/.test(payload.codeChallenge ?? '') &&
+    Number.isFinite(payload.expiresAt) && payload.expiresAt > Date.now());
 }
 
 export function appendDesktopCallbackParams(callbackUrl, params) {
@@ -183,20 +181,17 @@ export async function createDesktopExchangeCode(store, payload) {
   return code;
 }
 
-export async function consumeDesktopExchangeCode(store, code) {
+export async function consumeDesktopExchangeCode(store, code, codeVerifier) {
   const normalizedCode = String(code ?? '').trim();
-  if (!normalizedCode) {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(normalizedCode) ||
+      !/^[A-Za-z0-9._~-]{43,128}$/.test(String(codeVerifier ?? ''))) {
     return null;
   }
 
   const codeHash = await hashValue(normalizedCode);
+  const challenge = await hashValue(codeVerifier);
   const key = `${DESKTOP_EXCHANGE_PREFIX}${codeHash}.json`;
-  const payload = await store.readJson(key);
-  await store.deleteObject(key);
-
-  if (!payload || Number(payload.expiresAt) < Date.now()) {
-    return null;
-  }
-
-  return payload;
+  if (!store?.consumeJson) throw new Error('Atomic auth storage is required.');
+  return store.consumeJson(key, (payload) => payload.codeChallenge === challenge &&
+    Number.isFinite(payload.expiresAt) && payload.expiresAt > Date.now());
 }

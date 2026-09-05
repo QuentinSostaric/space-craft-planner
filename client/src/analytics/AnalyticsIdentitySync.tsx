@@ -11,7 +11,7 @@ export function AnalyticsIdentitySync() {
 
   const personProperties: AnalyticsProperties = {
     is_admin: account?.isAdmin ?? false,
-    rsi_linked: Boolean(account?.rsi),
+    rsi_linked: Boolean(account?.rsi) && !account?.rsi?.verificationRequired,
     has_org: (account?.organizations?.length ?? 0) > 0,
     org_count: account?.organizations?.length ?? 0,
     channel: accountDatasetScope,

@@ -2,6 +2,7 @@ import {
   appendQueryParam,
   buildExpiredCookie,
   getPublicOrigin,
+  parseCookieHeader,
   sanitizeReturnTo,
   serializeCookie,
 } from './discordAuth.mjs';
@@ -135,7 +136,7 @@ async function encodeSignedPayload(payload, secret) {
 }
 
 async function decodeSignedPayload(value, secret) {
-  if (!value || !String(value).includes('.')) {
+  if (typeof value !== 'string' || value.length > 8192 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(value)) {
     return null;
   }
 
@@ -144,12 +145,10 @@ async function decodeSignedPayload(value, secret) {
     return null;
   }
 
-  const valid = await verifyValueSignature(body, signature, secret);
-  if (!valid) {
-    return null;
-  }
-
   try {
+    if (!await verifyValueSignature(body, signature, secret)) {
+      return null;
+    }
     return JSON.parse(textDecoder.decode(decodeBase64Url(body)));
   } catch {
     return null;
@@ -190,32 +189,6 @@ export function getCitizenIdBrandEnvironment(env) {
 
   const origin = getCitizenIdOrigin(env).toLowerCase();
   return origin.includes('citizenid.dev') ? 'unstable' : 'production';
-}
-
-function parseCookieHeader(cookieHeader) {
-  const cookies = {};
-  if (!cookieHeader) {
-    return cookies;
-  }
-
-  for (const part of String(cookieHeader).split(/;\s*/)) {
-    if (!part) {
-      continue;
-    }
-
-    const separatorIndex = part.indexOf('=');
-    if (separatorIndex <= 0) {
-      continue;
-    }
-
-    const name = part.slice(0, separatorIndex).trim();
-    const value = part.slice(separatorIndex + 1).trim();
-    if (name) {
-      cookies[name] = decodeURIComponent(value);
-    }
-  }
-
-  return cookies;
 }
 
 export function isCitizenIdAuthConfigured(env) {
@@ -286,7 +259,7 @@ export async function readCitizenIdStateFromCookies(cookieHeader, env) {
     return null;
   }
 
-  if (!payload.nonce || !payload.expiresAt || Number(payload.expiresAt) < Date.now()) {
+  if (!payload.nonce || !Number.isFinite(payload.expiresAt) || payload.expiresAt <= Date.now()) {
     return null;
   }
 
@@ -756,6 +729,8 @@ export async function fetchCitizenIdRsiProfileDetail(accessToken, env = {}) {
   return {
     rsiLink,
     organizations: dedupeCitizenIdOrganizations(organizations),
+    organizationsComplete: Array.isArray(payload?.orgs) && rawMemberships.every(({ value, source }) =>
+      normalizeCitizenIdOrganizationMembership(value, { source }) !== null),
   };
 }
 
@@ -771,11 +746,12 @@ export async function resolveCitizenIdAccountData(tokenPayload, env = {}) {
     try {
       const detail = await fetchCitizenIdRsiProfileDetail(tokenPayload.access_token, env);
       return {
-        rsiLink: claimRsiLink ?? detail.rsiLink,
-        organizations: dedupeCitizenIdOrganizations([
+        rsiLink: detail.rsiLink ?? claimRsiLink,
+        organizations: detail.organizationsComplete ? detail.organizations : dedupeCitizenIdOrganizations([
           ...detail.organizations,
           ...claimOrganizations,
         ]),
+        organizationsComplete: detail.organizationsComplete,
       };
     } catch {
       // Some Citizen iD tenants may not grant profile/detail yet. Claims and the

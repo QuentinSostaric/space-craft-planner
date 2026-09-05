@@ -137,7 +137,7 @@ export function Header() {
     } catch (err: unknown) {
       setWatcherError(err instanceof Error ? err.message : 'Failed to toggle watcher.');
       trackEvent('log_sync_error', {
-        error_message: err instanceof Error ? err.message.slice(0, 240) : 'Failed to toggle watcher.',
+        error_type: err instanceof Error ? err.name : 'Error',
       });
     }
   };

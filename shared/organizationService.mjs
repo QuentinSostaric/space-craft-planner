@@ -8,6 +8,7 @@ import {
 } from './accountStorage.mjs';
 import {
   readOrganizationRecord,
+  getVerifiedOrganizationMemberSnapshot,
   upsertOrganizationMetadata,
   writeOrganizationRecord,
 } from './organizationStorage.mjs';
@@ -17,6 +18,7 @@ import {
 } from './organizationClaimRequestStorage.mjs';
 import {
   isOrganizationAdminCandidate,
+  isVerifiedRsiLink,
   scrapeRsiProfileByHandle,
 } from './rsiLink.mjs';
 import {
@@ -71,13 +73,7 @@ async function enrichOrganizationsWithRsiProfile(handle, organizations, { fetchI
 }
 
 function isSnapshotFreshForMembership(record, nowMs = Date.now()) {
-  const staleAt = normalizeIsoTimestamp(record?.staleAt);
-  return Boolean(
-    staleAt &&
-      Array.isArray(record?.memberSnapshot) &&
-      record.memberSnapshot.length > 0 &&
-      Date.parse(staleAt) >= nowMs,
-  );
+  return getVerifiedOrganizationMemberSnapshot(record, nowMs) !== null;
 }
 
 function isVerifiedOrganizationStatus(status) {
@@ -247,8 +243,8 @@ function normalizeExternalOrganizationRef(organization, { source = 'manual', sta
   };
 }
 
-async function syncExternalVerifiedOrganizations(store, account, organizations = [], { fetchImpl = fetch } = {}) {
-  if (!account?.rsi?.handle || !Array.isArray(organizations) || organizations.length === 0) {
+async function syncExternalVerifiedOrganizations(store, account, organizations = [], { fetchImpl = fetch, organizationsComplete = false } = {}) {
+  if (!account?.rsi?.handle || !Array.isArray(organizations) || (organizations.length === 0 && !organizationsComplete)) {
     return account;
   }
 
@@ -260,7 +256,9 @@ async function syncExternalVerifiedOrganizations(store, account, organizations =
     { fetchImpl },
   );
 
-  let nextRefs = account.organizations ?? [];
+  const currentSids = new Set(enrichedOrganizations.map((org) => normalizeOrganizationSid(org.sid)).filter(Boolean));
+  let nextRefs = (account.organizations ?? []).map((ref) =>
+    organizationsComplete && !currentSids.has(ref.sid) ? buildObservedOrganizationRef(ref) : ref);
   let nextIgnoredOrganizationSids = account.ignoredOrganizationSids ?? [];
 
   for (const organization of enrichedOrganizations) {
@@ -374,7 +372,7 @@ async function readOrganizationClaimRequestsBySid(store, accountId, refs) {
 }
 
 async function applyFreshMembershipSnapshots(store, account) {
-  if (!account?.rsi?.handle || !Array.isArray(account.organizations) || account.organizations.length === 0) {
+  if (!isVerifiedRsiLink(account?.rsi) || !Array.isArray(account.organizations) || account.organizations.length === 0) {
     return account;
   }
 
@@ -392,15 +390,6 @@ async function applyFreshMembershipSnapshots(store, account) {
       account.rsi.handle,
     );
     if (!matchingMember) {
-      if (ref.source === 'profile-main') {
-        const preservedRef = {
-          ...ref,
-          lastSeenAt: organizationRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
-        };
-        hasChanges ||= JSON.stringify(preservedRef) !== JSON.stringify(ref);
-        return preservedRef;
-      }
-
       const observedRef = buildObservedOrganizationRef(ref, {
         lastSeenAt: ref.lastSeenAt ?? organizationRecord.lastLiveSyncAt ?? ref.lastSeenAt,
       });
@@ -411,7 +400,7 @@ async function applyFreshMembershipSnapshots(store, account) {
     const verifiedRef = buildVerifiedOrganizationRef(
       ref,
       matchingMember,
-      organizationRecord.lastLiveSyncAt,
+      organizationRecord.memberSnapshotVerifiedAt,
       {
         lastSeenAt: organizationRecord.lastLiveSyncAt ?? ref.lastSeenAt ?? null,
       },
@@ -475,6 +464,9 @@ function assertLinkedRsiHandle(account) {
   if (!account?.rsi?.handle) {
     throw new OrganizationServiceError(400, 'Link an RSI account before managing organizations.');
   }
+  if (!isVerifiedRsiLink(account.rsi)) {
+    throw new OrganizationServiceError(403, 'Verify your RSI account again before accessing organizations.');
+  }
 }
 
 function assertActiveOrganizationRecord(organizationRecord) {
@@ -487,8 +479,12 @@ function assertActiveOrganizationRecord(organizationRecord) {
 }
 
 function assertClaimedByCurrentUser(organizationRecord, account) {
+  assertLinkedRsiHandle(account);
   assertActiveOrganizationRecord(organizationRecord);
-  if (organizationRecord.claimedByAccountId !== account.accountId) {
+  const membership = account.organizations?.find((ref) => ref.sid === organizationRecord.sid);
+  const snapshot = getVerifiedOrganizationMemberSnapshot(organizationRecord);
+  if (organizationRecord.claimedByAccountId !== account.accountId || !isVerifiedOrganizationStatus(membership?.status) ||
+      (snapshot && !findOrganizationMemberByHandle(snapshot, account.rsi.handle))) {
     throw new OrganizationServiceError(
       403,
       'Only the organization owner can manage this setting in the app.',
@@ -533,8 +529,9 @@ export async function syncAndDecorateAccountOrganizations(
   return decorateAccountOrganizations(nextAccount, organizationRecordsBySid, claimRequestsBySid);
 }
 
-export async function syncCitizenIdAccountOrganizations(store, account, organizations = [], { fetchImpl = fetch } = {}) {
-  const nextAccount = await syncExternalVerifiedOrganizations(store, account, organizations, { fetchImpl });
+export async function syncCitizenIdAccountOrganizations(store, account, organizations = [], { fetchImpl = fetch, organizationsComplete = false } = {}) {
+  assertLinkedRsiHandle(account);
+  const nextAccount = await syncExternalVerifiedOrganizations(store, account, organizations, { fetchImpl, organizationsComplete });
   return decorateAccountOrganizationsFromStore(store, nextAccount);
 }
 
@@ -876,6 +873,7 @@ export async function refreshAccountOrganizationMembers(
 }
 
 export async function buildOrganizationSharedBlueprints(store, account, sid, options = {}) {
+  assertLinkedRsiHandle(account);
   const datasetScope = options?.datasetScope ?? account?.datasetScope ?? 'live';
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid) {
@@ -895,6 +893,10 @@ export async function buildOrganizationSharedBlueprints(store, account, sid, opt
 
   let organizationRecord = await readOrganizationRecord(store, normalizedSid);
   assertActiveOrganizationRecord(organizationRecord);
+  const verifiedSnapshot = getVerifiedOrganizationMemberSnapshot(organizationRecord);
+  if (verifiedSnapshot && !findOrganizationMemberByHandle(verifiedSnapshot, account.rsi.handle)) {
+    throw new OrganizationServiceError(403, 'Your RSI account is no longer a member of this organization.');
+  }
   if (!isOrganizationBlueprintSharingEnabled(organizationRecord)) {
     throw new OrganizationServiceError(
       403,
@@ -938,7 +940,7 @@ export async function buildOrganizationSharedBlueprints(store, account, sid, opt
     await Promise.all(
       [...candidateAccountIds].map(async (memberAccountId) => {
         const memberAccount = await readScopedAccountRecord(store, memberAccountId, null, datasetScope);
-        if (!memberAccount?.rsi?.handle) {
+        if (!isVerifiedRsiLink(memberAccount?.rsi)) {
           return null;
         }
 
@@ -956,11 +958,11 @@ export async function buildOrganizationSharedBlueprints(store, account, sid, opt
         const memberOrganizationRef =
           memberAccount.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
         const matchingSnapshotMember = findOrganizationMemberByHandle(
-          organizationRecord?.memberSnapshot,
+          getVerifiedOrganizationMemberSnapshot(organizationRecord),
           memberAccount.rsi.handle,
         );
 
-        if (!matchingSnapshotMember && !isVerifiedOrganizationStatus(memberOrganizationRef?.status)) {
+        if (!matchingSnapshotMember && (verifiedSnapshot || !isVerifiedOrganizationStatus(memberOrganizationRef?.status))) {
           return null;
         }
 
@@ -1029,6 +1031,7 @@ export async function buildOrganizationSharedBlueprints(store, account, sid, opt
 }
 
 export async function buildOrganizationSharedResources(store, account, sid, options = {}) {
+  assertLinkedRsiHandle(account);
   const datasetScope = options?.datasetScope ?? account?.datasetScope ?? 'live';
   const normalizedSid = normalizeOrganizationSid(sid);
   if (!normalizedSid) {
@@ -1048,6 +1051,10 @@ export async function buildOrganizationSharedResources(store, account, sid, opti
 
   let organizationRecord = await readOrganizationRecord(store, normalizedSid);
   assertActiveOrganizationRecord(organizationRecord);
+  const verifiedSnapshot = getVerifiedOrganizationMemberSnapshot(organizationRecord);
+  if (verifiedSnapshot && !findOrganizationMemberByHandle(verifiedSnapshot, account.rsi.handle)) {
+    throw new OrganizationServiceError(403, 'Your RSI account is no longer a member of this organization.');
+  }
   const legacySharedAccountIds = Array.isArray(organizationRecord?.sharedAccountIds)
     ? organizationRecord.sharedAccountIds
     : [];
@@ -1085,7 +1092,7 @@ export async function buildOrganizationSharedResources(store, account, sid, opti
     await Promise.all(
       [...candidateAccountIds].map(async (memberAccountId) => {
         const memberAccount = await readScopedAccountRecord(store, memberAccountId, null, datasetScope);
-        if (!memberAccount?.rsi?.handle) {
+        if (!isVerifiedRsiLink(memberAccount?.rsi)) {
           return null;
         }
 
@@ -1107,11 +1114,11 @@ export async function buildOrganizationSharedResources(store, account, sid, opti
         const memberOrganizationRef =
           memberAccount.organizations.find((ref) => ref.sid === normalizedSid) ?? null;
         const matchingSnapshotMember = findOrganizationMemberByHandle(
-          organizationRecord?.memberSnapshot,
+          getVerifiedOrganizationMemberSnapshot(organizationRecord),
           memberAccount.rsi.handle,
         );
 
-        if (!matchingSnapshotMember && !isVerifiedOrganizationStatus(memberOrganizationRef?.status)) {
+        if (!matchingSnapshotMember && (verifiedSnapshot || !isVerifiedOrganizationStatus(memberOrganizationRef?.status))) {
           return null;
         }
 

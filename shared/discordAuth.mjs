@@ -36,7 +36,7 @@ function isAllowedDesktopUrl(value) {
 
   return DESKTOP_ALLOWED_HOSTS.some(
     (allowed) => url.protocol === allowed.protocol && url.hostname === allowed.hostname,
-  );
+  ) && !url.username && !url.password;
 }
 
 const textEncoder = new TextEncoder();
@@ -117,7 +117,7 @@ async function encodeSignedPayload(payload, secret) {
 }
 
 async function decodeSignedPayload(value, secret) {
-  if (!value || !String(value).includes('.')) {
+  if (typeof value !== 'string' || value.length > 8192 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(value)) {
     return null;
   }
 
@@ -126,12 +126,10 @@ async function decodeSignedPayload(value, secret) {
     return null;
   }
 
-  const valid = await verifyValueSignature(body, signature, secret);
-  if (!valid) {
-    return null;
-  }
-
   try {
+    if (!await verifyValueSignature(body, signature, secret)) {
+      return null;
+    }
     return JSON.parse(textDecoder.decode(decodeBase64Url(body)));
   } catch {
     return null;
@@ -210,7 +208,7 @@ export function getDiscordScopes(env) {
 }
 
 export function parseCookieHeader(cookieHeader) {
-  const cookies = {};
+  const cookies = Object.create(null);
   if (!cookieHeader) {
     return cookies;
   }
@@ -231,7 +229,15 @@ export function parseCookieHeader(cookieHeader) {
       continue;
     }
 
-    cookies[name] = decodeURIComponent(value);
+    // One malformed, unrelated cookie must not break every authenticated route.
+    // Keep the first occurrence, matching browser cookie ordering.
+    if (!Object.hasOwn(cookies, name)) {
+      try {
+        cookies[name] = decodeURIComponent(value);
+      } catch {
+        cookies[name] = '';
+      }
+    }
   }
 
   return cookies;
@@ -253,13 +259,17 @@ export function sanitizeReturnTo(value) {
   }
 
   const candidate = String(value).trim();
+  if (/[\\\u0000-\u001f\u007f]/.test(candidate)) {
+    return DEFAULT_RETURN_TO;
+  }
 
   // Allow desktop app origins as absolute return URLs (exact host match only).
   if (isAllowedDesktopUrl(candidate)) {
     return candidate;
   }
 
-  if (!candidate.startsWith('/') || candidate.startsWith('//')) {
+  if (!candidate.startsWith('/') || candidate.startsWith('//') ||
+      new URL(candidate, 'https://itemfab.local').origin !== 'https://itemfab.local') {
     return DEFAULT_RETURN_TO;
   }
 
@@ -355,7 +365,7 @@ export async function readOauthStateFromCookies(cookieHeader, env) {
     return null;
   }
 
-  if (!payload.nonce || !payload.expiresAt || Number(payload.expiresAt) < Date.now()) {
+  if (!payload.nonce || !Number.isFinite(payload.expiresAt) || payload.expiresAt <= Date.now()) {
     return null;
   }
 
@@ -452,7 +462,8 @@ async function isDesktopSessionActive(store, payload) {
   if (
     !sessionRecord ||
     String(sessionRecord.accountId ?? '') !== String(payload.accountId ?? '') ||
-    Number(sessionRecord.expiresAt) < Date.now()
+    String(sessionRecord.userId ?? '') !== String(payload.user?.id ?? '') ||
+    !Number.isFinite(sessionRecord.expiresAt) || sessionRecord.expiresAt <= Date.now()
   ) {
     if (store?.deleteObject && payload.sid) {
       await store.deleteObject(`${DESKTOP_SESSION_PREFIX}${payload.sid}.json`);
@@ -501,8 +512,9 @@ async function readSessionFromSignedValue(value, env, store = null) {
   if (
     (payload.v !== 1 && payload.v !== SESSION_VERSION) ||
     payload.provider !== 'discord' ||
-    !payload.user ||
-    Number(payload.expiresAt) < Date.now()
+    !/^\d+$/.test(String(payload.user?.id ?? '')) ||
+    !Number.isFinite(payload.expiresAt) || payload.expiresAt <= Date.now() ||
+    !Number.isFinite(payload.issuedAt) || payload.issuedAt > Date.now() + 60000
   ) {
     return null;
   }
@@ -513,11 +525,13 @@ async function readSessionFromSignedValue(value, env, store = null) {
 
   const resolvedAccountId =
     String(payload.accountId ?? buildAccountIdFromDiscordUser(payload.user?.id) ?? '').trim() || null;
+  if (resolvedAccountId !== buildAccountIdFromDiscordUser(payload.user.id)) {
+    return null;
+  }
 
   // Session-epoch revocation: a token is rejected once its embedded epoch falls
   // behind the account's stored epoch (bumped on account deletion / forced
-  // sign-out). Only enforced when a store is available; storage errors fail open
-  // so a transient R2 outage cannot mass-invalidate live sessions.
+  // sign-out). A failed revocation lookup must never authorize a revoked token.
   if (store && resolvedAccountId) {
     try {
       const currentEpoch = await readAccountSessionEpoch(store, resolvedAccountId);
@@ -528,7 +542,7 @@ async function readSessionFromSignedValue(value, env, store = null) {
         return null;
       }
     } catch {
-      // Fail open on storage errors.
+      return null;
     }
   }
 
@@ -549,10 +563,10 @@ export async function readSessionFromBearerToken(authorizationHeader, env, store
 }
 
 export async function readSessionFromRequest(request, env, store = null) {
-  return (
-    await readSessionFromBearerToken(request?.headers?.get?.('Authorization'), env, store) ??
-    await readSessionFromCookies(request?.headers?.get?.('cookie'), env, store)
-  );
+  const authorization = request?.headers?.get?.('Authorization');
+  return authorization
+    ? readSessionFromBearerToken(authorization, env, store)
+    : readSessionFromCookies(request?.headers?.get?.('cookie'), env, store);
 }
 
 export function getSessionCookieName() {

@@ -56,7 +56,7 @@ export function normalizeOrganizationSid(value) {
 
   const urlMatch = input.match(/(?:^|\/)orgs\/([^/?#]+)/i);
   const sid = (urlMatch?.[1] ?? input).trim().toUpperCase();
-  return sid || null;
+  return /^[A-Z0-9_-]{1,64}$/.test(sid) ? sid : null;
 }
 
 export function normalizeBaseUrl(value) {

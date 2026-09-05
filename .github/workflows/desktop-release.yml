@@ -13,10 +13,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: desktop-release-${{ github.event.release.tag_name || inputs.release_tag }}
+  cancel-in-progress: false
+
 jobs:
   build-desktop:
     permissions:
       contents: write
+      actions: read
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -32,10 +38,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
+          ref: refs/tags/${{ github.event.release.tag_name || inputs.release_tag }}
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24.14.0'
+          node-version: '24.20.0'
           cache: 'npm'
 
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-06-30
@@ -61,6 +69,12 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
+      - name: Verify release source passed CI and was promoted to production
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/validateReleaseSource.mjs
+
       - name: Install dependencies
         run: npm ci
 
@@ -75,24 +89,14 @@ jobs:
       - name: Validate repository configuration
         run: npm run config:check
 
-      - name: Validate updater signing secrets (optional)
+      - name: Require updater signing key
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          has_key=0
-          has_pwd=0
-          if [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then has_key=1; fi
-          if [[ -n "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]]; then has_pwd=1; fi
-          
-          if (( has_key != has_pwd )); then
-            echo "::warning::TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD must be configured together. Skipping signing."
-            echo "SIGN_ENABLED=false" >> "$GITHUB_ENV"
-          elif (( has_key == 1 )); then
-            echo "SIGN_ENABLED=true" >> "$GITHUB_ENV"
-          else
-            echo "SIGN_ENABLED=false" >> "$GITHUB_ENV"
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is required for signed desktop updates."
+            exit 1
           fi
 
       - name: Configure Windows Authenticode signing
@@ -152,9 +156,8 @@ jobs:
         with:
           tauriScript: npm run tauri
           tagName: ${{ github.event.release.tag_name || inputs.release_tag }}
-          releaseName: 'Item Fabricator ${{ github.event.release.tag_name || inputs.release_tag }}'
-          releaseBody: 'Desktop release for Item Fabricator.'
+          releaseId: ${{ github.event.release.id }}
           releaseDraft: false
           prerelease: false
-          assetNamePattern: '[name]-[version]-[platform]-[arch]-[bundle][setup][ext]'
-          args: ${{ matrix.args }}
+          releaseAssetNamePattern: '[name]-[version]-[platform]-[arch]-[bundle][setup][ext]'
+          args: ${{ matrix.args }} -- --locked

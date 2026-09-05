@@ -1,31 +1,5 @@
 import { normalizeBaseUrl, normalizeText, readProcessEnv } from './normalize.mjs';
-
-function isPreviewHostname(hostname) {
-  return (
-    hostname.startsWith('preview.') ||
-    (hostname.endsWith('.space-craft-planner.pages.dev') &&
-      hostname !== 'space-craft-planner.pages.dev')
-  );
-}
-
-function readHeader(request, name) {
-  const headers = request?.headers;
-  if (!headers) {
-    return '';
-  }
-
-  if (typeof headers.get === 'function') {
-    return normalizeText(headers.get(name));
-  }
-
-  const lowerName = name.toLowerCase();
-  const value = headers[lowerName] ?? headers[name];
-  if (Array.isArray(value)) {
-    return normalizeText(value[0]);
-  }
-
-  return normalizeText(value);
-}
+import { resolveRuntimeStorageScope } from '../functions/_shared/runtimeBuckets.js';
 
 function getDiscordBotWorkerUrl(env) {
   return normalizeBaseUrl(
@@ -44,57 +18,18 @@ function getDiscordBotInternalToken(env) {
 }
 
 export function resolveAppBaseUrlFromRequest(request, env = null) {
-  const originHeader = normalizeBaseUrl(readHeader(request, 'origin'));
-  if (originHeader) {
-    return originHeader;
-  }
-
-  const refererHeader = normalizeBaseUrl(readHeader(request, 'referer'));
-  if (refererHeader) {
-    return refererHeader;
-  }
-
-  const requestUrlOrigin = normalizeBaseUrl(request?.url);
-  if (requestUrlOrigin) {
-    return requestUrlOrigin;
-  }
-
-  return normalizeBaseUrl(
-    env?.APP_BASE_URL ??
-      readProcessEnv('APP_BASE_URL') ??
-      'https://itemfab.space',
-  );
+  // Notification links must never trust caller-controlled Origin/Referer.
+  return normalizeBaseUrl(env?.APP_BASE_URL ?? readProcessEnv('APP_BASE_URL')) ??
+    normalizeBaseUrl(request?.url) ?? 'https://itemfab.space';
 }
 
 export function resolveCraftRequestStorageScope(request, env = null) {
-  const branch = normalizeText(
-    env?.CF_PAGES_BRANCH ??
-      readProcessEnv('CF_PAGES_BRANCH') ??
-      '',
-  ).toLowerCase();
-  if (branch) {
-    return branch === 'main' || branch === 'production' || branch === 'prod' ? 'prod' : 'dev';
-  }
-
-  const appBaseUrl = resolveAppBaseUrlFromRequest(request, env);
-  const hostname = (() => {
-    try {
-      return new URL(appBaseUrl).hostname.toLowerCase();
-    } catch {
-      return '';
-    }
-  })();
-
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname.endsWith('.local') ||
-    isPreviewHostname(hostname)
-  ) {
-    return 'dev';
-  }
-
-  return 'prod';
+  const runtimeEnv = { CF_PAGES_BRANCH: env?.CF_PAGES_BRANCH ?? readProcessEnv('CF_PAGES_BRANCH') };
+  // The Node development server supplies a relative IncomingMessage URL;
+  // Cloudflare Requests always have an absolute URL.
+  const url = String(request?.url ?? '');
+  const runtimeRequest = { url: url.startsWith('/') ? `http://localhost${url}` : url };
+  return resolveRuntimeStorageScope(runtimeEnv, runtimeRequest);
 }
 
 export async function notifyCraftRequestOwnerViaWorker(

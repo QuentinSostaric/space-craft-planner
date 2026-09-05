@@ -3,6 +3,7 @@ import posthog, { type PostHog } from 'posthog-js';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getApiUrl, isTauriRuntime } from '../services/apiBaseUrl';
 import { LS_KEYS } from '../types';
+import { sanitizeAnalyticsEvent } from './privacy';
 
 type AnalyticsValue = string | number | boolean | null | undefined;
 export type AnalyticsProperties = Record<string, AnalyticsValue>;
@@ -213,9 +214,17 @@ async function initializeClient(): Promise<PostHog | null> {
     ui_host: getUiHost(config.host),
     defaults: '2026-01-30',
     capture_pageview: 'history_change',
+    disable_capture_url_hashes: true,
+    save_referrer: false,
+    save_campaign_params: false,
     persistence: 'localStorage',
     person_profiles: 'identified_only',
     disable_session_recording: true,
+    capture_exceptions: false,
+    disable_external_dependency_loading: true,
+    before_send: (event) => analyticsAllowed && event
+      ? sanitizeAnalyticsEvent(event, config.token)
+      : null,
     mask_all_text: true,
     mask_all_element_attributes: true,
     capture_pageleave: true,
@@ -231,20 +240,6 @@ async function initializeClient(): Promise<PostHog | null> {
   initializationComplete = true;
   queuedEvents.splice(0).forEach((event) => capture(event.name, event.properties));
   return client;
-}
-
-function truncate(value: string, maxLength: number): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
-}
-
-function errorMessageFromReason(reason: unknown): string {
-  if (reason instanceof Error) {
-    return reason.message;
-  }
-  if (typeof reason === 'string') {
-    return reason;
-  }
-  return 'Unknown error';
 }
 
 export function setAnalyticsContext(properties: AnalyticsProperties): void {
@@ -375,7 +370,6 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     const handleError = (event: ErrorEvent) => {
       trackEvent('frontend_error', {
         error_source: 'window_error',
-        error_message: truncate(event.message || 'Unknown error', 240),
         error_type: event.error instanceof Error ? event.error.name : 'Error',
         error_line: event.lineno,
         error_column: event.colno,
@@ -385,7 +379,6 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     const handleRejection = (event: PromiseRejectionEvent) => {
       trackEvent('frontend_error', {
         error_source: 'unhandled_rejection',
-        error_message: truncate(errorMessageFromReason(event.reason), 240),
         error_type: event.reason instanceof Error ? event.reason.name : 'PromiseRejection',
       });
     };

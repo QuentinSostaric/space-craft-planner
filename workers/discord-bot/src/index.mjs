@@ -1,3 +1,4 @@
+import { readBoundedBody } from '../../../functions/_shared/requestBody.js';
 import {
   COMMAND_DEFINITIONS,
   DISCORD_INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE_WITH_SOURCE,
@@ -82,7 +83,7 @@ function textResponse(body, init = {}) {
 
 async function readJsonRequestBody(request) {
   try {
-    return await request.json();
+    return JSON.parse(new TextDecoder().decode(await readBoundedBody(request, 1024 * 1024)));
   } catch {
     return null;
   }
@@ -99,7 +100,7 @@ function isAuthorizedInternalRequest(request, env) {
 }
 
 function hexToUint8Array(value) {
-  if (!value || value.length % 2 !== 0) {
+  if (typeof value !== 'string' || !/^(?:[0-9a-f]{2})+$/iu.test(value)) {
     throw new Error('Invalid hex input.');
   }
 
@@ -114,13 +115,15 @@ function hexToUint8Array(value) {
 }
 
 let discordPublicKeyPromise;
+let cachedDiscordPublicKey;
 
 function getDiscordPublicKey(env) {
   if (!env.DISCORD_PUBLIC_KEY) {
     throw new Error('Missing DISCORD_PUBLIC_KEY.');
   }
 
-  if (!discordPublicKeyPromise) {
+  if (!discordPublicKeyPromise || cachedDiscordPublicKey !== env.DISCORD_PUBLIC_KEY) {
+    cachedDiscordPublicKey = env.DISCORD_PUBLIC_KEY;
     discordPublicKeyPromise = crypto.subtle.importKey(
       'raw',
       hexToUint8Array(env.DISCORD_PUBLIC_KEY),
@@ -144,8 +147,20 @@ async function verifyDiscordRequest(request, env) {
     return { ok: false, status: 401, message: 'Missing Discord signature headers.' };
   }
 
-  const body = await request.text();
-  const key = await getDiscordPublicKey(env);
+  // A valid signature authenticates a payload but does not make old requests fresh.
+  const timestampSeconds = Number(timestamp);
+  if (!/^\d{1,12}$/u.test(timestamp) || !Number.isSafeInteger(timestampSeconds) ||
+      Math.abs(Date.now() / 1000 - timestampSeconds) > 300 || !/^[0-9a-f]{128}$/iu.test(signature)) {
+    return { ok: false, status: 401, message: 'Invalid Discord signature headers.' };
+  }
+  let body;
+  let key;
+  try {
+    body = new TextDecoder().decode(await readBoundedBody(request, 1024 * 1024));
+    key = await getDiscordPublicKey(env);
+  } catch (error) {
+    return { ok: false, status: error instanceof RangeError ? 413 : 503, message: 'Discord request unavailable.' };
+  }
   const verified = await crypto.subtle.verify(
     'Ed25519',
     key,

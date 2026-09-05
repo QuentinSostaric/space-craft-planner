@@ -40,7 +40,9 @@ desktop workflow checks this before building, so a tag such as `v2.4.2` cannot a
 publish binaries that still identify themselves as `2.4.1`.
 
 For a manual workflow run, provide that existing tag in the required `release_tag` input. Manual
-runs use the same version check as release-triggered runs.
+runs check out the selected tag and use the same validation as release-triggered runs.
+The tagged commit must have successful CI and Secret Scan runs on main and be included
+in both main and production before any build starts.
 
 The `Desktop Release` workflow runs when a GitHub release is published or when an authorized
 maintainer starts it manually. It builds and uploads release assets for:
@@ -77,9 +79,10 @@ TAURI_SIGNING_PRIVATE_KEY
 TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 ```
 
-The current updater key has a password, so both secrets are required. The public key is committed in `src-tauri/tauri.conf.json`; the private key and password must never be committed. Local generated values currently exist at `.tmp/tauri-updater-private.key` and `.tmp/tauri-updater-password.txt` for transferring into the GitHub secrets.
+The private key is required. Set the password secret only when that key is encrypted;
+an unencrypted key works with an absent or empty password. The public key is committed in `src-tauri/tauri.conf.json`; the private key and password must never be committed. Transfer signing material using a secure secret-management workflow.
 
-The release workflow fails closed when either updater-signing secret is absent. Windows
+The release workflow fails closed when the updater signing key is absent. Windows
 Authenticode signing remains optional, but `WINDOWS_CERTIFICATE` and
 `WINDOWS_CERTIFICATE_PASSWORD` must either both be configured or both be absent. GitHub Actions
 are pinned to immutable commits; see [`supply-chain.md`](./supply-chain.md) for the upgrade policy.
@@ -93,3 +96,16 @@ VITE_API_BASE_URL=https://itemfab.space
 ```
 
 This makes relative `/api/*` calls target the hosted Cloudflare Pages API. If authenticated desktop sessions are required, the Pages Functions auth endpoints must allow the Tauri app origin and credentialed requests, or the desktop app should be switched to a remote-shell model that opens `https://itemfab.space` directly.
+
+## Security update v2.4.4
+
+Desktop sign-in requires the native PKCE flow shipped in v2.4.4. Existing sessions
+remain valid; older desktop versions must update before starting a new sign-in.
+RSI profile links created before this release require server-challenge revalidation
+before organization sharing can be used; CitizenID-verified links remain trusted.
+Account data and inventories are retained.
+
+For a controlled rollout, publish the release with `--latest=false`, wait for both
+desktop jobs, verify installer signatures and both platform entries in latest.json,
+then mark it latest. This keeps automatic updaters on the previous complete release
+while the new assets are being built.

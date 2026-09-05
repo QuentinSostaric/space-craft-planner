@@ -1,61 +1,59 @@
-// First-party reverse proxy for PostHog.
-//
-// Browser tracker blockers (uBlock, Brave/Vivaldi shields, …) drop requests to
-// *.posthog.com, so analytics from real visitors never arrive. Routing the
-// traffic through our own domain (/ingest/*) makes it first-party and keeps it
-// out of those block lists.
-//
-// Mirrors PostHog's recommended split: everything goes to the ingestion host
-// except /static/* which is served by the assets host. The /ingest prefix is
-// stripped before forwarding. See https://posthog.com/docs/advanced/proxy.
+import { readBoundedBody } from '../_shared/requestBody.js';
 
-const DEFAULT_API_HOST = 'https://eu.i.posthog.com';
+const POSTHOG_UPSTREAMS = new Map([
+  ['https://eu.i.posthog.com', 'https://eu-assets.i.posthog.com'],
+  ['https://us.i.posthog.com', 'https://us-assets.i.posthog.com'],
+]);
+const MAX_BODY_BYTES = 5 * 1024 * 1024;
+// An allowlist prevents app bearer tokens, Access credentials, and future
+// authentication headers from ever leaving the first-party origin.
+const FORWARDED_HEADERS = ['accept', 'accept-encoding', 'content-type', 'content-encoding', 'user-agent'];
 
-// Headers that must never be forwarded to PostHog: cookies would leak the
-// first-party auth session, and Host must follow the upstream URL.
-const STRIPPED_REQUEST_HEADERS = ['cookie', 'host', 'x-forwarded-host'];
-
-function resolveUpstreams(env) {
-  const apiHost = (env.POSTHOG_HOST ?? env.VITE_POSTHOG_HOST ?? DEFAULT_API_HOST)
-    .trim()
-    .replace(/\/+$/u, '');
-
-  // eu.i.posthog.com -> eu-assets.i.posthog.com (region-aware).
-  let assetHost = apiHost;
-  try {
-    const url = new URL(apiHost);
-    url.hostname = url.hostname.replace(/^([^.]+)\./u, '$1-assets.');
-    assetHost = url.origin;
-  } catch {
-    // Keep apiHost as the fallback when POSTHOG_HOST is malformed.
-  }
-
-  return { apiHost, assetHost };
+function errorResponse(status, message) {
+  return new Response(message, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function onRequest({ request, env }) {
+  if (!['GET', 'HEAD', 'POST'].includes(request.method)) {
+    return new Response('Method not allowed.', { status: 405, headers: { Allow: 'GET, HEAD, POST' } });
+  }
+  const apiHost = String(env.POSTHOG_HOST ?? env.VITE_POSTHOG_HOST ?? 'https://eu.i.posthog.com').trim().replace(/\/+$/u, '');
+  const assetHost = POSTHOG_UPSTREAMS.get(apiHost);
+  if (!assetHost) return errorResponse(503, 'Analytics unavailable.');
+
   const url = new URL(request.url);
   const subPath = url.pathname.replace(/^\/ingest/u, '') || '/';
-
-  const { apiHost, assetHost } = resolveUpstreams(env);
-  const upstreamBase = subPath.startsWith('/static/') ? assetHost : apiHost;
-  const upstreamUrl = `${upstreamBase}${subPath}${url.search}`;
-
-  const headers = new Headers(request.headers);
-  for (const name of STRIPPED_REQUEST_HEADERS) {
-    headers.delete(name);
+  if (!subPath.startsWith('/') || subPath.startsWith('//') || /\\|%(?:2f|5c|2e|00)/iu.test(subPath)) {
+    return errorResponse(400, 'Invalid analytics path.');
+  }
+  const upstreamBase = (subPath.startsWith('/static/') || subPath.startsWith('/array/')) ? assetHost : apiHost;
+  const headers = new Headers();
+  for (const name of FORWARDED_HEADERS) {
+    if (request.headers.has(name)) headers.set(name, request.headers.get(name));
   }
 
-  const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-  const upstream = await fetch(upstreamUrl, {
-    method: request.method,
-    headers,
-    body: hasBody ? request.body : undefined,
-    redirect: 'follow',
-  });
-
-  const response = new Response(upstream.body, upstream);
-  // Don't let PostHog set cookies on our apex domain.
-  response.headers.delete('set-cookie');
-  return response;
+  try {
+    const body = request.method === 'POST' ? await readBoundedBody(request, MAX_BODY_BYTES) : undefined;
+    const upstream = await fetch(`${upstreamBase}${subPath}${url.search}`, {
+      method: request.method,
+      headers,
+      body,
+      redirect: 'manual',
+      signal: AbortSignal.timeout(10_000),
+    });
+    // Do not follow or relay redirects: the app CSP trusts this same-origin proxy.
+    if (upstream.status >= 300 && upstream.status < 400) {
+      return errorResponse(502, 'Unexpected analytics redirect.');
+    }
+    const response = new Response(upstream.body, upstream);
+    response.headers.delete('set-cookie');
+    response.headers.delete('clear-site-data');
+    response.headers.delete('access-control-allow-origin');
+    response.headers.delete('access-control-allow-credentials');
+    if (request.method === 'POST') response.headers.set('Cache-Control', 'no-store');
+    return response;
+  } catch (error) {
+    return errorResponse(error instanceof RangeError ? 413 : 502,
+      error instanceof RangeError ? 'Request body too large.' : 'Analytics unavailable.');
+  }
 }

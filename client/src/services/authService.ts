@@ -53,6 +53,7 @@ export interface LinkedRsiAccount {
   profileUrl: string | null;
   verifiedAt: string | null;
   verificationProvider: 'citizenid' | 'rsi-profile' | null;
+  verificationRequired?: boolean;
 }
 
 export type AccountOrganizationSource = 'profile-main' | 'manual';
@@ -328,6 +329,24 @@ export async function deleteCurrentAccount(): Promise<void> {
   await authApiFetch<{ ok: boolean }>('/api/auth/account', {
     method: 'DELETE',
   });
+}
+
+export interface RsiLinkChallenge {
+  code: string;
+  handle: string;
+  expiresAt: string;
+}
+
+export async function requestRsiLinkChallenge(handle: string): Promise<RsiLinkChallenge> {
+  const payload = await authApiFetch<{ challenge: RsiLinkChallenge }>('/api/auth/account/rsi-link/challenge', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ handle }),
+  });
+
+  return payload.challenge;
 }
 
 export async function verifyAndLinkRsiAccount(
