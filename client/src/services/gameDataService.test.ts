@@ -1,7 +1,12 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { fetchPublishedDatasetIndex } from './gameDataService';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+let fetchPublishedDatasetIndex: typeof import('./gameDataService').fetchPublishedDatasetIndex;
 const mocks = vi.hoisted(() => ({ native: vi.fn() }));
 vi.mock('./apiBaseUrl', () => ({ fetchTauriApiJson: mocks.native, getApiUrl: (path: string) => path, getApiCredentials: () => 'same-origin' }));
+beforeEach(async () => {
+  vi.resetModules();
+  mocks.native.mockReset();
+  ({ fetchPublishedDatasetIndex } = await import('./gameDataService'));
+});
 afterEach(() => vi.unstubAllGlobals());
 it('preserves native API failures without an unauthenticated browser retry', async () => {
   const fetch = vi.fn();
