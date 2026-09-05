@@ -101,11 +101,14 @@ test('renders the deterministic application shell', async ({ page, colorScheme }
   await expect(page.locator('main')).toBeVisible();
   await expect(page.locator('nav').first()).toBeVisible();
 
+  await expect(page.getByRole('heading', { name: 'Blueprint register', exact: true })).toBeVisible();
+
+  // UPDATE_VISUAL_BASELINES=1 explicitly enables local visual QA in CI-like environments.
   // Baselines are committed per developer platform, and hosted runners render
   // fonts differently enough to exceed the diff tolerance. Keep the pixel
   // comparison as a local regression tool; the assertions above still guard the
   // shell on CI.
-  if (!process.env.CI) {
+  if (!process.env.CI || process.env.UPDATE_VISUAL_BASELINES === '1') {
     await expect(page).toHaveScreenshot('application-shell.png', { fullPage: true });
   }
 

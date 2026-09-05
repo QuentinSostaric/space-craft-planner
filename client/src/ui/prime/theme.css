@@ -1,9 +1,9 @@
 html[data-theme='dark'] {
-  --sc-bg: #07121f;
-  --sc-bg-elevated: #0c1b2e;
-  --sc-surface-1: #0f2138;
-  --sc-surface-2: #16294a;
-  --sc-surface-3: #1d365c;
+  --sc-bg: #090f19;
+  --sc-bg-elevated: #0e1724;
+  --sc-surface-1: #121e2d;
+  --sc-surface-2: #19283b;
+  --sc-surface-3: #22354c;
   --sc-border: rgba(148, 178, 220, 0.1);
   --sc-border-strong: rgba(148, 178, 220, 0.22);
   --sc-border-accent: rgba(129, 140, 248, 0.35);
@@ -21,17 +21,17 @@ html[data-theme='dark'] {
 }
 
 html[data-theme='light'] {
-  --sc-bg: #ecedf6;
-  --sc-bg-elevated: #f4f4fb;
-  --sc-surface-1: #fafafd;
-  --sc-surface-2: #eff0f8;
-  --sc-surface-3: #e3e5ee;
+  --sc-bg: #e9eef4;
+  --sc-bg-elevated: #f2f5f9;
+  --sc-surface-1: #ffffff;
+  --sc-surface-2: #edf2f7;
+  --sc-surface-3: #e0e7f0;
   --sc-border: #d8dbe9;
   --sc-border-strong: #bfc3d7;
   --sc-border-accent: rgba(79, 70, 229, 0.35);
-  --sc-text: #14112e;
-  --sc-text-secondary: #3d3f6b;
-  --sc-text-disabled: #5a5e8b;
+  --sc-text: #152237;
+  --sc-text-secondary: #40536b;
+  --sc-text-disabled: #596c83;
   --sc-primary: #4f46e5;
   --sc-primary-hover: #4338ca;
   --sc-primary-soft: rgba(79, 70, 229, 0.1);
@@ -64,12 +64,12 @@ html[data-theme='light'] {
   --highlight-text-color: var(--sc-text);
   --focus-ring: 0 0 0 2px var(--sc-bg), 0 0 0 4px var(--sc-primary);
   --maskbg: rgba(0, 0, 0, 0.52);
-  --border-radius: 8px;
+  --border-radius: 4px;
   --content-padding: 1rem;
   --inline-spacing: 0.5rem;
-  --sc-radius-control: 8px;
-  --sc-radius-panel: 12px;
-  --sc-radius-overlay: 16px;
+  --sc-radius-control: 4px;
+  --sc-radius-panel: 6px;
+  --sc-radius-overlay: 8px;
   --sc-header-height: 56px;
   --sc-mobile-nav-height: 58px;
   --sc-overlay-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
@@ -112,6 +112,26 @@ html[data-theme='light'] {
   background: var(--sc-surface-1);
   color: var(--sc-text);
   box-shadow: none;
+}
+
+/* Consistent field geometry across filters, editors and account forms. */
+.p-inputtext {
+  min-height: 36px;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+}
+.p-inputtextarea { min-height: 80px; }
+.p-dropdown { min-height: 36px; align-items: center; }
+.p-dropdown .p-dropdown-label {
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.p-dropdown .p-dropdown-trigger { width: 32px; flex-shrink: 0; }
+@media (pointer: coarse) {
+  input.p-inputtext, .p-dropdown { min-height: 44px; }
 }
 
 .p-inputtext:hover,

@@ -60,15 +60,15 @@ export function installGlobalStyles(theme: Theme) {
       /* Without this the document falls back to the UA serif, and every node
          that does not set a family of its own inherits it. */
       font-family: ${FONT_BODY};
-      font-size: 14.5px;
+      font-size: 13px;
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
       transition: background-color 180ms ease, color 180ms ease;
     }
-    html[data-theme='dark'] body { background-color: #07121F; color: #ECF2FA; }
-    html[data-theme='light'] body { background-color: #ECEDF6; color: #14112E; }
+    html[data-theme='dark'] body { background-color: #090F19; color: #ECF2FA; }
+    html[data-theme='light'] body { background-color: #E9EEF4; color: #152237; }
     a { color: ${p.brand.blue}; }
     @keyframes if-fade-in {
       from { opacity: 0; transform: translateY(4px); }

@@ -100,6 +100,18 @@ export function Header() {
   const [searchValue, setSearchValue] = useState<GlobalSearchOption | string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        if (document.querySelector('[role="dialog"]')) return;
+        event.preventDefault();
+        document.getElementById('workspace-global-search')?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const { watcher, sync } = useScLog();
   const [watcherError, setWatcherError] = useState<string | null>(null);
 
@@ -203,7 +215,9 @@ export function Header() {
         sx={{
           px: { xs: 1.5, sm: 2, lg: 2.5 },
           minHeight: { xs: 56, md: 56 },
-          gap: { xs: 1, md: 1.5 },
+          gap: { xs: 0.75, md: 1.5 },
+          flexWrap: { xs: 'wrap', sm: 'nowrap' },
+          py: { xs: 0.75, sm: 0 },
           display: 'flex',
           alignItems: 'center',
         }}
@@ -231,7 +245,7 @@ export function Header() {
             component="img"
             src="/brand-mark.svg"
             alt="Item Fabricator"
-            sx={{ width: 26, height: 32, objectFit: 'contain', display: 'block', flexShrink: 0 }}
+            sx={{ width: 26, height: 32, objectFit: 'contain', display: 'block', flexShrink: 0, filter: themeMode === 'light' ? 'brightness(0.25)' : 'none' }}
           />
           {isLg && (
             <Typography
@@ -255,9 +269,10 @@ export function Header() {
         </Box>
 
         {/* Global search — fills the center without displacing utility controls. */}
-        <Box sx={{ flex: '1 1 220px', minWidth: { xs: 120, sm: 220 }, maxWidth: 540, mx: 'auto', position: 'relative' }}>
+        <Box sx={{ flex: { xs: '1 0 100%', sm: '1 1 220px' }, order: { xs: 2, sm: 0 }, minWidth: { xs: 0, sm: 120 }, maxWidth: 640, mx: 'auto', position: 'relative' }}>
           <SearchIcon sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 17, color: 'text.disabled', zIndex: 1, pointerEvents: 'none' }} />
           <AppAutocomplete
+            id="workspace-global-search"
             value={searchValue}
             suggestions={searchSuggestions}
             getOptionLabel={(option) => option.label}
@@ -267,7 +282,7 @@ export function Header() {
               else if (value) handleSearchSelect(value);
             }}
             onQueryChange={setSearchQuery}
-            placeholder={isMd ? t('Search blueprints, resources, missions…', 'Rechercher blueprints, ressources, missions…') : t('Search…', 'Rechercher…')}
+            placeholder={isMd ? t('Search blueprints, resources, missions…  Ctrl K', 'Rechercher blueprints, ressources, missions…  Ctrl K') : t('Search…', 'Rechercher…')}
             ariaLabel={t('Global search', 'Recherche globale')}
             forceSelection
             sx={{ width: '100%' }}
@@ -321,7 +336,7 @@ export function Header() {
         </Box>
 
         {/* Right-side tools */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, md: 1 }, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, md: 1 }, flexShrink: 0, ml: { xs: 'auto', sm: 0 } }}>
 
           {/* Channel remains available at every width; mobile uses a compact select. */}
           {isMd ? (

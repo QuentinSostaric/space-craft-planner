@@ -11,6 +11,7 @@ import { FONT_DISPLAY, FONT_MONO } from '../../theme';
  * left edge, which is how a section's functional category is read at a glance.
  */
 export function BentoPanel({
+  id,
   accent,
   title,
   note,
@@ -20,6 +21,7 @@ export function BentoPanel({
   bodySx,
   sx,
 }: {
+  id?: string;
   accent?: string;
   title: string;
   note?: string;
@@ -32,9 +34,11 @@ export function BentoPanel({
 }) {
   return (
     <Paper
+      id={id}
+      className="workspace-panel"
       sx={[
         {
-          borderRadius: '9px',
+          borderRadius: '5px',
           backgroundColor: 'ui.surface',
           overflow: 'hidden',
           minWidth: 0,
@@ -73,7 +77,8 @@ function BentoHeader({
           justifyContent: 'space-between',
           gap: 1.25,
           px: 1.5,
-          py: 1,
+          py: 1.25,
+          backgroundColor: 'ui.bgElev',
           borderBottom: (t: Theme) => `1px solid ${t.palette.ui.border}`,
         },
         sx,
@@ -94,12 +99,10 @@ function BentoHeader({
             sx={{
               fontFamily: FONT_DISPLAY,
               fontWeight: 700,
-              fontSize: '0.86rem',
+              fontSize: '0.8125rem',
               lineHeight: 1.2,
               color: 'text.primary',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              whiteSpace: 'normal',
             }}
           >
             {title}

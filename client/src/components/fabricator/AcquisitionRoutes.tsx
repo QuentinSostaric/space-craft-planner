@@ -585,10 +585,12 @@ function TargetRow({
  * blueprint.
  */
 export function AcquisitionRoutes({
+  id,
   lanes,
   progress,
   onReach,
 }: {
+  id?: string;
   lanes: Lane[];
   progress: Record<string, number>;
   onReach: (scopeKey: string, rep: number) => void;
@@ -642,6 +644,7 @@ export function AcquisitionRoutes({
      * taking fixed grid spans.
      */
     <BentoPanel
+      id={id}
       accent={magenta}
       title={t('Acquisition routes', 'Routes d’acquisition')}
       note={`${lanes.length} ${lanes.length === 1 ? t('faction drops this', 'faction droppe ça') : t('factions drop this', 'factions droppent ça')}`}

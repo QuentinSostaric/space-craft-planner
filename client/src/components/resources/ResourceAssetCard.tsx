@@ -111,7 +111,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
       <Box
         sx={{
           position: 'relative',
-          height: { xs: 148, sm: 164, md: 180 },
+          height: 'var(--workspace-preview-height)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -270,7 +270,7 @@ export const ResourceAssetCard = memo(function ResourceAssetCard({
         backgroundColor: 'background.paper',
         transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
         '&:hover': {
-          transform: onOpen ? 'translateY(-4px)' : 'none',
+          transform: 'none',
           borderColor: onOpen ? 'primary.main' : undefined,
           boxShadow:
             theme.palette.mode === 'dark'

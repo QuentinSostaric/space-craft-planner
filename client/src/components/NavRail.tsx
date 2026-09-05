@@ -20,7 +20,7 @@ export type MainView =
   | 'account'
   | 'privacy';
 
-export const NAV_RAIL_DESKTOP_WIDTH = 198;
+export const NAV_RAIL_DESKTOP_WIDTH = 184;
 const DESKTOP_WIDTH = NAV_RAIL_DESKTOP_WIDTH;
 const DESKTOP_ICON_SIZE = 19;
 const MOBILE_ICON_SIZE = 20;
@@ -57,9 +57,13 @@ function NavItem({ active, label, icon, href, onNavigate }: NavItemProps) {
         justifyContent: 'flex-start',
         flexDirection: 'row',
         gap: 1.25,
-        width: '100%',
-        minHeight: 38,
-        px: 2,
+        width: 'calc(100% - 16px)',
+        mx: 1,
+        border: '1px solid',
+        borderColor: active ? 'brand.accentBorder' : 'transparent',
+        borderRadius: '4px',
+        minHeight: 36,
+        px: 1.5,
         py: 0.75,
         position: 'relative',
         textAlign: 'left',
@@ -130,7 +134,7 @@ function NavSectionLabel({ children }: { children: React.ReactNode }) {
         fontWeight: 600,
         letterSpacing: '0.14em',
         textTransform: 'uppercase',
-        color: 'text.disabled',
+        color: 'text.secondary',
         px: 2,
         pt: 2.25,
         pb: 0.5,
@@ -466,7 +470,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 0.25,
+          gap: 0.5,
           pt: 0.5,
           pb: 1.5,
           flex: 1,

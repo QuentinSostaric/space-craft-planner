@@ -1335,7 +1335,7 @@ function MissionDetail({
           </AppButton>
         )}
       />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '300px minmax(0, 1fr)' }, gap: 'var(--workspace-gap)', alignItems: 'start' }}>
         <Stack spacing={2}>
           <MissionHero contract={contract} group={group} />
 
@@ -1649,7 +1649,7 @@ export function MissionsPanel() {
   const [resourceObjectiveMode, setResourceObjectiveMode] = useState<'all' | 'with' | 'without'>('all');
   const [sortBy, setSortBy] = useState<MissionSort>('name-asc');
   const [search, setSearch] = useState('');
-  const [missionView, setMissionView] = useState<'cards' | 'rows'>('cards');
+  const [missionView, setMissionView] = useState<'cards' | 'rows'>('rows');
   const [selectedMissionSlug, setSelectedMissionSlug] = useState<string | null>(() =>
     missionSlugFromPathname(window.location.pathname),
   );

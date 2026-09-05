@@ -1439,6 +1439,7 @@ function OrganizationList({
     <PageLayout>
       <PageHeader
         title={t('Organizations', 'Organisations', 'Organisationen')}
+        eyebrow={t('Shared operations', 'Opérations partagées', 'Gemeinsame Einsätze')}
         description={t(
           'Each organization has an internal marketplace where members share blueprints and resources. Resources are listed by quality and quantity — several lots of the same material can coexist.',
           'Chaque org dispose d un marketplace interne où les membres partagent blueprints et ressources. Les ressources sont listées par qualité et quantité — plusieurs lots du même matériau peuvent coexister.',
@@ -1486,7 +1487,7 @@ function OrganizationList({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
             gap: 2,
           }}
         >

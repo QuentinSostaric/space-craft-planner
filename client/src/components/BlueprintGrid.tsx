@@ -343,10 +343,10 @@ export const BlueprintCard = memo(function BlueprintCard({
         backgroundColor: 'ui.surface',
         transition: 'border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease',
         overflow: 'hidden',
-        borderRadius: 2,
+        borderRadius: '5px',
         '&:hover': {
           borderColor: 'brand.accentBorder',
-          transform: 'translateY(-2px)',
+          transform: 'none',
           boxShadow: `0 6px 18px ${alpha('#000', theme.palette.mode === 'dark' ? 0.35 : 0.08)}`,
         },
       }}
@@ -370,9 +370,10 @@ export const BlueprintCard = memo(function BlueprintCard({
       >
         {/* Top Section: Image with overlays */}
         <Box
+          className="blueprint-card-preview"
           sx={{
             position: 'relative',
-            height: { xs: 124, sm: 132, md: 142 },
+            height: 'var(--workspace-preview-height)',
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.46) : alpha(theme.palette.primary.main, 0.02),
             backgroundImage:
               theme.palette.mode === 'dark'
@@ -425,7 +426,7 @@ export const BlueprintCard = memo(function BlueprintCard({
         </Box>
 
         {/* Bottom Section: Content */}
-        <Box sx={{ p: { xs: 1.5, md: 1.65 }, display: 'flex', flexDirection: 'column', gap: 1.35, flex: 1 }}>
+        <Box className="blueprint-card-details" sx={{ p: { xs: 1.5, md: 1.65 }, display: 'flex', flexDirection: 'column', gap: 1.35, flex: 1 }}>
           {/* Name & Manufacturer */}
           <Box>
             <Typography
@@ -608,6 +609,7 @@ export const BlueprintCard = memo(function BlueprintCard({
 );
 
 export function BlueprintGrid() {
+  const [catalogueView, setCatalogueView] = useState<'rows' | 'cards'>('rows');
   const shipComponentBlueprintsEnabled = useFlag('ship-component-blueprints');
   const {
     activeBlueprint,
@@ -1018,6 +1020,7 @@ export function BlueprintGrid() {
     >
       <PageHeader
         title={t('Blueprints', 'Blueprints')}
+        eyebrow={t('01 / Production library', '01 / Bibliothèque de production', '01 / Produktionsbibliothek')}
         description={t(
           'Browse craftable items, simulate quality builds and plan your material runs.',
           'Parcourez les objets craftables, simulez des builds qualite et planifiez vos collectes de materiaux.',
@@ -1026,6 +1029,10 @@ export function BlueprintGrid() {
 
       <BlueprintExplorer />
 
+      <Box role="group" aria-label={t('Catalogue presentation', 'Présentation du catalogue', 'Katalogdarstellung')} sx={{ display: 'flex', gap: 0.75 }}>
+        <AppButton size="sm" variant={catalogueView === 'rows' ? 'primary' : 'secondary'} ariaPressed={catalogueView === 'rows'} onClick={() => setCatalogueView('rows')}>{t('Register', 'Registre', 'Register')}</AppButton>
+        <AppButton size="sm" variant={catalogueView === 'cards' ? 'primary' : 'secondary'} ariaPressed={catalogueView === 'cards'} onClick={() => setCatalogueView('cards')}>{t('Cards', 'Cartes', 'Karten')}</AppButton>
+      </Box>
       {/* ── Result count ── */}
       <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
@@ -1051,11 +1058,12 @@ export function BlueprintGrid() {
                   <Box
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                      gap: { xs: 1.25, sm: 1.5, lg: 1.75 },
+                      gridTemplateColumns: catalogueView === 'rows' ? { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } : 'repeat(auto-fill, minmax(min(var(--workspace-card-width), 100%), 1fr))',
+                      gap: 'var(--workspace-gap)',
                     }}
                     role="list"
                     aria-label={t('Blueprint list', 'Liste des blueprints')}
+                    className={catalogueView === 'rows' ? 'workspace-blueprint-register' : undefined}
                   >
                     {filteredBlueprints.slice(0, visibleCount).map((blueprint, index) => (
                       <BlueprintCard

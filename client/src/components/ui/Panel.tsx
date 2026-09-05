@@ -94,7 +94,7 @@ export function Panel({
     <PaperAs
       elevation={0}
       component={component}
-      className={className}
+      className={['workspace-panel', className].filter(Boolean).join(' ')}
       aria-labelledby={titleId}
       sx={[
         VARIANT_SX[variant],
@@ -115,8 +115,9 @@ export function Panel({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 1.5,
-            px: dense ? 1.5 : 2.5,
-            py: dense ? 1 : 1.5,
+            px: dense ? 1.5 : 2,
+            py: 1.25,
+            backgroundColor: 'ui.bgElev',
             borderBottom: collapsed ? 'none' : `1px solid ${theme.palette.ui.border}`,
           }}
         >
@@ -244,7 +245,7 @@ export function Panel({
 
       {/* Body */}
       <Collapse in={!collapsible || !collapsed} timeout={180} unmountOnExit={false}>
-        <Box id={bodyId} aria-hidden={collapsible && collapsed ? true : undefined} sx={noPad ? undefined : { p: dense ? 1.5 : 2.5 }}>
+        <Box id={bodyId} aria-hidden={collapsible && collapsed ? true : undefined} sx={noPad ? undefined : { p: dense ? 1.5 : 'var(--workspace-gutter)' }}>
           {children}
         </Box>
       </Collapse>

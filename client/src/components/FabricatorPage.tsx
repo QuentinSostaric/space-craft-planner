@@ -14,7 +14,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
-import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL } from '../theme';
 import { FieldDataBody, hasBlueprintFieldData } from './item-workspace/CraftSection';
 import { StatImpactRadar } from './item-workspace/shared/StatImpactRadar';
 import { ResourceIcon } from './ui/ResourceIcon';
@@ -22,6 +22,7 @@ import { AppButton } from './ui/controls';
 import { AppOverlayPanel } from './ui/overlays';
 import { PageLayout } from './ui/page';
 import { RarityBadge } from './ui/RarityBadge';
+import { WorkbenchHome } from './fabricator/WorkbenchHome';
 import { BentoHero, BentoPanel } from './fabricator/BentoPanel';
 import { BuildIndexKnob, SlotRow, SlotTableHeader, StatMeterRow, buildStatMeters } from './fabricator/CraftBench';
 import { AcquisitionRoutes } from './fabricator/AcquisitionRoutes';
@@ -209,7 +210,7 @@ function KpiTile({
     <Paper
       sx={{
         position: 'relative',
-        borderRadius: '9px',
+        borderRadius: '5px',
         backgroundColor: 'ui.surface',
         px: 1.5,
         py: 1.125,
@@ -413,31 +414,15 @@ export function FabricatorPage() {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
-  // Blueprint selection comes from the header search (which navigates to
-  // /item/<slug>) or the suggestion cards below — the page carries no picker of
-  // its own. The lootable-only scoping lives on the Blueprints library as the
-  // "Obtainable" segment, which filters on the same acquisition graph.
-
-  // Landing on the bare route always opens the CQ7 Rifle. Continuity across
-  // sessions is the URL's job — selecting a blueprint pushes /item/<slug>, so
-  // reopening that address restores it; `/` is the neutral entry point.
-  useEffect(() => {
-    if (blueprints.length === 0) return;
-    if (selectedId && blueprints.some((bp) => bp.id === selectedId)) return;
-    if (itemSlugFromPathname(window.location.pathname)) return;
-    const cq7 = blueprints.find((bp) => bp.name.toLowerCase() === 'cq7 rifle')
-      ?? blueprints.find((bp) => bp.name.toLowerCase().includes('cq7'));
-    if (cq7) setSelectedId(cq7.id);
-  }, [blueprints, selectedId]);
-
+  // The neutral route is the production register; item URLs restore a craft.
   // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
   // the item page); back/forward keep the selection in sync.
   useEffect(() => {
     const syncFromUrl = () => {
       const slug = itemSlugFromPathname(window.location.pathname);
-      if (!slug) return;
+      if (!slug) { setSelectedId(null); return; }
       const fromUrl = blueprints.find((bp) => toSlug(bp.name) === slug);
-      if (fromUrl) setSelectedId(fromUrl.id);
+      setSelectedId(fromUrl?.id ?? null);
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
@@ -651,7 +636,7 @@ export function FabricatorPage() {
   return (
     <PageLayout
       width="full"
-      sx={{ maxWidth: { xs: 'none', lg: '95%' }, gap: 1.125, py: 1.375, px: { xs: 1.25, md: 1.625 } }}
+      sx={{ gap: 'var(--workspace-gap)' }}
     >
       {missionRewardsLoading && !missionRewards && !selected && (
         <Box sx={{ maxWidth: 640 }}>
@@ -660,62 +645,18 @@ export function FabricatorPage() {
         </Box>
       )}
 
-      {/* Empty state: pitch + suggestions */}
-      {!selected && (
-        <Box sx={{ maxWidth: 900 }}>
-          <Typography
-            component="h1"
-            sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: '1.28rem', letterSpacing: '-0.01em', color: 'text.primary' }}
-          >
-            {t('Select a blueprint', 'Sélectionnez un blueprint')}
-          </Typography>
-          <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.secondary', mt: 0.5, mb: 2 }}>
-            {t(
-              'Pick a blueprint to simulate its craft and see the reputation path to unlock it.',
-              'Choisis un blueprint pour simuler son craft et voir le chemin de réputation pour le débloquer.',
-            )}
-          </Typography>
-          {missionRewards && (
-            <>
-          <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 1 }}>
-            {t('Easiest confirmed drops', 'Drops confirmés les plus accessibles')}
-          </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 1.25 }}>
-            {suggestions.map((s) => (
-              <Paper
-                key={s.blueprint.id}
-                component="button"
-                type="button"
-                onClick={() => {
-                  const bp = blueprints.find((b) => b.id === s.blueprint.id);
-                  if (bp) handleSelect(bp);
-                }}
-                variant="outlined"
-                sx={{
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  p: 1.25,
-                  transition: 'border-color 140ms ease',
-                  '&:hover': { borderColor: 'primary.main' },
-                }}
-              >
-                <Typography sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>{s.blueprint.name}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.4 }}>
-                  {[s.blueprint.manufacturer, s.blueprint.category].filter(Boolean).join(' / ')}
-                </Typography>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
-                  {s.contractCount} {t('contracts', 'contrats')} · {s.localityCount} {t('localities', 'localités')}
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
-            </>
-          )}
-        </Box>
-      )}
+      {!selected && <WorkbenchHome onSelect={handleSelect} suggestions={suggestions} />}
 
       {selected && (
         <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <AppButton variant="ghost" size="sm" onClick={() => handleSelect(null)}>
+              ← {t('Blueprint register', 'Registre des blueprints', 'Bauplanregister')}
+            </AppButton>
+            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
+              {t('PRODUCTION / ITEM WORKSPACE', 'PRODUCTION / ATELIER OBJET', 'PRODUKTION / OBJEKTARBEITSPLATZ')}
+            </Typography>
+          </Box>
           {/* ── Identity + command strip ── */}
           <Paper
             sx={{
@@ -725,7 +666,7 @@ export function FabricatorPage() {
               flexWrap: 'wrap',
               px: 1.5,
               py: 1.125,
-              borderRadius: '9px',
+              borderRadius: '5px',
               backgroundColor: 'ui.surface',
               boxShadow: `inset 3px 0 0 0 ${theme.palette.primary.main}`,
             }}
@@ -960,6 +901,14 @@ export function FabricatorPage() {
             />
           </Box>
 
+          <Box component="nav" className="workspace-section-links" aria-label={t('Item sections', 'Sections de l’objet', 'Objektbereiche')}>
+            {detailReady && <a href="#craft-configure">01 / {t('Configure', 'Configurer', 'Konfigurieren')}</a>}
+            {detailReady && <a href="#craft-result">02 / {t('Result', 'Résultat', 'Ergebnis')}</a>}
+            <a href="#craft-acquire">03 / {t('Acquire', 'Acquérir', 'Beschaffen')}</a>
+            {showMaterials && <a href="#craft-materials">04 / {t('Materials', 'Matériaux', 'Materialien')}</a>}
+            {showDismantle && <a href="#craft-dismantle">05 / {t('Dismantle', 'Démonter', 'Zerlegen')}</a>}
+            {detailReady && <a href="#craft-data">06 / {t('Field data', 'Données objet', 'Objektdaten')}</a>}
+          </Box>
           {/* ── Bento work grid ── */}
           {/*
             Cards stretch to their row rather than sizing to content: with three
@@ -972,7 +921,7 @@ export function FabricatorPage() {
             {detailReady ? (
               <BentoPanel
                 accent={theme.palette.primary.main}
-                title={t('Craft simulator', 'Simulateur de craft')}
+                id="craft-configure" title={t('Craft simulator', 'Simulateur de craft')}
                 note={t('assign material quality', 'assigne la qualité des matériaux')}
                 span={7}
                 right={
@@ -1019,14 +968,14 @@ export function FabricatorPage() {
                 </Box>
               </BentoPanel>
             ) : (
-              <Skeleton variant="rectangular" height={280} sx={{ borderRadius: '9px', gridColumn: { xs: 'span 12', lg: 'span 7' } }} />
+              <Skeleton variant="rectangular" height={280} sx={{ borderRadius: '5px', gridColumn: { xs: 'span 12', lg: 'span 7' } }} />
             )}
 
             {/* Projected result */}
             {detailReady && (
               <BentoPanel
                 accent={theme.palette.primary.main}
-                title={t('Projected result', 'Résultat prévu')}
+                id="craft-result" title={t('Projected result', 'Résultat prévu')}
                 note={t('live · updates with sliders', 'live · suit les sliders')}
                 span={5}
                 right={
@@ -1098,7 +1047,7 @@ export function FabricatorPage() {
                       <StatImpactRadar blueprint={selected} projectedStats={projectedStats} />
                     </Box>
                   ) : (
-                    <Box className="if-appear" sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '9px 14px', alignContent: 'start' }}>
+                    <Box className="if-appear" sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(230px, 100%), 1fr))', gap: '9px 14px', alignContent: 'start' }}>
                       {statMeters.length > 0 ? (
                         statMeters.map((meter) => <StatMeterRow key={meter.key} meter={meter} />)
                       ) : (
@@ -1115,12 +1064,13 @@ export function FabricatorPage() {
             {/* Acquisition routes */}
             {lanes.length > 0 ? (
               <AcquisitionRoutes
+                id="craft-acquire"
                 lanes={lanes}
                 progress={progress}
                 onReach={handleReach}
               />
             ) : (
-              <BentoPanel accent={theme.palette.domain.blue} title={t('Acquisition routes', 'Routes d’acquisition')} span={12} bodySx={{ p: 1.5 }}>
+              <BentoPanel accent={theme.palette.domain.blue} id="craft-acquire" title={t('Acquisition routes', 'Routes d’acquisition')} span={12} bodySx={{ p: 1.5 }}>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {missionRewards
                     ? t(
@@ -1136,7 +1086,7 @@ export function FabricatorPage() {
             {showMaterials && (
               <BentoPanel
                 accent={theme.palette.domain.green}
-                title={t('Materials & sourcing', 'Matériaux & sourcing')}
+                id="craft-materials" title={t('Materials & sourcing', 'Matériaux & sourcing')}
                 span={closingPanelSpan}
                 right={
                   <BentoHero
@@ -1244,7 +1194,7 @@ export function FabricatorPage() {
             {showDismantle && (
               <BentoPanel
                 accent={theme.palette.domain.orange}
-                title={t('Estimated dismantle return', 'Estimation du démontage')}
+                id="craft-dismantle" title={t('Estimated dismantle return', 'Estimation du démontage')}
                 span={closingPanelSpan}
                 right={
                   <>
@@ -1422,7 +1372,7 @@ export function FabricatorPage() {
 
             {/* Field data */}
             {detailReady && (
-              <BentoPanel title={t('Field data', 'Données objet')} span={closingPanelSpan} bodySx={{ p: 1.5 }}>
+              <BentoPanel id="craft-data" title={t('Field data', 'Données objet')} span={closingPanelSpan} bodySx={{ p: 1.5 }}>
                 {hasBlueprintFieldData(selected) ? (
                   <FieldDataBody blueprint={selected} />
                 ) : (

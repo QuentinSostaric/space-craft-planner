@@ -520,9 +520,9 @@ export function StatMeterRow({ meter }: { meter: StatMeter }) {
 
   return (
     <Box component="article" aria-label={`${meter.label}: ${outcome}`} sx={{ minWidth: 0 }}>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 0.625, mb: 0.375 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 0.625, mb: 0.375 }}>
         <Typography
-          sx={{ fontSize: '0.68rem', fontWeight: 600, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', overflowWrap: 'anywhere' }}
         >
           {meter.label}
         </Typography>

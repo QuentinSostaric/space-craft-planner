@@ -1,7 +1,7 @@
 import { Box, Paper, Typography, useTheme } from '../../ui/system';
 import type { Palette } from '../../ui/system';
 import type { ReactNode } from 'react';
-import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
+import { FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../../theme';
 
 export function PageStatCard({
   label,
@@ -27,11 +27,12 @@ export function PageStatCard({
   return (
     <Paper
       variant="outlined"
+      className="workspace-stat"
       sx={{
         px: { xs: 1.5, md: 2 },
         py: { xs: 1, md: 1.25 },
         minWidth: 0,
-        minHeight: { xs: 64, md: 72 },
+        minHeight: 60,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -69,7 +70,7 @@ export function PageStatCard({
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
         <Typography
           sx={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: FONT_MONO,
             fontWeight: 800,
             fontSize: { xs: '1.25rem', md: '1.5rem' },
             lineHeight: 1.1,

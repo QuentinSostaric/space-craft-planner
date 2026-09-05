@@ -332,6 +332,7 @@ export function PlannerPage() {
     <PageLayout width="wide">
       <PageHeader
         title={t('Planner', 'Planificateur', 'Planer')}
+        eyebrow={t('03 / Operations', '03 / Opérations', '03 / Einsätze')}
         description={t(
           'Keep a checklist for your next craft. You can add blueprint and resource references from edit mode when you need them.',
           'Gardez une checklist pour votre prochain craft. Vous pouvez ajouter des références de blueprints et de ressources depuis le mode édition si nécessaire.',
@@ -348,8 +349,8 @@ export function PlannerPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' },
-          gap: 2,
+          gridTemplateColumns: { xs: '1fr', md: '240px minmax(0, 1fr)' },
+          gap: 1,
           alignItems: 'stretch',
           minHeight: 540,
         }}

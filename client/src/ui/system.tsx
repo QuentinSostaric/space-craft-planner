@@ -85,12 +85,12 @@ const DOMAIN_LIGHT = {
 
 export const SC_CRAFT_PALETTES = {
   dark: {
-    bg: '#07121F',
-    bgElev: '#0C1B2E',
-    surface: '#0F2138',
-    surface2: '#16294A',
-    surface3: '#1D365C',
-    border: 'rgba(148, 178, 220, 0.10)',
+    bg: '#090F19',
+    bgElev: '#0E1724',
+    surface: '#121E2D',
+    surface2: '#19283B',
+    surface3: '#22354C',
+    border: 'rgba(148, 178, 220, 0.16)',
     borderStrong: 'rgba(148, 178, 220, 0.22)',
     borderAccent: 'rgba(129, 140, 248, 0.35)',
     text: '#ECF2FA',
@@ -106,17 +106,17 @@ export const SC_CRAFT_PALETTES = {
     domain: DOMAIN_DARK,
   },
   light: {
-    bg: '#ECEDF6',
-    bgElev: '#F4F4FB',
-    surface: '#FAFAFD',
-    surface2: '#EFF0F8',
-    surface3: '#E3E5EE',
+    bg: '#E9EEF4',
+    bgElev: '#F2F5F9',
+    surface: '#FFFFFF',
+    surface2: '#EDF2F7',
+    surface3: '#E0E7F0',
     border: '#D8DBE9',
     borderStrong: '#BFC3D7',
     borderAccent: 'rgba(79, 70, 229, 0.35)',
-    text: '#14112E',
-    textSecondary: '#3D3F6B',
-    textTertiary: '#5A5E8B',
+    text: '#152237',
+    textSecondary: '#40536B',
+    textTertiary: '#596C83',
     accent: '#4F46E5',
     accentHover: '#4338CA',
     accentSoft: 'rgba(79, 70, 229, 0.10)',
@@ -189,7 +189,7 @@ function buildTheme(mode: ThemeMode) {
         `(max-width:${(typeof key === 'number' ? key : BREAKPOINTS[key]) - 0.05}px)`,
     },
     spacing: (...args: number[]) => args.map((n) => `${n * 8}px`).join(' '),
-    shape: { borderRadius: 8 },
+    shape: { borderRadius: 4 },
     zIndex: { appBar: 1100, drawer: 1200, modal: 1300, snackbar: 1400, tooltip: 1500 },
     typography: { fontFamily: FONT_BODY, fontDisplay: FONT_DISPLAY, fontMono: FONT_MONO },
     transitions: {
@@ -314,6 +314,7 @@ const PROP_ALIASES: Record<string, string[]> = {
 const UNITLESS = new Set([
   'opacity','z-index','font-weight','line-height','flex','flex-grow','flex-shrink','order',
   '-webkit-line-clamp','zoom','aspect-ratio','scale','flex-basis',
+  'grid-column','grid-row','grid-column-start','grid-column-end','grid-row-start','grid-row-end',
 ]);
 
 /** Props whose string values may be palette token paths. */

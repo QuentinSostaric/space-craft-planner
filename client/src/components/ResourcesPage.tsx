@@ -1848,8 +1848,8 @@ export function ResourcesPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' },
-            gap: { xs: 2, xl: 3 },
+            gridTemplateColumns: { xs: '1fr', xl: '300px minmax(0, 1fr)' },
+            gap: 'var(--workspace-gap)',
           }}
         >
           <ResourceIdentityPanel
@@ -2041,7 +2041,7 @@ export function ResourcesPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 324px' },
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 280px' },
               gap: { xs: 1.5, lg: 2 },
               alignItems: 'flex-start',
             }}
@@ -2056,16 +2056,16 @@ export function ResourcesPage() {
                   {filteredResources.length} {t('resources', 'ressources')}
                 </Typography>
               </Box>
-              <Table size="small">
+              <Table size="small" sx={{ tableLayout: 'fixed', '& th, & td': { px: 1, overflowWrap: 'anywhere' } }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'background.paper' }}>
-                    <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Material', 'Matériau')}</TableCell>
+                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, width: '30%' }}>{t('Material', 'Matériau')}</TableCell>
                     <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, display: { xs: 'none', md: 'table-cell' } }}>{t('Family', 'Famille')}</TableCell>
                     <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, display: { xs: 'none', lg: 'table-cell' } }}>{t('Source', 'Source')}</TableCell>
                     <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Providers', 'Sources')}</TableCell>
                     <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Missions', 'Missions')}</TableCell>
                     <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Blueprints', 'Blueprints')}</TableCell>
-                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, textAlign: 'right' }}>{t('Actions', 'Actions')}</TableCell>
+                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, textAlign: 'right', width: 110 }}>{t('Actions', 'Actions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -2125,7 +2125,7 @@ export function ResourcesPage() {
                                   <ResourceIcon name={resource.name} size={18} shimmer={false} />
                                 )}
                               </Box>
-                              <Box sx={{ minWidth: 0 }}>
+                              <Box sx={{ minWidth: 0, flex: 1 }}>
                                 <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.2 }} noWrap>
                                   {resource.name}
                                 </Typography>

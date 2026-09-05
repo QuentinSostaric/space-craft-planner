@@ -1,3 +1,4 @@
+import './ui/workspace.css';
 import { Fade, Paper, Box, Skeleton, Stack, Typography } from './ui/system';
 import { AppProgressBar, AppProgressSpinner } from './components/ui/feedback';
 import { AppDialog } from './components/ui/overlays/AppDialog';
@@ -13,6 +14,7 @@ import { useAuth } from './auth/AuthContext';
 import { CraftProvider } from './store/CraftContext';
 import { ScLogProvider } from './hooks/ScLogSyncContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { WorkspaceToolbar } from './components/WorkspaceToolbar';
 import { Header } from './components/Header';
 import { NavRail, NAV_RAIL_DESKTOP_WIDTH } from './components/NavRail';
 import { Footer } from './components/Footer';
@@ -678,7 +680,7 @@ function MainContent({ mainView }: { mainView: MainView }) {
 const APP_SHELL_GRID_SX = {
   display: 'grid',
   gridTemplateAreas: { xs: '"header" "main" "rail"', md: '"header header" "rail main"' },
-  gridTemplateColumns: { xs: '1fr', md: `${NAV_RAIL_DESKTOP_WIDTH}px 1fr` },
+  gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: `${NAV_RAIL_DESKTOP_WIDTH}px minmax(0, 1fr)` },
   gridTemplateRows: { xs: 'auto 1fr auto', md: 'auto 1fr' },
   height: '100dvh',
   overflow: 'hidden',
@@ -743,6 +745,7 @@ function AppShellFrame({
   progress = false,
   nav,
   live,
+  view,
 }: {
   children: ReactNode;
   mainRef?: Ref<HTMLElement>;
@@ -751,11 +754,12 @@ function AppShellFrame({
   progress?: boolean;
   nav?: ReactNode;
   live?: 'polite' | 'assertive';
+  view?: MainView;
 }) {
   return (
     <Box sx={APP_SHELL_GRID_SX}>
       <SkipLink label={skipLabel} />
-      <Box component="header" sx={{ gridArea: 'header' }}>
+      <Box component="header" sx={{ gridArea: 'header', minWidth: 0 }}>
         <Header />
         {progress && <AppProgressBar sx={{ height: 2 }} />}
       </Box>
@@ -773,6 +777,7 @@ function AppShellFrame({
         aria-label={mainLabel}
         aria-live={live}
       >
+        {view && <WorkspaceToolbar view={view} />}
         {children}
       </Box>
     </Box>
@@ -870,6 +875,7 @@ function AppShell() {
   if (datasetLoading && activeDataset.blueprints.length === 0) {
     return (
       <AppShellFrame
+        view={guardedMainView}
         mainRef={mainRef}
         mainLabel={t('Content', 'Contenu', 'Inhalt')}
         skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
@@ -900,6 +906,7 @@ function AppShell() {
   if (datasetLoading && activeDataset.blueprints.length > 0) {
     return (
       <AppShellFrame
+        view={guardedMainView}
         mainRef={mainRef}
         mainLabel={t('Content', 'Contenu', 'Inhalt')}
         skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
@@ -929,6 +936,7 @@ function AppShell() {
   if (datasetError && activeDataset.blueprints.length === 0) {
     return (
       <AppShellFrame
+        view={guardedMainView}
         mainRef={mainRef}
         mainLabel={t('Content', 'Contenu', 'Inhalt')}
         skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}
@@ -966,6 +974,7 @@ function AppShell() {
   return (
     <>
       <AppShellFrame
+        view={guardedMainView}
         mainRef={mainRef}
         mainLabel={t('Content', 'Contenu', 'Inhalt')}
         skipLabel={t('Skip to content', 'Aller au contenu', 'Zum Inhalt springen')}

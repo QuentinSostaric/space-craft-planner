@@ -1,7 +1,14 @@
-import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../../ui/system';
-import { Card, CardContent } from '../ui/primitives';
+import { Box, Paper, Stack, Typography } from '../../ui/system';
 import { AppAlert } from '../ui/feedback';
-import { CloudSyncOutlinedIcon, ForumOutlinedIcon, HubOutlinedIcon, Inventory2OutlinedIcon, KeyboardArrowLeftIcon as KeyboardArrowLeft, KeyboardArrowRightIcon as KeyboardArrowRight, MarkEmailUnreadOutlinedIcon, SmartToyOutlinedIcon, VerifiedUserOutlinedIcon } from '../../ui/icons';
+import {
+  CloudSyncOutlinedIcon,
+  ForumOutlinedIcon,
+  HubOutlinedIcon,
+  Inventory2OutlinedIcon,
+  MarkEmailUnreadOutlinedIcon,
+  SmartToyOutlinedIcon,
+  VerifiedUserOutlinedIcon,
+} from '../../ui/icons';
 import { useState } from 'react';
 import accountScreenOne from '../../assets/account_1.png';
 import accountScreenTwo from '../../assets/account_2.png';
@@ -28,7 +35,6 @@ export function AccountGuestView({
   onInviteBot,
 }: AccountGuestViewProps) {
   const { t } = useI18n();
-  const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
 
   // Official Citizen iD brand assets. Light variants are mandated for the dark
@@ -51,7 +57,11 @@ export function AccountGuestView({
 
   const accountJourneySteps = [
     {
-      title: t('Authenticate once with Citizen iD', 'Authentifie-toi une fois avec Citizen iD', 'Melde dich einmal mit Citizen iD an'),
+      title: t(
+        'Authenticate once with Citizen iD',
+        'Authentifie-toi une fois avec Citizen iD',
+        'Melde dich einmal mit Citizen iD an',
+      ),
       body: t(
         'Citizen iD is the entry point for the account layer. Your Citizen iD profile must have a linked Discord account. Right after login, the app can detect local favorites or inventory and propose a safe cloud import.',
         'Citizen iD est la porte d entree du compte. Ton profil Citizen iD doit avoir un compte Discord lie. Juste apres la connexion, l appli peut detecter les favoris ou l inventaire locaux et proposer un import cloud securise.',
@@ -60,7 +70,11 @@ export function AccountGuestView({
       icon: <VerifiedUserOutlinedIcon fontSize="small" />,
     },
     {
-      title: t('Keep your blueprint library synced', 'Synchronise ta bibliotheque de blueprints', 'Halte deine Blueprint-Bibliothek synchron'),
+      title: t(
+        'Keep your blueprint library synced',
+        'Synchronise ta bibliotheque de blueprints',
+        'Halte deine Blueprint-Bibliothek synchron',
+      ),
       body: t(
         'Favorites, inventory and planner progress stop depending on one browser only. Your account becomes the shared source of truth.',
         'Favoris, inventaire et progression planner ne dependent plus d un seul navigateur. Ton compte devient la source de verite partagee.',
@@ -69,7 +83,11 @@ export function AccountGuestView({
       icon: <CloudSyncOutlinedIcon fontSize="small" />,
     },
     {
-      title: t('Unlock org collaboration', 'Debloque la collaboration d organisation', 'Schalte Org-Zusammenarbeit frei'),
+      title: t(
+        'Unlock org collaboration',
+        'Debloque la collaboration d organisation',
+        'Schalte Org-Zusammenarbeit frei',
+      ),
       body: t(
         'Link your RSI identity, access your organizations, share selected blueprints and make craft requests actionable instead of purely informational.',
         'Lie ton identite RSI, accede a tes organisations, partage des blueprints choisis et rends les demandes de craft actionnables plutot que seulement informatives.',
@@ -81,7 +99,11 @@ export function AccountGuestView({
 
   const botWorkflowItems = [
     {
-      title: t('The owner gets a Discord DM', 'Le proprietaire recoit un DM Discord', 'Der Besitzer erhalt eine Discord-DM'),
+      title: t(
+        'The owner gets a Discord DM',
+        'Le proprietaire recoit un DM Discord',
+        'Der Besitzer erhalt eine Discord-DM',
+      ),
       body: t(
         'When someone requests a shared blueprint, the bot opens the workflow in private with the owner and includes the blueprint, the organization, the comment and the resource arrangement.',
         'Quand quelqu un demande un blueprint partage, le bot ouvre le workflow en prive avec le proprietaire et inclut le blueprint, l organisation, le commentaire et l arrangement sur les ressources.',
@@ -90,7 +112,11 @@ export function AccountGuestView({
       icon: <MarkEmailUnreadOutlinedIcon fontSize="small" />,
     },
     {
-      title: t('The bot keeps the request in sync', 'Le bot garde la demande synchronisee', 'Der Bot halt die Anfrage synchron'),
+      title: t(
+        'The bot keeps the request in sync',
+        'Le bot garde la demande synchronisee',
+        'Der Bot halt die Anfrage synchron',
+      ),
       body: t(
         'Accept and deny can happen from Discord or from the site. The DM reflects the current status, and it disappears once the request is denied or closed.',
         'Accepter et refuser peut se faire depuis Discord ou depuis le site. Le DM reflete le statut courant, puis disparait une fois la demande refusee ou cloturee.',
@@ -99,7 +125,11 @@ export function AccountGuestView({
       icon: <SmartToyOutlinedIcon fontSize="small" />,
     },
     {
-      title: t('Get in touch without leaking context', 'Mets les gens en relation sans perdre le contexte', 'Bringt die Leute zusammen, ohne Kontext zu verlieren'),
+      title: t(
+        'Get in touch without leaking context',
+        'Mets les gens en relation sans perdre le contexte',
+        'Bringt die Leute zusammen, ohne Kontext zu verlieren',
+      ),
       body: t(
         'The Get in touch action lets the bot introduce the requester and the crafter directly while leaving the request tracked in the account until it is resolved.',
         'L action Get in touch laisse le bot presenter directement le demandeur et le crafteur tout en laissant la demande suivie dans le compte jusqu a sa resolution.',
@@ -139,553 +169,206 @@ export function AccountGuestView({
     },
   ];
 
+  const previewDescriptions = [accountJourneySteps[1], accountJourneySteps[2], botWorkflowItems[0]];
+  const previews = [accountScreenOne, accountScreenTwo, accountScreenThree];
+  const previewLabels = [
+    t('Inventory', 'Inventaire', 'Inventar'),
+    t('Sharing', 'Partage', 'Freigaben'),
+    t('Discord', 'Discord', 'Discord'),
+  ];
+
   return (
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.35fr) minmax(340px, 0.9fr)' },
-        gap: { xs: 2, md: 3 },
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '320px minmax(0, 1fr)' },
+        gap: 'var(--workspace-gap)',
         alignItems: 'start',
       }}
     >
-      <Stack spacing={2.5}>
-        <Card
-          variant="outlined"
+      <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ p: 2, backgroundColor: '#212126', borderRadius: '4px' }}>
+          <Box
+            component="img"
+            src={citizenIdLogo}
+            alt="Citizen iD"
+            sx={{ width: '100%', maxWidth: 210, height: 42, objectFit: 'contain' }}
+          />
+        </Box>
+        <Typography component="h2" sx={{ fontSize: '1.125rem', fontWeight: 700 }}>
+          {t('Connect your workspace', 'Connectez votre espace', 'Arbeitsplatz verbinden')}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          {t(
+            'Keep your inventory, favorites and plans with you across devices.',
+            'Retrouvez votre inventaire, vos favoris et vos plans sur tous vos appareils.',
+            'Inventar, Favoriten und Pläne auf allen Geräten nutzen.',
+          )}
+        </Typography>
+        <AppButton
+          disabled={!enabled}
+          onClick={onLogin}
+          icon={<Box component="img" src={citizenIdIcon} alt="" sx={{ width: 24, height: 24 }} />}
           sx={{
-            overflow: 'hidden',
-            borderColor: alpha(theme.palette.primary.main, 0.24),
-            background: `linear-gradient(150deg, ${alpha(theme.palette.secondary.main, 0.14)} 0%, ${alpha(theme.palette.primary.main, 0.08)} 46%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
+            minHeight: 48,
+            backgroundColor: '#212126',
+            color: '#F0F0F0',
+            border: '1px solid rgba(240,240,240,0.18)',
+            '&:hover': { backgroundColor: '#0E0E0F' },
           }}
         >
-          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-            <Stack spacing={2.5}>
-              <Stack
-                direction={{ xs: 'column', lg: 'row' }}
-                spacing={2}
-                justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', lg: 'flex-start' }}
-              >
-                <Box sx={{ minWidth: 0, maxWidth: 840 }}>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'secondary.main', letterSpacing: '0.16em' }}
-                  >
-                    {t('Connected workspace', 'Workspace connecte', 'Verbundener Workspace')}
-                  </Typography>
-                  <Typography variant="h3" sx={{ mt: 0.6, lineHeight: 0.94 }}>
-                    {t(
-                      'Turn your account page into the command center for blueprints, organizations and craft coordination.',
-                      'Transforme ta page compte en centre de pilotage pour les blueprints, les organisations et la coordination des crafts.',
-                      'Mach deine Kontoseite zum Leitstand fur Blueprints, Organisationen und Craft-Koordination.',
-                    )}
-                  </Typography>
-                  <Typography sx={{ mt: 1.5, maxWidth: 780, color: 'text.secondary' }}>
-                    {t(
-                      'The account layer keeps your blueprint state persistent, brings RSI organizations into the app and lets the Discord bot carry craft requests into direct conversations.',
-                      'La couche compte garde l etat de tes blueprints persistant, fait entrer les organisations RSI dans l appli et laisse le bot Discord transporter les demandes de craft jusqu a la conversation directe.',
-                      'Die Kontoebene macht deinen Blueprint-Status dauerhaft, bringt RSI-Organisationen in die App und lasst den Discord-Bot Craft-Anfragen in direkte Gesprache uberfuhren.',
-                    )}
-                  </Typography>
-                </Box>
-
-                <Box
-                  component="img"
-                  src={citizenIdLogo}
-                  alt="Citizen iD"
-                  sx={{
-                    height: { xs: 32, md: 44 },
-                    width: 'auto',
-                    display: 'block',
-                    flexShrink: 0,
-                  }}
-                />
-              </Stack>
-
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-                  gap: 1.25,
-                }}
-              >
-                {unlockHighlights.map((item) => (
-                  <Box
-                    key={item.title}
-                    sx={{
-                      p: 1.5,
-                      display: 'flex',
-                      gap: 1.25,
-                      alignItems: 'flex-start',
-                      borderRadius: 1.5,
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
-                      backgroundColor: alpha(theme.palette.background.default, 0.28),
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 1.2,
-                        flexShrink: 0,
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: 'primary.main',
-                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                      }}
-                    >
-                      {item.icon}
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-                        {item.title}
-                      </Typography>
-                      <Typography variant="caption" sx={{ mt: 0.3, display: 'block', color: 'text.secondary' }}>
-                        {item.body}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-
-              {!enabled && (
-                <AppAlert severity="warning">
-                  {t(
-                    'Citizen iD OAuth is not configured in the current environment yet, so the login call-to-action is temporarily disabled.',
-                    'Le OAuth Citizen iD n est pas encore configure dans cet environnement, donc le bouton de connexion est temporairement desactive.',
-                    'Citizen iD OAuth ist in dieser Umgebung noch nicht konfiguriert, daher ist die Login-Aktion vorubergehend deaktiviert.',
-                  )}
-                </AppAlert>
-              )}
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} useFlexGap flexWrap="wrap">
-                <AppButton
-                  variant="primary"
-                  disabled={!enabled}
-                  icon={
-                    <Box
-                      component="img"
-                      src={citizenIdIcon}
-                      alt=""
-                      aria-hidden="true"
-                      sx={{ width: 24, height: 24, display: 'block' }}
-                    />
-                  }
-                  onClick={onLogin}
-                  sx={{
-                    minHeight: 48,
-                    px: 2.2,
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    // Brand-approved combination: gray #212126 surface + light icon + #F0F0F0 text.
-                    backgroundColor: '#212126',
-                    color: '#F0F0F0',
-                    border: '1px solid #2d2d33',
-                    '&:hover': {
-                      backgroundColor: '#0E0E0F',
-                    },
-
-                  }}
-                >
-                  {t('Sign in with Citizen iD', 'Se connecter avec Citizen iD', 'Mit Citizen iD anmelden')}
-                </AppButton>
-                <AppButton
-                  variant="secondary"
-                  icon={discordIcon}
-                  onClick={onInviteBot}
-                  sx={{
-                    minHeight: 48,
-                    px: 2.2,
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    color: 'text.primary',
-                    borderColor: alpha(theme.palette.primary.main, 0.28),
-                    backgroundColor: alpha(theme.palette.background.default, 0.32),
-                    '&:hover': {
-                      borderColor: '#5865F2',
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    },
-                  }}
-                >
-                  {t('Add the Discord bot', 'Ajouter le bot Discord', 'Discord-Bot hinzufugen')}
-                </AppButton>
-              </Stack>
-
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t(
-                  'If blueprint data already exists locally, the app can detect it after login and propose a cloud import instead of leaving it stranded in one browser.',
-                  'Si des blueprints existent deja en local, l appli peut les detecter apres connexion et proposer un import cloud au lieu de les laisser bloques dans un seul navigateur.',
-                  'Wenn lokal bereits Blueprint-Daten existieren, kann die App sie nach der Anmeldung erkennen und einen Cloud-Import anbieten, statt sie in einem Browser gefangen zu lassen.',
-                )}
-              </Typography>
-            </Stack>
-          </CardContent>
-        </Card>
-
-        <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-          <Stack spacing={1.5}>
+          Sign in with Citizen iD
+        </AppButton>
+        {!enabled && (
+          <AppAlert severity="warning">
+            {t(
+              'Sign-in is temporarily unavailable in this environment.',
+              'La connexion est temporairement indisponible dans cet environnement.',
+              'Die Anmeldung ist in dieser Umgebung vorübergehend nicht verfügbar.',
+            )}
+          </AppAlert>
+        )}
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          {accountJourneySteps[0].body}
+        </Typography>
+        {unlockHighlights.map((item) => (
+          <Box
+            key={item.title}
+            sx={{
+              display: 'flex',
+              gap: 1,
+              pt: 1.5,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Box sx={{ color: 'primary.main' }}>{item.icon}</Box>
             <Box>
-              <Typography
-                variant="overline"
-                sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-              >
-                {t('Account workflow', 'Workflow du compte', 'Konto-Workflow')}
-              </Typography>
-              <Typography variant="h5" sx={{ mt: 0.35 }}>
-                {t(
-                  'What happens after sign-in',
-                  'Ce qui se passe apres la connexion',
-                  'Was nach der Anmeldung passiert',
-                )}
+              <Typography sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>{item.title}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', mt: 0.5 }}>
+                {item.body}
               </Typography>
             </Box>
-
-            <Box component="ol" sx={{ display: 'grid', gap: 1.25, listStyle: 'none', p: 0, m: 0 }}>
-              {accountJourneySteps.map((step, index) => (
-                <Box
-                  component="li"
-                  key={step.title}
-                  sx={{ display: 'grid', gridTemplateColumns: '36px minmax(0, 1fr)', gap: 1.25, alignItems: 'start' }}
+          </Box>
+        ))}
+      </Paper>
+      <Stack spacing={2}>
+        <Paper sx={{ overflow: 'hidden' }}>
+          <Box
+            sx={{
+              p: 1.5,
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: 1,
+              alignItems: 'center',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              backgroundColor: 'ui.bgElev',
+            }}
+          >
+            <Typography component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+              {t('Connected tools', 'Outils connectés', 'Verbundene Werkzeuge')}
+            </Typography>
+            <Box
+              role="group"
+              aria-label={t(
+                'Account feature screenshots',
+                'Captures des fonctions du compte',
+                'Screenshots der Kontofunktionen',
+              )}
+              sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+            >
+              {previewLabels.map((label, index) => (
+                <AppButton
+                  key={label}
+                  size="sm"
+                  ariaPressed={activeStep === index}
+                  variant={activeStep === index ? 'primary' : 'ghost'}
+                  onClick={() => setActiveStep(index)}
                 >
-                  <Box
-                    aria-hidden="true"
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: 'primary.main',
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    }}
-                  >
-                    {index + 1}
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {step.title}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.4, maxWidth: 760 }}>
-                      {step.body}
-                    </Typography>
-                  </Box>
-                </Box>
+                  {label}
+                </AppButton>
               ))}
             </Box>
-          </Stack>
-        </Paper>
-
-        <Card
-          variant="outlined"
-          sx={{
-            overflow: 'hidden',
-            borderColor: alpha(theme.palette.primary.main, 0.18),
-          }}
-        >
-          {activeStep === 0 && (
-            <>
-              <Box
-                sx={{
-                  p: { xs: 1, md: 1.25 },
-                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.background.default, 0.24)} 100%)`,
-                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: '100%',
-                    aspectRatio: '16 / 9',
-                    borderRadius: 1.75,
-                    overflow: 'hidden',
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
-                    backgroundColor: alpha(theme.palette.common.black, 0.16),
-                    boxShadow: `0 18px 32px ${alpha(theme.palette.common.black, 0.16)}`,
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={accountScreenOne}
-                    alt={t(
-                      'Account library screenshot',
-                      'Capture de la bibliotheque du compte',
-                      'Screenshot der Konto-Bibliothek',
-                    )}
-                    sx={{
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      objectPosition: 'top center',
-                      backgroundColor: alpha(theme.palette.background.paper, 0.9),
-                    }}
-                  />
-                </Box>
-              </Box>
-              <CardContent>
-                <Typography variant="h6" sx={{ lineHeight: 1.08 }}>
-                  {t('Your blueprint state follows you', 'Tes blueprints te suivent', 'Dein Blueprint-Status folgt dir')}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75, color: 'text.secondary' }}>
-                  {t(
-                    'Inventory and favorites stop being local-only shortcuts and become part of your account layer.',
-                    'Inventaire et favoris cessent d etre de simples raccourcis locaux pour devenir une vraie couche compte.',
-                    'Inventar und Favoriten horen auf, nur lokale Shortcuts zu sein, und werden Teil deiner Kontoebene.',
-                  )}
-                </Typography>
-              </CardContent>
-            </>
-          )}
-
-          {activeStep === 1 && (
-            <>
-              <Box
-                sx={{
-                  p: { xs: 1, md: 1.25 },
-                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.background.default, 0.24)} 100%)`,
-                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: '100%',
-                    aspectRatio: '16 / 9',
-                    borderRadius: 1.75,
-                    overflow: 'hidden',
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
-                    backgroundColor: alpha(theme.palette.common.black, 0.16),
-                    boxShadow: `0 18px 32px ${alpha(theme.palette.common.black, 0.16)}`,
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={accountScreenTwo}
-                    alt={t(
-                      'Organization sharing screenshot',
-                      'Capture du partage d organisation',
-                      'Screenshot der Organisationsfreigabe',
-                    )}
-                    sx={{
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      objectPosition: 'center',
-                      backgroundColor: alpha(theme.palette.background.paper, 0.9),
-                    }}
-                  />
-                </Box>
-              </Box>
-              <CardContent>
-                <Typography variant="h6" sx={{ lineHeight: 1.08 }}>
-                  {t('Choose exactly who gets access', 'Choisis exactement qui a acces', 'Wahle genau aus, wer Zugriff erhalt')}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75, color: 'text.secondary' }}>
-                  {t(
-                    'Blueprint sharing is scoped organization by organization, so you control what stays private and what becomes collaborative.',
-                    'Le partage se fait organisation par organisation, donc tu controles ce qui reste prive et ce qui devient collaboratif.',
-                    'Blueprint-Freigaben sind organisationsweise aufgebaut, sodass du kontrollierst, was privat bleibt und was gemeinsam genutzt wird.',
-                  )}
-                </Typography>
-              </CardContent>
-            </>
-          )}
-
-          {activeStep === 2 && (
-            <>
-              <Box
-                sx={{
-                  p: { xs: 1, md: 1.25 },
-                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.background.default, 0.24)} 100%)`,
-                  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: '100%',
-                    aspectRatio: '16 / 9',
-                    borderRadius: 1.75,
-                    overflow: 'hidden',
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
-                    backgroundColor: alpha(theme.palette.common.black, 0.16),
-                    boxShadow: `0 18px 32px ${alpha(theme.palette.common.black, 0.16)}`,
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={accountScreenThree}
-                    alt={t(
-                      'Discord bot DM screenshot',
-                      'Capture du DM du bot Discord',
-                      'Screenshot der Discord-Bot-DM',
-                    )}
-                    sx={{
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      objectPosition: 'center',
-                      backgroundColor: alpha(theme.palette.background.paper, 0.9),
-                    }}
-                  />
-                </Box>
-              </Box>
-              <CardContent>
-                <Typography variant="h6" sx={{ lineHeight: 1.08 }}>
-                  {t('The bot carries the workflow into Discord', 'Le bot transporte le workflow dans Discord', 'Der Bot bringt den Workflow in Discord')}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 0.75, color: 'text.secondary' }}>
-                  {t(
-                    'Craft requests land as private DMs with accept, deny and get-in-touch actions so the conversation stays tracked without leaving Discord.',
-                    'Les demandes de craft arrivent en DM prives avec les actions accepter, refuser et mise en relation, pour que la conversation reste suivie sans quitter Discord.',
-                    'Craft-Anfragen kommen als private DMs mit Annehmen-, Ablehnen- und Kontakt-Aktionen, damit das Gesprach ohne Discord zu verlassen verfolgt wird.',
-                  )}
-                </Typography>
-              </CardContent>
-            </>
-          )}
-
+          </Box>
           <Box
-            component="nav"
-            aria-label={t('Account feature screenshots', 'Captures des fonctions du compte', 'Screenshots der Kontofunktionen')}
-            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, p: 1.25 }}
-          >
-            <AppButton
-              size="sm"
-              icon={<KeyboardArrowLeft />}
-              onClick={() => setActiveStep((s) => s - 1)}
-              disabled={activeStep === 0}
-            >
-              {t('Back', 'Précédent', 'Zurück')}
-            </AppButton>
-            <Typography variant="caption" aria-live="polite">
-              {activeStep + 1} / 3
+            component="img"
+            src={previews[activeStep]}
+            alt={previewLabels[activeStep]}
+            sx={{
+              display: 'block',
+              width: '100%',
+              maxHeight: 300,
+              objectFit: 'contain',
+              p: 1.5,
+              backgroundColor: 'background.default',
+            }}
+          />
+          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+              {previewDescriptions[activeStep].title}
             </Typography>
-            <AppButton
-              size="sm"
-              icon={<KeyboardArrowRight />}
-              iconPosition="right"
-              onClick={() => setActiveStep((s) => s + 1)}
-              disabled={activeStep === 2}
-            >
-              {t('Next', 'Suivant', 'Weiter')}
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+              {previewDescriptions[activeStep].body}
+            </Typography>
+          </Box>
+        </Paper>
+        <Paper sx={{ p: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
+              mb: 2,
+            }}
+          >
+            <Typography component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+              {t(
+                'Craft coordination · Discord',
+                'Coordination des crafts · Discord',
+                'Craft-Koordination · Discord',
+              )}
+            </Typography>
+            <AppButton variant="secondary" size="sm" icon={discordIcon} onClick={onInviteBot}>
+              {t('Add the bot', 'Ajouter le bot', 'Bot hinzufügen')}
             </AppButton>
           </Box>
-        </Card>
-      </Stack>
-
-      <Stack spacing={2.5}>
-        <Card
-          variant="outlined"
-          sx={{
-            borderColor: alpha(theme.palette.primary.main, 0.2),
-            background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`,
-          }}
-        >
-          <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
-            <Stack spacing={1.75}>
-              <Stack direction="row" spacing={1.1} alignItems="center">
-                <Box
-                  sx={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 1.6,
-                    display: 'grid',
-                    placeItems: 'center',
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    color: 'primary.main',
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
-                  }}
-                >
-                  <SmartToyOutlinedIcon />
-                </Box>
-                <Box>
-                  <Typography
-                    variant="overline"
-                    sx={{ color: 'secondary.main', letterSpacing: '0.14em' }}
-                  >
-                    {t('Discord bot', 'Bot Discord', 'Discord-Bot')}
-                  </Typography>
-                  <Typography variant="h5">
-                    {t('How the bot actually works', 'Comment le bot fonctionne vraiment', 'So funktioniert der Bot wirklich')}
-                  </Typography>
-                </Box>
-              </Stack>
-
-              <Typography sx={{ color: 'text.secondary' }}>
-                {t(
-                  'The bot is not decorative. It extends the craft workflow outside the site while keeping the request state consistent inside the account.',
-                  'Le bot n est pas decoratif. Il prolonge le workflow de craft hors du site tout en gardant l etat de la demande coherent dans le compte.',
-                  'Der Bot ist nicht dekorativ. Er erweitert den Craft-Workflow uber die Seite hinaus und halt den Anfragezustand im Konto konsistent.',
-                )}
-              </Typography>
-
-              <Divider />
-
+          <Box component="ol" sx={{ display: 'grid', gap: 1.5, listStyle: 'none', p: 0, m: 0 }}>
+            {botWorkflowItems.map((item, index) => (
               <Box
-                component="ol"
-                aria-label={t('Bot workflow steps', 'Etapes du workflow bot', 'Bot-Workflow-Schritte')}
-                sx={{ display: 'grid', gap: 1.25, listStyle: 'none', p: 0, m: 0 }}
-              >
-                {botWorkflowItems.map((item) => (
-                  <Box
-                    component="li"
-                    key={item.title}
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: '34px minmax(0, 1fr)',
-                      alignItems: 'start',
-                      gap: 1.2,
-                      p: 1.25,
-                      borderRadius: 2,
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
-                      backgroundColor: alpha(theme.palette.background.default, 0.22),
-                    }}
-                  >
-                    <Box aria-hidden="true" sx={{ color: 'primary.main', mt: 0.2 }}>
-                      {item.icon}
-                    </Box>
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.15 }}>
-                        {item.title}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.45 }}>
-                        {item.body}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-
-              <AppAlert severity="info">
-                {t(
-                  'The bot can DM people who either share a Discord server with it or install it as an app. That is why the owner invite link still matters for organization workflows.',
-                  'Le bot peut envoyer des DM aux personnes qui partagent un serveur Discord avec lui ou qui l installent comme application. C est pour cela que le lien d ajout du bot reste important pour les workflows d organisation.',
-                  'Der Bot kann Personen direkt anschreiben, die entweder einen Discord-Server mit ihm teilen oder ihn als App installieren. Deshalb bleibt der Einladungslink fur Organisations-Workflows wichtig.',
-                )}
-              </AppAlert>
-
-              <AppButton
-                variant="secondary"
-                icon={discordIcon}
-                onClick={onInviteBot}
+                component="li"
+                key={item.title}
                 sx={{
-                  alignSelf: 'flex-start',
-                  minHeight: 46,
-                  px: 2.2,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  borderColor: alpha(theme.palette.primary.main, 0.28),
+                  display: 'flex',
+                  gap: 1.5,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                  pt: 1.5,
                 }}
               >
-                {t('Add the bot to a Discord server', 'Ajouter le bot sur un serveur Discord', 'Bot zu einem Discord-Server hinzufugen')}
-              </AppButton>
-            </Stack>
-          </CardContent>
-        </Card>
-
+                <Box sx={{ color: 'primary.main', fontSize: '0.75rem' }}>0{index + 1}</Box>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>
+                    {item.title}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                    {item.body}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 2 }}>
+            {t(
+              'To receive DMs, share a server with the bot or install it as an app.',
+              'Pour recevoir les DM, partagez un serveur avec le bot ou installez-le comme application.',
+              'Für DMs einen Server mit dem Bot teilen oder ihn als App installieren.',
+            )}
+          </Typography>
+        </Paper>
       </Stack>
     </Box>
   );

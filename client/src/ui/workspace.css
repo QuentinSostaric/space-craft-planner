@@ -1,0 +1,107 @@
+/* Workspace rhythm: compact by default; comfort is an explicit user preference.
+   Never scale text or shrink touch targets to achieve density. */
+:root {
+  --workspace-gutter: 18px;
+  --workspace-gap: 14px;
+  --workspace-card-width: 238px;
+  --workspace-preview-height: 104px;
+}
+html[data-density='comfortable'] {
+  --workspace-gutter: 28px;
+  --workspace-gap: 22px;
+  --workspace-card-width: 280px;
+  --workspace-preview-height: 146px;
+}
+.workspace-page {
+  min-width: 0;
+}
+.workspace-page-header h1 {
+  text-wrap: balance;
+}
+.workspace-page-header {
+  position: relative;
+}
+.workspace-page-header::before {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 2px;
+  bottom: -1px;
+  left: 0;
+  background: var(--sc-primary);
+}
+.workspace-panel {
+  scroll-margin-top: 14px;
+}
+.workspace-section-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sc-border);
+}
+.workspace-section-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  color: var(--sc-text-secondary);
+  text-decoration: none;
+  border: 1px solid var(--sc-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.workspace-section-links a:hover {
+  color: var(--sc-text);
+  background: var(--sc-primary-soft);
+  border-color: var(--sc-primary);
+}
+.workbench-register-row:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+html[data-density='compact'] .workspace-stat {
+  padding: 10px 12px;
+}
+html[data-density='compact'] .workbench-register-row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+@media (max-width: 899px) {
+  :root,
+  html[data-density='comfortable'] {
+    --workspace-gutter: 12px;
+    --workspace-gap: 12px;
+  }
+  .workspace-section-links a {
+    min-height: 44px;
+  }
+}
+@media (pointer: coarse) {
+  .workbench-register-row {
+    min-height: 56px;
+  }
+}
+/* Register reuses the complete blueprint card, including every quick action. */
+.workspace-blueprint-register .blueprint-card-link {
+  flex-direction: row;
+}
+.workspace-blueprint-register .blueprint-card-preview {
+  width: 120px;
+  height: auto;
+  min-height: 150px;
+  flex: 0 0 120px;
+  border-bottom: 0;
+  border-right: 1px solid var(--sc-border);
+}
+.workspace-blueprint-register .blueprint-card-details {
+  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+}
+@media (max-width: 599px) {
+  .workspace-blueprint-register .blueprint-card-preview {
+    width: 88px;
+    flex-basis: 88px;
+  }
+}

@@ -11,7 +11,7 @@ export interface PageLayoutProps {
 }
 
 const MAX_WIDTH: Record<PageLayoutWidth, string | number> = {
-  wide: 1600,
+  wide: 1920,
   content: 1200,
   reading: 760,
   full: 'none',
@@ -26,16 +26,17 @@ export function PageLayout({
   return (
     <Box
       component={component}
+      className="workspace-page"
       sx={[
         {
           width: '100%',
           maxWidth: MAX_WIDTH[width],
           mx: 'auto',
-          px: { xs: 2, sm: 3, lg: 4 },
-          py: { xs: 2.5, sm: 3, lg: 4 },
+          px: 'var(--workspace-gutter)' ,
+          py: 'var(--workspace-gutter)',
           display: 'flex',
           flexDirection: 'column',
-          gap: { xs: 2, md: 2.5 },
+          gap: 'var(--workspace-gap)',
           flex: '0 0 auto',
         },
         sx,

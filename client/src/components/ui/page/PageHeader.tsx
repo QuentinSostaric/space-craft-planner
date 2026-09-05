@@ -33,7 +33,7 @@ export function PageHeader({
   const reading = variant === 'reading';
 
   return (
-    <Box component="header" aria-labelledby={titleId} sx={[{ display: 'flex', flexDirection: 'column', gap: compact ? 1 : 1.5 }, sx]}>
+    <Box component="header" className="workspace-page-header" aria-labelledby={titleId} sx={[{ display: 'flex', flexDirection: 'column', gap: compact ? 1 : 1.25, pb: 1.5, borderBottom: '1px solid', borderColor: 'ui.borderStrong' }, sx]}>
       <Box
         sx={{
           display: 'flex',
@@ -66,10 +66,10 @@ export function PageHeader({
               fontFamily: FONT_DISPLAY,
               fontWeight: 750,
               fontSize: compact
-                ? { xs: '1.65rem', md: '1.9rem' }
+                ? { xs: '1.25rem', md: '1.4rem' }
                 : reading
-                  ? { xs: '1.8rem', md: '2.1rem' }
-                  : { xs: '1.9rem', md: '2.2rem' },
+                  ? { xs: '1.4rem', md: '1.75rem' }
+                  : { xs: '1.4rem', md: '1.65rem' },
               lineHeight: 1.08,
               letterSpacing: '-0.018em',
               color: 'text.primary',
@@ -108,8 +108,8 @@ export function PageHeader({
           aria-label="Page summary"
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 1.5,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(145px, 100%), 1fr))',
+            gap: 1,
           }}
         >
           {stats}

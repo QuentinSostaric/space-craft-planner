@@ -1706,6 +1706,7 @@ export function AccountPage() {
     <PageLayout>
       <PageHeader
         title={t('Account', 'Compte', 'Konto')}
+        eyebrow={t('Identity & synchronization', 'Identité et synchronisation', 'Identität und Synchronisation')}
         description={user
           ? t('Manage your identity, saved assets, organizations and craft requests.', 'Gere ton identite, tes actifs sauvegardes, tes organisations et tes demandes de craft.', 'Verwalte deine Identitat, gespeicherten Assets, Organisationen und Craft-Anfragen.')
           : t('Sign in to synchronize your crafting workspace across devices.', 'Connecte-toi pour synchroniser ton espace de craft entre tes appareils.', 'Melde dich an, um deinen Crafting-Arbeitsbereich gerateubergreifend zu synchronisieren.')}
@@ -1724,10 +1725,10 @@ export function AccountPage() {
             {/* Hero section */}
             <Box
               sx={{
-                p: { xs: 2.5, md: 3 },
+                p: 2,
                 display: 'flex',
                 flexDirection: { xs: 'column', sm: 'row' },
-                gap: { xs: 2, md: 2.5 },
+                gap: 'var(--workspace-gap)',
                 alignItems: { xs: 'flex-start', sm: 'center' },
                 background: `linear-gradient(150deg, ${alpha(theme.palette.secondary.main, 0.12)} 0%, ${alpha(theme.palette.primary.main, 0.08)} 42%, transparent 100%)`,
               }}
@@ -2672,7 +2673,7 @@ export function AccountPage() {
                 <Paper
                   variant="outlined"
                   sx={{
-                    p: { xs: 2.5, md: 3 },
+                    p: 2,
                     textAlign: 'center',
                     borderColor: alpha(theme.palette.info.main, 0.25),
                     backgroundColor: alpha(theme.palette.info.main, 0.03),
