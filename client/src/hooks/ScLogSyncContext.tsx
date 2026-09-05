@@ -15,10 +15,10 @@ export function ScLogProvider({ children }: { children: ReactNode }) {
 
   // Auto-start watcher if preference is saved and LIVE path is known
   useEffect(() => {
-    if (watcher.autoStartEnabled && !watcher.running && sync.installPaths?.live) {
-      void watcher.start(sync.installPaths.live);
+    if (watcher.autoStartEnabled && !watcher.error && !watcher.running && sync.installPaths?.live) {
+      void watcher.start(sync.installPaths.live).catch(() => {});
     }
-  }, [watcher.autoStartEnabled, sync.installPaths?.live, watcher.running, watcher.start]);
+  }, [watcher.error, watcher.autoStartEnabled, sync.installPaths?.live, watcher.running, watcher.start]);
 
   const value = useMemo<ScLogContextValue>(() => ({ sync, watcher }), [sync, watcher]);
 

@@ -1,4 +1,4 @@
-import { AppProgressSpinner } from './ui/feedback';
+import { AppAlert, AppProgressSpinner } from './ui/feedback';
 import { AppButton } from './ui/controls';
 import { AppTooltip } from './ui/overlays';
 import { SyncIcon, CheckCircleOutlineIcon, ErrorOutlineIcon } from '../ui/icons';
@@ -36,8 +36,8 @@ export function SyncBlueprintsButton({
 
   const handleSync = () => {
     setLocalError(null);
-    sync.sync().then(() => {
-      if (onSuccess) onSuccess();
+    sync.sync().then((success) => {
+      if (success && onSuccess) onSuccess();
     }).catch((err: unknown) => {
       setLocalError(err instanceof Error ? err.message : 'Sync failed.');
     });
@@ -45,24 +45,27 @@ export function SyncBlueprintsButton({
 
   if (!sync.available) return null;
 
+  const displayedError = localError ?? sync.error ?? sync.detectError;
+  const unmatchedCount = (sync.live?.unmatchedNames.length ?? 0) + (sync.ptu?.unmatchedNames.length ?? 0);
   const tooltipTitle = !isLoggedIn
     ? t('Login with Discord to sync your inventory', 'Connecte-toi avec Discord pour synchroniser')
     : !hasPath
       ? t('No Star Citizen installation detected', 'Aucune installation Star Citizen détectée')
-      : localError ?? '';
+      : displayedError ?? '';
 
   const appVariant = variant === 'contained' ? 'primary' : variant === 'text' ? 'ghost' : 'secondary';
   const icon = isBusy ? (
     <AppProgressSpinner size={13} strokeWidth={4} />
   ) : isDone ? (
     <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />
-  ) : localError ? (
+  ) : displayedError ? (
     <ErrorOutlineIcon sx={{ fontSize: 14, color: 'error.main' }} />
   ) : (
     <SyncIcon sx={{ fontSize: 14 }} />
   );
 
   return (
+    <>
     <AppTooltip content={tooltipTitle} disabled={!tooltipTitle}>
       <span>
         <AppButton
@@ -80,7 +83,7 @@ export function SyncBlueprintsButton({
             whiteSpace: 'nowrap',
             flexShrink: 0,
             ...(isDone ? { color: 'success.main', borderColor: 'success.main' } : null),
-            ...(localError ? { color: 'error.main', borderColor: 'error.main' } : null),
+            ...(displayedError ? { color: 'error.main', borderColor: 'error.main' } : null),
           }}
         >
           {isBusy
@@ -93,5 +96,8 @@ export function SyncBlueprintsButton({
         </AppButton>
       </span>
     </AppTooltip>
+    {displayedError && <AppAlert severity="error" sx={{ overflowWrap: 'anywhere' }}>{displayedError}</AppAlert>}
+    {isDone && unmatchedCount > 0 && <AppAlert severity="warning">{t(`${unmatchedCount} blueprint names could not be matched to the catalog.`, `${unmatchedCount} noms de blueprints ne correspondent pas au catalogue.`)}</AppAlert>}
+    </>
   );
 }

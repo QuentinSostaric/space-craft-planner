@@ -1,3 +1,4 @@
+import { SC_PATHS_CHANGED } from '../services/scInstallPaths';
 ﻿import { startTransition, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
 import { Avatar, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from './ui/primitives';
@@ -314,6 +315,7 @@ export function AccountPage() {
   const saveCustomPaths = (next: typeof customPaths) => {
     setCustomPaths(next);
     localStorage.setItem('sc-custom-install-paths', JSON.stringify(next));
+    window.dispatchEvent(new Event(SC_PATHS_CHANGED));
   };
 
   const addCustomPath = () => {
@@ -3433,9 +3435,9 @@ export function AccountPage() {
                       />
                     </Box>
 
-                    {watcherError && (
+                    {(watcherError || watcher.error || sync.detectError) && (
                       <AppAlert severity="error">
-                        {watcherError}
+                        {watcherError || watcher.error || sync.detectError}
                       </AppAlert>
                     )}
                   </Stack>

@@ -3,7 +3,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -26,9 +26,6 @@ const MAX_OAUTH_RESPONSE_BYTES: usize = 64 * 1024;
 const MAX_AUTHORIZATION_URL_BYTES: usize = 4 * 1024;
 const MAX_SESSION_TOKEN_BYTES: usize = 8 * 1024;
 const MAX_LAUNCHER_LOG_BYTES: usize = 8 * 1024 * 1024;
-const MAX_LOG_FILE_BYTES: usize = 16 * 1024 * 1024;
-const MAX_LOG_TOTAL_BYTES: usize = 64 * 1024 * 1024;
-const MAX_LOG_FILES: usize = 128;
 const MAX_LOG_LINE_BYTES: usize = 64 * 1024;
 const MAX_LOG_TAIL_CHUNK_BYTES: usize = 1024 * 1024;
 const MAX_BLUEPRINT_NAME_BYTES: usize = 512;
@@ -939,6 +936,7 @@ fn clear_desktop_auth_session(
 pub struct ScInstallPaths {
     live: Option<String>,
     ptu: Option<String>,
+    channels: Vec<String>,
 }
 
 /// Primary detection: parse the RSI Launcher log for actual installed paths.
@@ -993,14 +991,7 @@ fn is_valid_sc_channel(path: &Path) -> bool {
         .and_then(|name| name.to_str())
         .unwrap_or_default()
         .to_ascii_uppercase();
-    let parent_is_star_citizen = path
-        .parent()
-        .and_then(Path::file_name)
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.eq_ignore_ascii_case("StarCitizen"));
-
     path.is_dir()
-        && parent_is_star_citizen
         && matches!(
             channel.as_str(),
             "LIVE" | "PTU" | "EPTU" | "WAVE" | "HOTFIX" | "TECH-PREVIEW" | "EVOCATI"
@@ -1044,7 +1035,7 @@ fn read_file_tail_lossy(path: &Path, max_bytes: usize) -> Result<String, String>
 
 /// Fallback: probe common install locations across drives.
 fn find_paths_from_common_locations() -> Vec<PathBuf> {
-    let drives = ["C", "D", "E", "F", "G", "H"];
+    let drives = 'C'..='Z';
     let common_subdirs = [
         "Program Files\\Roberts Space Industries\\StarCitizen",
         "Roberts Space Industries\\StarCitizen",
@@ -1064,7 +1055,7 @@ fn find_paths_from_common_locations() -> Vec<PathBuf> {
     ];
 
     let mut found: Vec<PathBuf> = Vec::new();
-    for drive in &drives {
+    for drive in drives {
         for sub in &common_subdirs {
             for ch in &channels {
                 let p = PathBuf::from(format!("{drive}:\\{sub}\\{ch}"));
@@ -1080,9 +1071,9 @@ fn find_paths_from_common_locations() -> Vec<PathBuf> {
 #[tauri::command]
 fn detect_sc_install_paths() -> ScInstallPaths {
     let mut channel_paths = find_paths_from_launcher_log();
-    if channel_paths.is_empty() {
-        channel_paths = find_paths_from_common_locations();
-    }
+    channel_paths.extend(find_paths_from_common_locations());
+    channel_paths.sort();
+    channel_paths.dedup();
 
     let mut live: Option<String> = None;
     let mut ptu: Option<String> = None;
@@ -1105,63 +1096,60 @@ fn detect_sc_install_paths() -> ScInstallPaths {
         }
     }
 
-    ScInstallPaths { live, ptu }
+    ScInstallPaths { live, ptu, channels: channel_paths.iter().map(|p| p.to_string_lossy().into_owned()).collect() }
 }
 
 // ─── Log reading helpers ──────────────────────────────────────────────────────
 
-fn collect_log_file_paths(channel_path: &Path) -> Vec<PathBuf> {
-    let mut paths: Vec<PathBuf> = Vec::new();
-
-    let game_log = channel_path.join("Game.log");
-    if is_regular_file(&game_log) {
-        paths.push(game_log);
-    }
-
-    let logbackups_dir = channel_path.join("logbackups");
-    if std::fs::symlink_metadata(&logbackups_dir)
-        .is_ok_and(|metadata| metadata.file_type().is_dir())
-    {
-        for entry in WalkDir::new(&logbackups_dir)
-            .max_depth(1)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path();
-            if is_regular_file(path) && path.extension().is_some_and(|e| e == "log") {
-                paths.push(path.to_path_buf());
-                if paths.len() >= MAX_LOG_FILES {
-                    break;
+fn collect_log_file_paths(channel_path: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut paths = Vec::new();
+    for entry in WalkDir::new(channel_path).max_depth(1) {
+        let entry = entry.map_err(|e| format!("Unable to list installation logs: {e}"))?;
+        let path = entry.path();
+        if is_regular_file(path) && path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("Game.log")) {
+            paths.push(path.to_path_buf());
+        }
+        if entry.file_type().is_dir() && path != channel_path && path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("logbackups")) {
+            for backup in WalkDir::new(path).follow_links(false) {
+                let backup = backup.map_err(|e| format!("Unable to list backup logs: {e}"))?;
+                if backup.file_type().is_file() && backup.path().extension().is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case("log")) {
+                    paths.push(backup.into_path());
                 }
             }
         }
     }
-
-    paths.truncate(MAX_LOG_FILES);
-    paths
+    paths.sort();
+    Ok(paths)
 }
 
-fn collect_log_lines(channel_path: &Path) -> Vec<String> {
-    let mut lines: Vec<String> = Vec::new();
-    let mut remaining_bytes = MAX_LOG_TOTAL_BYTES;
-
-    for path in collect_log_file_paths(channel_path) {
-        let read_limit = remaining_bytes.min(MAX_LOG_FILE_BYTES);
-        if read_limit == 0 {
-            break;
-        }
-        if let Ok(content) = read_file_tail_lossy(&path, read_limit) {
-            remaining_bytes = remaining_bytes.saturating_sub(content.len());
-            lines.extend(
-                content
-                    .lines()
-                    .filter(|line| line.len() <= MAX_LOG_LINE_BYTES)
-                    .map(String::from),
-            );
+// Stream entire files with bounded line memory; never discard history by byte/file count.
+fn scan_log_history(channel_path: &Path) -> Result<Vec<String>, String> {
+    let paths = collect_log_file_paths(channel_path)?;
+    if paths.is_empty() {
+        return Err("No Game.log or backup .log files found. Launch Star Citizen once and check the installation folder.".into());
+    }
+    let re = build_blueprint_regex();
+    let mut seen = HashSet::new();
+    let mut names = Vec::new();
+    for path in paths {
+        let file = open_regular_file(&path).map_err(|e| format!("Unable to read {}: {e}", path.display()))?;
+        let mut reader = BufReader::new(file);
+        loop {
+            let mut bytes = Vec::new();
+            let count = Read::by_ref(&mut reader).take((MAX_LOG_LINE_BYTES + 1) as u64).read_until(b'\n', &mut bytes)
+                .map_err(|e| format!("Unable to read {}: {e}", path.display()))?;
+            if count == 0 { break; }
+            if count > MAX_LOG_LINE_BYTES {
+                return Err(format!("Log line exceeds the supported size in {}. Scan incomplete.", path.display()));
+            }
+            let text = String::from_utf8_lossy(&bytes);
+            names.extend(extract_blueprints_from_lines(text.lines(), &re, &mut seen));
+            if seen.len() >= MAX_KNOWN_BLUEPRINTS {
+                return Err("Too many blueprint names in logs. Scan incomplete.".into());
+            }
         }
     }
-
-    lines
+    Ok(names)
 }
 
 fn build_blueprint_regex() -> Regex {
@@ -1198,16 +1186,28 @@ fn extract_blueprints_from_lines<'a>(
 // ─── One-shot historical scan ─────────────────────────────────────────────────
 
 #[tauri::command]
-fn scan_blueprints_from_logs(channel_path: String) -> Result<Vec<String>, String> {
+async fn scan_blueprints_from_logs(channel_path: String) -> Result<Vec<String>, String> {
     let path = validate_sc_channel_path(&channel_path)?;
 
-    let re = build_blueprint_regex();
-    let lines = collect_log_lines(&path);
-    let mut seen = HashSet::new();
-    let blueprints =
-        extract_blueprints_from_lines(lines.iter().map(String::as_str), &re, &mut seen);
+    tauri::async_runtime::spawn_blocking(move || scan_log_history(&path))
+        .await.map_err(|e| format!("Log scan failed: {e}"))?
+}
 
-    Ok(blueprints)
+fn extract_complete_log_lines(
+    pending: &mut Vec<u8>,
+    re: &Regex,
+    known: &mut HashSet<String>,
+) -> Result<Vec<String>, String> {
+    if pending.split(|b| *b == b'\n').any(|line| line.len() > MAX_LOG_LINE_BYTES) {
+        return Err("Log line exceeds the supported size. Check Game.log and restart monitoring.".into());
+    }
+    let Some(end) = pending.iter().rposition(|b| *b == b'\n') else {
+        return Ok(Vec::new());
+    };
+    let text = String::from_utf8_lossy(&pending[..=end]);
+    let names = extract_blueprints_from_lines(text.lines(), re, known);
+    pending.drain(..=end);
+    Ok(names)
 }
 
 // ─── Real-time watcher ────────────────────────────────────────────────────────
@@ -1220,13 +1220,14 @@ async fn run_log_watcher(
     app: tauri::AppHandle,
     re: Regex,
     mut known: HashSet<String>,
+    mut position: u64,
 ) {
     // Start from current end of file — don't re-emit already-known blueprints
-    let mut position: u64 = std::fs::metadata(&log_path).map(|m| m.len()).unwrap_or(0);
     let mut last_size: u64 = position;
     let mut last_modified: Option<std::time::SystemTime> =
         std::fs::metadata(&log_path).and_then(|m| m.modified()).ok();
 
+    let mut pending = Vec::new();
     loop {
         tokio::time::sleep(tokio::time::Duration::from_millis(TAIL_POLL_MS)).await;
 
@@ -1236,8 +1237,14 @@ async fn run_log_watcher(
 
         let metadata = match std::fs::symlink_metadata(&log_path) {
             Ok(metadata) if metadata.file_type().is_file() => metadata,
-            Err(_) => continue,
-            Ok(_) => break,
+            Err(error) => {
+                let _ = app.emit("sc-log-error", format!("Unable to access Game.log: {error}. Restart monitoring once the file is available."));
+                break;
+            }
+            Ok(_) => {
+                let _ = app.emit("sc-log-error", "Game.log is not a regular file. Monitoring stopped.");
+                break;
+            },
         };
         let current_size = metadata.len();
         let current_modified = metadata.modified().ok();
@@ -1247,6 +1254,7 @@ async fn run_log_watcher(
             || (current_modified != last_modified && current_size <= position)
         {
             position = 0;
+            pending.clear();
         }
         last_size = current_size;
         last_modified = current_modified;
@@ -1256,41 +1264,46 @@ async fn run_log_watcher(
         }
 
         // Bound every iteration even if a malformed or hostile log grows very quickly.
-        if current_size.saturating_sub(position) > MAX_LOG_TAIL_CHUNK_BYTES as u64 {
-            position = current_size - MAX_LOG_TAIL_CHUNK_BYTES as u64;
-        }
-
         // Read only new bytes since last position.
         let new_bytes = {
             let mut f = match open_regular_file(&log_path) {
                 Ok(f) => f,
-                Err(_) => continue,
+                Err(error) => {
+                    let _ = app.emit("sc-log-error", format!("Unable to read Game.log: {error}"));
+                    break;
+                },
             };
-            if f.seek(SeekFrom::Start(position)).is_err() {
-                continue;
+            if let Err(error) = f.seek(SeekFrom::Start(position)) {
+                let _ = app.emit("sc-log-error", format!("Unable to seek Game.log: {error}"));
+                break;
             }
             let mut buf = Vec::with_capacity(
                 current_size
                     .saturating_sub(position)
                     .min(MAX_LOG_TAIL_CHUNK_BYTES as u64) as usize,
             );
-            if f.take(MAX_LOG_TAIL_CHUNK_BYTES as u64)
-                .read_to_end(&mut buf)
-                .is_err()
-            {
-                continue;
+            if let Err(error) = f.take(MAX_LOG_TAIL_CHUNK_BYTES as u64).read_to_end(&mut buf) {
+                let _ = app.emit("sc-log-error", format!("Unable to read Game.log: {error}"));
+                break;
             }
             position += buf.len() as u64;
             buf
         };
 
-        let text = String::from_utf8_lossy(&new_bytes);
-        let new_names = extract_blueprints_from_lines(text.lines(), &re, &mut known);
+        pending.extend_from_slice(&new_bytes);
+        let new_names = match extract_complete_log_lines(&mut pending, &re, &mut known) {
+            Ok(names) => names,
+            Err(error) => {
+                let _ = app.emit("sc-log-error", error);
+                break;
+            }
+        };
 
         if !new_names.is_empty() {
             let _ = app.emit("sc-log-new-blueprints", &new_names);
         }
     }
+    stop.store(true, Ordering::Relaxed);
 }
 
 #[derive(Serialize)]
@@ -1314,15 +1327,15 @@ async fn start_log_watcher(
     }
     let re = build_blueprint_regex();
 
-    // Pre-seed known blueprints from history so we only emit truly new ones
-    let lines = collect_log_lines(&path);
-    let mut known = HashSet::new();
-    extract_blueprints_from_lines(lines.iter().map(String::as_str), &re, &mut known);
+    // Historical import is handled by the full scan. Watching starts at a fixed
+    // offset captured before spawning, so events during startup are not lost.
+    let position = open_regular_file(&log_path)?.metadata().map_err(|e| format!("Unable to read Game.log metadata: {e}"))?.len();
+    let known = HashSet::new();
 
     let stop = Arc::new(AtomicBool::new(false));
     state.replace(path.to_string_lossy().into_owned(), Arc::clone(&stop));
 
-    tauri::async_runtime::spawn(run_log_watcher(log_path, stop, app, re, known));
+    tauri::async_runtime::spawn(run_log_watcher(log_path, stop, app, re, known, position));
 
     Ok(())
 }
@@ -1492,19 +1505,63 @@ mod tests {
         )
         .unwrap();
 
-        let re = build_blueprint_regex();
-        let lines = collect_log_lines(&channel_dir);
-        let mut seen = HashSet::new();
-        let blueprints =
-            extract_blueprints_from_lines(lines.iter().map(String::as_str), &re, &mut seen);
+        let blueprints = scan_log_history(&channel_dir).unwrap();
 
-        assert_eq!(blueprints.len(), 3);
+        assert_eq!(blueprints.len(), 4);
         assert!(blueprints.contains(&"Current One".to_string()));
         assert!(blueprints.contains(&"Backup One".to_string()));
         assert!(blueprints.contains(&"Backup Two".to_string()));
-        assert!(!blueprints.contains(&"Nested Ignored".to_string()));
+        assert!(blueprints.contains(&"Nested Ignored".to_string()));
 
         let _ = fs::remove_dir_all(channel_dir);
+    }
+
+    #[test]
+    fn scans_full_large_logs_and_more_than_128_backups() {
+        let root = create_test_channel_dir("full_history");
+        let channel = root.join("Custom Games").join("LIVE");
+        fs::create_dir_all(channel.join("LogBackups").join("archive")).unwrap();
+        fs::write(channel.join("Data.p4k"), []).unwrap();
+        assert!(validate_sc_channel_path(channel.to_str().unwrap()).is_ok());
+        let mut log = fs::File::create(channel.join("Game.log")).unwrap();
+        writeln!(log, "Received Blueprint: Beginning: acquired").unwrap();
+        let filler = format!("{}\n", "x".repeat(1023));
+        for _ in 0..17000 { log.write_all(filler.as_bytes()).unwrap(); }
+        writeln!(log, "Received Blueprint: End: acquired").unwrap();
+        for i in 0..140 {
+            fs::write(channel.join("LogBackups").join("archive").join(format!("{i}.LOG")),
+                format!("Received Blueprint: Backup {i}: acquired\n")).unwrap();
+        }
+        let names = scan_log_history(&channel).unwrap();
+        assert_eq!(names.len(), 142);
+        assert!(names.contains(&"Beginning".into()));
+        assert!(names.contains(&"End".into()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn watcher_retains_fragmented_notifications_and_utf8() {
+        let re = build_blueprint_regex();
+        let mut known = HashSet::new();
+        let mut pending = Vec::new();
+        let mut names = Vec::new();
+        for byte in "Schéma reçu : Équipement: acquis\nReceived Blueprint: Second: acquired\n".as_bytes() {
+            pending.push(*byte);
+            names.extend(extract_complete_log_lines(&mut pending, &re, &mut known).unwrap());
+        }
+        assert_eq!(names, vec!["Équipement", "Second"]);
+        assert!(pending.is_empty());
+        pending = vec![b'x'; MAX_LOG_LINE_BYTES + 1];
+        assert!(extract_complete_log_lines(&mut pending, &re, &mut known).is_err());
+    }
+
+    #[test]
+    fn missing_logs_and_oversized_lines_report_errors() {
+        let root = create_test_channel_dir("log_errors");
+        assert!(scan_log_history(&root).unwrap_err().contains("No Game.log"));
+        fs::write(root.join("Game.log"), vec![b'x'; MAX_LOG_LINE_BYTES + 1]).unwrap();
+        assert!(scan_log_history(&root).unwrap_err().contains("Scan incomplete"));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -2093,8 +2150,8 @@ mod tests {
         )
         .unwrap();
         std::os::unix::fs::symlink(&unrelated, channel.join("logbackups")).unwrap();
-        assert!(collect_log_file_paths(&channel).is_empty());
-        assert!(collect_log_lines(&channel).is_empty());
+        assert!(collect_log_file_paths(&channel).unwrap().is_empty());
+        assert!(scan_log_history(&channel).is_err());
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -10,10 +10,8 @@ import {
 } from '../services/authService';
 import { rememberScLogBlueprintNames } from '../services/scLogBlueprintCache';
 
-interface ScInstallPaths {
-  live: string | null;
-  ptu: string | null;
-}
+import { SC_PATHS_CHANGED, resolveScPaths, type ScInstallPaths } from '../services/scInstallPaths';
+import { fetchPublishedDataset } from '../services/gameDataService';
 
 export type ScLogSyncStatus = 'idle' | 'scanning' | 'syncing' | 'done' | 'error';
 
@@ -33,7 +31,7 @@ export interface ScLogSyncState {
   error: string | null;
   live: ScLogSyncChannelResult | null;
   ptu: ScLogSyncChannelResult | null;
-  sync: () => Promise<void>;
+  sync: () => Promise<boolean>;
   detectPaths: () => Promise<void>;
 }
 
@@ -46,7 +44,7 @@ const EMPTY_RESULT: ScLogSyncChannelResult = {
 
 export function useScLogSync(): ScLogSyncState {
   const available = isTauriRuntime();
-  const { blueprints } = useCraft();
+  const { blueprints, activeDataset } = useCraft();
   const { user, refreshSession, setAccountDatasetScope, accountDatasetScope } = useAuth();
 
   const [installPaths, setInstallPaths] = useState<ScInstallPaths | null>(null);
@@ -59,22 +57,20 @@ export function useScLogSync(): ScLogSyncState {
 
   const detectPaths = useCallback(async () => {
     if (!available) {
-      setDetectError('isTauriRuntime() = false — invoke unavailable');
+      setDetectError('Log synchronization is available in the desktop app.');
       return;
     }
     setDetecting(true);
     setDetectError(null);
     try {
       const paths = await invoke<ScInstallPaths>('detect_sc_install_paths');
-      console.log('[useScLogSync] detect result:', JSON.stringify(paths));
-      setInstallPaths(paths);
-      if (!paths.live && !paths.ptu) {
-        setDetectError('invoke OK but live=null, ptu=null — paths not found by Rust');
-      }
+      const entries = resolveScPaths(paths);
+      setInstallPaths({ ...paths, live: entries.find(p => p.scope === 'live')?.path ?? null, ptu: entries.find(p => p.scope === 'ptu')?.path ?? null });
+      if (!entries.length) setDetectError('No Star Citizen installation found. Add the LIVE or PTU folder in Settings.');
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[useScLogSync] detect_sc_install_paths failed:', e);
-      setDetectError(`invoke error: ${msg}`);
+      setDetectError(`Unable to detect installations: ${msg}`);
       setInstallPaths({ live: null, ptu: null });
     } finally {
       setDetecting(false);
@@ -84,6 +80,8 @@ export function useScLogSync(): ScLogSyncState {
   useEffect(() => {
     if (available) {
       void detectPaths();
+      window.addEventListener(SC_PATHS_CHANGED, detectPaths);
+      return () => window.removeEventListener(SC_PATHS_CHANGED, detectPaths);
     }
   }, [available, detectPaths]);
 
@@ -97,7 +95,8 @@ export function useScLogSync(): ScLogSyncState {
       // Case-insensitive, whitespace-normalised lookup so minor formatting
       // differences between the game log and the dataset don't silently drop blueprints.
       const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-      const nameToId = new Map(blueprints.map((b) => [normalize(b.name), b.id]));
+      const catalog = activeDataset.channel === scope ? blueprints : (await fetchPublishedDataset(scope)).blueprints;
+      const nameToId = new Map(catalog.map((b) => [normalize(b.name), b.id]));
       const matchedIds: string[] = [];
       const unmatchedNames: string[] = [];
 
@@ -112,15 +111,15 @@ export function useScLogSync(): ScLogSyncState {
 
       return { scanned: true, foundNames: knownNames, matchedIds, unmatchedNames };
     },
-    [blueprints],
+    [blueprints, activeDataset.channel],
   );
 
   const sync = useCallback(async () => {
-    if (!available) return;
+    if (!available) return false;
     if (!user) {
       setStatus('error');
       setError('You must be logged in to sync your blueprint inventory.');
-      return;
+      return false;
     }
 
     setStatus('scanning');
@@ -129,20 +128,27 @@ export function useScLogSync(): ScLogSyncState {
     setPtu(null);
 
     try {
-      const paths = installPaths ?? (await invoke<ScInstallPaths>('detect_sc_install_paths'));
-      if (!installPaths) setInstallPaths(paths);
-
-      let liveResult: ScLogSyncChannelResult = EMPTY_RESULT;
-      let ptuResult: ScLogSyncChannelResult = EMPTY_RESULT;
-
-      if (paths.live) {
-        liveResult = await scanChannel(paths.live, 'live');
-        setLive(liveResult);
-      }
-
-      if (paths.ptu) {
-        ptuResult = await scanChannel(paths.ptu, 'ptu');
-        setPtu(ptuResult);
+      const paths = await invoke<ScInstallPaths>('detect_sc_install_paths');
+      const entries = resolveScPaths(paths);
+      if (!entries.length) throw new Error('No Star Citizen installation found. Add the LIVE or PTU folder in Settings.');
+      let liveResult: ScLogSyncChannelResult = { ...EMPTY_RESULT };
+      let ptuResult: ScLogSyncChannelResult = { ...EMPTY_RESULT };
+      const issues: string[] = [];
+      for (const entry of entries) {
+        try {
+          const result = await scanChannel(entry.path, entry.scope);
+          const previous = entry.scope === 'live' ? liveResult : ptuResult;
+          const merged = {
+            scanned: true,
+            foundNames: [...new Set([...previous.foundNames, ...result.foundNames])],
+            matchedIds: [...new Set([...previous.matchedIds, ...result.matchedIds])],
+            unmatchedNames: [...new Set([...previous.unmatchedNames, ...result.unmatchedNames])],
+          };
+          if (entry.scope === 'live') { liveResult = merged; setLive(merged); }
+          else { ptuResult = merged; setPtu(merged); }
+        } catch (e) {
+          issues.push(`${entry.scope.toUpperCase()} (${entry.path}): ${e instanceof Error ? e.message : String(e)}`);
+        }
       }
 
       setStatus('syncing');
@@ -164,21 +170,26 @@ export function useScLogSync(): ScLogSyncState {
       };
 
       if (liveResult.scanned && liveResult.matchedIds.length > 0) {
-        await syncScope('live', liveResult.matchedIds);
+        try { await syncScope('live', liveResult.matchedIds); }
+        catch (e) { issues.push(`Unable to save LIVE inventory: ${String(e)}`); }
       }
 
       if (ptuResult.scanned && ptuResult.matchedIds.length > 0) {
-        await syncScope('ptu', ptuResult.matchedIds);
+        try { await syncScope('ptu', ptuResult.matchedIds); }
+        catch (e) { issues.push(`Unable to save PTU inventory: ${String(e)}`); }
       }
 
       // Restore original scope
       setAccountDatasetScope(previousScope);
       await refreshSession();
 
+      if (issues.length) throw new Error(`Synchronization incomplete. ${issues.join(' • ')}`);
       setStatus('done');
+      return true;
     } catch (e) {
       setStatus('error');
       setError(e instanceof Error ? e.message : String(e));
+      return false;
     }
   }, [
     available,
