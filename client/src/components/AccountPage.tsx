@@ -2223,10 +2223,10 @@ export function AccountPage() {
               aria-labelledby="account-tab-inventory" variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
               <Stack spacing={2}>
                 <Stack
-                  direction={{ xs: 'column', md: 'row' }}
+                  direction="column"
                   spacing={1.5}
                   justifyContent="space-between"
-                  alignItems={{ xs: 'flex-start', md: 'center' }}
+                  alignItems="stretch"
                 >
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
@@ -2250,7 +2250,9 @@ export function AccountPage() {
                   <Stack
                     direction={{ xs: 'column', sm: 'row' }}
                     spacing={1}
-                    sx={{ width: { xs: '100%', md: 'auto' }, alignSelf: { xs: 'stretch', md: 'center' } }}
+                    useFlexGap
+                    flexWrap="wrap"
+                    sx={{ width: '100%', alignItems: { sm: 'flex-end' } }}
                   >
                     <Box sx={{ position: 'relative', minWidth: { xs: '100%', sm: 240 } }}>
                       <SearchOutlinedIcon

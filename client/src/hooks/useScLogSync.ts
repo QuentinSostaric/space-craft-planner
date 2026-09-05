@@ -11,12 +11,14 @@ import {
 import { rememberScLogBlueprintNames } from '../services/scLogBlueprintCache';
 
 import { SC_PATHS_CHANGED, resolveScPaths, type ScInstallPaths } from '../services/scInstallPaths';
-import { fetchPublishedDataset } from '../services/gameDataService';
+import type { Blueprint } from '../types';
+import { fetchPublishedDatasetIndex, fetchPublishedDataset } from '../services/gameDataService';
 
-export type ScLogSyncStatus = 'idle' | 'scanning' | 'syncing' | 'done' | 'error';
+export type ScLogSyncStatus = 'idle' | 'scanning' | 'syncing' | 'partial' | 'done' | 'error';
 
 export interface ScLogSyncChannelResult {
   scanned: boolean;
+  pendingCatalog?: boolean;
   foundNames: string[];
   matchedIds: string[];
   unmatchedNames: string[];
@@ -86,7 +88,7 @@ export function useScLogSync(): ScLogSyncState {
   }, [available, detectPaths]);
 
   const scanChannel = useCallback(
-    async (path: string, scope: AccountDatasetScope): Promise<ScLogSyncChannelResult> => {
+    async (path: string, scope: AccountDatasetScope, getCatalog: (scope: AccountDatasetScope) => Promise<Blueprint[] | null>): Promise<ScLogSyncChannelResult> => {
       const foundNames: string[] = await invoke<string[]>('scan_blueprints_from_logs', {
         channelPath: path,
       });
@@ -95,7 +97,11 @@ export function useScLogSync(): ScLogSyncState {
       // Case-insensitive, whitespace-normalised lookup so minor formatting
       // differences between the game log and the dataset don't silently drop blueprints.
       const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-      const catalog = activeDataset.channel === scope ? blueprints : (await fetchPublishedDataset(scope)).blueprints;
+      if (!knownNames.length) return { ...EMPTY_RESULT, scanned: true };
+      let catalog: Blueprint[] | null;
+      try { catalog = await getCatalog(scope); }
+      catch (e) { throw new Error(`Unable to load the ${scope.toUpperCase()} blueprint catalog: ${e instanceof Error ? e.message : String(e)}`); }
+      if (!catalog) return { scanned: true, pendingCatalog: true, foundNames: knownNames, matchedIds: [], unmatchedNames: [] };
       const nameToId = new Map(catalog.map((b) => [normalize(b.name), b.id]));
       const matchedIds: string[] = [];
       const unmatchedNames: string[] = [];
@@ -111,7 +117,7 @@ export function useScLogSync(): ScLogSyncState {
 
       return { scanned: true, foundNames: knownNames, matchedIds, unmatchedNames };
     },
-    [blueprints, activeDataset.channel],
+    [],
   );
 
   const sync = useCallback(async () => {
@@ -134,12 +140,26 @@ export function useScLogSync(): ScLogSyncState {
       let liveResult: ScLogSyncChannelResult = { ...EMPTY_RESULT };
       let ptuResult: ScLogSyncChannelResult = { ...EMPTY_RESULT };
       const issues: string[] = [];
+      const catalogs = new Map<AccountDatasetScope, Promise<Blueprint[] | null>>();
+      let index: ReturnType<typeof fetchPublishedDatasetIndex> | undefined;
+      const getCatalog = (scope: AccountDatasetScope) => {
+        if (!catalogs.has(scope)) {
+          catalogs.set(scope, (async () => {
+            if (activeDataset.channel === scope) return blueprints;
+            index ??= fetchPublishedDatasetIndex();
+            if (!(await index).datasets.some(dataset => dataset.channel === scope)) return null;
+            return (await fetchPublishedDataset(scope)).blueprints;
+          })());
+        }
+        return catalogs.get(scope)!;
+      };
       for (const entry of entries) {
         try {
-          const result = await scanChannel(entry.path, entry.scope);
+          const result = await scanChannel(entry.path, entry.scope, getCatalog);
           const previous = entry.scope === 'live' ? liveResult : ptuResult;
           const merged = {
             scanned: true,
+            pendingCatalog: previous.pendingCatalog || result.pendingCatalog,
             foundNames: [...new Set([...previous.foundNames, ...result.foundNames])],
             matchedIds: [...new Set([...previous.matchedIds, ...result.matchedIds])],
             unmatchedNames: [...new Set([...previous.unmatchedNames, ...result.unmatchedNames])],
@@ -184,8 +204,9 @@ export function useScLogSync(): ScLogSyncState {
       await refreshSession();
 
       if (issues.length) throw new Error(`Synchronization incomplete. ${issues.join(' • ')}`);
-      setStatus('done');
-      return true;
+      const pending = liveResult.pendingCatalog || ptuResult.pendingCatalog;
+      setStatus(pending ? 'partial' : 'done');
+      return !pending;
     } catch (e) {
       setStatus('error');
       setError(e instanceof Error ? e.message : String(e));
@@ -193,7 +214,8 @@ export function useScLogSync(): ScLogSyncState {
     }
   }, [
     available,
-    installPaths,
+    blueprints,
+    activeDataset.channel,
     scanChannel,
     user,
     accountDatasetScope,

@@ -1,6 +1,6 @@
 import { AppAlert, AppProgressSpinner } from './ui/feedback';
 import { AppButton } from './ui/controls';
-import { AppTooltip } from './ui/overlays';
+import { AppDialog, AppTooltip } from './ui/overlays';
 import { SyncIcon, CheckCircleOutlineIcon, ErrorOutlineIcon } from '../ui/icons';
 import { useState } from 'react';
 import { FONT_MONO, TEXT_LABEL} from '../theme';
@@ -27,14 +27,17 @@ export function SyncBlueprintsButton({
   const { t } = useI18n();
   const { user } = useAuth();
   const { sync } = useScLog();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const isBusy = sync.status === 'scanning' || sync.status === 'syncing';
   const isDone = sync.status === 'done';
+  const isPartial = sync.status === 'partial';
   const isLoggedIn = Boolean(user);
   const hasPath = Boolean(sync.installPaths?.live ?? sync.installPaths?.ptu);
 
   const handleSync = () => {
+    setDetailsOpen(true);
     setLocalError(null);
     sync.sync().then((success) => {
       if (success && onSuccess) onSuccess();
@@ -47,6 +50,7 @@ export function SyncBlueprintsButton({
 
   const displayedError = localError ?? sync.error ?? sync.detectError;
   const unmatchedCount = (sync.live?.unmatchedNames.length ?? 0) + (sync.ptu?.unmatchedNames.length ?? 0);
+  const pendingScopes = (['live', 'ptu'] as const).filter(scope => sync[scope]?.pendingCatalog);
   const tooltipTitle = !isLoggedIn
     ? t('Login with Discord to sync your inventory', 'Connecte-toi avec Discord pour synchroniser')
     : !hasPath
@@ -58,8 +62,8 @@ export function SyncBlueprintsButton({
     <AppProgressSpinner size={13} strokeWidth={4} />
   ) : isDone ? (
     <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />
-  ) : displayedError ? (
-    <ErrorOutlineIcon sx={{ fontSize: 14, color: 'error.main' }} />
+  ) : displayedError || isPartial ? (
+    <ErrorOutlineIcon sx={{ fontSize: 14, color: displayedError ? 'error.main' : 'warning.main' }} />
   ) : (
     <SyncIcon sx={{ fontSize: 14 }} />
   );
@@ -90,14 +94,34 @@ export function SyncBlueprintsButton({
             ? (sync.status === 'scanning'
               ? t('Scanning…', 'Scan…')
               : t('Syncing…', 'Sync…'))
+            : isPartial
+              ? t('Partially synced', 'Synchronisation partielle')
             : isDone
               ? t('Synced', 'Synchronisé')
               : t('Sync game', 'Sync game')}
         </AppButton>
       </span>
     </AppTooltip>
-    {displayedError && <AppAlert severity="error" sx={{ overflowWrap: 'anywhere' }}>{displayedError}</AppAlert>}
-    {isDone && unmatchedCount > 0 && <AppAlert severity="warning">{t(`${unmatchedCount} blueprint names could not be matched to the catalog.`, `${unmatchedCount} noms de blueprints ne correspondent pas au catalogue.`)}</AppAlert>}
+    <AppDialog
+      open={detailsOpen}
+      onOpenChange={setDetailsOpen}
+      title={t('Blueprint synchronization', 'Synchronisation des blueprints')}
+      closeLabel={t('Close', 'Fermer')}
+      footer={<AppButton variant="secondary" onClick={() => setDetailsOpen(false)}>{t('Close', 'Fermer')}</AppButton>}
+    >
+      {isBusy && <p role="status">{t('Reading logs and synchronizing…', 'Lecture des logs et synchronisation…')}</p>}
+      {(['live', 'ptu'] as const).map(scope => {
+        const result = sync[scope];
+        if (!result?.scanned || result.pendingCatalog) return null;
+        return <p key={scope}>{scope.toUpperCase()} — {t(`${result.matchedIds.length} blueprints recognized.`, `${result.matchedIds.length} blueprints reconnus.`)}</p>;
+      })}
+      {isDone && <AppAlert severity="success">{t('Synchronization complete.', 'Synchronisation terminée.')}</AppAlert>}
+      {pendingScopes.map(scope => <AppAlert key={scope} severity="warning">
+        {t(`No ${scope.toUpperCase()} catalog is currently published. Detected names are saved on this computer. Run Sync game again once the catalog is available.`, `Aucun catalogue ${scope.toUpperCase()} n’est actuellement publié. Les noms détectés sont conservés sur cet ordinateur. Relance Sync game lorsque le catalogue sera disponible.`)}
+      </AppAlert>)}
+      {displayedError && <AppAlert severity="error" sx={{ overflowWrap: 'anywhere' }}>{displayedError}</AppAlert>}
+      {(isDone || isPartial) && unmatchedCount > 0 && <AppAlert severity="warning">{t(`${unmatchedCount} blueprint names could not be matched to the catalog.`, `${unmatchedCount} noms de blueprints ne correspondent pas au catalogue.`)}</AppAlert>}
+    </AppDialog>
     </>
   );
 }

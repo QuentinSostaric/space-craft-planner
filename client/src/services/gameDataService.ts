@@ -252,14 +252,10 @@ function normalizeBlueprintCatalogPage(
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
-  try {
-    const tauriPayload = await fetchTauriApiJson<T>(path);
-    if (tauriPayload) {
-      return tauriPayload;
-    }
-  } catch {
-    // Rust command unavailable or failed — fall through to browser fetch
-  }
+  // A native API failure is authoritative. A browser retry masks its diagnostic
+  // (for example a missing dataset) with a WebView CORS/network error.
+  const tauriPayload = await fetchTauriApiJson<T>(path);
+  if (tauriPayload !== null) return tauriPayload;
 
   const response = await fetch(getApiUrl(path), { credentials: getApiCredentials() });
 
