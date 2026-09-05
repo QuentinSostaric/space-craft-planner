@@ -1,22 +1,24 @@
+import { CATEGORY_LABELS } from '../types';
+import { GlobalSearch } from './GlobalSearch';
 import { Box, Divider, IconButton, Typography, useMediaQuery, alpha, useTheme } from '../ui/system';
 import { AppBar, Toolbar } from './ui/primitives';
-import { AppAutocomplete, AppButton, AppSelect, AppToggleGroup } from './ui/controls';
+import { AppButton, AppSelect, AppToggleGroup } from './ui/controls';
 import { AppTooltip } from './ui/overlays';
-import { SearchIcon, DownloadOutlinedIcon, LightModeOutlinedIcon, DarkModeOutlinedIcon, SystemUpdateAltIcon, FiberManualRecordIcon, VisibilityOutlinedIcon, ChevronRightIcon } from '../ui/icons';
+import { DownloadOutlinedIcon, LightModeOutlinedIcon, DarkModeOutlinedIcon, SystemUpdateAltIcon, FiberManualRecordIcon, VisibilityOutlinedIcon } from '../ui/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
-import { useI18n } from '../i18n/I18nContext';
+import { loc, useI18n } from '../i18n/I18nContext';
 import { useThemeMode } from '../hooks/ThemeContext';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { getDesktopInstallerUrl, isTauriRuntime } from '../services/apiBaseUrl';
-import { FONT_MONO, FONT_BODY, FONT_HEADING, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
+import { FONT_MONO, FONT_HEADING, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
 import {
   missionPathFromSlug,
   missionSlugFromContract,
   navigateToPath,
   resourcePathFromSlug,
 } from '../utils/slug';
-import { getMissionContractName, getObtainableBlueprintIds, isPlaceholderResource } from '../utils/crafting';
+import { getMissionContractName, isPlaceholderResource } from '../utils/crafting';
 import { useScLog } from '../hooks/ScLogSyncContext';
 
 import { useAuth } from '../auth/AuthContext';
@@ -97,8 +99,7 @@ export function Header() {
   const theme = useTheme();
   const isMd = useMediaQuery(theme.breakpoints.up('md'));
   const isLg = useMediaQuery(theme.breakpoints.up('lg'));
-  const [searchValue, setSearchValue] = useState<GlobalSearchOption | string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActivated, setSearchActivated] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -156,20 +157,19 @@ export function Header() {
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
   useEffect(() => {
+    if (!searchActivated) return;
     const groups = activeDataset.missionRewards?.factionGroups ?? [];
     for (const group of groups) {
       if (!group.id || (group.contracts?.length ?? 0) > 0 || Object.prototype.hasOwnProperty.call(factionContractsByFactionId, group.id)) continue;
       void ensureFactionContractsLoaded(group.id);
     }
-  }, [activeDataset.missionRewards?.factionGroups, ensureFactionContractsLoaded, factionContractsByFactionId]);
+  }, [searchActivated, activeDataset.missionRewards?.factionGroups, ensureFactionContractsLoaded, factionContractsByFactionId]);
 
   const globalSearchOptions = useMemo<GlobalSearchOption[]>(() => {
-    const obtainableBlueprintIds = getObtainableBlueprintIds(activeDataset.missionRewards);
     const bps: GlobalSearchOption[] = activeDataset.blueprints
-      .filter((bp) => obtainableBlueprintIds.has(bp.id))
       .map((bp) => ({
       kind: 'blueprint', key: `blueprint:${bp.id}`, label: bp.name,
-      description: [bp.manufacturer, bp.category].filter(Boolean).join(' / '), blueprint: bp,
+      description: [bp.manufacturer, loc(CATEGORY_LABELS[bp.category], lang)].filter(Boolean).join(' / '), blueprint: bp,
       }));
     const res: GlobalSearchOption[] = activeDataset.resources
       .filter((r) => !isPlaceholderResource(r))
@@ -182,19 +182,9 @@ export function Header() {
       }
     }
     return [...bps, ...res, ...missions];
-  }, [activeDataset.blueprints, activeDataset.missionRewards?.blueprintAcquisitionGraph, activeDataset.missionRewards?.factionGroups, activeDataset.resources, factionContractsByFactionId, t]);
-
-  const searchSuggestions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return globalSearchOptions.slice(0, 40);
-    return globalSearchOptions
-      .filter((option) => `${option.label} ${option.description}`.toLowerCase().includes(q))
-      .slice(0, 40);
-  }, [globalSearchOptions, searchQuery]);
+  }, [activeDataset.blueprints, activeDataset.missionRewards?.blueprintAcquisitionGraph, activeDataset.missionRewards?.factionGroups, activeDataset.resources, factionContractsByFactionId, lang, t]);
 
   const handleSearchSelect = (option: GlobalSearchOption) => {
-    setSearchValue(null);
-    setSearchQuery('');
     if (option.kind === 'blueprint') { setActiveBlueprint(option.blueprint); return; }
     if (option.kind === 'resource') {
       navigateToPath(resourcePathFromSlug(option.resource.id), { mainView: 'resources', resourceId: option.resource.id });
@@ -270,69 +260,7 @@ export function Header() {
 
         {/* Global search — fills the center without displacing utility controls. */}
         <Box sx={{ flex: { xs: '1 0 100%', sm: '1 1 220px' }, order: { xs: 2, sm: 0 }, minWidth: { xs: 0, sm: 120 }, maxWidth: 640, mx: 'auto', position: 'relative' }}>
-          <SearchIcon sx={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 17, color: 'text.disabled', zIndex: 1, pointerEvents: 'none' }} />
-          <AppAutocomplete
-            id="workspace-global-search"
-            value={searchValue}
-            suggestions={searchSuggestions}
-            getOptionLabel={(option) => option.label}
-            onValueChange={(value) => {
-              setSearchValue(value);
-              if (typeof value === 'string') setSearchQuery(value);
-              else if (value) handleSearchSelect(value);
-            }}
-            onQueryChange={setSearchQuery}
-            placeholder={isMd ? t('Search blueprints, resources, missions…  Ctrl K', 'Rechercher blueprints, ressources, missions…  Ctrl K') : t('Search…', 'Rechercher…')}
-            ariaLabel={t('Global search', 'Recherche globale')}
-            forceSelection
-            sx={{ width: '100%' }}
-            inputSx={{ width: '100%', height: { xs: 44, md: 38 }, pl: 4.25, backgroundColor: alpha(theme.palette.ui.surface2, 0.9), fontSize: '0.875rem' }}
-            partSx={{
-              root: { width: '100%' },
-              panel: { maxWidth: 'calc(100vw - 24px)' },
-              item: { minHeight: 44, p: 0.5 },
-            }}
-            itemTemplate={(option, selectOption) => (
-              <Box
-                component="button"
-                type="button"
-                tabIndex={-1}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  selectOption();
-                }}
-                aria-label={`${option.label}${option.description ? ` — ${option.description}` : ''}`}
-                sx={{
-                  width: '100%',
-                  minWidth: 0,
-                  minHeight: 40,
-                  px: 1,
-                  py: 0.625,
-                  border: '1px solid',
-                  borderColor: 'transparent',
-                  borderRadius: 1,
-                  backgroundColor: 'transparent',
-                  color: 'inherit',
-                  font: 'inherit',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  transition: 'background-color 120ms ease, border-color 120ms ease',
-                  '&:hover': { backgroundColor: 'ui.surface2', borderColor: 'ui.borderStrong' },
-                  '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 },
-                }}
-              >
-                <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>{option.label}</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', fontFamily: FONT_BODY, letterSpacing: 0 }}>{option.description}</Typography>
-                </Box>
-                <ChevronRightIcon sx={{ flexShrink: 0, fontSize: 14, color: 'text.disabled' }} />
-              </Box>
-            )}
-          />
+          <GlobalSearch options={globalSearchOptions} onSelect={handleSearchSelect} onActivate={() => setSearchActivated(true)} />
         </Box>
 
         {/* Right-side tools */}

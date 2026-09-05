@@ -219,7 +219,7 @@ function KpiTile({
         boxShadow: `inset 2px 0 0 0 ${accent}`,
       }}
     >
-      <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary', mb: 0.625, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <Typography sx={{ fontSize: '0.6875rem', color: 'text.secondary', mb: 0.625, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {label}
       </Typography>
       <Typography
@@ -242,7 +242,7 @@ function KpiTile({
         </Box>
       ) : (
         <Typography
-          sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', color: 'text.disabled', mt: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', mt: 0.75, lineHeight: 1.5 }}
         >
           {hint ?? ' '}
         </Typography>
@@ -324,7 +324,7 @@ function ItemDescription({ blueprint }: { blueprint: Blueprint }) {
           sx={{
             mt: 0.25,
             fontFamily: FONT_MONO,
-            fontSize: '0.62rem',
+            fontSize: '0.6875rem',
             fontWeight: 700,
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
@@ -365,7 +365,11 @@ export function FabricatorPage() {
 
   const blueprints = activeDataset.blueprints;
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const slug = itemSlugFromPathname(window.location.pathname);
+    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : blueprints.find(bp => bp.name.toLowerCase() === 'cq7 rifle') ?? blueprints[0];
+    return initial?.id ?? null;
+  });
   const [progress, setProgress] = useState<ProgressMap>(() => readProgress());
   /**
    * Transient confirmation on the Add-to-Planner button (design: 1.6s). Keyed
@@ -414,13 +418,17 @@ export function FabricatorPage() {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
-  // The neutral route is the production register; item URLs restore a craft.
+  // Fabricator opens CQ7 (or the first available blueprint); deep links select an exact item.
   // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
   // the item page); back/forward keep the selection in sync.
   useEffect(() => {
     const syncFromUrl = () => {
       const slug = itemSlugFromPathname(window.location.pathname);
-      if (!slug) { setSelectedId(null); return; }
+      if (!slug) {
+        const initial = blueprints.find(bp => bp.name.toLowerCase() === 'cq7 rifle') ?? blueprints[0];
+        setSelectedId(initial?.id ?? null);
+        return;
+      }
       const fromUrl = blueprints.find((bp) => toSlug(bp.name) === slug);
       setSelectedId(fromUrl?.id ?? null);
     };
@@ -621,7 +629,7 @@ export function FabricatorPage() {
     px: 1,
     fontFamily: FONT_MONO,
     fontWeight: 700,
-    fontSize: '0.64rem',
+    fontSize: '0.6875rem',
     color: 'text.secondary',
     '&:hover': { color: 'primary.main' },
   } as const;
@@ -650,15 +658,15 @@ export function FabricatorPage() {
       {selected && (
         <>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <AppButton variant="ghost" size="sm" onClick={() => handleSelect(null)}>
-              ← {t('Blueprint register', 'Registre des blueprints', 'Bauplanregister')}
+            <AppButton variant="ghost" size="sm" onClick={() => navigateToPath('/blueprints')}>
+              ← {t('Blueprints', 'Blueprints', 'Baupläne')}
             </AppButton>
             <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
               {t('PRODUCTION / ITEM WORKSPACE', 'PRODUCTION / ATELIER OBJET', 'PRODUKTION / OBJEKTARBEITSPLATZ')}
             </Typography>
           </Box>
           {/* ── Identity + command strip ── */}
-          <Paper
+          <Paper key={`identity-${selected.id}`} className="workspace-identity"
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -759,7 +767,7 @@ export function FabricatorPage() {
                       backgroundColor: 'ui.bgElev',
                     }}
                   />
-                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.62rem', color: 'text.disabled', textAlign: 'center' }}>
+                  <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textAlign: 'center' }}>
                     {heroIsManufacturer
                       ? t('Manufacturer mark — no item render available', 'Marque du fabricant — aucun visuel de l’objet')
                       : selected.name}
@@ -800,7 +808,7 @@ export function FabricatorPage() {
               <ItemDescription blueprint={selected} />
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 'auto', flexShrink: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: { xs: 0, md: 'auto' }, flexWrap: 'wrap', maxWidth: '100%' }}>
               <AppButton
                 variant="secondary"
                 size="sm"
@@ -916,18 +924,18 @@ export function FabricatorPage() {
             ragged bottom edge that read as accidental. Stretching gives every
             row a flat baseline, which is what makes the grid look deliberate.
           */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 1.125, alignItems: 'stretch' }}>
+          <Box key={`work-${selected.id}`} className="workspace-work-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
             {/* Craft simulator */}
             {detailReady ? (
               <BentoPanel
                 accent={theme.palette.primary.main}
                 id="craft-configure" title={t('Craft simulator', 'Simulateur de craft')}
-                note={t('assign material quality', 'assigne la qualité des matériaux')}
+                note={t('material quality · 0–1000', 'qualité des matériaux · 0–1000')}
                 span={7}
                 right={
                   <>
                     <Typography
-                      sx={{ fontFamily: FONT_MONO, fontSize: '0.66rem', color: allSlotsValid ? 'success.main' : 'warning.main' }}
+                      sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: allSlotsValid ? 'success.main' : 'warning.main' }}
                     >
                       {validSlotCount}/{selected.slots.length} {t('valid', 'valides')}
                     </Typography>
@@ -976,7 +984,7 @@ export function FabricatorPage() {
               <BentoPanel
                 accent={theme.palette.primary.main}
                 id="craft-result" title={t('Projected result', 'Résultat prévu')}
-                note={t('live · updates with sliders', 'live · suit les sliders')}
+                note={t('base → simulated · difference', 'base → simulation · écart')}
                 span={5}
                 right={
                   <ButtonBase
@@ -1012,7 +1020,7 @@ export function FabricatorPage() {
                         color: grade.color,
                         fontFamily: FONT_MONO,
                         fontWeight: 700,
-                        fontSize: '0.66rem',
+                        fontSize: '0.6875rem',
                       }}
                     >
                       {loc(grade.label, lang)} · Q{qualityScore}
@@ -1022,7 +1030,7 @@ export function FabricatorPage() {
                         <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.74rem', color: 'text.secondary' }}>
                           {craftTimeLabel}
                         </Typography>
-                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', color: 'text.disabled' }}>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
                           {t('craft', 'craft')}
                         </Typography>
                       </Box>
@@ -1030,7 +1038,7 @@ export function FabricatorPage() {
                         <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.74rem', color: 'text.secondary' }}>
                           {totalRequiredScu > 0 ? formatResourceQuantity(totalRequiredScu, 'scu', lang) : '—'}
                         </Typography>
-                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', color: 'text.disabled' }}>
+                        <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
                           {t('materials', 'matériaux')}
                         </Typography>
                       </Box>
@@ -1138,7 +1146,7 @@ export function FabricatorPage() {
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.625, minWidth: 0 }}>
                           <Typography
-                            sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                           >
                             {topProvider?.providerDisplayName ?? t('No source data', 'Pas de source connue')}
                           </Typography>
@@ -1167,7 +1175,7 @@ export function FabricatorPage() {
                         {formatResourceQuantity(resource.totalScu * qty, resource.quantityUnit, lang)}
                       </Typography>
                       <Typography
-                        sx={{ fontFamily: FONT_MONO, fontSize: '0.64rem', color: 'text.disabled', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                       >
                         {topProvider?.system ?? '—'}
                       </Typography>
@@ -1200,7 +1208,7 @@ export function FabricatorPage() {
                   <>
                     <Typography
                       title={t('Dismantle time', 'Temps de démontage')}
-                      sx={{ fontFamily: FONT_MONO, fontSize: '0.6rem', color: 'text.disabled' }}
+                      sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}
                     >
                       {t('Time', 'Durée')}{' '}
                       {dismantleTimeSecs >= 60
@@ -1246,7 +1254,7 @@ export function FabricatorPage() {
                         ? t('CALCULATED ESTIMATE', 'ESTIMATION CALCULÉE')
                         : t('VARIABLE RECIPE', 'RECETTE VARIABLE')}
                     </Box>
-                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.57rem', color: 'text.disabled' }}>
+                    <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled' }}>
                       {qty > 1 ? t(`${qty} items`, `${qty} objets`) : t('per item', 'par objet')}
                     </Typography>
                   </Box>
@@ -1347,7 +1355,7 @@ export function FabricatorPage() {
                     px: 1.5,
                     py: 1,
                     fontFamily: FONT_MONO,
-                    fontSize: '0.57rem',
+                    fontSize: '0.6875rem',
                     lineHeight: 1.45,
                     color: 'text.disabled',
                   }}

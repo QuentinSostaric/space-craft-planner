@@ -105,3 +105,134 @@ html[data-density='compact'] .workbench-register-row {
     flex-basis: 88px;
   }
 }
+
+/* Motion has three speeds: response, state change and entrance. */
+:root {
+  --motion-response: 120ms;
+  --motion-state: 220ms;
+  --motion-enter: 340ms;
+  --motion-ease: cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes workspace-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes workspace-reveal {
+  from { opacity: 0; transform: translateY(-5px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes workspace-confirm {
+  0% { box-shadow: 0 0 0 0 var(--sc-primary-soft); }
+  60% { box-shadow: 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes workspace-accent {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.workspace-page { animation: workspace-enter var(--motion-enter) var(--motion-ease) backwards; }
+.workspace-page-header::before { transform-origin: left; animation: workspace-accent 480ms var(--motion-ease) backwards; }
+.workspace-page .workspace-panel {
+  background-image: linear-gradient(135deg, rgba(160,180,240,.025), transparent 55%);
+  transition: border-color var(--motion-state), box-shadow var(--motion-state);
+}
+.workspace-page > .workspace-panel,
+.workspace-page .workspace-panel { animation: workspace-enter var(--motion-enter) var(--motion-ease) backwards; }
+.workspace-page .workspace-panel:nth-child(2) { animation-delay: 35ms; }
+.workspace-page .workspace-panel:nth-child(3) { animation-delay: 70ms; }
+.workspace-page .workspace-panel:nth-child(4) { animation-delay: 105ms; }
+.value-feedback { display: inline-block; font-variant-numeric: tabular-nums; }
+.workspace-page .p-button,
+.workspace-page button,
+.workspace-section-links a,
+nav a,
+.global-search-field {
+  transition: background-color var(--motion-response), border-color var(--motion-response), color var(--motion-response), box-shadow var(--motion-state), transform var(--motion-response) var(--motion-ease);
+}
+.workspace-page button:not(:disabled):active,
+.workspace-section-links a:active { transform: scale(.98); }
+.workspace-page button[aria-pressed='true'],
+nav a[aria-current='page'] { animation: workspace-confirm 320ms var(--motion-ease); }
+.workspace-page .p-button:disabled { opacity: .45; }
+.workspace-page .p-inputtext,
+.workspace-page .p-dropdown { transition: border-color var(--motion-response), box-shadow var(--motion-state), background-color var(--motion-state); }
+.workspace-page .p-inputtext:focus,
+.workspace-page .p-dropdown.p-focus { box-shadow: 0 0 0 3px var(--sc-primary-soft); }
+.workspace-page .p-slider-range { transition: background-color var(--motion-state); }
+.workspace-page .p-slider-handle { transition: box-shadow var(--motion-response), border-color var(--motion-response); }
+.workspace-page .p-slider-handle:hover { box-shadow: 0 0 0 5px var(--sc-primary-soft); }
+.p-dialog-enter-active,
+.p-overlaypanel-enter-active { animation: workspace-reveal var(--motion-state) var(--motion-ease); }
+.p-dialog-exit-active,
+.p-overlaypanel-exit-active { opacity: 0; transform: translateY(4px); transition: opacity var(--motion-response), transform var(--motion-response); }
+.p-menu { animation: workspace-reveal 180ms var(--motion-ease); transform-origin: top; }
+@media (hover: hover) and (pointer: fine) {
+  .workspace-page .workspace-panel:hover { border-color: var(--sc-border-strong); box-shadow: 0 5px 18px rgba(0,0,0,.07); }
+  .workspace-page .p-button:not(:disabled):hover { transform: translateY(-1px); }
+  .workspace-section-links a:hover { transform: translateY(-2px); }
+  nav a:hover .pi { transform: translateX(2px); }
+  nav .pi { transition: transform var(--motion-response) var(--motion-ease); }
+  .workbench-register-row:hover { box-shadow: inset 2px 0 var(--sc-primary); }
+}
+
+/* Search is an editable combobox, not a form that commits on blur. */
+.global-search { width: 100%; min-width: 0; position: relative; font-family: var(--font-family); }
+.global-search-field {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 0 12px;
+  background: var(--sc-surface-2); border: 1px solid var(--sc-border-strong); border-radius: 6px;
+}
+.global-search-field > .pi { color: var(--sc-text-disabled); font-size: 14px; }
+.global-search-field:focus-within { border-color: var(--sc-primary); box-shadow: 0 0 0 3px var(--sc-primary-soft); }
+.global-search-field:focus-within > .pi { color: var(--sc-primary); }
+.global-search-field input {
+  flex: 1; min-width: 0; width: 100%; padding: 10px 0;
+  background: transparent; border: 0; color: var(--sc-text); font: inherit; font-size: 13px;
+}
+.global-search-field input::placeholder { color: var(--sc-text-disabled); }
+.global-search-field input:focus-visible { outline: none; box-shadow: none; }
+.global-search-field kbd { white-space: nowrap; font-size: 10px; color: var(--sc-text-disabled); border: 1px solid var(--sc-border); border-radius: 3px; padding: 2px 4px; }
+.global-search-clear { border: 0; background: transparent; color: var(--sc-text-secondary); cursor: pointer; min-height: 30px; min-width: 28px; }
+.global-search-clear:hover { color: var(--sc-primary); }
+.global-search-popup {
+  position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+  z-index: 1500; display: flex; flex-direction: column;
+  max-height: min(520px, calc(100dvh - 140px));
+  background: var(--sc-bg-elevated); border: 1px solid var(--sc-border-strong); border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.3); overflow: hidden;
+  animation: workspace-reveal 160ms var(--motion-ease); transform-origin: top;
+}
+.global-search-heading { padding: 12px 14px; display: flex; justify-content: space-between; color: var(--sc-text-secondary); font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--sc-border); }
+.global-search-popup ul { padding: 5px; margin: 0; list-style: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.global-search-popup li { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 9px; border: 1px solid transparent; border-radius: 5px; cursor: pointer; transition: background-color 90ms, border-color 90ms; }
+.global-search-popup li[aria-selected='true'] { background: var(--sc-primary-soft); border-color: var(--sc-border-accent); }
+.global-search-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.global-search-copy strong { color: var(--sc-text); font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.global-search-copy > span { color: var(--sc-text-secondary); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.global-search-kind { width: 30px; height: 30px; border-radius: 5px; background: var(--sc-surface-2); display: grid; place-items: center; flex-shrink: 0; color: var(--sc-primary); }
+.global-search-kind-resource { color: var(--sc-success); }
+.global-search-kind-mission { color: var(--sc-primary-hover); }
+.global-search-type { color: var(--sc-text-secondary); font-size: 10px; }
+.global-search-popup li > .pi { color: var(--sc-text-disabled); font-size: 11px; }
+.global-search-footer { padding: 9px 14px; font-size: 10px; color: var(--sc-text-disabled); border-top: 1px solid var(--sc-border); }
+.global-search-empty { display: flex; flex-direction: column; gap: 6px; padding: 28px 16px; text-align: center; color: var(--sc-text-secondary); font-size: 12px; }
+@media (max-width: 599px) {
+  .global-search-field { min-height: 44px; }
+  .global-search-type, .global-search-field kbd { display: none; }
+  .global-search-clear { min-height: 44px; min-width: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .workspace-page button:active, .workspace-page .p-button:hover, .workspace-section-links a:hover { transform: none; }
+}
+.workspace-identity { animation: workspace-enter 280ms var(--motion-ease) backwards; }
+.workspace-slot { transition: background-color 180ms ease, border-color 180ms ease; }
+.workspace-slot[data-assigned='true'] { background-color: color-mix(in srgb, var(--sc-success) 3%, transparent); }
+.workspace-slot:focus-within { background-color: var(--sc-primary-soft); }
+.workspace-page button:not(:disabled):active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page button:not(:disabled):active { transform: none; }
+}
+
+/* Keep one visible focus boundary around the complete search field. */
+html[data-theme] .global-search-field input:focus-visible { outline: none; box-shadow: none; }

@@ -1,3 +1,4 @@
+import { ValueFeedback } from '../ui/ValueFeedback';
 import { Box, IconButton, Typography, alpha, useTheme } from '../../ui/system';
 import type { Theme } from '../../ui/system';
 import { AddIcon, CloseIcon, RemoveIcon } from '../../ui/icons';
@@ -69,7 +70,7 @@ export function SlotTableHeader() {
   const { t } = useI18n();
   const cell = {
     fontFamily: FONT_MONO,
-    fontSize: '0.5625rem',
+    fontSize: '0.6875rem',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'text.disabled',
@@ -126,6 +127,8 @@ export function SlotRow({
   return (
     <Box
       role="listitem"
+      className="workspace-slot"
+      data-assigned={assigned}
       aria-label={`${requirementName} — ${loc(slot.label, lang)}`}
       sx={{
         position: 'relative',
@@ -194,7 +197,7 @@ export function SlotRow({
         </Typography>
         <Typography
           sx={{
-            fontSize: '0.63rem',
+            fontSize: '0.6875rem',
             lineHeight: 1.3,
             color: 'text.disabled',
             whiteSpace: 'nowrap',
@@ -372,7 +375,7 @@ export function SlotRow({
               border: `1px solid ${alpha(meetsMin ? theme.palette.success.main : theme.palette.warning.main, 0.45)}`,
               color: meetsMin ? 'success.main' : 'warning.main',
               fontFamily: FONT_MONO,
-              fontSize: '0.56rem',
+              fontSize: '0.6875rem',
               fontWeight: 800,
             }}
           >
@@ -444,12 +447,15 @@ export function BuildIndexKnob({ score, color }: { score: number; color: string 
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {score}
+          <ValueFeedback value={score} />
         </Typography>
         <Typography
           sx={{
             fontFamily: FONT_MONO,
-            fontSize: '0.5625rem',
+            fontSize: '0.6875rem',
+            textAlign: 'center',
+            maxWidth: 90,
+            lineHeight: 1.25,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             color: 'text.disabled',
@@ -529,18 +535,18 @@ export function StatMeterRow({ meter }: { meter: StatMeter }) {
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, flexShrink: 0, fontFamily: FONT_MONO }}>
           <Typography
             title={t('Base value', 'Valeur de base')}
-            sx={{ fontSize: '0.6rem', color: 'text.disabled' }}
+            sx={{ fontSize: '0.6875rem', color: 'text.disabled' }}
           >
             {formatStatValue(meter.key, meter.base)}
           </Typography>
-          <Typography sx={{ fontSize: '0.56rem', color: 'text.disabled' }}>→</Typography>
+          <Typography sx={{ fontSize: '0.6875rem', color: 'text.disabled' }}>→</Typography>
           <Typography
             title={t('Projected value', 'Valeur projetée')}
             sx={{ fontSize: '0.72rem', fontWeight: 700, color: 'text.primary' }}
           >
-            {formatStatValue(meter.key, meter.final)}
+            <ValueFeedback value={formatStatValue(meter.key, meter.final)} />
           </Typography>
-          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color }}>
             {meter.neutral ? '—' : `${meter.improved ? '▲' : '▼'}${Math.abs(meter.deltaPct).toFixed(0)}%`}
           </Typography>
         </Box>

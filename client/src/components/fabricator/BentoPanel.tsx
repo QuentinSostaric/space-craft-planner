@@ -1,3 +1,4 @@
+import { ValueFeedback } from '../ui/ValueFeedback';
 import { Box, Paper, Typography } from '../../ui/system';
 import type { SxProps, Theme } from '../../ui/system';
 import type { ReactNode } from 'react';
@@ -148,7 +149,7 @@ export function BentoHero({ value, unit, color }: { value: ReactNode; unit?: str
           color: color ?? 'text.primary',
         }}
       >
-        {value}
+        <ValueFeedback value={value} />
       </Typography>
       {unit && (
         <Typography

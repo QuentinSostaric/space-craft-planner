@@ -67,21 +67,13 @@ test.beforeEach(async ({ page, colorScheme }) => {
   });
 });
 
-test('register opens a craft and browser history restores the neutral landing page', async ({
-  page,
-}) => {
+test('Fabricator opens a blueprint workspace and preserves craft navigation', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error' && message.text().includes('same key')) errors.push(message.text()); });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Your next craft starts here.' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workspace-register.png');
-  await page.getByRole('button', { name: 'Favorites', exact: true }).click();
-  await expect(page.getByText('No blueprints in this selection.', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'All', exact: true }).click();
-  await page.getByRole('searchbox', { name: 'Search the blueprint register' }).fill('Behring');
-  await page.getByRole('button', { name: 'CQ7 Rifle Behring / FPS Weapon', exact: true }).click();
-  await expect(page).toHaveURL(/\/item\/cq7-rifle$/);
   await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  await expect(page).toHaveScreenshot('item-workspace.png');
   await page.getByRole('button', { name: 'MAX', exact: true }).click();
   await expect(
     page.getByRole('spinbutton', { name: 'Quality value for Iron', exact: true }),
@@ -95,11 +87,9 @@ test('register opens a craft and browser history restores the neutral landing pa
       return children.map((child) => getComputedStyle(child).gridRowStart);
     });
   if ((page.viewportSize()?.width ?? 0) < 900) expect(slotPositions).toContain('2');
-  await page.getByRole('button', { name: '← Blueprint register', exact: true }).click();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(
-    page.getByRole('heading', { name: 'Blueprint register', exact: true }),
-  ).toBeVisible();
+  await page.getByRole('button', { name: '← Blueprints', exact: true }).click();
+  await expect(page).toHaveURL(/\/blueprints$/);
+  await expect(page.getByRole('heading', { name: 'Blueprints', exact: true })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
@@ -107,9 +97,7 @@ test('register opens a craft and browser history restores the neutral landing pa
 
 test('density persists and the shell fits the viewport', async ({ page }) => {
   await page.goto('/');
-  await expect(
-    page.getByRole('heading', { name: 'Blueprint register', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Comfort', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Comfort', exact: true })).toHaveAttribute(
@@ -124,4 +112,38 @@ test('density persists and the shell fits the viewport', async ({ page }) => {
   }
   await page.locator('body').press('Control+k');
   await expect(page.getByRole('combobox', { name: 'Global search', exact: true })).toBeFocused();
+});
+
+test('search preserves input on blur and navigates only on explicit selection', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const search = page.getByRole('combobox', { name: 'Global search', exact: true });
+  await search.fill('cq7 rifle');
+  await expect(page.getByRole('listbox', { name: 'Search results' }).getByRole('option')).toHaveCount(1);
+  await search.press('Tab');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(search).toHaveValue('cq7 rifle');
+  await search.focus();
+  await search.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await search.fill('nonexistent');
+  await search.press('Enter');
+  await expect(page).toHaveURL(/\/$/);
+  await search.fill('rifle cq7');
+  await search.press('Enter');
+  await expect(page).toHaveURL(/\/item\/cq7-rifle$/);
+  await expect(search).toHaveValue('');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+});
+
+test('reduced motion disables workspace entrances', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  const duration = await page
+    .locator('.workspace-page')
+    .first()
+    .evaluate((el) => getComputedStyle(el).animationDuration);
+  expect(parseFloat(duration)).toBeLessThanOrEqual(0.001);
 });

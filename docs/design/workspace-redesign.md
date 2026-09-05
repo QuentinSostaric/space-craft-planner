@@ -14,7 +14,7 @@ Le mode clair reste disponible avec des surfaces ardoise claires.
 
 | Espace | Nouvelle présentation | Capacités conservées |
 | --- | --- | --- |
-| Accueil | Poste de production avec registre, collections et raccourcis | Recherche par nom, fabricant et catégorie, favoris, inventaire, suggestions de drops, accès à tous les blueprints par chargement progressif |
+| Accueil | Workspace du CQ7 (ou premier blueprint disponible), registre de secours si dataset vide | Recherche par nom, fabricant et catégorie, favoris, inventaire, suggestions de drops, accès à tous les blueprints par chargement progressif |
 | Atelier | Identité, commandes, indicateurs, navigation vers six sections | Quantité, qualité par matériau, préréglages, radar/statistiques, acquisition/réputation, sources, démontage, données objet, ajout au planificateur |
 | Blueprints | Registre horizontal par défaut, cartes disponibles | Filtres, tris, favoris, inventaire, comparaison, composants, actions contextuelles et chargement progressif |
 | Missions | Lignes par défaut, cartes disponibles | Tous les filtres, récompenses, réputation, factions, détail et liens vers les blueprints |
@@ -24,10 +24,23 @@ Le mode clair reste disponible avec des surfaces ardoise claires.
 | Organisations | En-têtes et panneaux unifiés, cartes adaptatives | Membres, claims, partage, catalogue communautaire et demandes de fabrication |
 | Changelog et confidentialité | Même hiérarchie, typographie et composants | Comparaison des datasets, filtres, statistiques et contenus légaux |
 
-L’accueil `/` ouvre désormais le registre plutôt qu’un CQ7 présélectionné.
-Les URL `/item/<slug>` continuent d’ouvrir l’atelier correspondant. Le bouton
-« Registre des blueprints » ramène à l’accueil ; précédent/suivant restent
-synchronisés avec l’objet affiché.
+L’accueil `/` ouvre directement le workspace du CQ7, comme le Fabricator
+historique. Les URL `/item/<slug>` ouvrent l’objet correspondant. Le bouton
+« Blueprints » ouvre le catalogue ; précédent/suivant restent synchronisés.
+
+La recherche globale dispose d’un état local et d’un index normalisé mémorisé :
+accents ignorés, mots dans n’importe quel ordre, noms exacts prioritaires et
+24 résultats maximum. Aucun délai artificiel ni sélection au changement de
+focus. Entrée ou clic ouvrent explicitement le résultat ; Échap ferme la liste.
+La sélection clavier conserve sa clé lorsque des missions arrivent en différé.
+Les contrats des factions sont chargés à la première activation de la recherche.
+
+Les animations communes couvrent entrées de pages/panneaux, navigation,
+boutons, focus, menus, dialogues, qualité et valeurs projetées. Les valeurs
+restent exactes pendant leur retour visuel. Les durées sont courtes
+(120–340 ms) et le réglage système de réduction des mouvements est respecté.
+Les indications de qualité et de comparaison sont explicites, les petites
+étiquettes de l’atelier agrandies et les commandes se replient sur mobile.
 
 `Ctrl/Cmd + K` place le focus dans la recherche globale hors dialogue.
 Le choix Dense/Confort persiste localement sous `sc-craft-workspace-density`.
@@ -53,8 +66,8 @@ plus étirer leur tableau et masquer les colonnes suivantes.
 - Build TypeScript et Vite de production.
 - Tests client, garde d’architecture UI et tests serveur existants.
 - Tests navigateur des huit routes publiques et du shell.
-- Nouveau parcours avec dataset contrôlé : filtre de collection, recherche,
-  sélection, qualité maximale, ancre de section, retour et historique.
+- Nouveau parcours avec dataset contrôlé : ouverture directe, recherche sans navigation au flou,
+  sélection explicite, qualité maximale, ancre de section, retour et historique.
 - Persistance de densité, raccourci clavier et en-tête contenu dans le viewport.
 - Configurations ordinateur/mobile, sombre/clair et captures de référence.
 - Contrôle visuel local avec le dataset LIVE publié, y compris le CQ7 rempli.
@@ -72,6 +85,6 @@ UPDATE_VISUAL_BASELINES=1 npm run test:e2e --workspace client -- --update-snapsh
 
 Les fichiers d’audit déjà modifiés avant cette intervention sont exclus du commit.
 
-Résultat final : build réussi, 36 tests client, 5 tests serveur et 44 tests
+Résultat final : build réussi, 43 tests client, 5 tests serveur et 52 tests
 navigateur réussis. Garde d’architecture et vérification du diff réussies.
 Les références visuelles ont été régénérées pour les quatre configurations.

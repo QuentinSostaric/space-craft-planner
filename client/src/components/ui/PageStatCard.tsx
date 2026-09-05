@@ -1,3 +1,4 @@
+import { ValueFeedback } from './ValueFeedback';
 import { Box, Paper, Typography, useTheme } from '../../ui/system';
 import type { Palette } from '../../ui/system';
 import type { ReactNode } from 'react';
@@ -79,7 +80,7 @@ export function PageStatCard({
             color: 'text.primary',
           }}
         >
-          {value}
+          <ValueFeedback value={value} />
         </Typography>
         {icon && (
           <Box sx={{ color: accent ?? 'text.disabled', opacity: accent ? 0.9 : 1, mt: 0.25, flexShrink: 0 }}>{icon}</Box>
