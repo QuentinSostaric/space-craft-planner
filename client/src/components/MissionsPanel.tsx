@@ -45,6 +45,7 @@ import type {
   StandingBucket,
 } from '../types';
 import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM} from '../theme';
+import { MissionWorkspace } from './missions/MissionWorkspace';
 
 const FONT_HEADING = FONT_DISPLAY;
 
@@ -1619,6 +1620,10 @@ function missionGetColumns(containerWidth: number): number {
 }
 
 export function MissionsPanel() {
+  return <MissionWorkspace catalog={<MissionCatalog />} />;
+}
+
+function MissionCatalog() {
   const {
     missionRewards,
     missionRewardsLoading,
