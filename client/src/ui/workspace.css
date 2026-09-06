@@ -1,16 +1,10 @@
-/* Workspace rhythm: compact by default; comfort is an explicit user preference.
+/* Workspace rhythm: compact throughout the application.
    Never scale text or shrink touch targets to achieve density. */
 :root {
   --workspace-gutter: 18px;
   --workspace-gap: 14px;
   --workspace-card-width: 238px;
   --workspace-preview-height: 104px;
-}
-html[data-density='comfortable'] {
-  --workspace-gutter: 28px;
-  --workspace-gap: 22px;
-  --workspace-card-width: 280px;
-  --workspace-preview-height: 146px;
 }
 .workspace-page {
   min-width: 0;
@@ -68,8 +62,7 @@ html[data-density='compact'] .workbench-register-row {
   padding-bottom: 8px;
 }
 @media (max-width: 899px) {
-  :root,
-  html[data-density='comfortable'] {
+  :root {
     --workspace-gutter: 12px;
     --workspace-gap: 12px;
   }
