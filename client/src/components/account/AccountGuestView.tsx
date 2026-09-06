@@ -186,7 +186,7 @@ export function AccountGuestView({
         alignItems: 'start',
       }}
     >
-      <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Paper sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         <Box sx={{ p: 2, backgroundColor: '#212126', borderRadius: '4px' }}>
           <Box
             component="img"
@@ -229,28 +229,18 @@ export function AccountGuestView({
           </AppAlert>
         )}
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {accountJourneySteps[0].body}
+          {t('Requires a Discord account linked to Citizen iD.', 'Un compte Discord lié à Citizen iD est requis.', 'Ein mit Citizen iD verbundenes Discord-Konto ist erforderlich.')}
         </Typography>
-        {unlockHighlights.map((item) => (
-          <Box
-            key={item.title}
-            sx={{
-              display: 'flex',
-              gap: 1,
-              pt: 1.5,
-              borderTop: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box sx={{ color: 'primary.main' }}>{item.icon}</Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>{item.title}</Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', mt: 0.5 }}>
-                {item.body}
-              </Typography>
-            </Box>
-          </Box>
-        ))}
+        <details className="workspace-disclosure">
+          <summary>{t('Sign-in & saved data', 'Connexion et données sauvegardées', 'Anmeldung und gespeicherte Daten')}</summary>
+          <div className="workspace-disclosure-body"><Typography variant="body2" sx={{ color: 'text.secondary' }}>{accountJourneySteps[0].body}</Typography></div>
+        </details>
+        <Box sx={{ display: 'grid', gap: 0.5 }}>
+          {unlockHighlights.map((item, index) => <AppButton
+            key={item.title} variant={activeStep === index ? 'secondary' : 'ghost'} icon={item.icon}
+            ariaPressed={activeStep === index} onClick={() => setActiveStep(index)} sx={{ justifyContent: 'flex-start', minHeight: 40 }}
+          >{item.title}</AppButton>)}
+        </Box>
       </Paper>
       <Stack spacing={2}>
         <Paper sx={{ overflow: 'hidden' }}>
@@ -270,27 +260,7 @@ export function AccountGuestView({
             <Typography component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
               {t('Connected tools', 'Outils connectés', 'Verbundene Werkzeuge')}
             </Typography>
-            <Box
-              role="group"
-              aria-label={t(
-                'Account feature screenshots',
-                'Captures des fonctions du compte',
-                'Screenshots der Kontofunktionen',
-              )}
-              sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
-            >
-              {previewLabels.map((label, index) => (
-                <AppButton
-                  key={label}
-                  size="sm"
-                  ariaPressed={activeStep === index}
-                  variant={activeStep === index ? 'primary' : 'ghost'}
-                  onClick={() => setActiveStep(index)}
-                >
-                  {label}
-                </AppButton>
-              ))}
-            </Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{previewLabels[activeStep]}</Typography>
           </Box>
           <Box
             component="img"
@@ -309,9 +279,11 @@ export function AccountGuestView({
             <Typography component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
               {previewDescriptions[activeStep].title}
             </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
-              {previewDescriptions[activeStep].body}
-            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>{unlockHighlights[activeStep].body}</Typography>
+            <details className="workspace-disclosure" style={{ marginTop: 12 }}>
+              <summary>{t('How it works', 'Comment ça fonctionne', 'So funktioniert es')}</summary>
+              <div className="workspace-disclosure-body"><Typography variant="body2" sx={{ color: 'text.secondary' }}>{previewDescriptions[activeStep].body}</Typography></div>
+            </details>
           </Box>
         </Paper>
         <Paper sx={{ p: 2 }}>
@@ -336,7 +308,9 @@ export function AccountGuestView({
               {t('Add the bot', 'Ajouter le bot', 'Bot hinzufügen')}
             </AppButton>
           </Box>
-          <Box component="ol" sx={{ display: 'grid', gap: 1.5, listStyle: 'none', p: 0, m: 0 }}>
+          <details className="workspace-disclosure">
+            <summary>{t('Request → response → coordination', 'Demande → réponse → coordination', 'Anfrage → Antwort → Koordination')}</summary>
+          <Box component="ol" className="workspace-disclosure-body" sx={{ display: 'grid', gap: 1.5, listStyle: 'none', m: 0 }}>
             {botWorkflowItems.map((item, index) => (
               <Box
                 component="li"
@@ -361,7 +335,8 @@ export function AccountGuestView({
               </Box>
             ))}
           </Box>
-          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 2 }}>
+          </details>
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1.5 }}>
             {t(
               'To receive DMs, share a server with the bot or install it as an app.',
               'Pour recevoir les DM, partagez un serveur avec le bot ou installez-le comme application.',

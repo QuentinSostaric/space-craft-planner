@@ -1440,11 +1440,8 @@ function OrganizationList({
       <PageHeader
         title={t('Organizations', 'Organisations', 'Organisationen')}
         eyebrow={t('Shared operations', 'Opérations partagées', 'Gemeinsame Einsätze')}
-        description={t(
-          'Each organization has an internal marketplace where members share blueprints and resources. Resources are listed by quality and quantity — several lots of the same material can coexist.',
-          'Chaque org dispose d un marketplace interne où les membres partagent blueprints et ressources. Les ressources sont listées par qualité et quantité — plusieurs lots du même matériau peuvent coexister.',
-          'Jede Organisation hat einen internen Marketplace, auf dem Mitglieder Blueprints und Ressourcen teilen. Ressourcen werden nach Qualität und Menge aufgelistet — mehrere Lose desselben Materials können nebeneinander existieren.',
-        )}
+        description={t('Find a member, a blueprint or materials to share.', 'Retrouvez un membre, un blueprint ou des matériaux à partager.', 'Mitglieder, Baupläne und gemeinsame Materialien finden.')}
+
         actions={
           <CitizenIdSignInButton
             environment={citizenIdBrandEnvironment}
@@ -1454,13 +1451,7 @@ function OrganizationList({
         }
       />
 
-      <AppAlert severity="info">
-        {t(
-          'Public RSI organizations are imported automatically from Citizen iD. Re-sync here after changing organization visibility or granting new scopes; manual SID linking remains a fallback on the account page.',
-          'Les organisations RSI publiques sont importees automatiquement depuis Citizen iD. Relance la synchro ici apres avoir change la visibilite des organisations ou accepte de nouveaux scopes ; le lien manuel par SID reste disponible sur la page compte.',
-          'Oeffentliche RSI-Organisationen werden automatisch aus Citizen iD importiert. Synchronisiere hier erneut, wenn sich Org-Sichtbarkeit oder Scopes geaendert haben; manuelle SID-Verknuepfung bleibt auf der Kontoseite als Fallback verfuegbar.',
-        )}
-      </AppAlert>
+
 
       {/* Accessible org grid */}
       {accessibleOrganizations.length === 0 ? (
@@ -1496,6 +1487,24 @@ function OrganizationList({
           ))}
         </Box>
       )}
+
+      <details className="workspace-disclosure">
+        <summary>{t('Sharing & organization access', 'Partage et accès aux organisations', 'Freigaben und Organisationszugang')}</summary>
+        <div className="workspace-disclosure-body">
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t(
+          'Each organization has an internal marketplace where members share blueprints and resources. Resources are listed by quality and quantity — several lots of the same material can coexist.',
+          'Chaque org dispose d un marketplace interne où les membres partagent blueprints et ressources. Les ressources sont listées par qualité et quantité — plusieurs lots du même matériau peuvent coexister.',
+          'Jede Organisation hat einen internen Marketplace, auf dem Mitglieder Blueprints und Ressourcen teilen. Ressourcen werden nach Qualität und Menge aufgelistet — mehrere Lose desselben Materials können nebeneinander existieren.',
+        )}</Typography>
+      <AppAlert severity="info">
+        {t(
+          'Public RSI organizations are imported automatically from Citizen iD. Re-sync here after changing organization visibility or granting new scopes; manual SID linking remains a fallback on the account page.',
+          'Les organisations RSI publiques sont importees automatiquement depuis Citizen iD. Relance la synchro ici apres avoir change la visibilite des organisations ou accepte de nouveaux scopes ; le lien manuel par SID reste disponible sur la page compte.',
+          'Oeffentliche RSI-Organisationen werden automatisch aus Citizen iD importiert. Synchronisiere hier erneut, wenn sich Org-Sichtbarkeit oder Scopes geaendert haben; manuelle SID-Verknuepfung bleibt auf der Kontoseite als Fallback verfuegbar.',
+        )}
+      </AppAlert>
+        </div>
+      </details>
 
       {/* Locked organizations */}
       {lockedOrganizations.length > 0 && (

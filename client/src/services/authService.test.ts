@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestRsiLinkChallenge, verifyAndLinkRsiAccount } from './authService';
 import { fetchTauriApi } from './apiBaseUrl';
 
+// Rebind the native bridge mock even if another test imported its real module
+// earlier in the shared VM worker. Assertions exercise the actual auth service.
+vi.hoisted(() => vi.resetModules());
+
 vi.mock('./apiBaseUrl', () => ({
   fetchTauriApi: vi.fn(),
   getApiCredentials: () => 'same-origin',

@@ -767,17 +767,6 @@ export function AcquisitionRoutes({
                     borderBottom: `1px solid ${theme.palette.ui.border}`,
                   }}
                 >
-                  <ButtonBase
-                    onClick={() => onReach(lane.scopeKey, reached ? rep - 1 : rep)}
-                    aria-label={`${laneTier.tier.displayName ?? rep} — ${reached ? t('reached', 'atteint') : t('mark as reached', 'marquer comme atteint')}`}
-                    sx={{
-                      lineHeight: 0,
-                      flexShrink: 0,
-                      color: reached ? 'success.main' : isNext ? magenta : 'text.disabled',
-                    }}
-                  >
-                    {reached ? <CheckCircleIcon sx={{ fontSize: 16 }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 16 }} />}
-                  </ButtonBase>
                   <Typography
                     sx={{
                       fontFamily: FONT_MONO,
@@ -868,6 +857,15 @@ export function AcquisitionRoutes({
                         </Typography>
                       )}
                 </Box>
+                <ButtonBase
+                  onClick={() => onReach(lane.scopeKey, reached ? rep - 1 : rep)}
+                  aria-pressed={reached}
+                  aria-label={`${laneTier.tier.displayName ?? rep} — ${reached ? t('undo reached rank', 'annuler le rang atteint', 'erreichten Rang zurücknehmen') : t('mark as reached', 'marquer comme atteint', 'als erreicht markieren')}`}
+                  sx={{ minHeight: 34, flexShrink: 0, px: 1.125, py: 0.75, display: 'flex', justifyContent: 'center', gap: 0.75, borderTop: `1px solid ${theme.palette.ui.border}`, color: reached ? 'success.main' : 'text.secondary', fontSize: '0.6875rem', '&:hover': { backgroundColor: 'ui.surface2' } }}
+                >
+                  {reached ? <CheckCircleIcon sx={{ fontSize: 15 }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 15 }} />}
+                  {reached ? t('Rank reached · undo', 'Rang atteint · annuler', 'Rang erreicht · zurücknehmen') : t('I have reached this rank', 'J’ai atteint ce rang', 'Ich habe diesen Rang erreicht')}
+                </ButtonBase>
               </Paper>
 
               {!isLast && (

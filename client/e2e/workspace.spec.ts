@@ -72,6 +72,9 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && message.text().includes('same key')) errors.push(message.text()); });
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Simulate CQ7 Rifle', exact: true }).click();
+  await expect(page).toHaveURL(/\/item\/cq7-rifle$/);
   await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   await expect(page).toHaveScreenshot('item-workspace.png');
   await page.getByRole('button', { name: 'MAX', exact: true }).click();
@@ -95,16 +98,14 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
   expect(errors).toEqual([]);
 });
 
-test('density persists and the shell fits the viewport', async ({ page }) => {
+test('the workspace stays compact and the shell fits the viewport', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Comfort', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
+  await expect(page.getByRole('button', { name: /^(Comfort|Dense)$/ })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Comfort', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.locator('html')).toHaveAttribute('data-density', 'comfortable');
+  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
   const bounds = await page.locator('header').first().boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
   if ((page.viewportSize()?.width ?? 0) < 900) {
@@ -140,7 +141,7 @@ test('search preserves input on blur and navigates only on explicit selection', 
 test('reduced motion disables workspace entrances', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
   const duration = await page
     .locator('.workspace-page')
     .first()

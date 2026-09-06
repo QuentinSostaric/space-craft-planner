@@ -30,14 +30,16 @@ export function PageStatCard({
       variant="outlined"
       className="workspace-stat"
       sx={{
-        px: { xs: 1.5, md: 2 },
-        py: { xs: 1, md: 1.25 },
+        px: 1.5,
+        py: 1,
         minWidth: 0,
-        minHeight: 60,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        backgroundColor: 'ui.surface',
+        minHeight: 46,
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) auto',
+        alignItems: 'center',
+        columnGap: 1.5,
+        backgroundColor: 'transparent',
+        borderColor: 'divider',
         position: 'relative',
         overflow: 'hidden',
         // Domain accent strip — only rendered when a functional hue is given
@@ -63,7 +65,7 @@ export function PageStatCard({
           fontWeight: 500,
           fontSize: TEXT_LABEL,
           letterSpacing: 0,
-          mb: { xs: 0.5, md: 0.75 },
+          mb: 0,
         }}
       >
         {label}
@@ -72,8 +74,8 @@ export function PageStatCard({
         <Typography
           sx={{
             fontFamily: FONT_MONO,
-            fontWeight: 800,
-            fontSize: { xs: '1.25rem', md: '1.5rem' },
+            fontWeight: 700,
+            fontSize: '1.125rem',
             lineHeight: 1.1,
             letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
@@ -90,6 +92,7 @@ export function PageStatCard({
         <Typography
           sx={{
             mt: 0.5,
+            gridColumn: '1 / -1',
             fontSize: TEXT_LABEL_SM,
             color: trend ? (trend.startsWith('+') ? 'success.main' : 'error.main') : 'text.secondary',
           }}

@@ -591,9 +591,8 @@ export function BlueprintExplorer() {
         dismissLabel={t('Close filters', 'Fermer les filtres')}
         summary={
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {hasActiveFilters
-              ? t('Filters active', 'Filtres actifs')
-              : t('All blueprints', 'Tous les blueprints')}
+            {librarySegment === 'all' ? t('All blueprints', 'Tous les blueprints', 'Alle Baupläne') : getOptionText(SEGMENTS.find((segment) => segment.value === librarySegment)!, lang)}
+            {hasActiveFilters ? ` · ${t('Filters active', 'Filtres actifs', 'Filter aktiv')}` : ''}
           </Typography>
         }
         actions={hasActiveFilters ? (
