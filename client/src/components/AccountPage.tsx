@@ -3,7 +3,7 @@ import { SC_PATHS_CHANGED } from '../services/scInstallPaths';
 import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
 import { Avatar, Link, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from './ui/primitives';
 import { AppDialog, AppTooltip } from './ui/overlays';
-import { AddCircleOutlineOutlinedIcon, DeleteOutlineOutlinedIcon, GroupsIcon, GroupsOutlinedIcon, LogoutOutlinedIcon, RefreshOutlinedIcon, SearchOutlinedIcon, FiberManualRecordIcon, AddOutlinedIcon, DeleteOutlineIcon, FolderOpenOutlinedIcon } from '../ui/icons';
+import { Inventory2OutlinedIcon, HandymanOutlinedIcon, AddCircleOutlineOutlinedIcon, DeleteOutlineOutlinedIcon, GroupsIcon, GroupsOutlinedIcon, LogoutOutlinedIcon, RefreshOutlinedIcon, SearchOutlinedIcon, FiberManualRecordIcon, AddOutlinedIcon, DeleteOutlineIcon, FolderOpenOutlinedIcon } from '../ui/icons';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import discordSymbol from '../assets/discord-symbol.svg';
 import rsiLogoOfficial from '../assets/rsi-logo-official.jpg';
@@ -1767,9 +1767,9 @@ export function AccountPage() {
                 src={user.avatarUrl ?? undefined}
                 alt={user.displayName}
                 sx={{
-                  width: 80,
-                  height: 80,
-                  fontSize: '2rem',
+                  width: 48,
+                  height: 48,
+                  fontSize: '1.25rem',
                   fontFamily: FONT_DISPLAY,
                   fontWeight: 700,
                   border: `2px solid ${alpha(theme.palette.primary.main, 0.35)}`,
@@ -1786,7 +1786,7 @@ export function AccountPage() {
                   sx={{
                     fontFamily: FONT_DISPLAY,
                     fontWeight: 700,
-                    fontSize: '1.75rem',
+                    fontSize: '1.25rem',
                     letterSpacing: '-0.018em',
                     lineHeight: 1.15,
                   }}
@@ -2005,22 +2005,31 @@ export function AccountPage() {
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 1fr) minmax(0, 2fr)' },
-                gap: 2.5,
+                gap: 1.5,
                 alignItems: 'start',
               }}
             >
+              <Box sx={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+                {([
+                  { tab: 'inventory', label: t('Open inventory', 'Ouvrir l’inventaire', 'Inventar öffnen'), value: inventoryCount, icon: <Inventory2OutlinedIcon fontSize="small" /> },
+                  { tab: 'requests', label: t('Craft requests', 'Demandes de craft', 'Craft-Anfragen'), value: pendingCraftRequestCount, icon: <HandymanOutlinedIcon fontSize="small" /> },
+                  { tab: 'orgs', label: t('My organizations', 'Mes organisations', 'Meine Organisationen'), value: account?.organizations.length ?? 0, icon: <GroupsOutlinedIcon fontSize="small" /> },
+                ] as const).map((action) => <AppButton key={action.tab} variant={action.tab === 'requests' && pendingCraftRequestCount > 0 ? 'primary' : 'secondary'} icon={action.icon} onClick={() => setActiveTab(action.tab)} sx={{ minHeight: 48, justifyContent: 'flex-start' }}>
+                  {action.label}<Box component="strong" sx={{ ml: 'auto', fontFamily: FONT_MONO }}>{action.value}</Box>
+                </AppButton>)}
+              </Box>
               {/* Left: blueprint progress + stats */}
               <Stack spacing={2}>
-                <Paper variant="outlined" sx={{ p: 2.5 }}>
+                <Paper variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={1.5}>
                     <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
                       {t('Blueprint collection', 'Collection blueprints', 'Blueprint-Sammlung')}
                     </Typography>
                     <Stack direction="row" spacing={0.75} alignItems="baseline">
-                      <Typography variant="h2" sx={{ lineHeight: 0.9 }}>
+                      <Typography variant="h3" sx={{ lineHeight: 1 }}>
                         {missionRewards ? ownedBlueprintCount : '--'}
                       </Typography>
-                      <Typography variant="h5" sx={{ color: 'text.secondary' }}>
+                      <Typography variant="body1" sx={{ color: 'text.secondary' }}>
                         / {missionRewards ? totalObtainableBlueprintCount : '--'}
                       </Typography>
                     </Stack>
@@ -2065,7 +2074,7 @@ export function AccountPage() {
                     <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>
                       {t('Inventory', 'Inventaire', 'Inventar')}
                     </Typography>
-                    <Typography variant="h4">{inventoryCount}</Typography>
+                    <Typography variant="h6">{inventoryCount}</Typography>
                   </Paper>
                   <Paper
                     variant="outlined"
@@ -2077,13 +2086,13 @@ export function AccountPage() {
                     <Typography variant="overline" sx={{ color: 'text.disabled', display: 'block', mb: 0.5 }}>
                       {t('Favorites', 'Favoris', 'Favoriten')}
                     </Typography>
-                    <Typography variant="h4">{favoriteCount}</Typography>
+                    <Typography variant="h6">{favoriteCount}</Typography>
                   </Paper>
                 </Box>
               </Stack>
 
               {/* Right: external account links */}
-              <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <Paper variant="outlined" sx={{ p: 1.5 }}>
                 <Stack spacing={2}>
                   <Typography variant="overline" sx={{ color: 'text.disabled', letterSpacing: '0.08em' }}>
                     {t('External accounts', 'Comptes externes', 'Externe Konten')}

@@ -21,6 +21,7 @@ export function BentoPanel({
   children,
   bodySx,
   sx,
+  collapsible = false,
 }: {
   id?: string;
   accent?: string;
@@ -32,11 +33,14 @@ export function BentoPanel({
   children: ReactNode;
   bodySx?: SxProps<Theme>;
   sx?: SxProps<Theme>;
+  /** Secondary work panels keep their summary visible and reveal detail on demand. */
+  collapsible?: boolean;
 }) {
   return (
     <Paper
       id={id}
-      className="workspace-panel"
+      component={collapsible ? 'details' : 'div'}
+      className={collapsible ? 'workspace-panel workspace-disclosure fabricator-panel-disclosure' : 'workspace-panel'}
       sx={[
         {
           borderRadius: '5px',
@@ -49,8 +53,8 @@ export function BentoPanel({
         sx,
       ]}
     >
-      <BentoHeader accent={accent} title={title} note={note} right={right} />
-      <Box sx={bodySx}>{children}</Box>
+      <BentoHeader accent={accent} title={title} note={note} right={right} summary={collapsible} />
+      <Box className="fabricator-panel-body" sx={bodySx}>{children}</Box>
     </Paper>
   );
 }
@@ -62,15 +66,18 @@ function BentoHeader({
   note,
   right,
   sx,
+  summary = false,
 }: {
   accent?: string;
   title: string;
   note?: string;
   right?: ReactNode;
   sx?: SxProps<Theme>;
+  summary?: boolean;
 }) {
   return (
     <Box
+      component={summary ? 'summary' : 'div'}
       sx={[
         {
           display: 'flex',
@@ -127,7 +134,7 @@ function BentoHeader({
           )}
         </Box>
       {right && (
-        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>{right}</Box>
+        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>{right}</Box>
       )}
     </Box>
   );

@@ -79,6 +79,8 @@ function normalizeMissionRewards(missionRewards: MissionRewardsData | null | und
       })),
     })),
     blueprintAcquisitionGraph: missionRewards.blueprintAcquisitionGraph ?? [],
+    resourceObjectiveIndex: missionRewards.resourceObjectiveIndex ?? {},
+    missionPayouts: missionRewards.missionPayouts ?? null,
   };
 }
 

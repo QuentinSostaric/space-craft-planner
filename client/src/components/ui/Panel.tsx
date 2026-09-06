@@ -54,7 +54,7 @@ export function Panel({
   collapseLabel = 'Toggle section',
   titleComponent = 'h2',
   noPad = false,
-  dense = false,
+  dense = true,
   variant = 'default',
   component,
   sx,

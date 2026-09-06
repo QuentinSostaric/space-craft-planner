@@ -9,7 +9,7 @@ import { areStringArraysEqual, moveIdBefore, synchronizeOrderedIds } from '../..
 import { GoalCard } from './GoalCard';
 import { GoalEditModal } from './GoalEditModal';
 import { FONT_HEADING, FONT_MONO } from '../../theme';
-import { toSlug } from '../../utils/slug';
+import { navigateToPath, toSlug } from '../../utils/slug';
 
 export function GoalsList() {
   const { goals, blueprints, activeBlueprint, removeGoal, updateGoalQuantity, selectGoalBlueprint } = useCraft();
@@ -166,8 +166,8 @@ export function GoalsList() {
             onRemove={() => removeGoal(goal.id)}
             onQtyChange={(qty) => updateGoalQuantity(goal.id, qty)}
             onEdit={() => setEditingGoalId(goal.id)}
-            onSelect={() => selectGoalBlueprint(goal.id)}
-            href={`/item/${toSlug(goal.blueprintName)}`}
+            onSelect={() => { selectGoalBlueprint(goal.id); navigateToPath(`/item/${toSlug(goal.blueprintName)}?goal=${encodeURIComponent(goal.id)}`, { mainView: 'fabricator' }); }}
+            href={`/item/${toSlug(goal.blueprintName)}?goal=${encodeURIComponent(goal.id)}`}
             isDragging={draggedGoalId === goal.id}
             isDropTarget={dropGoalId === goal.id && draggedGoalId !== goal.id}
             onDragOver={handleDragOver(goal.id)}

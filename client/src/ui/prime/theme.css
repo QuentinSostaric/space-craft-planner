@@ -230,6 +230,44 @@ html[data-theme='light'] {
   color: var(--sc-text);
 }
 
+/* Keep the native accessible input over the drawn box. The vendor theme
+ * normally supplies this geometry; without it two checkboxes are visible. */
+.p-checkbox {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.p-checkbox .p-checkbox-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  z-index: 1;
+  cursor: inherit;
+}
+
+.p-checkbox .p-checkbox-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 3px;
+}
+
+.p-checkbox:has(.p-checkbox-input:focus-visible) .p-checkbox-box {
+  outline: 2px solid var(--sc-primary);
+  outline-offset: 3px;
+}
+
 .p-checkbox .p-checkbox-box,
 .p-inputswitch .p-inputswitch-slider,
 .p-slider {

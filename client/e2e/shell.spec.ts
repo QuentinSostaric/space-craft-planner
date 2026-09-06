@@ -101,7 +101,8 @@ test('renders the deterministic application shell', async ({ page, colorScheme }
   await expect(page.locator('main')).toBeVisible();
   await expect(page.locator('nav').first()).toBeVisible();
 
-  await expect(page.getByRole('heading', { name: 'Blueprint register', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Select a blueprint', exact: true })).toBeVisible();
 
   // UPDATE_VISUAL_BASELINES=1 explicitly enables local visual QA in CI-like environments.
   // Baselines are committed per developer platform, and hosted runners render

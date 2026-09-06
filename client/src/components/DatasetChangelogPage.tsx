@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchPublishedDatasetById } from '../hooks/gameDataApi';
 import { useI18n } from '../i18n/I18nContext';
 import { useCraft } from '../store/CraftContext';
-import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM } from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL_SM } from '../theme';
 import type {
   Blueprint,
   DatasetSummary,
@@ -17,11 +17,12 @@ import type {
   Resource,
 } from '../types';
 import { GPP_LABELS, GPP_LOWER_IS_BETTER, STAT_LABELS, STAT_LOWER_IS_BETTER } from '../types';
-import { PageStatCard } from './ui/PageStatCard';
 import { AppChip } from './ui/data-display/AppChip';
-import { AppSelect, AppTextField } from './ui/controls';
+import { AppButton, AppSelect, AppTextField } from './ui/controls';
+import { AppDialog } from './ui/overlays/AppDialog';
 import { SurfaceState } from './ui/feedback';
-import { PageHeader, PageLayout, ResponsiveFilters } from './ui/page';
+import { PageHeader, PageLayout } from './ui/page';
+import './changelog-focus.css';
 
 function compareDatasetSummaries(a: DatasetSummary, b: DatasetSummary) {
   const channelOrder = a.channel.localeCompare(b.channel);
@@ -543,7 +544,7 @@ function DetailPill({ item }: { item: StructuredChangeDetail }) {
         borderColor: alpha(color, 0.32),
         backgroundColor: alpha(color, 0.07),
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'minmax(96px, .75fr) minmax(120px, 1fr) auto' },
+        gridTemplateColumns: { xs: '1fr', sm: 'minmax(80px, .75fr) minmax(100px, 1fr) auto' },
         gap: { xs: 0.35, sm: 1 },
         alignItems: 'center',
       }}
@@ -560,7 +561,7 @@ function DetailPill({ item }: { item: StructuredChangeDetail }) {
           overflowWrap: 'anywhere',
         }}
       >
-        {item.before && item.after ? `${item.before} -> ${item.after}` : item.after ?? item.before ?? '-'}
+        {item.before && item.after ? <><span style={{ opacity: .8 }}>{item.before}</span><span aria-hidden="true"> → </span><strong>{item.after}</strong></> : item.after ?? item.before ?? '-'}
       </Typography>
       {item.delta && (
         <Typography variant="caption" sx={{ color, fontFamily: FONT_MONO, fontWeight: 700, justifySelf: { xs: 'start', sm: 'end' } }}>
@@ -572,58 +573,48 @@ function DetailPill({ item }: { item: StructuredChangeDetail }) {
 }
 
 function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
-  if (row.detailItems.length === 0) {
-    return (
-      <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.76rem', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
-        {row.details}
-      </Typography>
-    );
-  }
-
-  const grouped = row.detailItems.reduce<Partial<Record<ChangeDomain, StructuredChangeDetail[]>>>((acc, item) => {
-    acc[item.domain] = [...(acc[item.domain] ?? []), item];
-    return acc;
-  }, {});
+  const [open, setOpen] = useState(false);
   const orderedDomains: ChangeDomain[] = ['stats', 'modifiers', 'materials', 'craft', 'identity', 'resources'];
-
-  return (
-    <Stack spacing={0.85}>
-      {orderedDomains.map((domain) => {
-        const items = grouped[domain];
-        if (!items?.length) return null;
-        return (
-          <Box key={domain} sx={{ minWidth: 0 }}>
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                mb: 0.45,
-                color: 'text.secondary',
-                fontSize: TEXT_LABEL,
-                fontWeight: 700,
-                letterSpacing: '.1em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {domainLabel(domain, lang)}
-            </Typography>
-            <Stack spacing={0.55}>
-              {items.slice(0, 8).map((item) => <DetailPill key={item.id} item={item} />)}
-              {items.length > 8 && (
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO }}>
-                  +{items.length - 8} {lang === 'fr' ? 'changements supplementaires' : 'more changes'}
-                </Typography>
-              )}
-            </Stack>
-          </Box>
-        );
+  const count = row.detailItems.length;
+  const label = count
+    ? lang === 'fr' ? (count === 1 ? 'Voir le changement' : `Voir les ${count} changements`) : lang === 'de' ? (count === 1 ? 'Änderung anzeigen' : `Alle ${count} Änderungen`) : (count === 1 ? 'View change' : `View all ${count} changes`)
+    : lang === 'fr' ? 'Voir les détails' : lang === 'de' ? 'Details anzeigen' : 'View details';
+  return <>
+    <AppButton variant="ghost" size="sm" onClick={() => setOpen(true)} ariaLabel={`${label} — ${row.name}`}>{label} ↗</AppButton>
+    {open && <AppDialog open onOpenChange={setOpen} title={row.name}
+      description={`${row.type} · ${row.status === 'Added' ? (lang === 'fr' ? 'Ajouté' : 'Added') : row.status === 'Removed' ? (lang === 'fr' ? 'Retiré' : 'Removed') : (lang === 'fr' ? 'Modifié' : 'Changed')}`}
+      closeLabel={lang === 'fr' ? 'Fermer' : lang === 'de' ? 'Schließen' : 'Close'} width="min(54rem, calc(100vw - 2rem))"
+      partSx={{
+        root: { backgroundColor: 'ui.surface', border: '1px solid', borderColor: 'ui.border', borderRadius: '8px', boxShadow: '0 20px 80px #0006', overflow: 'hidden' },
+        header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'ui.border' },
+        headerTitle: { fontSize: '1rem', fontWeight: 700 },
+        closeButton: { width: 34, height: 34 },
+        content: { p: 2, overflowY: 'auto', maxHeight: '70dvh' },
+        mask: { backgroundColor: '#0008' },
+      }}>
+      {count === 0 ? <Typography sx={{ overflowWrap: 'anywhere' }}>{row.details}</Typography> : orderedDomains.map(domain => {
+        const items = row.detailItems.filter(item => item.domain === domain);
+        return items.length ? <Box key={domain} sx={{ mb: 2 }}>
+          <Typography component="h3" sx={{ fontSize: '.8rem', fontWeight: 700, color: 'text.secondary', mb: 1 }}>{domainLabel(domain, lang)}</Typography>
+          <Stack spacing={0.75}>{items.map(item => <DetailPill key={item.id} item={item} />)}</Stack>
+        </Box> : null;
       })}
-    </Stack>
-  );
+    </AppDialog>}
+  </>;
+}
+
+function ChangeIdentity({ row, imageUrl }: { row: FlatChangeRow; imageUrl?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [imageUrl]);
+  return <div className="changelog-identity">
+    <span className="changelog-thumbnail" aria-hidden="true">
+      {imageUrl && !failed ? <img src={imageUrl} alt="" loading="lazy" onError={() => setFailed(true)} /> : <span>◇</span>}
+    </span>
+    <Typography component="h3" variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY, overflowWrap: 'anywhere' }}>{row.name}</Typography>
+  </div>;
 }
 
 export function DatasetChangelogPage() {
-  const theme = useTheme();
   const { activeDataset, availableDatasets } = useCraft();
   const { lang, t } = useI18n();
   const datasetCacheRef = useRef<Record<string, GameDataset>>({});
@@ -737,6 +728,17 @@ export function DatasetChangelogPage() {
       return statusOrder[a.status] - statusOrder[b.status] || a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
     });
   }, [domainFilter, flatRows, impactFilter, searchQuery, sortOption, statusFilter, typeFilter]);
+  const rowImages = useMemo(() => {
+    const images = new Map<string, string | null>();
+    for (const dataset of loadedPair ? [loadedPair.base, loadedPair.target] : []) {
+      for (const blueprint of dataset.blueprints) {
+        const visual = blueprint.media?.primaryVisual;
+        images.set(`blueprint-${blueprint.id}`, blueprint.media?.image?.imageUrl ?? (visual?.imageUrl !== blueprint.media?.manufacturerLogo?.imageUrl ? visual?.imageUrl ?? null : null));
+      }
+      for (const resource of dataset.resources) images.set(`resource-${resource.id}`, resource.visual?.imageUrl ?? null);
+    }
+    return images;
+  }, [loadedPair]);
   const totalDelta = flatRows.length;
 
   useEffect(() => {
@@ -757,19 +759,12 @@ export function DatasetChangelogPage() {
       sx={{ animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both' }}
     >
       <PageHeader
-        eyebrow={t('Dataset', 'Dataset')}
+        eyebrow={t('Game updates', 'Évolutions du jeu', 'Spieländerungen')}
         title={t('Changelog', 'Changelog')}
         description={loadedPair
           ? `${loadedPair.target.label} vs ${loadedPair.base.label}`
           : t('Compare published datasets and isolate gameplay stat, modifier, resource and material changes.', 'Comparez les datasets publies et isolez les changements de stats, modifiers, ressources et materiaux.')}
-        stats={
-          <>
-            <PageStatCard label={t('Delta entries', 'Entrees modifiees')} value={String(totalDelta)} />
-            <PageStatCard label={t('Added', 'Ajouts')} value={String(changeStats.added)} accent={theme.palette.success.main} />
-            <PageStatCard label={t('Changed', 'Modifies')} value={String(changeStats.changed)} accent={theme.palette.warning.main} />
-            <PageStatCard label={t('Stat rows', 'Lignes stats')} value={String(changeStats.statRows)} />
-          </>
-        }
+
       />
 
       {loading && !loadedPair && <SurfaceState tone="loading" title={t('Loading datasets', 'Chargement des datasets')} />}
@@ -780,22 +775,7 @@ export function DatasetChangelogPage() {
 
       {/* Comparator panel */}
       <Paper variant="outlined" sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'ui.border' }}>
-          <Box>
-            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.25 }}>
-              {t('Comparator', 'Comparateur')}
-            </Typography>
-            <Typography component="h2" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.9688rem' }}>
-              {t('Dataset selector', 'Sélecteur de datasets')}
-            </Typography>
-          </Box>
-          {loadedPair && (
-            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-              {filteredRows.length}/{totalDelta} {t('entries', 'entrées')}
-            </Typography>
-          )}
-        </Box>
-        <Box sx={{ p: 2.5 }}>
+        <Box sx={{ p: 1.5 }}>
           <Stack spacing={2}>
             {/* Dataset pickers */}
             <Box
@@ -813,44 +793,25 @@ export function DatasetChangelogPage() {
               <DatasetSelect label={t('Target dataset', 'Dataset cible')} value={targetDatasetId} datasets={selectableDatasets} onChange={setTargetDatasetId} />
             </Box>
 
-            {/* Filters toolbar */}
-            <ResponsiveFilters
-              title={t('Changelog filters', 'Filtres du changelog')}
-              triggerLabel={t('Filters', 'Filtres')}
-              closeLabel={t('Show changes', 'Afficher les changements')}
-              dismissLabel={t('Close filters', 'Fermer les filtres')}
-              summary={<Typography variant="caption" sx={{ color: 'text.secondary' }}>{filteredRows.length}/{totalDelta}</Typography>}
-            >
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: 'minmax(200px, 1fr) repeat(5, minmax(125px, auto))' },
-                  gap: 1.5,
-                  p: 1.5,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'ui.border',
-                  borderRadius: 2,
-                }}
-              >
-                <AppTextField
-                  type="search"
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  placeholder={t('Name, type, stat or modifier…', 'Nom, type, stat ou modifier…')}
-                  ariaLabel={t('Search changes', 'Rechercher dans les changements')}
-                />
-                <AppSelect
-                  value={statusFilter}
-                  options={[
-                    { value: 'all', label: t('All statuses', 'Tous statuts') },
-                    { value: 'Added', label: t('Added', 'Ajouts') },
-                    { value: 'Changed', label: t('Changed', 'Modifies') },
-                    { value: 'Removed', label: t('Removed', 'Retires') },
-                  ]}
-                  onValueChange={(value) => setStatusFilter(value ?? 'all')}
-                  ariaLabel={t('Filter by status', 'Filtrer par statut')}
-                />
+            <div className="changelog-summary" role="group" aria-label={t('Filter changes by status', 'Filtrer les changements par statut', 'Änderungen nach Status filtern')}>
+              {([
+                { value: 'all', label: t('All', 'Tous', 'Alle'), count: totalDelta, tone: 'all' },
+                { value: 'Added', label: t('Added', 'Ajouts', 'Neu'), count: changeStats.added, tone: 'added' },
+                { value: 'Changed', label: t('Changed', 'Modifiés', 'Geändert'), count: changeStats.changed, tone: 'changed' },
+                { value: 'Removed', label: t('Removed', 'Retirés', 'Entfernt'), count: changeStats.removed, tone: 'removed' },
+              ] as const).map((item) => <AppButton key={item.value} size="sm" variant={statusFilter === item.value ? 'secondary' : 'ghost'} ariaPressed={statusFilter === item.value} onClick={() => setStatusFilter(item.value)}>
+                <span className={`changelog-status-dot ${item.tone}`} aria-hidden="true" />{item.label}<strong>{item.count}</strong>
+              </AppButton>)}
+              <span className="changelog-stat-count">{changeStats.statRows} {t('with stat changes', 'avec changements de stats', 'mit Statistikänderungen')}</span>
+            </div>
+            <AppTextField type="search" value={searchQuery} onValueChange={setSearchQuery}
+              placeholder={t('Name, type, stat or modifier…', 'Nom, type, stat ou modifier…', 'Name, Typ, Wert oder Modifikator…')}
+              ariaLabel={t('Search changes', 'Rechercher dans les changements', 'Änderungen durchsuchen')} />
+            <details className="workspace-disclosure">
+              <summary>{t('Refine & sort', 'Affiner et trier', 'Filtern und sortieren')}
+                <span className="workspace-disclosure-count">{[domainFilter, typeFilter, impactFilter].filter((value) => value !== 'all').length || ''}</span>
+              </summary>
+              <Box className="workspace-disclosure-body" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
                 <AppSelect
                   value={domainFilter}
                   options={[
@@ -893,7 +854,7 @@ export function DatasetChangelogPage() {
                   ariaLabel={t('Sort changes', 'Trier les changements')}
                 />
               </Box>
-            </ResponsiveFilters>
+            </details>
           </Stack>
         </Box>
       </Paper>
@@ -901,7 +862,7 @@ export function DatasetChangelogPage() {
       {/* Change table */}
       {loadedPair && (
         <Paper variant="outlined" sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'ui.border' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.5, py: 1.25, borderBottom: '1px solid', borderColor: 'ui.border' }}>
             <Box>
               <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.25 }}>
                 {t('History', 'Historique')}
@@ -910,22 +871,7 @@ export function DatasetChangelogPage() {
                 {t('All changes', 'Tous les changements')}
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <AppChip
-                size="sm"
-                label={`+${changeStats.added} ${t('added', 'ajoutés')}`}
-                tone="success"
-                outlined
-                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 }}
-              />
-              <AppChip
-                size="sm"
-                label={`~${changeStats.changed} ${t('changed', 'modifiés')}`}
-                tone="warning"
-                outlined
-                sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, fontWeight: 700 }}
-              />
-            </Box>
+            <Typography variant="caption" aria-live="polite" sx={{ color: 'text.secondary' }}>{filteredRows.length} / {totalDelta}</Typography>
           </Box>
           {filteredRows.length === 0 ? (
             <SurfaceState
@@ -941,7 +887,7 @@ export function DatasetChangelogPage() {
                       <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Name', 'Nom')}</TableCell>
                       <TableCell component="th" scope="col" sx={monoHeaderSx}>Type</TableCell>
                       <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Status', 'Statut')}</TableCell>
-                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Stats / modifiers', 'Stats / modifiers')}</TableCell>
+                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Modifications', 'Modifications', 'Änderungen')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -950,18 +896,18 @@ export function DatasetChangelogPage() {
                         key={row.id}
                         sx={{
                           '&:hover': { bgcolor: (rowTheme) => alpha(rowTheme.palette.primary.main, 0.04) },
-                          '& td, & th': { borderColor: 'ui.border' },
+                          '& td, & th': { borderColor: 'ui.border', py: 0.5 },
                         }}
                       >
                         <TableCell component="th" scope="row" sx={{ borderColor: 'ui.border' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY }}>{row.name}</Typography>
+                          <ChangeIdentity row={row} imageUrl={rowImages.get(row.id)} />
                         </TableCell>
                         <TableCell sx={{ borderColor: 'ui.border' }}>
                           <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM }}>{row.type}</Typography>
                         </TableCell>
                         <TableCell sx={{ borderColor: 'ui.border' }}>
                           <AppChip
-                            label={row.status}
+                            label={row.status === 'Added' ? t('Added', 'Ajouté', 'Neu') : row.status === 'Removed' ? t('Removed', 'Retiré', 'Entfernt') : t('Changed', 'Modifié', 'Geändert')}
                             size="sm"
                             outlined
                             tone={row.status === 'Added' ? 'success' : row.status === 'Removed' ? 'danger' : 'warning'}
@@ -979,14 +925,14 @@ export function DatasetChangelogPage() {
 
               <Stack role="list" aria-label={t('Dataset changes', 'Changements du dataset')} spacing={1} sx={{ display: { xs: 'flex', md: 'none' }, p: 1.5 }}>
                 {filteredRows.map((row) => (
-                  <Paper key={row.id} component="article" role="listitem" variant="outlined" sx={{ p: 1.5, borderColor: 'ui.border', bgcolor: 'background.paper' }}>
+                  <Paper key={row.id} component="article" role="listitem" variant="outlined" sx={{ p: 1, borderColor: 'ui.border', bgcolor: 'background.paper' }}>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography component="h3" variant="body2" sx={{ fontWeight: 700, fontFamily: FONT_DISPLAY, overflowWrap: 'anywhere' }}>{row.name}</Typography>
+                        <ChangeIdentity row={row} imageUrl={rowImages.get(row.id)} />
                         <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM }}>{row.type}</Typography>
                       </Box>
                       <AppChip
-                        label={row.status}
+                        label={row.status === 'Added' ? t('Added', 'Ajouté', 'Neu') : row.status === 'Removed' ? t('Removed', 'Retiré', 'Entfernt') : t('Changed', 'Modifié', 'Geändert')}
                         ariaLabel={`${t('Status', 'Statut')}: ${row.status}`}
                         size="sm"
                         outlined

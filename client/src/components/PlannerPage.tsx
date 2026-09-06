@@ -1,6 +1,6 @@
-import { Box, IconButton, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Box, Typography, alpha, useTheme } from '../ui/system';
 import { AppChip } from './ui/data-display';
-import { AddIcon, CheckIcon, ContentCopyIcon, DeleteOutlineIcon, EditOutlinedIcon, PushPinOutlinedIcon, SearchIcon, VisibilityOutlinedIcon } from '../ui/icons';
+import { AddIcon, CheckIcon, ContentCopyIcon, DeleteOutlineIcon, EditOutlinedIcon, PushPinOutlinedIcon } from '../ui/icons';
 import { useMemo, useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 import { useLocalPersist } from '../hooks/useLocalPersist';
@@ -8,9 +8,10 @@ import { LS_KEYS } from '../types';
 import { AppButton, AppSelect, AppTextArea, AppTextField } from './ui/controls';
 import { AppDialog } from './ui/overlays';
 import { PageHeader, PageLayout } from './ui/page';
-import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL, TEXT_LABEL_SM} from '../theme';
+import { FONT_DISPLAY, FONT_MONO, TEXT_LABEL } from '../theme';
 import { trackEvent } from '../analytics/posthog';
-import { PlannerSegmentedControl } from './planner/PlannerControls';
+import './planner/planner-notebook.css';
+import { PlannerSavedWork } from './planner/PlannerSavedWork';
 
 const NOTE_TAGS = ['note', 'mining', 'craft', 'route', 'missions', 'economy'];
 
@@ -23,16 +24,7 @@ export interface PlannerNote {
   updatedAt: number;
 }
 
-const DEFAULT_NOTES: PlannerNote[] = [
-  {
-    id: 'demo-1',
-    title: 'Plan your first craft',
-    body: '# Plan your first craft\n\n- [ ] Choose a blueprint in Blueprints\n- [ ] Open it in the Fabricator\n- [ ] List the materials you need\n- [ ] Check the missions that can unlock it\n',
-    tag: 'note',
-    pinned: true,
-    updatedAt: Date.now(),
-  },
-];
+const DEFAULT_NOTES: PlannerNote[] = [];
 
 // ── Inline Markdown tokenizer ──────────────────────────────────────────────
 
@@ -146,31 +138,9 @@ function MarkdownView({ source, onChange }: { source: string; onChange: (next: s
     if (checkMatch) {
       const checked = checkMatch[1].toLowerCase() === 'x';
       listBuf.push(
-        <Box
-          component="li"
-          key={idx}
-          sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, listStyle: 'none', ml: -2, minHeight: 44 }}
-        >
-          <Box
-            component="input"
-            type="checkbox"
-            checked={checked}
-            onChange={() => toggleLine(idx)}
-            aria-label="Toggle task"
-            sx={{ width: 20, height: 20, mt: 1.5, cursor: 'pointer', accentColor: theme.palette.primary.main }}
-          />
-          <Typography
-            component="span"
-            sx={{
-              fontSize: '0.875rem',
-              color: checked ? 'text.disabled' : 'text.primary',
-              textDecoration: checked ? 'line-through' : 'none',
-              lineHeight: 1.5,
-            }}
-          >
-            <InlineMd text={checkMatch[2]} />
-          </Typography>
-        </Box>,
+        <li className="planner-checklist-item" key={idx} data-complete={checked}>
+          <label><input type="checkbox" checked={checked} onChange={() => toggleLine(idx)} /><span><InlineMd text={checkMatch[2]} /></span></label>
+        </li>,
       );
       return;
     }
@@ -204,403 +174,171 @@ function MarkdownView({ source, onChange }: { source: string; onChange: (next: s
   return <Box sx={{ py: 0.5 }}>{elements}</Box>;
 }
 
-// ── Note list item ─────────────────────────────────────────────────────────
-
-function NoteListItem({ note, active, onClick, untitledLabel, locale }: { note: PlannerNote; active: boolean; onClick: () => void; untitledLabel: string; locale: string }) {
-  const theme = useTheme();
-  const preview = note.body.replace(/^#+ /gm, '').replace(/\n+/g, ' ').slice(0, 120) || '…';
-  const taskTotal = (note.body.match(/^- \[/gm) || []).length;
-  const taskDone = (note.body.match(/^- \[x\]/gim) || []).length;
-
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      sx={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        cursor: 'pointer',
-        px: 1.25,
-        py: 1.25,
-        border: '1px solid',
-        borderColor: active ? alpha(theme.palette.primary.main, 0.35) : 'transparent',
-        borderRadius: 1,
-        backgroundColor: active ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-        '&:hover': { backgroundColor: active ? undefined : alpha(theme.palette.background.default, 0.6) },
-        transition: 'background-color 120ms, border-color 120ms',
-      }}
-    >
-      <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: '0.875rem', color: 'text.primary', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {note.title || untitledLabel}
-      </Typography>
-      <Typography
-        sx={{
-          fontSize: '0.715rem',
-          color: 'text.disabled',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          lineHeight: 1.35,
-          mb: 0.75,
-        }}
-      >
-        {preview}
-      </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        <AppChip label={note.tag} size="sm" sx={{ height: 16, fontSize: TEXT_LABEL_SM, px: 0.75 }} />
-        {taskTotal > 0 && (
-          <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
-            {taskDone}/{taskTotal}
-          </Typography>
-        )}
-        <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', ml: 'auto' }}>
-          {new Date(note.updatedAt).toLocaleDateString(locale)}
-        </Typography>
-      </Box>
-    </Box>
-  );
+function noteTasks(body: string) {
+  return body.split('\n').flatMap((line, index) => {
+    const match = line.match(/^- \[( |x|X)\] (.*)$/);
+    return match ? [{ index, title: match[2], completed: match[1].toLowerCase() === 'x' }] : [];
+  });
 }
 
-// ── Main component ─────────────────────────────────────────────────────────
+function TaskRing({ done, total, label }: { done: number; total: number; label: string }) {
+  const ratio = total > 0 ? done / total : 0;
+  return <div className="planner-task-ring" role="progressbar" aria-label={label} aria-valuenow={done} aria-valuemin={0} aria-valuemax={total || 1}>
+    <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" /><circle cx="24" cy="24" r="20" pathLength="100" strokeDasharray={`${ratio * 100} 100`} /></svg>
+    <span>{done}<small>/{total}</small></span>
+  </div>;
+}
+
+function NoteListItem({ note, active, onClick, untitledLabel, locale }: { note: PlannerNote; active: boolean; onClick: () => void; untitledLabel: string; locale: string }) {
+  const { t } = useI18n();
+  const tasks = noteTasks(note.body);
+  const done = tasks.filter((task) => task.completed).length;
+  const next = tasks.find((task) => !task.completed);
+  const preview = next?.title ?? note.body.replace(/^#+ /gm, '').replace(/^- \[[ xX]\] /gm, '').replace(/\n+/g, ' ').slice(0, 100);
+  return <button className="planner-note-card" type="button" aria-pressed={active} onClick={onClick}>
+    <span className="planner-note-card-title">{note.pinned && <i className="pi pi-thumbtack" aria-hidden="true" />}{note.title || untitledLabel}</span>
+    {preview && <span className="planner-note-card-preview">{preview}</span>}
+    <span className="planner-note-card-meta"><span>{note.tag}</span><span>{tasks.length ? `${done}/${tasks.length} ${t('tasks', 'tâches', 'Aufgaben')}` : new Date(note.updatedAt).toLocaleDateString(locale)}</span></span>
+    {tasks.length > 0 && <span className="planner-note-card-progress" aria-hidden="true"><span style={{ width: `${done / tasks.length * 100}%` }} /></span>}
+  </button>;
+}
 
 export function PlannerPage() {
   const { lang, t } = useI18n();
   const locale = lang === 'fr' ? 'fr-FR' : lang === 'de' ? 'de-DE' : 'en-US';
-  const theme = useTheme();
-
   const [notes, setNotes] = useLocalPersist<PlannerNote[]>(LS_KEYS.PLANNER_NOTES, DEFAULT_NOTES);
   const [activeId, setActiveId] = useState<string | null>(notes[0]?.id ?? null);
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
   const [copied, setCopied] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [undo, setUndo] = useState<{ noteId: string; body: string } | null>(null);
   const [pendingDeleteNote, setPendingDeleteNote] = useState<PlannerNote | null>(null);
+  const activeNote = useMemo(() => notes.find((note) => note.id === activeId) ?? notes[0] ?? null, [notes, activeId]);
+  const filtered = useMemo(() => notes.filter((note) => !search || `${note.title} ${note.body}`.toLowerCase().includes(search.toLowerCase())), [notes, search]);
+  const pinned = filtered.filter((note) => note.pinned);
+  const others = filtered.filter((note) => !note.pinned);
+  const tasks = activeNote ? noteTasks(activeNote.body) : [];
+  const done = tasks.filter((task) => task.completed).length;
+  const nextTask = tasks.find((task) => !task.completed);
+  const totalOpen = useMemo(() => notes.reduce((sum, note) => sum + noteTasks(note.body).filter((task) => !task.completed).length, 0), [notes]);
 
-  const activeNote = useMemo(() => notes.find((n) => n.id === activeId) ?? notes[0] ?? null, [notes, activeId]);
-
-  const filtered = useMemo(
-    () => notes.filter((n) => !search || `${n.title} ${n.body}`.toLowerCase().includes(search.toLowerCase())),
-    [notes, search],
-  );
-  const pinned = filtered.filter((n) => n.pinned);
-  const others = filtered.filter((n) => !n.pinned);
-
-  const update = (id: string, patch: Partial<PlannerNote>) =>
-    setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)));
-
-  const addNote = () => {
-    const n: PlannerNote = {
-      id: `n-${Date.now()}`,
-      title: t('New note', 'Nouvelle note'),
-      body: `# ${t('New note', 'Nouvelle note')}\n\n- [ ] ${t('To do', 'À faire')}\n`,
-      tag: 'note',
-      pinned: false,
-      updatedAt: Date.now(),
-    };
-    setNotes((ns) => [n, ...ns]);
-    setActiveId(n.id);
+  function update(id: string, patch: Partial<PlannerNote>) {
+    setNotes((previous) => previous.map((note) => note.id === id ? { ...note, ...patch, updatedAt: Date.now() } : note));
+  }
+  function selectNote(id: string) {
+    setActiveId(id);
+    setMode('preview');
+    setUndo(null);
+    setNotice('');
+  }
+  function addNote() {
+    const note: PlannerNote = { id: `n-${Date.now()}`, title: t('New note', 'Nouvelle note', 'Neue Notiz'), body: '', tag: 'note', pinned: false, updatedAt: Date.now() };
+    setNotes((previous) => [note, ...previous]);
+    setSearch('');
+    selectNote(note.id);
     setMode('edit');
-  };
-
-  const removeNote = (id: string) => {
-    setNotes((ns) => ns.filter((x) => x.id !== id));
-    const remaining = notes.filter((x) => x.id !== id);
-    setActiveId(remaining[0]?.id ?? null);
-  };
-
-  const handleCopy = async () => {
+  }
+  function updateBody(body: string, reversible = true) {
+    if (!activeNote) return;
+    setUndo(reversible ? { noteId: activeNote.id, body: activeNote.body } : null);
+    update(activeNote.id, { body });
+  }
+  function completeNextTask() {
+    if (!activeNote || !nextTask) return;
+    const lines = activeNote.body.split('\n');
+    lines[nextTask.index] = lines[nextTask.index].replace(/^- \[ \] /, '- [x] ');
+    updateBody(lines.join('\n'));
+    setNotice(t('Task completed.', 'Tâche terminée.', 'Aufgabe erledigt.'));
+  }
+  function undoLastAction() {
+    if (!undo) return;
+    update(undo.noteId, { body: undo.body });
+    setUndo(null);
+    setNotice(t('Last action undone.', 'Dernière action annulée.', 'Letzte Aktion rückgängig gemacht.'));
+  }
+  async function handleCopy() {
     if (!activeNote) return;
     try {
       await navigator.clipboard.writeText(activeNote.body);
       setCopied(true);
-      trackEvent('planner_exported', {
-        export_target: 'clipboard',
-        note_chars: activeNote.body.length,
-      });
+      setNotice(t('Note copied.', 'Note copiée.', 'Notiz kopiert.'));
+      trackEvent('planner_exported', { export_target: 'clipboard', note_chars: activeNote.body.length });
       setTimeout(() => setCopied(false), 1400);
-    } catch {
-      // no-op
-    }
+    } catch { setNotice(t('Could not copy the note.', 'Impossible de copier la note.', 'Die Notiz konnte nicht kopiert werden.')); }
+  }
+
+  const tagLabels: Record<string, string> = {
+    note: t('Note', 'Note', 'Notiz'), mining: t('Mining', 'Minage', 'Bergbau'), craft: t('Craft', 'Craft', 'Fertigung'),
+    route: t('Route', 'Itinéraire', 'Route'), missions: t('Missions', 'Missions', 'Missionen'), economy: t('Economy', 'Économie', 'Wirtschaft'),
   };
 
-  const taskTotal = activeNote ? (activeNote.body.match(/^- \[/gm) || []).length : 0;
-  const taskDone = activeNote ? (activeNote.body.match(/^- \[x\]/gim) || []).length : 0;
+  return <PageLayout width="wide">
+    <PageHeader title={t('Planner', 'Planificateur', 'Planer')} variant="compact"
+      description={t('Your next action, and the notes that keep it on track.', 'Votre prochaine action et les notes pour la mener à bien.', 'Ihre nächste Aktion und die passenden Notizen dazu.')}
+      actions={<AppButton variant="primary" size="sm" icon={<AddIcon />} onClick={addNote}>{t('New note', 'Nouvelle note', 'Neue Notiz')}</AppButton>} />
+    <PlannerSavedWork />
+    <div className="planner-notebook">
+      <aside className="planner-note-library" aria-label={t('Your notes', 'Vos notes', 'Ihre Notizen')}>
+        <div className="planner-note-library-heading"><h2>{t('Your notes', 'Vos notes', 'Ihre Notizen')}</h2><span>{notes.length}</span></div>
+        {totalOpen > 0 && <p className="planner-note-library-status"><i className="pi pi-list-check" aria-hidden="true" />{totalOpen} {t('tasks remaining', 'tâches restantes', 'offene Aufgaben')}</p>}
+        {notes.length > 0 && <AppTextField type="search" ariaLabel={t('Filter notes', 'Filtrer les notes', 'Notizen filtern')} placeholder={t('Find a note…', 'Trouver une note…', 'Notiz finden…')} value={search} onValueChange={setSearch} />}
+        <nav className="planner-note-cards" aria-label={t('Select a note', 'Sélectionner une note', 'Notiz auswählen')}>
+          {pinned.length > 0 && <><h3>{t('Pinned', 'Épinglées', 'Angeheftet')}</h3>{pinned.map((note) => <NoteListItem key={note.id} note={note} active={note.id === activeNote?.id} onClick={() => selectNote(note.id)} untitledLabel={t('Untitled', 'Sans titre', 'Ohne Titel')} locale={locale} />)}</>}
+          {others.length > 0 && <>{pinned.length > 0 && <h3>{t('Other notes', 'Autres notes', 'Weitere Notizen')}</h3>}{others.map((note) => <NoteListItem key={note.id} note={note} active={note.id === activeNote?.id} onClick={() => selectNote(note.id)} untitledLabel={t('Untitled', 'Sans titre', 'Ohne Titel')} locale={locale} />)}</>}
+          {filtered.length === 0 && <p className="planner-note-muted">{search ? t('No matching notes.', 'Aucune note correspondante.', 'Keine passenden Notizen.') : t('Your plans will appear here.', 'Vos plans apparaîtront ici.', 'Ihre Pläne erscheinen hier.')}</p>}
+        </nav>
+      </aside>
 
-  return (
-    <PageLayout width="wide">
-      <PageHeader
-        title={t('Planner', 'Planificateur', 'Planer')}
-        eyebrow={t('03 / Operations', '03 / Opérations', '03 / Einsätze')}
-        description={t(
-          'Keep a checklist for your next craft. You can add blueprint and resource references from edit mode when you need them.',
-          'Gardez une checklist pour votre prochain craft. Vous pouvez ajouter des références de blueprints et de ressources depuis le mode édition si nécessaire.',
-          'Behalten Sie eine Checkliste für Ihren nächsten Craft. Bei Bedarf können Sie im Bearbeitungsmodus Bauplan- und Ressourcenreferenzen hinzufügen.',
-        )}
-        actions={(
-          <AppButton variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
-            {t('New note', 'Nouvelle note', 'Neue Notiz')}
-          </AppButton>
-        )}
-      />
+      <article className="planner-note-workspace">
+        {activeNote ? <>
+          <header className="planner-note-heading">
+            <div>{mode === 'edit' ? <AppTextField value={activeNote.title} onValueChange={(title) => update(activeNote.id, { title })} ariaLabel={t('Note title', 'Titre de la note', 'Notiztitel')} /> : <h2>{activeNote.title || t('Untitled', 'Sans titre', 'Ohne Titel')}</h2>}<span>{tagLabels[activeNote.tag] ?? activeNote.tag}</span></div>
+            <AppButton variant={mode === 'edit' ? 'primary' : 'secondary'} size="sm" icon={mode === 'edit' ? <CheckIcon /> : <EditOutlinedIcon />} onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}>{mode === 'edit' ? t('Done editing', 'Terminer l’édition', 'Bearbeitung beenden') : t('Edit note', 'Modifier la note', 'Notiz bearbeiten')}</AppButton>
+          </header>
 
-      {/* Shell: sidebar + editor — two separate cards with a gap */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '240px minmax(0, 1fr)' },
-          gap: 1,
-          alignItems: 'stretch',
-          minHeight: 540,
-        }}
-      >
-        {/* Sidebar — own Paper */}
-        <Box
-          component="aside"
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1,
-            p: 1.5,
-            border: `1px solid ${theme.palette.ui.border}`,
-            backgroundColor: 'ui.surface',
-            overflowY: 'auto',
-          }}
-        >
-          {/* Search */}
-          <Box sx={{ position: 'relative' }}>
-            <SearchIcon sx={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.95rem', color: 'text.disabled', zIndex: 1, pointerEvents: 'none' }} />
-            <AppTextField
-              type="search"
-              ariaLabel={t('Filter notes', 'Filtrer les notes', 'Notizen filtern')}
-              placeholder={t('Filter notes…', 'Filtrer les notes…', 'Notizen filtern…')}
-              value={search}
-              onValueChange={setSearch}
-              sx={{ height: 32, fontSize: '0.78rem', pl: 3.5 }}
-            />
-          </Box>
+          {mode === 'preview' && tasks.length > 0 && <section className="planner-next-action" aria-label={t('Next action', 'Prochaine action', 'Nächste Aktion')}>
+            <TaskRing done={done} total={tasks.length} label={t('Checklist progress', 'Progression de la checklist', 'Fortschritt der Checkliste')} />
+            <div className="planner-next-action-body"><span className="planner-kicker">{nextTask ? t('Next action', 'Prochaine action', 'Nächste Aktion') : t('Checklist complete', 'Checklist terminée', 'Checkliste abgeschlossen')}</span>
+              <h3>{nextTask ? <InlineMd text={nextTask.title} /> : t('Everything is checked off.', 'Tout est coché.', 'Alles ist erledigt.')}</h3>
+              {nextTask && <AppButton variant="primary" size="sm" onClick={completeNextTask} icon={<CheckIcon />}>{t('Complete task', 'Terminer la tâche', 'Aufgabe abschließen')}</AppButton>}
+              {!nextTask && <p>{t('You can reopen any task in the full checklist below.', 'Vous pouvez rouvrir une tâche dans la checklist complète ci-dessous.', 'Sie können Aufgaben in der vollständigen Checkliste unten wieder öffnen.')}</p>}
+            </div>
+          </section>}
 
-          {pinned.length > 0 && (
-            <>
-              <Typography sx={{ px: 0.5, pt: 0.5, fontSize: TEXT_LABEL_SM, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary' }}>
-                {t('Pinned', 'Épinglées')}
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {pinned.map((n) => (
-                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} untitledLabel={t('Untitled', 'Sans titre', 'Ohne Titel')} locale={locale} />
-                ))}
-              </Box>
-            </>
-          )}
+          {mode === 'edit' ? <div className="planner-note-editor">
+            <AppTextArea value={activeNote.body} onValueChange={(body) => updateBody(body, false)} rows={14}
+              ariaLabel={t('Note body', 'Contenu de la note', 'Notizinhalt')}
+              placeholder={t('Write your notes. Start a task with - [ ]', 'Écrivez vos notes. Commencez une tâche par - [ ]', 'Schreiben Sie Ihre Notizen. Beginnen Sie eine Aufgabe mit - [ ]')}
+              sx={{ width: '100%', minHeight: 310, resize: 'vertical', border: 'none', boxShadow: 'none', backgroundColor: 'transparent', fontFamily: FONT_MONO, fontSize: '.8125rem', lineHeight: 1.7, p: 0 }} />
+            <details className="planner-writing-help"><summary>{t('Formatting & references', 'Mise en forme & références', 'Formatierung & Referenzen')}</summary><p>**{t('bold', 'gras', 'fett')}** · _{t('italic', 'italique', 'kursiv')}_ · `{t('code', 'code', 'Code')}` · # {t('heading', 'titre', 'Überschrift')} · - [ ] {t('task', 'tâche', 'Aufgabe')} · @bp:id · @res:id</p></details>
+          </div> : tasks.length > 0 ? <details className="planner-note-full" key={activeNote.id}><summary><span><i className="pi pi-list" aria-hidden="true" />{t('Full checklist & notes', 'Checklist complète & notes', 'Vollständige Checkliste & Notizen')}</span><small>{done}/{tasks.length}</small></summary><div><MarkdownView source={activeNote.body} onChange={updateBody} /></div></details>
+            : <div className="planner-note-reading">{activeNote.body ? <MarkdownView source={activeNote.body} onChange={updateBody} /> : <div className="planner-note-empty-body"><i className="pi pi-pencil" aria-hidden="true" /><p>{t('Add notes or a checklist to prepare your next session.', 'Ajoutez des notes ou une checklist pour préparer votre prochaine session.', 'Fügen Sie Notizen oder eine Checkliste für Ihre nächste Sitzung hinzu.')}</p><AppButton variant="secondary" size="sm" onClick={() => setMode('edit')}>{t('Start writing', 'Commencer à écrire', 'Mit dem Schreiben beginnen')}</AppButton></div>}</div>}
 
-          {others.length > 0 && (
-            <>
-              <Typography sx={{ px: 0.5, pt: pinned.length > 0 ? 0.5 : 0, fontSize: TEXT_LABEL_SM, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary' }}>
-                {t('Notes', 'Autres')}
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {others.map((n) => (
-                  <NoteListItem key={n.id} note={n} active={n.id === activeNote?.id} onClick={() => setActiveId(n.id)} untitledLabel={t('Untitled', 'Sans titre', 'Ohne Titel')} locale={locale} />
-                ))}
-              </Box>
-            </>
-          )}
+          <div className="planner-note-feedback"><span role="status">{notice || t('Saved on this device', 'Enregistré sur cet appareil', 'Auf diesem Gerät gespeichert')}</span>{undo && undo.noteId === activeNote.id && <AppButton variant="ghost" size="sm" onClick={undoLastAction}>{t('Undo', 'Annuler', 'Rückgängig')}</AppButton>}</div>
 
-          {filtered.length === 0 && (
-            <Typography sx={{ py: 2, color: 'text.disabled', fontSize: '0.78rem', textAlign: 'center' }}>
-              {t('No notes', 'Aucune note')}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Editor — own Paper */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            border: `1px solid ${theme.palette.ui.border}`,
-            backgroundColor: 'ui.surface',
-            minHeight: 0,
-          }}
-        >
-          {activeNote ? (
-            <>
-              {/* Editor header */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 1,
-                  borderBottom: `1px solid ${theme.palette.ui.border}`,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 120 }}>
-                  <AppTextField
-                    value={activeNote.title}
-                    onValueChange={(title) => update(activeNote.id, { title })}
-                    ariaLabel={t('Note title', 'Titre de la note', 'Notiztitel')}
-                    sx={{ border: 'none', boxShadow: 'none', backgroundColor: 'transparent', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '1rem', color: 'text.primary', px: 0 }}
-                  />
-                  <AppChip label={activeNote.tag} size="sm" sx={{ height: 18, fontSize: TEXT_LABEL_SM, flexShrink: 0, px: 0.75 }} />
-                </Box>
-                <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-                  <AppButton
-                    variant={activeNote.pinned ? 'secondary' : 'ghost'}
-                    size="sm"
-                    icon={<PushPinOutlinedIcon sx={{ fontSize: '0.8rem' }} />}
-                    onClick={() => update(activeNote.id, { pinned: !activeNote.pinned })}
-                    ariaPressed={activeNote.pinned}
-                  >
-                    {activeNote.pinned ? t('Pinned', 'Épinglée') : t('Pin', 'Épingler')}
-                  </AppButton>
-                  <AppButton
-                    variant="ghost"
-                    size="sm"
-                    icon={copied ? <CheckIcon sx={{ fontSize: '0.8rem' }} /> : <ContentCopyIcon sx={{ fontSize: '0.8rem' }} />}
-                    onClick={handleCopy}
-                  >
-                    {copied ? t('Copied', 'Copié') : t('Copy MD', 'Copier MD')}
-                  </AppButton>
-                  <PlannerSegmentedControl
-                    value={mode}
-                    onValueChange={setMode}
-                    ariaLabel={t('Edit mode', 'Mode édition')}
-                    compact
-                    options={[
-                      {
-                        value: 'preview',
-                        ariaLabel: t('Preview', 'Aperçu'),
-                        label: <><VisibilityOutlinedIcon sx={{ fontSize: '0.8rem' }} />{t('Preview', 'Aperçu')}</>,
-                      },
-                      {
-                        value: 'edit',
-                        ariaLabel: t('Edit', 'Éditer'),
-                        label: <><EditOutlinedIcon sx={{ fontSize: '0.8rem' }} />{t('Edit', 'Éditer')}</>,
-                      },
-                    ]}
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={() => setPendingDeleteNote(activeNote)}
-                    title={t('Delete note', 'Supprimer la note')}
-                    aria-label={t('Delete note', 'Supprimer la note')}
-                    sx={{ minWidth: 44, minHeight: 44, color: 'error.main' }}
-                  >
-                    <DeleteOutlineIcon sx={{ fontSize: '1rem' }} />
-                  </IconButton>
-                </Stack>
-              </Box>
-
-              {/* Meta bar */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 0.75, borderBottom: `1px solid ${theme.palette.ui.border}`, backgroundColor: alpha(theme.palette.background.default, 0.4) }}>
-                <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
-                  {new Date(activeNote.updatedAt).toLocaleString(locale)}
-                </Typography>
-                <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
-                  {activeNote.body.length} {t('chars', 'car.')}
-                </Typography>
-                {taskTotal > 0 && (
-                  <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
-                    {taskDone}/{taskTotal} {t('tasks', 'tâches')}
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Body */}
-              <Box sx={{ flex: 1, overflow: 'auto', px: 2.5, py: 2, minHeight: 320 }}>
-                {mode === 'preview' ? (
-                  <MarkdownView
-                    source={activeNote.body}
-                    onChange={(next) => update(activeNote.id, { body: next })}
-                  />
-                ) : (
-                  <AppTextArea
-                    value={activeNote.body}
-                    onValueChange={(body) => update(activeNote.id, { body })}
-                    rows={14}
-                    placeholder={t('Write in markdown. ## heading, - [ ] task, **bold**, @bp:id, @res:id', 'Écris en markdown. ## titre, - [ ] tâche, **gras**, @bp:id, @res:id')}
-                    ariaLabel={t('Note body', 'Contenu de la note', 'Notizinhalt')}
-                    sx={{ width: '100%', minHeight: 320, resize: 'vertical', border: 'none', boxShadow: 'none', backgroundColor: 'transparent', color: 'text.primary', fontFamily: FONT_MONO, fontSize: '0.875rem', lineHeight: 1.7, p: 0 }}
-                  />
-                )}
-              </Box>
-
-              {/* Footer */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  px: 2,
-                  py: 1,
-                  borderTop: `1px solid ${theme.palette.ui.border}`,
-                  backgroundColor: alpha(theme.palette.background.default, 0.45),
-                  gap: 1,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Typography sx={{ fontSize: TEXT_LABEL_SM, color: 'text.disabled', fontFamily: FONT_MONO }}>
-                  {t('Markdown:', 'Markdown :')} **{t('bold', 'gras')}** _{t('italic', 'italique')}_ `{t('code', 'code')}` # {t('heading', 'titre')} - [ ] {t('task', 'tâche')} @bp:id @res:id
-                </Typography>
-                <AppSelect
-                  value={activeNote.tag}
-                  options={NOTE_TAGS.map((tag) => ({ label: tag, value: tag }))}
-                  onValueChange={(tag) => { if (tag) update(activeNote.id, { tag }); }}
-                  ariaLabel={t('Tag', 'Tag', 'Tag')}
-                  sx={{ width: 132, minHeight: 28, fontSize: TEXT_LABEL, fontFamily: FONT_MONO }}
-                />
-              </Box>
-            </>
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, p: 4 }}>
-              <Box sx={{ textAlign: 'center' }}>
-                <EditOutlinedIcon sx={{ fontSize: '2.5rem', color: 'text.disabled', mb: 1 }} />
-                <Typography sx={{ color: 'text.disabled', mb: 2 }}>
-                  {t('No note selected', 'Aucune note sélectionnée')}
-                </Typography>
-                <AppButton variant="primary" size="sm" icon={<AddIcon sx={{ fontSize: '0.85rem' }} />} onClick={addNote}>
-                  {t('Create a note', 'Créer une note')}
-                </AppButton>
-              </Box>
-            </Box>
-          )}
-        </Box>
-      </Box>
-      <AppDialog
-        open={pendingDeleteNote !== null}
-        onOpenChange={(open) => { if (!open) setPendingDeleteNote(null); }}
-        title={t('Delete this note?', 'Supprimer cette note ?', 'Diese Notiz löschen?')}
-        description={t(
-          'This action permanently removes the note from this device.',
-          'Cette action supprime définitivement la note de cet appareil.',
-          'Diese Aktion entfernt die Notiz dauerhaft von diesem Gerät.',
-        )}
-        closeLabel={t('Close', 'Fermer', 'Schließen')}
-        footer={(
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
-            <AppButton variant="secondary" onClick={() => setPendingDeleteNote(null)}>
-              {t('Keep note', 'Conserver la note', 'Notiz behalten')}
-            </AppButton>
-            <AppButton
-              variant="danger"
-              onClick={() => {
-                if (pendingDeleteNote) removeNote(pendingDeleteNote.id);
-                setPendingDeleteNote(null);
-              }}
-            >
-              {t('Delete note', 'Supprimer la note', 'Notiz löschen')}
-            </AppButton>
-          </Box>
-        )}
-      >
-        <Typography variant="body2" sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>
-          {pendingDeleteNote?.title || t('Untitled', 'Sans titre', 'Ohne Titel')}
-        </Typography>
-      </AppDialog>
-    </PageLayout>
-  );
+          <details className="planner-note-tools"><summary><i className="pi pi-sliders-h" aria-hidden="true" />{t('Organize & export', 'Organiser & exporter', 'Organisieren & exportieren')}</summary>
+            <div className="planner-note-tools-body"><AppSelect label={t('Category', 'Catégorie', 'Kategorie')} value={activeNote.tag} options={NOTE_TAGS.map((tag) => ({ label: tagLabels[tag], value: tag }))} onValueChange={(tag) => { if (tag) update(activeNote.id, { tag }); }} />
+              <div className="planner-note-tools-actions"><AppButton variant={activeNote.pinned ? 'secondary' : 'ghost'} size="sm" icon={<PushPinOutlinedIcon />} onClick={() => update(activeNote.id, { pinned: !activeNote.pinned })} ariaPressed={activeNote.pinned}>{activeNote.pinned ? t('Unpin', 'Désépingler', 'Loslösen') : t('Pin', 'Épingler', 'Anheften')}</AppButton>
+                <AppButton variant="ghost" size="sm" icon={copied ? <CheckIcon /> : <ContentCopyIcon />} onClick={handleCopy}>{copied ? t('Copied', 'Copié', 'Kopiert') : t('Copy Markdown', 'Copier le Markdown', 'Markdown kopieren')}</AppButton>
+                <AppButton variant="ghost" size="sm" icon={<DeleteOutlineIcon />} onClick={() => setPendingDeleteNote(activeNote)}>{t('Delete note', 'Supprimer la note', 'Notiz löschen')}</AppButton></div>
+              <p>{t('Updated', 'Modifiée', 'Aktualisiert')} {new Date(activeNote.updatedAt).toLocaleString(locale)} · {activeNote.body.length} {t('characters', 'caractères', 'Zeichen')}</p>
+            </div>
+          </details>
+        </> : <div className="planner-notebook-empty"><i className="pi pi-book" aria-hidden="true" /><h2>{t('Prepare your next session', 'Préparez votre prochaine session', 'Bereiten Sie Ihre nächste Sitzung vor')}</h2><p>{t('Keep a route, a materials list or a mission checklist ready to use.', 'Gardez un itinéraire, une liste de matériaux ou une checklist de mission à portée de main.', 'Halten Sie eine Route, eine Materialliste oder eine Missionscheckliste bereit.')}</p><AppButton variant="primary" size="sm" icon={<AddIcon />} onClick={addNote}>{t('Create a note', 'Créer une note', 'Notiz erstellen')}</AppButton></div>}
+      </article>
+    </div>
+    <AppDialog open={pendingDeleteNote !== null} onOpenChange={(open) => { if (!open) setPendingDeleteNote(null); }} title={t('Delete this note?', 'Supprimer cette note ?', 'Diese Notiz löschen?')}
+      description={t('This action permanently removes the note from this device.', 'Cette action supprime définitivement la note de cet appareil.', 'Diese Aktion entfernt die Notiz dauerhaft von diesem Gerät.')}
+      closeLabel={t('Close', 'Fermer', 'Schließen')}
+      footer={<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}><AppButton variant="secondary" onClick={() => setPendingDeleteNote(null)}>{t('Keep note', 'Conserver la note', 'Notiz behalten')}</AppButton><AppButton variant="danger" onClick={() => {
+        if (pendingDeleteNote) {
+          setNotes((previous) => previous.filter((note) => note.id !== pendingDeleteNote.id));
+          if (activeNote?.id === pendingDeleteNote.id) selectNote(notes.find((note) => note.id !== pendingDeleteNote.id)?.id ?? '');
+        }
+        setPendingDeleteNote(null);
+      }}>{t('Delete note', 'Supprimer la note', 'Notiz löschen')}</AppButton></Box>}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>{pendingDeleteNote?.title || t('Untitled', 'Sans titre', 'Ohne Titel')}</Typography>
+    </AppDialog>
+  </PageLayout>;
 }

@@ -29,7 +29,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   const generatedId = useId();
   const titleId = headingId ?? `page-title-${generatedId}`;
-  const compact = variant === 'compact';
+  const compact = variant !== 'reading';
   const reading = variant === 'reading';
 
   return (
@@ -49,8 +49,8 @@ export function PageHeader({
               variant="overline"
               sx={{
                 display: 'block',
-                mb: 0.5,
-                color: 'primary.main',
+                mb: 0.25,
+                color: 'text.secondary',
                 fontFamily: FONT_MONO,
                 fontSize: TEXT_LABEL_SM,
                 letterSpacing: '0.1em',
@@ -83,9 +83,9 @@ export function PageHeader({
               variant="body2"
               sx={{
                 color: 'text.secondary',
-                mt: 0.75,
+                mt: 0.5,
                 maxWidth: reading ? '68ch' : '76ch',
-                lineHeight: reading ? 1.7 : 1.55,
+                lineHeight: reading ? 1.7 : 1.45,
               }}
             >
               {description}

@@ -39,6 +39,7 @@ import { FONT_HEADING, FONT_MONO, TEXT_LABEL } from '../theme';
 import { toSlug } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
 import { trackEvent } from '../analytics/posthog';
+import './fabricator/fabricator-focus.css';
 
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
 
@@ -83,7 +84,8 @@ const CAT_LABEL: Record<ItemCategory, ReturnType<typeof ls>> = {
 /** Resolves the thumbnail URL and mode from the blueprint media fallback chain. */
 function resolveThumb(bp: Blueprint): { url: string | null; mode: 'item' | 'logo' } {
   const m = bp.media;
-  if (m?.primaryVisual?.imageUrl) return { url: m.primaryVisual.imageUrl, mode: 'item' };
+  if (m?.image?.imageUrl) return { url: m.image.imageUrl, mode: 'item' };
+  if (m?.primaryVisual?.imageUrl) return { url: m.primaryVisual.imageUrl, mode: m.primaryVisual.imageUrl === m.manufacturerLogo?.imageUrl ? 'logo' : 'item' };
   if (m?.manufacturerLogo?.imageUrl) return { url: m.manufacturerLogo.imageUrl, mode: 'logo' };
   return { url: null, mode: 'item' };
 }
@@ -324,7 +326,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   const [imgError, setImgError] = useState(false);
   const showImage = thumbUrl && !imgError;
   const blueprintHref = `/item/${toSlug(blueprint.name)}`;
-  const cardHref = isActive ? '/' : blueprintHref;
+  const cardHref = blueprintHref;
 
   return (
     <Card
@@ -358,7 +360,7 @@ export const BlueprintCard = memo(function BlueprintCard({
         onClick={(event) => {
           if (!shouldHandleInternalLinkClick(event)) return;
           event.preventDefault();
-          onSelect(isActive ? null : blueprint);
+          onSelect(blueprint);
         }}
         aria-pressed={isActive}
         aria-label={t(
@@ -373,13 +375,8 @@ export const BlueprintCard = memo(function BlueprintCard({
           className="blueprint-card-preview"
           sx={{
             position: 'relative',
-            height: 'var(--workspace-preview-height)',
+            height: 184,
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.46) : alpha(theme.palette.primary.main, 0.02),
-            backgroundImage:
-              theme.palette.mode === 'dark'
-                ? `linear-gradient(${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px)`
-                : 'none',
-            backgroundSize: '28px 28px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -395,8 +392,15 @@ export const BlueprintCard = memo(function BlueprintCard({
             </Box>
           )}
 
+          {(isFavorite || isInInventory) && (
+            <span className="blueprint-card-state">
+              {isFavorite && <span aria-label={t('Favorite', 'Favori', 'Favorit')} title={t('Favorite', 'Favori', 'Favorit')}><StarIcon sx={{ fontSize: 13, color: 'warning.main' }} /></span>}
+              {isInInventory && <span aria-label={t('In inventory', 'En inventaire', 'Im Inventar')} title={t('In inventory', 'En inventaire', 'Im Inventar')}><CheckIcon sx={{ fontSize: 13 }} /></span>}
+            </span>
+          )}
+
           {/* Large Image / Icon */}
-          <Box sx={{ width: '100%', height: '100%', p: { xs: 1.5, md: 1.75 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ width: '100%', height: '100%', p: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {showImage ? (
               <CardMedia
                 component="img"
@@ -408,8 +412,10 @@ export const BlueprintCard = memo(function BlueprintCard({
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 sx={{
-                  maxHeight: '100%',
-                  maxWidth: '100%',
+                  width: '100%',
+                  height: '100%',
+                  maxHeight: thumbMode === 'logo' ? 88 : '100%',
+                  maxWidth: thumbMode === 'logo' ? 100 : '100%',
                   objectFit: 'contain',
                   filter: thumbMode === 'item' ? (theme.palette.mode === 'dark' ? 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' : 'drop-shadow(0 8px 16px rgba(0,0,0,0.1))') : 'none',
                   p: thumbMode === 'logo' ? 2 : 0,
@@ -426,7 +432,7 @@ export const BlueprintCard = memo(function BlueprintCard({
         </Box>
 
         {/* Bottom Section: Content */}
-        <Box className="blueprint-card-details" sx={{ p: { xs: 1.5, md: 1.65 }, display: 'flex', flexDirection: 'column', gap: 1.35, flex: 1 }}>
+        <Box className="blueprint-card-details" sx={{ p: { xs: 1.5, md: 1.65 }, display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
           {/* Name & Manufacturer */}
           <Box>
             <Typography
@@ -441,7 +447,7 @@ export const BlueprintCard = memo(function BlueprintCard({
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
-                minHeight: '2.4em',
+                minHeight: '1.2em',
               }}
             >
               {blueprint.name}
@@ -497,9 +503,10 @@ export const BlueprintCard = memo(function BlueprintCard({
       </CardActionArea>
 
       <Box
+        className="blueprint-card-actions"
         sx={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${3 + (organizationShareAction ? 1 : 0) + (extraQuickActions?.length ?? 0)}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${2 + (onToggleInventory ? 1 : 0) + (organizationShareAction ? 1 : 0) + (extraQuickActions?.length ?? 0)}, minmax(0, 1fr))`,
           gap: 0.75,
           px: 1.25,
           py: 1.125,
@@ -518,7 +525,7 @@ export const BlueprintCard = memo(function BlueprintCard({
         <QuickActionBtn
           active={isFavorite}
           onClick={() => onToggleFavorite(blueprint.id)}
-          label={t('Favori', 'Favori', 'Favorit')}
+          label={t('Favorite', 'Favori', 'Favorit')}
           icon={isFavorite ? <StarIcon /> : <StarBorderIcon />}
           color={isFavorite ? theme.palette.warning.main : undefined}
         />
@@ -526,14 +533,14 @@ export const BlueprintCard = memo(function BlueprintCard({
           <QuickActionBtn
             active={isInInventory}
             onClick={() => onToggleInventory(blueprint.id)}
-            label={t('Inventaire', 'Inventaire', 'Inventar')}
+            label={t('Inventory', 'Inventaire', 'Inventar')}
             icon={isInInventory ? <CheckIcon /> : <Inventory2OutlinedIcon />}
           />
         )}
         <QuickActionBtn
-          onClick={() => onAddToPlanner?.(blueprint.id)}
-          label={t('Planner', 'Planner', 'Planner')}
-          icon={<PlaylistAddIcon />}
+          onClick={() => onAddToPlanner ? onAddToPlanner(blueprint.id) : onSelect(blueprint)}
+          label={onAddToPlanner ? t('Planner', 'Planner', 'Planner') : t('Simulate', 'Simuler', 'Simulieren')}
+          icon={onAddToPlanner ? <PlaylistAddIcon /> : <GameIcon name="calculator" size={14} shimmer={false} />}
         />
         {organizationShareAction && (
           <AppTooltip content={organizationShareAction.tooltip}>
@@ -1029,17 +1036,17 @@ export function BlueprintGrid() {
 
       <BlueprintExplorer />
 
-      <Box role="group" aria-label={t('Catalogue presentation', 'Présentation du catalogue', 'Katalogdarstellung')} sx={{ display: 'flex', gap: 0.75 }}>
-        <AppButton size="sm" variant={catalogueView === 'rows' ? 'primary' : 'secondary'} ariaPressed={catalogueView === 'rows'} onClick={() => setCatalogueView('rows')}>{t('Register', 'Registre', 'Register')}</AppButton>
-        <AppButton size="sm" variant={catalogueView === 'cards' ? 'primary' : 'secondary'} ariaPressed={catalogueView === 'cards'} onClick={() => setCatalogueView('cards')}>{t('Cards', 'Cartes', 'Karten')}</AppButton>
-      </Box>
-      {/* ── Result count ── */}
-      <Box sx={{ mb: 1.25, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+      {/* Counts and presentation are one toolbar, directly above the results. */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }} aria-live="polite">
             <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{filteredBlueprints.length}</strong>{' '}
             {t('blueprints', 'blueprints')}
             {!shipComponentFiltersBlocked ? ` • ${filteredShipComponents.length} ${t('ship components', 'composants de vaisseau')}` : ''}
         </Typography>
+        <Box role="group" aria-label={t('Catalogue presentation', 'Présentation du catalogue', 'Katalogdarstellung')} sx={{ display: 'flex', gap: 0.75 }}>
+        <AppButton size="sm" variant={catalogueView === 'rows' ? 'primary' : 'secondary'} ariaPressed={catalogueView === 'rows'} onClick={() => setCatalogueView('rows')}>{t('Register', 'Registre', 'Register')}</AppButton>
+        <AppButton size="sm" variant={catalogueView === 'cards' ? 'primary' : 'secondary'} ariaPressed={catalogueView === 'cards'} onClick={() => setCatalogueView('cards')}>{t('Cards', 'Cartes', 'Karten')}</AppButton>
+      </Box>
       </Box>
 
       {/* ── Grid area — IntersectionObserver root ── */}
@@ -1058,7 +1065,7 @@ export function BlueprintGrid() {
                   <Box
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: catalogueView === 'rows' ? { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } : 'repeat(auto-fill, minmax(min(var(--workspace-card-width), 100%), 1fr))',
+                      gridTemplateColumns: catalogueView === 'rows' ? 'repeat(auto-fill, minmax(min(470px, 100%), 1fr))' : 'repeat(auto-fill, minmax(min(var(--workspace-card-width), 100%), 1fr))',
                       gap: 'var(--workspace-gap)',
                     }}
                     role="list"

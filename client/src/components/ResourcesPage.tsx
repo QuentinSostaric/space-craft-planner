@@ -1,6 +1,5 @@
-import { Box, Divider, IconButton, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
-import { Card, CardActionArea, CardMedia, Table, TableBody, TableCell, TableHead, TableRow } from './ui/primitives';
-import { AppTooltip } from './ui/overlays';
+import { Box, Divider, Paper, Stack, Typography, alpha, useTheme } from '../ui/system';
+import { Card, CardActionArea, CardMedia } from './ui/primitives';
 import { AppChip } from './ui/data-display/AppChip';
 import { AppAlert } from './ui/feedback';
 import { ImageNotSupportedOutlinedIcon, Inventory2OutlinedIcon, PlaylistAddOutlinedIcon, ChevronRightOutlinedIcon, RouteOutlinedIcon, ScienceOutlinedIcon, ViewInArOutlinedIcon } from '../ui/icons';
@@ -10,7 +9,6 @@ import { BlueprintCard } from './BlueprintGrid';
 import { AppGlyph } from './ui/AppGlyph';
 import { DatasetTooOldNotice } from './ui/DatasetTooOldNotice';
 import { ScaleBadge } from './ui/RarityBadge';
-import { PageStatCard } from './ui/PageStatCard';
 import { ResourceIcon } from './ui/ResourceIcon';
 import { isPlaceholderResource, isResourceSlot } from '../utils/crafting';
 import {
@@ -60,7 +58,7 @@ import {
   resourceSlugFromPathname,
 } from '../utils/slug';
 import { shouldHandleInternalLinkClick } from '../utils/spaLinks';
-import { FONT_DISPLAY, FONT_HEADING, FONT_MONO, TEXT_LABEL, TEXT_LABEL_LG, TEXT_LABEL_SM } from '../theme';
+import { FONT_HEADING, TEXT_LABEL } from '../theme';
 import { AppButton } from './ui/controls/AppButton';
 import { AppSelect } from './ui/controls/AppSelect';
 import { AppTextField } from './ui/controls/AppTextField';
@@ -68,7 +66,7 @@ import { SurfaceState } from './ui/feedback/SurfaceState';
 import { AppDialog } from './ui/overlays/AppDialog';
 import { PageHeader } from './ui/page/PageHeader';
 import { PageLayout } from './ui/page/PageLayout';
-import { ResponsiveFilters } from './ui/page/ResponsiveFilters';
+import './resources/resources.css';
 
 type ResourceSort = 'name-asc' | 'providers-desc' | 'missions-desc' | 'blueprints-desc';
 type ResourceFamilyFilter = 'all' | 'metal' | 'mineral' | 'crystal' | 'ice' | 'crafting-slot';
@@ -92,7 +90,8 @@ interface ResourceIdentityPanelProps {
   resource: Resource;
   insight: ResourceInsight | null;
   resourceProgress: { collected: number; method: string | null } | null;
-  craftDemandQuantity: number;
+  craftDemandQuantity: number | null;
+  craftDemandCoverage: { loaded: number; total: number } | null;
   craftDemandUnit: 'scu' | 'count' | 'mixed';
   onBack: () => void;
 }
@@ -413,12 +412,13 @@ function ResourceThumbnail({ resource, size = 44 }: { resource: Resource; size?:
 function ResourceFamilyChip({ resource }: { resource: Resource }) {
   const { lang } = useI18n();
   const theme = useTheme();
+  if (!resource.visualKind) return null;
 
   return (
     <AppChip
       size="small"
       variant="outlined"
-      label={getResourceFamilyLabel((resource.visualKind ?? 'all') as ResourceFamilyFilter, lang)}
+      label={getResourceFamilyLabel(resource.visualKind as ResourceFamilyFilter, lang)}
       sx={{
         height: 24,
         borderColor: alpha(resource.color, 0.48),
@@ -453,101 +453,30 @@ function ResourceSystemsChips({ systems }: { systems: string[] }) {
   );
 }
 
-function ResourceMobileList({
-  resources,
-  resourceInsightById,
-  onOpen,
-  onAddToPlanner,
-  onAddToInventory,
-}: {
+function ResourceMobileList({ resources, resourceInsightById, onOpen }: {
   resources: Resource[];
   resourceInsightById: Map<string, ResourceInsight>;
   onOpen: (resource: Resource) => void;
-  onAddToPlanner: (resource: Resource) => void;
-  onAddToInventory: (resource: Resource) => void;
 }) {
-  const { t } = useI18n();
-
-  return (
-    <Stack role="list" spacing={1}>
-      {resources.map((resource) => {
-        const insight = resourceInsightById.get(resource.id) ?? null;
-        return (
-          <Paper
-            key={resource.id}
-            variant="outlined"
-            role="listitem"
-            sx={{ p: 1, backgroundColor: 'background.paper' }}
-          >
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <ResourceThumbnail resource={resource} size={42} />
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography
-                    sx={{
-                      fontFamily: FONT_HEADING,
-                      fontWeight: 700,
-                      fontSize: '0.98rem',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {resource.name}
-                  </Typography>
-                  <ResourceSystemsChips systems={insight?.systems ?? []} />
-                </Box>
-                <AppButton
-                  size="small"
-                  variant="outlined"
-                  ariaLabel={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}
-                  onClick={() => onOpen(resource)}
-                  sx={{ minWidth: 34, width: 34, p: 0 }}
-                >
-                  <ChevronRightOutlinedIcon fontSize="small" />
-                </AppButton>
-              </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0.75 }}>
-                <ResourceFact label={t('Sources', 'Sources')} value={String(insight?.providerCount ?? 0)} />
-                <ResourceFact label={t('Missions', 'Missions')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
-                <ResourceFact label={t('Blueprints', 'Blueprints')} value={String(insight?.blueprintUsageCount ?? 0)} />
-              </Box>
-              <Stack direction="row" spacing={0.75}>
-                <AppButton
-                  size="small"
-                  variant="outlined"
-                  startIcon={<PlaylistAddOutlinedIcon />}
-                  onClick={() => onAddToPlanner(resource)}
-                  sx={{ flex: 1, minWidth: 0, fontSize: TEXT_LABEL }}
-                >
-                  {t('Planner', 'Planifier', 'Planer')}
-                </AppButton>
-                <AppButton
-                  size="small"
-                  variant="outlined"
-                  startIcon={<Inventory2OutlinedIcon />}
-                  onClick={() => onAddToInventory(resource)}
-                  sx={{ flex: 1, minWidth: 0, fontSize: TEXT_LABEL }}
-                >
-                  {t('Inventory', 'Inventaire', 'Inventar')}
-                </AppButton>
-              </Stack>
-            </Stack>
-          </Paper>
-        );
-      })}
-    </Stack>
-  );
+  const { t, lang } = useI18n();
+  return <div className="resource-register" role="list">
+    {resources.map((resource) => {
+      const insight = resourceInsightById.get(resource.id);
+      return <div key={resource.id} role="listitem">
+        <button type="button" className="resource-register-row" onClick={() => onOpen(resource)}
+          aria-label={t(`Open ${resource.name} details`, `Ouvrir les détails de ${resource.name}`, `${resource.name} öffnen`)}>
+          <ResourceThumbnail resource={resource} size={48} />
+          <span className="resource-register-identity"><strong>{resource.name}</strong>
+            <span>{[resource.visualKind && getResourceFamilyLabel(resource.visualKind as ResourceFamilyFilter, lang), insight?.systems.join(', ') || t('Location unknown', 'Lieu inconnu', 'Ort unbekannt')].filter(Boolean).join(' · ')}</span>
+          </span>
+          <ChevronRightOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+        </button>
+      </div>;
+    })}
+  </div>;
 }
 
-function ResourcePreviewPanel({
-  resource,
-  insight,
-  providers,
-  linkedBlueprints,
-  onOpen,
-  onAddToPlanner,
-  onAddToInventory,
-  onOpenBlueprint,
-}: {
+function ResourcePreviewPanel({ resource, insight, providers, linkedBlueprints, onOpen, onAddToPlanner, onAddToInventory, onOpenBlueprint }: {
   resource: Resource | null;
   insight: ResourceInsight | null;
   providers: MaterialSourceProvider[];
@@ -558,610 +487,142 @@ function ResourcePreviewPanel({
   onOpenBlueprint: (blueprint: Blueprint) => void;
 }) {
   const { t, lang } = useI18n();
-  const theme = useTheme();
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    setImgError(false);
-  }, [resource?.id]);
-
-  if (!resource) {
-    return null;
-  }
-
-  const showImage = Boolean(resource.visual?.imageUrl && !imgError);
-  const sortedProviders = [...providers]
-    .sort(
-      (left, right) =>
-        (getMaterialProviderProbabilityPct(right) ?? 0) -
-          (getMaterialProviderProbabilityPct(left) ?? 0) ||
-        String(left.providerDisplayName ?? '').localeCompare(String(right.providerDisplayName ?? '')),
-    )
-    .slice(0, 4);
-
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        position: { lg: 'sticky' },
-        top: { lg: 16 },
-        overflow: 'hidden',
-        backgroundColor: alpha(theme.palette.background.paper, 0.9),
-      }}
-    >
-      <Box sx={{ p: 1.75, borderBottom: 1, borderColor: 'divider' }}>
-        <Stack spacing={1.25}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontFamily: FONT_HEADING,
-                  fontWeight: 700,
-                  fontSize: '1.45rem',
-                  lineHeight: 0.95,
-                }}
-              >
-                {resource.name}
-              </Typography>
-              <Box sx={{ mt: 0.75 }}>
-                <ResourceFamilyChip resource={resource} />
-              </Box>
-            </Box>
-            <AppButton
-              size="small"
-              variant="outlined"
-              ariaLabel={t('Open resource detail', 'Ouvrir la fiche ressource', 'Ressourcendetail offnen')}
-              onClick={() => onOpen(resource)}
-              sx={{ minWidth: 34, width: 34, p: 0, flexShrink: 0 }}
-            >
-              <ChevronRightOutlinedIcon fontSize="small" />
-            </AppButton>
-          </Stack>
-
-          <Box
-            sx={{
-              height: 150,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              border: 1,
-              borderColor: 'divider',
-              borderRadius: 1,
-              background: `linear-gradient(180deg, ${alpha(resource.color, 0.24)} 0%, ${alpha(
-                theme.palette.background.default,
-                0.3,
-              )} 100%)`,
-            }}
-          >
-            {showImage ? (
-              <CardMedia
-                component="img"
-                image={resource.visual!.imageUrl!}
-                alt=""
-                referrerPolicy="no-referrer"
-                onError={() => setImgError(true)}
-                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <ResourceIcon name={resource.name} size={88} shimmer={false} />
-            )}
-          </Box>
-
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              display: '-webkit-box',
-              overflow: 'hidden',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-            }}
-          >
-            {resource.description ||
-              t(
-                'No description available for this resource.',
-                'Aucune description disponible pour cette ressource.',
-                'Keine Beschreibung fur diese Ressource verfugbar.',
-              )}
-          </Typography>
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.75 }}>
-            <ResourceFact label={t('Sources', 'Sources')} value={String(insight?.providerCount ?? 0)} />
-            <ResourceFact label={t('Missions', 'Missions')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
-            <ResourceFact label={t('Blueprints', 'Blueprints')} value={String(insight?.blueprintUsageCount ?? 0)} />
-            <ResourceFact label={t('Systems', 'Systemes')} value={String(insight?.systems.length ?? 0)} />
-          </Box>
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 0.75 }}>
-            <AppButton
-              size="small"
-              variant="outlined"
-              startIcon={<PlaylistAddOutlinedIcon />}
-              onClick={() => onAddToPlanner(resource)}
-              sx={{ minWidth: 0, fontSize: TEXT_LABEL }}
-            >
-              {t('Planner', 'Planifier', 'Planer')}
-            </AppButton>
-            <AppButton
-              size="small"
-              variant="outlined"
-              startIcon={<Inventory2OutlinedIcon />}
-              onClick={() => onAddToInventory(resource)}
-              sx={{ minWidth: 0, fontSize: TEXT_LABEL }}
-            >
-              {t('Inventory', 'Inventaire', 'Inventar')}
-            </AppButton>
-          </Box>
-        </Stack>
-      </Box>
-
-      <Box sx={{ p: 1.75 }}>
-        <Stack spacing={1.25}>
-          <Typography
-            sx={{
-              fontFamily: FONT_HEADING,
-              fontWeight: 700,
-              fontSize: '0.8rem',
-            }}
-          >
-            {t('Best Sources', 'Meilleures sources', 'Beste Quellen')}
-          </Typography>
-          {sortedProviders.length === 0 ? (
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t('No provider data available.', 'Aucune source connue.', 'Keine Quellen verfugbar.')}
-            </Typography>
-          ) : (
-            <Stack spacing={0.75}>
-              {sortedProviders.map((provider) => {
-                const providerProbabilityPct = getMaterialProviderProbabilityPct(provider);
-                return (
-                  <Box
-                    key={`${provider.providerId ?? provider.providerDisplayName}-${provider.system ?? 'unknown'}`}
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1fr) auto',
-                      gap: 1,
-                      alignItems: 'center',
-                      py: 0.75,
-                      borderBottom: '1px solid',
-                      borderBottomColor: 'divider',
-                      '&:last-of-type': { borderBottom: 0 },
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                        {provider.providerDisplayName}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'secondary.main' }}>
-                        {provider.system ?? formatMaterialProviderType(provider.providerType, lang)}
-                      </Typography>
-                    </Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
-                      {providerProbabilityPct != null
-                        ? `${providerProbabilityPct}%`
-                        : formatMaterialProviderConfidence(provider.labelConfidence, lang)}
-                    </Typography>
-                  </Box>
-                );
-              })}
-            </Stack>
-          )}
-        </Stack>
-      </Box>
-
-      {linkedBlueprints.length > 0 && (
-        <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
-          <Box
-            sx={{
-              px: 1.75,
-              py: 1.25,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Typography
-              component="h2"
-              sx={{
-                fontFamily: FONT_HEADING,
-                fontWeight: 700,
-                fontSize: '0.8rem',
-              }}
-            >
-              {t('Used In', 'Utilisée dans')}
-            </Typography>
-            <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, color: 'text.disabled' }}>
-              {linkedBlueprints.length} bp
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              maxHeight: 220,
-              overflowY: 'auto',
-              scrollbarWidth: 'thin',
-              scrollbarColor: (th) => `${alpha(th.palette.primary.main, 0.25)} transparent`,
-              '&::-webkit-scrollbar': { width: 4 },
-              '&::-webkit-scrollbar-thumb': { bgcolor: (th) => alpha(th.palette.primary.main, 0.25), borderRadius: 99 },
-            }}
-          >
-            {linkedBlueprints.map((blueprint) => (
-              <Box
-                key={blueprint.id}
-                component="button"
-                type="button"
-                aria-label={`${t('Open blueprint', 'Ouvrir le blueprint')} ${blueprint.name}`}
-                onClick={() => onOpenBlueprint(blueprint)}
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 14px',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  width: '100%',
-                  px: 1.75,
-                  py: 0.75,
-                  textAlign: 'left',
-                  bgcolor: 'transparent',
-                  border: 'none',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  cursor: 'pointer',
-                  color: 'text.primary',
-                  transition: 'background-color 120ms',
-                  '&:last-child': { borderBottom: 'none' },
-                  '&:hover': { bgcolor: (th) => alpha(th.palette.primary.main, 0.07) },
-                }}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    noWrap
-                    sx={{
-                      fontFamily: FONT_DISPLAY,
-                      fontWeight: 600,
-                      fontSize: TEXT_LABEL_LG,
-                      lineHeight: 1.25,
-                      color: 'text.primary',
-                    }}
-                  >
-                    {blueprint.name}
-                  </Typography>
-                  <Typography
-                    noWrap
-                    sx={{
-                      fontFamily: FONT_MONO,
-                      fontSize: TEXT_LABEL_SM,
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {loc(CATEGORY_LABELS[blueprint.category], lang)}
-                  </Typography>
-                </Box>
-                <ChevronRightOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      )}
-    </Paper>
-  );
-}
-
-function ResourceIdentityPanel({
-  resource,
-  insight,
-  resourceProgress,
-  craftDemandQuantity,
-  craftDemandUnit,
-  onBack,
-}: ResourceIdentityPanelProps) {
-  const { t, lang } = useI18n();
-  const theme = useTheme();
-  const [imgError, setImgError] = useState(false);
-  const showImage = Boolean(resource.visual?.imageUrl && !imgError);
-  const craftDemandLabel =
-    craftDemandUnit === 'mixed'
-      ? `${craftDemandQuantity.toFixed(2)} ${t('mixed', 'mixte')}`
-      : formatResourceQuantity(craftDemandQuantity, craftDemandUnit, lang, 'long');
-
-  useEffect(() => {
-    setImgError(false);
-  }, [resource.id]);
-
-  return (
-    <Stack spacing={2}>
-      <AppButton
-        variant="ghost"
-        startIcon={<AppGlyph name="arrow-left" size={18} />}
-        onClick={onBack}
-        sx={{ alignSelf: 'flex-start' }}
-      >
-        {t('Back to resources', 'Retour aux ressources')}
+  if (!resource) return null;
+  const bestProviders = [...providers].sort((left, right) =>
+    (getMaterialProviderProbabilityPct(right) ?? -1) - (getMaterialProviderProbabilityPct(left) ?? -1)
+    || String(left.providerDisplayName ?? '').localeCompare(String(right.providerDisplayName ?? '')),
+  ).slice(0, 3);
+  return <aside className="resource-inspector" aria-label={t(`${resource.name} preview`, `Aperçu de ${resource.name}`, `${resource.name} Vorschau`)}>
+    <div className="resource-inspector-identity">
+      <ResourceThumbnail key={resource.id} resource={resource} size={92} />
+      <div><ResourceFamilyChip resource={resource} /><h2>{resource.name}</h2>
+        <ResourceSystemsChips systems={insight?.systems ?? []} />
+      </div>
+    </div>
+    <div className="resource-inspector-section">
+      <div className="resource-section-heading"><h3>{t('Where to find it', 'Où la trouver', 'Fundorte')}</h3>
+        <span>{providers.length} {t('sources', 'sources', 'Quellen')}</span>
+      </div>
+      {bestProviders.length ? <div className="resource-shortlist">{bestProviders.map((provider, index) => {
+        const icon = getMaterialProviderIconName(provider.providerType, provider.providerDisplayName, provider.system);
+        const share = getMaterialProviderProbabilityPct(provider);
+        return <div className="resource-shortlist-row" key={`${provider.providerId ?? provider.providerDisplayName}-${index}`}>
+          <span className="resource-source-icon">{icon ? <StarCitizenLicensedIcon name={icon} size={24} /> : <ScienceOutlinedIcon />}</span>
+          <div><strong>{provider.providerDisplayName}</strong><small>{[provider.system, provider.sourceMethod && formatMaterialSourceMethod(provider.sourceMethod, lang)].filter(Boolean).join(' · ')}</small></div>
+          {share != null && <span className="resource-share" title={t('Resource share', 'Part de la ressource', 'Ressourcenanteil')}>{share}%</span>}
+        </div>;
+      })}</div> : <p className="resource-muted">{t('No known source yet.', 'Aucune source connue pour le moment.', 'Noch keine bekannte Quelle.')}</p>}
+      <AppButton fullWidth variant="primary" href={resourcePathFromSlug(resource.id)} onClick={(event) => {
+        if (!shouldHandleInternalLinkClick(event)) return;
+        event.preventDefault();
+        onOpen(resource);
+      }} endIcon={<ChevronRightOutlinedIcon />}>
+        {t('Open resource guide', 'Ouvrir la fiche ressource', 'Ressourcenübersicht öffnen')}
       </AppButton>
-
-      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        <Box
-          sx={{
-            position: 'relative',
-            minHeight: 260,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'stretch',
-            background: `radial-gradient(circle at top, ${alpha(resource.color, 0.35)} 0%, ${alpha(
-              theme.palette.background.default,
-              0.18,
-            )} 58%, transparent 100%)`,
-          }}
-        >
-          {showImage ? (
-            <CardMedia
-              component="img"
-              image={resource.visual!.imageUrl!}
-              alt=""
-              referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                opacity: 0.95,
-              }}
-            />
-          ) : (
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ResourceIcon name={resource.name} size={96} shimmer={false} />
-            </Box>
-          )}
-          <Box
-            sx={{
-              position: 'relative',
-              zIndex: 1,
-              width: '100%',
-              p: 2.5,
-              background: 'linear-gradient(180deg, transparent 0%, rgba(7,10,18,0.85) 100%)',
-            }}
-          >
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.25 }}>
-              {resource.visualKind && (
-                <AppChip
-                  label={getResourceFamilyLabel(resource.visualKind as ResourceFamilyFilter, lang)}
-                  size="small"
-                />
-              )}
-              {(insight?.sourceMethods ?? []).map((sourceMethod) => (
-                <AppChip
-                  key={sourceMethod}
-                  label={formatMaterialSourceMethod(sourceMethod, lang)}
-                  size="small"
-                  variant="outlined"
-                />
-              ))}
-              <AppChip
-                label={
-                  insight?.missionObjectiveContractCount
-                    ? t('Mission-linked', 'Liee aux missions')
-                    : t('No mission demand', 'Sans demande mission')
-                }
-                color={insight?.missionObjectiveContractCount ? 'primary' : 'default'}
-                size="small"
-              />
-            </Stack>
-            <Typography
-              component="h1"
-              sx={{
-                fontFamily: FONT_HEADING,
-                fontWeight: 700,
-                fontSize: { xs: '2rem', md: '2.4rem' },
-                lineHeight: 0.95,
-              }}
-            >
-              {resource.name}
-            </Typography>
-            <Typography variant="body1" sx={{ color: 'text.secondary', mt: 1, maxWidth: 42 * 8 }}>
-              {resource.description}
-            </Typography>
-          </Box>
-        </Box>
-
-          <Stack spacing={2} sx={{ p: 2.25 }}>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <ResourceFact label={t('Providers', 'Sources')} value={String(insight?.providerCount ?? 0)} />
-              <ResourceFact label={t('Systems', 'Systemes')} value={String(insight?.systems.length ?? 0)} />
-              <ResourceFact label={t('Mission contracts', 'Contrats mission')} value={String(insight?.missionObjectiveContractCount ?? 0)} />
-              <ResourceFact label={t('Blueprint usage', 'Usage blueprint')} value={String(insight?.blueprintUsageCount ?? 0)} />
-              <ResourceFact label={t('Craft demand', 'Demande craft')} value={craftDemandLabel} />
-            </Stack>
-
-          {resourceProgress && (
-            <>
-              <Divider />
-              <Stack spacing={0.75}>
-                <Typography variant="overline">{t('Resource progress', 'Progression ressource')}</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <AppChip
-                    label={`${t('Collected', 'Collecte')}: ${
-                      craftDemandUnit === 'mixed'
-                        ? resourceProgress.collected.toFixed(2)
-                        : formatResourceQuantity(resourceProgress.collected, craftDemandUnit, lang, 'long')
-                    }`}
-                  />
-                  {resourceProgress.method && (
-                    <AppChip label={`${t('Method', 'Methode')}: ${resourceProgress.method}`} variant="outlined" />
-                  )}
-                </Stack>
-              </Stack>
-            </>
-          )}
-
-          {resource.visualNotes && (
-            <>
-              <Divider />
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {resource.visualNotes}
-              </Typography>
-            </>
-          )}
-        </Stack>
-      </Paper>
-    </Stack>
-  );
+    </div>
+    <div className="resource-inspector-actions">
+      <AppButton variant="secondary" size="sm" startIcon={<PlaylistAddOutlinedIcon />} onClick={() => onAddToPlanner(resource)}>{t('Plan collection', 'Planifier la collecte', 'Sammlung planen')}</AppButton>
+      <AppButton variant="ghost" size="sm" startIcon={<Inventory2OutlinedIcon />} onClick={() => onAddToInventory(resource)}>{t('Add to inventory', 'Ajouter au stock', 'Zum Bestand')}</AppButton>
+    </div>
+    <details key={resource.id} className="resource-disclosure">
+      <summary>{t('Uses & properties', 'Usages et propriétés', 'Verwendung & Eigenschaften')}<span>{insight?.blueprintUsageCount ?? 0} bp · {insight?.missionObjectiveContractCount ?? 0} {t('missions', 'missions', 'Missionen')}</span></summary>
+      <div className="resource-disclosure-content"><p className="resource-muted">{resource.description || t('No description available.', 'Aucune description disponible.', 'Keine Beschreibung verfügbar.')}</p>
+        <div className="resource-fact-line"><span>{t('Systems', 'Systèmes', 'Systeme')}</span><strong>{insight?.systems.length ?? 0}</strong></div>
+        {linkedBlueprints.length > 0 && <div className="resource-linked-items">{linkedBlueprints.map((blueprint) => <AppButton key={blueprint.id} variant="ghost" size="sm" onClick={() => onOpenBlueprint(blueprint)} endIcon={<ChevronRightOutlinedIcon />} sx={{ justifyContent: 'space-between', width: '100%', textAlign: 'left' }}>{blueprint.name}</AppButton>)}</div>}
+      </div>
+    </details>
+  </aside>;
 }
 
-function ResourceSourcesSection({
-  providers,
-  hasMaterialSourceData,
-}: {
-  providers: MaterialSourceProvider[];
-  hasMaterialSourceData: boolean;
-}) {
+function ResourceIdentityPanel({ resource, insight, resourceProgress, craftDemandQuantity, craftDemandCoverage, craftDemandUnit, onBack }: ResourceIdentityPanelProps) {
+  const { t, lang } = useI18n();
+  const amount = craftDemandQuantity == null ? null : new Intl.NumberFormat(lang, { maximumFractionDigits: 4 }).format(craftDemandQuantity);
+  const quantityLabel = amount == null ? t('Unknown', 'Inconnu', 'Unbekannt')
+    : craftDemandUnit === 'scu' ? `${amount} SCU`
+      : craftDemandUnit === 'count' ? `${amount} ${t('items', 'objets', 'Teile')}`
+        : `${amount} ${t('mixed', 'mixte', 'gemischt')}`;
+  const craftDemandLabel = craftDemandCoverage
+    ? `${quantityLabel} · ${t(
+        `${craftDemandCoverage.loaded}/${craftDemandCoverage.total} recipes loaded`,
+        `${craftDemandCoverage.loaded}/${craftDemandCoverage.total} recettes chargées`,
+        `${craftDemandCoverage.loaded}/${craftDemandCoverage.total} Rezepte geladen`,
+      )}${craftDemandQuantity == null ? '' : ` (${t('partial', 'partiel', 'teilweise')})`}`
+    : quantityLabel;
+  return <Stack spacing={1.25}>
+    <AppButton variant="ghost" size="sm" startIcon={<AppGlyph name="arrow-left" size={18} />} onClick={onBack} sx={{ alignSelf: 'flex-start' }}>
+      {t('Back to resources', 'Retour aux ressources', 'Zurück zu Ressourcen')}
+    </AppButton>
+    <section className="resource-detail-identity">
+      <ResourceThumbnail key={resource.id} resource={resource} size={132} />
+      <div className="resource-detail-title"><ResourceFamilyChip resource={resource} /><h1>{resource.name}</h1>
+        <ResourceSystemsChips systems={insight?.systems ?? []} />
+        <p className="resource-muted">{(insight?.sourceMethods ?? []).map((method) => formatMaterialSourceMethod(method, lang)).join(' · ')}</p>
+      </div>
+    </section>
+    {resourceProgress && <div className="resource-progress-summary"><Inventory2OutlinedIcon />
+      <div><strong>{craftDemandUnit === 'mixed' ? resourceProgress.collected.toFixed(2) : formatResourceQuantity(resourceProgress.collected, craftDemandUnit, lang, 'long')} {t('collected', 'collectés', 'gesammelt')}</strong>
+        {resourceProgress.method && <small>{resourceProgress.method}</small>}
+      </div>
+    </div>}
+    <details className="resource-disclosure">
+      <summary>{t('Properties & uses', 'Propriétés et usages', 'Eigenschaften & Verwendung')}</summary>
+      <div className="resource-disclosure-content">
+        {resource.description && <p className="resource-muted">{resource.description}</p>}
+        {[
+          [t('Sources', 'Sources', 'Quellen'), String(insight?.providerCount ?? 0)],
+          [t('Systems', 'Systèmes', 'Systeme'), (insight?.systems ?? []).join(', ') || '—'],
+          [t('Missions', 'Missions', 'Missionen'), String(insight?.missionObjectiveContractCount ?? 0)],
+          [t('Blueprints', 'Blueprints', 'Blueprints'), String(insight?.blueprintUsageCount ?? 0)],
+          [t('Combined blueprint demand', 'Cumul des recettes', 'Gesamtbedarf der Rezepte'), craftDemandLabel],
+          [t('Mission employers', 'Employeurs des missions', 'Auftraggeber'), (insight?.missionEmployers ?? []).join(', ') || '—'],
+          [t('Source types', 'Types de sources', 'Quellentypen'), (insight?.providerTypes ?? []).map((type) => type === 'other' ? t('Other', 'Autres', 'Andere') : getSourceTypeLabel(type, lang)).join(', ') || '—'],
+        ].map(([label, value]) => <div className="resource-fact-line" key={label}><span>{label}</span><strong>{value}</strong></div>)}
+        {resource.visualNotes && <p className="resource-muted resource-visual-note">{resource.visualNotes}</p>}
+      </div>
+    </details>
+  </Stack>;
+}
+
+function ResourceSourcesSection({ providers, hasMaterialSourceData }: { providers: MaterialSourceProvider[]; hasMaterialSourceData: boolean }) {
   const { t, lang } = useI18n();
   const groupedProviders = useMemo(() => {
     const groups = new Map<'planetary' | 'asteroid' | 'other', MaterialSourceProvider[]>();
     for (const provider of providers) {
       const type = simplifyProviderType(provider.providerType);
-      const list = groups.get(type) ?? [];
-      list.push(provider);
-      groups.set(type, list);
+      groups.set(type, [...(groups.get(type) ?? []), provider]);
     }
-
-    return [...groups.entries()]
-      .map(([type, list]) => [
-        type,
-        [...list].sort(
-          (left, right) =>
-            (getMaterialProviderProbabilityPct(right) ?? 0) -
-              (getMaterialProviderProbabilityPct(left) ?? 0) ||
-            String(left.providerDisplayName ?? '').localeCompare(String(right.providerDisplayName ?? '')),
-        ),
-      ] as const)
-      .sort(([left], [right]) => left.localeCompare(right));
+    return [...groups.entries()].map(([type, list]) => [type, [...list].sort((a, b) =>
+      (getMaterialProviderProbabilityPct(b) ?? -1) - (getMaterialProviderProbabilityPct(a) ?? -1)
+      || String(a.providerDisplayName ?? '').localeCompare(String(b.providerDisplayName ?? '')),
+    )] as const).sort(([a], [b]) => a.localeCompare(b));
   }, [providers]);
-
-  return (
-    <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
-      <Stack spacing={1.5}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <ScienceOutlinedIcon sx={{ color: 'secondary.main', fontSize: '1.1rem' }} />
-          <Typography component="h2" variant="overline">{t('Best Sources', 'Meilleures sources')}</Typography>
-        </Stack>
-        {!hasMaterialSourceData ? (
-          <DatasetTooOldNotice />
-        ) : providers.length === 0 ? (
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {t('No provider data available for this resource.', 'Aucune source connue pour cette ressource.')}
-          </Typography>
-        ) : (
-          <Stack spacing={1.5}>
-            {groupedProviders.map(([type, list]) => {
-              const iconName = type === 'asteroid' ? 'asteroid' : type === 'planetary' ? 'planet' : null;
-
-              return (
-                <Paper key={type} variant="outlined" sx={{ p: 1.25, backgroundColor: 'background.default' }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {iconName && <StarCitizenLicensedIcon name={iconName} size={16} dimmed />}
-                      <Typography variant="subtitle2">
-                        {type === 'asteroid'
-                          ? t('Asteroid sources', 'Sources asteroidales')
-                          : type === 'planetary'
-                            ? t('Planetary sources', 'Sources planetaires')
-                            : t('Other sources', 'Autres sources')}
-                      </Typography>
-                    </Stack>
-                    <Stack spacing={1}>
-                      {list.map((provider) => {
-                        const providerIcon = getMaterialProviderIconName(
-                          provider.providerType,
-                          provider.providerDisplayName,
-                          provider.system,
-                        );
-                        const providerProbabilityPct = getMaterialProviderProbabilityPct(provider);
-
-                        return (
-                          <Paper
-                            key={`${provider.providerId ?? provider.providerDisplayName}-${provider.system ?? 'unknown'}`}
-                            variant="outlined"
-                            sx={{ p: 1.25, backgroundColor: 'background.paper' }}
-                          >
-                            <Stack
-                              direction={{ xs: 'column', md: 'row' }}
-                              spacing={1}
-                              justifyContent="space-between"
-                              alignItems={{ xs: 'flex-start', md: 'center' }}
-                            >
-                              <Stack spacing={0.4}>
-                                <Stack direction="row" spacing={0.75} alignItems="center">
-                                  {providerIcon && <StarCitizenLicensedIcon name={providerIcon} size={14} dimmed />}
-                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                    {provider.providerDisplayName}
-                                  </Typography>
-                                  {provider.system && <AppChip size="small" variant="outlined" label={provider.system} />}
-                                </Stack>
-                                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                  <AppChip
-                                    size="small"
-                                    variant="outlined"
-                                    label={formatMaterialProviderType(provider.providerType, lang)}
-                                  />
-                                  {provider.sourceMethod && (
-                                    <AppChip
-                                      size="small"
-                                      variant="outlined"
-                                      label={formatMaterialSourceMethod(provider.sourceMethod, lang)}
-                                    />
-                                  )}
-                                  {provider.mineableGroupName && (
-                                    <AppChip
-                                      size="small"
-                                      variant="outlined"
-                                      label={formatMineableGroupName(provider.mineableGroupName)}
-                                    />
-                                  )}
-                                </Stack>
-                              </Stack>
-                              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                {providerProbabilityPct != null && (
-                                  <AppChip
-                                    size="small"
-                                    label={`${t('Share', 'Part')}: ${providerProbabilityPct}%`}
-                                  />
-                                )}
-                                {provider.tier && (
-                                  <AppChip
-                                    size="small"
-                                    variant="outlined"
-                                    label={`${t('Tier', 'Tier')}: ${provider.tier}`}
-                                  />
-                                )}
-                                <AppChip
-                                  size="small"
-                                  variant="outlined"
-                                  label={formatMaterialProviderConfidence(provider.labelConfidence, lang)}
-                                />
-                              </Stack>
-                            </Stack>
-                          </Paper>
-                        );
-                      })}
-                    </Stack>
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
-        )}
-      </Stack>
-    </Paper>
-  );
+  return <section className="resource-source-section">
+    {!hasMaterialSourceData ? <DatasetTooOldNotice /> : !providers.length
+      ? <SurfaceState icon={<ScienceOutlinedIcon />} title={t('No known source', 'Aucune source connue', 'Keine bekannte Quelle')} description={t('Check missions and blueprints for other uses of this resource.', 'Consultez les missions et blueprints pour les autres usages de cette ressource.', 'Missionen und Blueprints zeigen weitere Verwendungen dieser Ressource.')} />
+      : groupedProviders.map(([type, list]) => <div key={type} className="resource-source-group">
+        <div className="resource-section-heading"><h2>{type === 'asteroid' ? t('Asteroids', 'Astéroïdes', 'Asteroiden') : type === 'planetary' ? t('Planets & moons', 'Planètes et lunes', 'Planeten & Monde') : t('Other sources', 'Autres sources', 'Andere Quellen')}</h2><span>{list.length}</span></div>
+        {list.map((provider, index) => {
+          const icon = getMaterialProviderIconName(provider.providerType, provider.providerDisplayName, provider.system);
+          const share = getMaterialProviderProbabilityPct(provider);
+          return <details className="resource-source-row" key={`${provider.providerId ?? provider.providerDisplayName}-${index}`}>
+            <summary>
+              <span className="resource-source-icon">{icon ? <StarCitizenLicensedIcon name={icon} size={28} /> : <ScienceOutlinedIcon />}</span>
+              <span className="resource-source-name"><strong>{provider.providerDisplayName}</strong><small>{[provider.system, provider.sourceMethod && formatMaterialSourceMethod(provider.sourceMethod, lang)].filter(Boolean).join(' · ')}</small></span>
+              {share != null && <span className="resource-share"><strong>{share}%</strong><small>{t('share', 'part', 'Anteil')}</small></span>}
+              <ChevronRightOutlinedIcon className="resource-disclosure-chevron" sx={{ fontSize: 18 }} />
+            </summary>
+            <div className="resource-disclosure-content">
+              {[
+                [t('Source type', 'Type de source', 'Quellentyp'), formatMaterialProviderType(provider.providerType, lang)],
+                [t('Deposit', 'Gisement', 'Vorkommen'), provider.mineableGroupName ? formatMineableGroupName(provider.mineableGroupName) : null],
+                [t('Tier', 'Palier', 'Stufe'), provider.tier],
+                [t('Location confidence', 'Précision du lieu', 'Ortsgenauigkeit'), formatMaterialProviderConfidence(provider.labelConfidence, lang)],
+              ].filter(([, value]) => value != null).map(([label, value]) => <div className="resource-fact-line" key={String(label)}><span>{label}</span><strong>{value}</strong></div>)}
+            </div>
+          </details>;
+        })}
+      </div>)}
+  </section>;
 }
 
 function ResourceMissionSection({
@@ -1443,6 +904,8 @@ export function ResourcesPage() {
     blueprints,
     ensureResourceDataLoaded,
     ensureMissionRewardsLoaded,
+    ensureFactionContractsLoaded,
+    factionContractsByFactionId,
     materialSources,
     missionRewards,
     missionRewardsLoading,
@@ -1464,6 +927,7 @@ export function ResourcesPage() {
     resourceSlugFromPathname(window.location.pathname),
   );
   const [search, setSearch] = useState('');
+  const [detailSection, setDetailSection] = useState<'sources' | 'missions' | 'blueprints'>('sources');
   const [familyFilter, setFamilyFilter] = useState<ResourceFamilyFilter>('all');
   const [systemFilter] = useState<string | null>(null);
   const [sourceTypeFilter, setSourceTypeFilter] = useState<ResourceSourceTypeFilter>('all');
@@ -1474,6 +938,7 @@ export function ResourcesPage() {
   const [inventoryDialog, setInventoryDialog] = useState<ResourceInventoryDialogState | null>(null);
   const [inventoryBusy, setInventoryBusy] = useState(false);
   const [inventoryNotice, setInventoryNotice] = useState<string | null>(null);
+  const [plannedResourceName, setPlannedResourceName] = useState<string | null>(null);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1485,9 +950,9 @@ export function ResourcesPage() {
   const allContracts = useMemo<FlatMissionContract[]>(() => {
     if (!missionRewards) return [];
     return missionRewards.factionGroups.flatMap((group) =>
-      (group.contracts ?? []).map((contract) => ({ contract, group })),
+      (factionContractsByFactionId[group.id] ?? group.contracts ?? []).map((contract) => ({ contract, group })),
     );
-  }, [missionRewards]);
+  }, [missionRewards, factionContractsByFactionId]);
 
   useEffect(() => {
     void ensureResourceDataLoaded();
@@ -1651,6 +1116,34 @@ export function ResourcesPage() {
   }, [resources, selectedResourceSlug]);
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const main = getMainContentScrollRoot();
+      main?.focus({ preventScroll: true });
+      main?.scrollTo({ top: 0 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedResource?.id]);
+
+  // New datasets expose a small resource-to-faction index; load only the
+  // relevant contract chunks when the player opens the Missions section.
+  const selectedMissionGroups = useMemo(() => {
+    if (!selectedResource || !missionRewards) return [];
+    const ids = missionRewards.resourceObjectiveIndex?.[selectedResource.id];
+    if (ids) {
+      const relevantIds = new Set(ids);
+      return missionRewards.factionGroups.filter((group) => relevantIds.has(group.id));
+    }
+    return missionRewards.factionGroups;
+  }, [selectedResource, missionRewards]);
+  const missingMissionGroups = useMemo(() => selectedMissionGroups.filter((group) =>
+    !group.contracts?.length && group.contractCount > 0 && !Object.prototype.hasOwnProperty.call(factionContractsByFactionId, group.id),
+  ), [selectedMissionGroups, factionContractsByFactionId]);
+  useEffect(() => {
+    if (detailSection !== 'missions') return;
+    for (const group of missingMissionGroups) void ensureFactionContractsLoaded(group.id);
+  }, [detailSection, missingMissionGroups, ensureFactionContractsLoaded]);
+
+  useEffect(() => {
     if (!selectedResourceSlug || selectedResource || resources.length === 0) return;
     setSelectedResourceSlug(null);
     navigateToPath('/resources', { mainView: 'resources' });
@@ -1769,6 +1262,7 @@ export function ResourcesPage() {
   }, [filteredResources, previewResourceId]);
 
   const openResourceDetail = (resource: Resource) => {
+    setDetailSection('sources');
     setSelectedResourceSlug(resource.id);
     navigateToPath(resourcePathFromSlug(resource.id), {
       resourceId: resource.id,
@@ -1782,6 +1276,7 @@ export function ResourcesPage() {
       1,
       resourcePlannerUnitById.get(resource.id) ?? 'scu',
     );
+    setPlannedResourceName(resource.name);
   };
 
   const resourceStats = useMemo(() => {
@@ -1827,425 +1322,44 @@ export function ResourcesPage() {
     const blueprintIdSet = new Set(selectedInsight.blueprintIds);
     return blueprints.filter((blueprint) => blueprintIdSet.has(blueprint.id));
   }, [blueprints, selectedInsight]);
-  const selectedCraftDemand = useMemo(
-    () =>
-      selectedResource
-        ? summarizeResourceCraftDemand(selectedResource.id, selectedBlueprints)
-        : { quantity: 0, quantityUnit: 'scu' as const },
-    [selectedBlueprints, selectedResource],
-  );
+  const selectedCraftDemand = useMemo(() => {
+    const demand = selectedResource
+      ? summarizeResourceCraftDemand(selectedResource.id, selectedBlueprints)
+      : { quantity: 0, quantityUnit: 'scu' as const };
+    const publishedInsight = activeDataset.resourceInsights?.find((entry) => entry.resourceId === selectedResource?.id);
+    // The exporter sums quantityScu before publishing the slim blueprint catalog.
+    // Its positive SCU aggregate remains valid when no recipe slots are loaded.
+    if (publishedInsight && Number.isFinite(publishedInsight.totalScuPerCraftSum)
+      && publishedInsight.totalScuPerCraftSum > 0 && demand.quantityUnit === 'scu') {
+      return { quantity: publishedInsight.totalScuPerCraftSum, quantityUnit: 'scu' as const, coverage: null };
+    }
+    const total = selectedInsight?.blueprintUsageCount ?? selectedBlueprints.length;
+    const loaded = selectedBlueprints.filter((blueprint) => blueprint.slots.some((slot) =>
+      isResourceSlot(slot) && slot.requiredResource.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') === selectedResource?.id,
+    )).length;
+    return {
+      ...demand,
+      quantity: loaded === 0 && total > 0 ? null : demand.quantity,
+      coverage: loaded < total ? { loaded, total } : null,
+    };
+  }, [activeDataset.resourceInsights, selectedBlueprints, selectedInsight, selectedResource]);
   const selectedProgress =
     (selectedResource &&
       (resourceProgress[selectedResource.name] ?? resourceProgress[selectedResource.id])) ??
     null;
 
-  if (selectedResource) {
-    return (
-      <PageLayout
-        width="wide"
-        sx={{ animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both' }}
-      >
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: '300px minmax(0, 1fr)' },
-            gap: 'var(--workspace-gap)',
-          }}
-        >
-          <ResourceIdentityPanel
-            resource={selectedResource}
-            insight={selectedInsight}
-            resourceProgress={selectedProgress}
-            craftDemandQuantity={selectedCraftDemand.quantity}
-            craftDemandUnit={selectedCraftDemand.quantityUnit}
-            onBack={() => {
-              setSelectedResourceSlug(null);
-              navigateToPath('/resources', { mainView: 'resources' });
-            }}
-          />
+  const plannerNoticeView = plannedResourceName && <AppAlert severity="success">
+    <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center" useFlexGap flexWrap="wrap">
+      <span>{t(`${plannedResourceName} added to your collection plan.`, `${plannedResourceName} ajouté à votre collecte.`, `${plannedResourceName} zum Sammelplan hinzugefügt.`)}</span>
+      <AppButton size="sm" variant="ghost" href="/planner#planner-production" onClick={(event) => {
+        if (!shouldHandleInternalLinkClick(event)) return;
+        event.preventDefault();
+        navigateToPath('/planner#planner-production', { mainView: 'planner' });
+      }}>{t('View planner', 'Voir le planificateur', 'Planer öffnen')}</AppButton>
+    </Stack>
+  </AppAlert>;
 
-          <Stack spacing={2}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                bgcolor: 'ui.surface',
-                borderColor: 'ui.border',
-                borderRadius: 2,
-              }}
-            >
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
-                <ResourceFact label={t('Systems', 'Systèmes')} value={(selectedInsight?.systems ?? []).join(', ') || '—'} />
-                <ResourceFact label={t('Mission employers', 'Employeurs mission')} value={String(selectedInsight?.missionEmployers.length ?? 0)} />
-                <ResourceFact label={t('Source families', 'Familles de source')} value={(selectedInsight?.providerTypes ?? []).join(', ') || '—'} />
-              </Stack>
-            </Paper>
-
-            <ResourceSourcesSection
-              providers={selectedProviders}
-              hasMaterialSourceData={Boolean(materialSources?.resources) || resourceDataLoading}
-            />
-            <ResourceMissionSection
-              selection={selectedMissionDemand}
-              resourceId={selectedResource.id}
-              missionRewardsLoading={missionRewardsLoading}
-              hasMissionRewardData={Boolean(missionRewards)}
-            />
-
-            <ResourceBlueprintUsageSection
-              resourceId={selectedResource.id}
-              blueprints={selectedBlueprints}
-              resources={resources}
-              onOpenBlueprint={setActiveBlueprint}
-            />
-          </Stack>
-        </Box>
-      </PageLayout>
-    );
-  }
-
-  const tableHeaderCellSx = {
-    fontFamily: FONT_MONO,
-    fontSize: TEXT_LABEL_SM,
-    color: 'text.secondary',
-    fontWeight: 600,
-    borderColor: 'ui.border',
-  };
-
-  return (
-    <PageLayout
-      width="wide"
-      sx={{ animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both' }}
-    >
-      <PageHeader
-        eyebrow={t('Dataset', 'Dataset')}
-        title={t('Resources', 'Ressources')}
-        description={t(
-          'Browse material demand, provider coverage and mission pull across the published dataset.',
-          'Parcourez la demande en matériaux, la couverture des sources et la pression mission du dataset publié.',
-        )}
-        stats={
-          <>
-            <PageStatCard label={t('Resources', 'Ressources')} value={String(resourceStats.resourceCount)} domain="green" />
-            <PageStatCard label={t('Systems', 'Systèmes')} value={String(resourceStats.systemCount)} domain="cyan" />
-            <PageStatCard label={t('Mission-linked', 'Liées aux missions')} value={String(resourceStats.missionLinkedCount)} domain="blue" />
-            <PageStatCard label={t('Providers', 'Sources')} value={String(resourceStats.providerCount)} domain="cyan" />
-          </>
-        }
-      />
-
-      {(inventoryNotice || inventoryError) && (
-        <AppAlert severity={inventoryError ? 'error' : 'success'}>
-          {inventoryError ?? inventoryNotice}
-        </AppAlert>
-      )}
-
-      <ResponsiveFilters
-        title={t('Resource filters and sorting', 'Filtres et tri des ressources')}
-        triggerLabel={t('Filters and sort', 'Filtres et tri')}
-        closeLabel={t('Show results', 'Afficher les résultats')}
-        dismissLabel={t('Close filters', 'Fermer les filtres')}
-        summary={
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {getResourceFamilyLabel(familyFilter, lang)} · {getSourceTypeLabel(sourceTypeFilter, lang)} ·{' '}
-            {loc(RESOURCE_SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? RESOURCE_SORT_OPTIONS[0].label, lang)}
-          </Typography>
-        }
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: { xs: 'stretch', md: 'center' },
-            flexDirection: { xs: 'column', md: 'row' },
-            gap: 1.5,
-            flexWrap: 'wrap',
-            p: 1.5,
-            bgcolor: 'ui.surface',
-            border: '1px solid',
-            borderColor: 'ui.border',
-            borderRadius: 2,
-          }}
-        >
-          <AppTextField
-            type="search"
-            placeholder={t('Search resources...', 'Rechercher des ressources...')}
-            value={search}
-            onValueChange={setSearch}
-            ariaLabel={t('Search resources', 'Rechercher des ressources')}
-            sx={{ height: 34, fontSize: TEXT_LABEL_LG }}
-            fieldSx={{ flex: '1 1 200px', minWidth: 0 }}
-          />
-          <Box
-            role="group"
-            aria-label={t('Filter by resource family', 'Filtrer par famille de ressource')}
-            sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
-          >
-            {(['all', 'metal', 'mineral', 'crystal', 'ice', 'crafting-slot'] as ResourceFamilyFilter[]).map((family) => (
-              <AppButton
-                key={family}
-                size="sm"
-                variant={familyFilter === family ? 'primary' : 'secondary'}
-                ariaPressed={familyFilter === family}
-                onClick={() => setFamilyFilter(family)}
-                sx={{ fontSize: TEXT_LABEL }}
-              >
-                {getResourceFamilyLabel(family, lang)}
-              </AppButton>
-            ))}
-          </Box>
-          <Box
-            role="group"
-            aria-label={t('Filter by source type', 'Filtrer par type de source')}
-            sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
-          >
-            {(['all', 'planetary', 'asteroid'] as ResourceSourceTypeFilter[]).map((type) => (
-              <AppButton
-                key={type}
-                size="sm"
-                variant={sourceTypeFilter === type ? 'primary' : 'secondary'}
-                ariaPressed={sourceTypeFilter === type}
-                onClick={() => setSourceTypeFilter(type)}
-                sx={{ fontSize: TEXT_LABEL }}
-              >
-                {getSourceTypeLabel(type, lang)}
-              </AppButton>
-            ))}
-          </Box>
-          <AppSelect<ResourceSort>
-            label={t('Sort resources', 'Trier les ressources')}
-            value={sortBy}
-            options={RESOURCE_SORT_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
-            onValueChange={(value) => value && setSortBy(value)}
-            sx={{ minWidth: 170, height: 34, fontSize: TEXT_LABEL_LG }}
-            fieldSx={{ minWidth: { xs: 0, md: 170 } }}
-            partSx={{ input: { py: 0.5 }, trigger: { width: 32 } }}
-          />
-        </Box>
-      </ResponsiveFilters>
-
-      {/* Resource list */}
-      {resourceDataLoading && resources.length === 0 ? (
-        <SurfaceState
-          tone="loading"
-          title={t('Loading resources', 'Chargement des ressources')}
-          description={t('Preparing material and provider data.', 'Préparation des données de matériaux et de sources.')}
-        />
-      ) : filteredResources.length === 0 ? (
-        <SurfaceState
-          icon={<ImageNotSupportedOutlinedIcon sx={{ fontSize: '2rem' }} />}
-          title={t('No resource matches the current filters.', 'Aucune ressource ne correspond aux filtres actuels.')}
-          description={t('Broaden the search or clear one of the active filters.', 'Élargissez la recherche ou retirez un des filtres actifs.')}
-        />
-      ) : (
-        <>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 280px' },
-              gap: { xs: 1.5, lg: 2 },
-              alignItems: 'flex-start',
-            }}
-          >
-            {/* Desktop table */}
-            <Paper
-              variant="outlined"
-              sx={{ bgcolor: 'ui.surface', borderColor: 'ui.border', borderRadius: 2, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderBottom: '1px solid', borderColor: 'ui.border', bgcolor: 'background.paper' }}>
-                <Typography sx={{ fontFamily: FONT_MONO, fontSize: TEXT_LABEL_SM, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' }}>
-                  {filteredResources.length} {t('resources', 'ressources')}
-                </Typography>
-              </Box>
-              <Table size="small" sx={{ tableLayout: 'fixed', '& th, & td': { px: 1, overflowWrap: 'anywhere' } }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'background.paper' }}>
-                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, width: '30%' }}>{t('Material', 'Matériau')}</TableCell>
-                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, display: { xs: 'none', md: 'table-cell' } }}>{t('Family', 'Famille')}</TableCell>
-                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, display: { xs: 'none', lg: 'table-cell' } }}>{t('Source', 'Source')}</TableCell>
-                    <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Providers', 'Sources')}</TableCell>
-                    <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Missions', 'Missions')}</TableCell>
-                    <TableCell component="th" scope="col" sx={tableHeaderCellSx}>{t('Blueprints', 'Blueprints')}</TableCell>
-                    <TableCell component="th" scope="col" sx={{ ...tableHeaderCellSx, textAlign: 'right', width: 110 }}>{t('Actions', 'Actions')}</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {renderedResources.map((resource) => {
-                    const insight = resourceInsightById.get(resource.id) ?? null;
-                    const isSelected = previewResource?.id === resource.id;
-                    return (
-                      <TableRow
-                        key={resource.id}
-                        hover
-                        sx={{
-                          borderLeft: '2px solid',
-                          borderLeftColor: isSelected ? 'primary.main' : 'transparent',
-                          bgcolor: isSelected ? (th) => alpha(th.palette.primary.main, 0.06) : 'transparent',
-                          '&:hover': { bgcolor: (th) => alpha(th.palette.primary.main, 0.06) },
-                          '& td': { borderColor: 'ui.border' },
-                        }}
-                      >
-                        <TableCell sx={{ borderColor: 'ui.border' }}>
-                          <AppButton
-                            href={resourcePathFromSlug(resource.id)}
-                            variant="ghost"
-                            ariaLabel={t(`Open ${resource.name} details`, `Ouvrir les détails de ${resource.name}`)}
-                            onClick={(event) => {
-                              if (!shouldHandleInternalLinkClick(event)) return;
-                              event.preventDefault();
-                              openResourceDetail(resource);
-                            }}
-                            sx={{ width: '100%', justifyContent: 'flex-start', p: 0, textAlign: 'left' }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-                              <Box
-                                sx={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 1,
-                                  bgcolor: alpha(resource.color, 0.12),
-                                  color: resource.color,
-                                  border: `1px solid ${alpha(resource.color, 0.35)}`,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexShrink: 0,
-                                  overflow: 'hidden',
-                                }}
-                              >
-                                {resource.visual?.imageUrl ? (
-                                  <CardMedia
-                                    component="img"
-                                    image={resource.visual.imageUrl}
-                                    alt=""
-                                    loading="lazy"
-                                    referrerPolicy="no-referrer"
-                                    sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                  />
-                                ) : (
-                                  <ResourceIcon name={resource.name} size={18} shimmer={false} />
-                                )}
-                              </Box>
-                              <Box sx={{ minWidth: 0, flex: 1 }}>
-                                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.2 }} noWrap>
-                                  {resource.name}
-                                </Typography>
-                                {resource.description && (
-                                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }} noWrap>
-                                    {resource.description}
-                                  </Typography>
-                                )}
-                              </Box>
-                            </Box>
-                          </AppButton>
-                        </TableCell>
-                        <TableCell sx={{ borderColor: 'ui.border', display: { xs: 'none', md: 'table-cell' } }}>
-                          <ResourceFamilyChip resource={resource} />
-                        </TableCell>
-                        <TableCell sx={{ borderColor: 'ui.border', display: { xs: 'none', lg: 'table-cell' } }}>
-                          {(insight?.sourceMethods ?? []).length > 0 ? (
-                            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
-                              {(insight?.sourceMethods ?? []).map((method) => (
-                                <AppChip
-                                  key={method}
-                                  size="small"
-                                  variant="outlined"
-                                  label={formatMaterialSourceMethod(method, lang)}
-                                  sx={{ height: 20, px: 0.75, fontSize: TEXT_LABEL_SM }}
-                                />
-                              ))}
-                            </Stack>
-                          ) : (
-                            <Typography sx={{ fontFamily: FONT_MONO, fontSize: '0.875rem', color: 'text.disabled' }}>—</Typography>
-                          )}
-                        </TableCell>
-                        <TableCell sx={{ borderColor: 'ui.border' }}>
-                          <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.875rem' }}>
-                            {insight?.providerCount ?? 0}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={{ borderColor: 'ui.border' }}>
-                          <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.875rem' }}>
-                            {insight?.missionObjectiveContractCount ?? 0}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={{ borderColor: 'ui.border' }}>
-                          <Typography sx={{ fontFamily: FONT_MONO, fontWeight: 700, fontSize: '0.875rem' }}>
-                            {insight?.blueprintUsageCount ?? 0}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={{ borderColor: 'ui.border' }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                            <AppTooltip content={t('Preview resource', 'Prévisualiser la ressource')}>
-                              <IconButton
-                                size="small"
-                                aria-label={t(`Preview ${resource.name}`, `Prévisualiser ${resource.name}`)}
-                                aria-pressed={isSelected}
-                                onClick={() => setPreviewResourceId(resource.id)}
-                                sx={{ display: { xs: 'none', lg: 'inline-flex' }, color: isSelected ? 'primary.main' : 'text.disabled', '&:hover': { color: 'primary.main' } }}
-                              >
-                                <ScienceOutlinedIcon sx={{ fontSize: '1rem' }} />
-                              </IconButton>
-                            </AppTooltip>
-                            <AppTooltip content={t('Add to planner', 'Ajouter au planificateur')}>
-                              <IconButton
-                                size="small"
-                                aria-label={t(`Add ${resource.name} to planner`, `Ajouter ${resource.name} au planificateur`)}
-                                onClick={() => addResourceToPlanner(resource)}
-                                sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
-                              >
-                                <PlaylistAddOutlinedIcon sx={{ fontSize: '1rem' }} />
-                              </IconButton>
-                            </AppTooltip>
-                            <AppTooltip content={t('Open resource detail', 'Ouvrir la fiche ressource')}>
-                              <IconButton
-                                size="small"
-                                aria-label={t(`Open ${resource.name} details`, `Ouvrir les détails de ${resource.name}`)}
-                                onClick={() => openResourceDetail(resource)}
-                                sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
-                              >
-                                <ChevronRightOutlinedIcon sx={{ fontSize: '1rem' }} />
-                              </IconButton>
-                            </AppTooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Paper>
-
-            {/* Mobile list */}
-            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-              <ResourceMobileList
-                resources={renderedResources}
-                resourceInsightById={resourceInsightById}
-                onOpen={openResourceDetail}
-                onAddToPlanner={addResourceToPlanner}
-                onAddToInventory={openInventoryDialog}
-              />
-            </Box>
-
-            {/* Preview panel */}
-            <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
-              <ResourcePreviewPanel
-                resource={previewResource}
-                insight={previewInsight}
-                providers={previewProviders}
-                linkedBlueprints={previewLinkedBlueprints}
-                onOpen={openResourceDetail}
-                onAddToPlanner={addResourceToPlanner}
-                onAddToInventory={openInventoryDialog}
-                onOpenBlueprint={setActiveBlueprint}
-              />
-            </Box>
-          </Box>
-          {visibleCount < filteredResources.length && (
-            <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
-          )}
-        </>
-      )}
-
+  const inventoryDialogView = (
       <AppDialog
         open={Boolean(inventoryDialog)}
         onOpenChange={(open) => {
@@ -2284,7 +1398,7 @@ export function ResourcesPage() {
           )}
 
           <AppTextField
-            label={t('Quantity', 'Quantite', 'Menge')}
+            label={`${t('Quantity', 'Quantité', 'Menge')} (${inventoryDialog?.quantityUnit === 'count' ? t('items', 'objets', 'Teile') : 'SCU'})`}
             type="number"
             value={String(inventoryDialog?.quantity ?? '')}
             onValueChange={(value) => {
@@ -2331,6 +1445,147 @@ export function ResourcesPage() {
           />
         </Stack>
       </AppDialog>
+  );
+
+  if (selectedResource) {
+    return <PageLayout width="wide">
+      {plannerNoticeView}
+      {(inventoryNotice || inventoryError) && <AppAlert severity={inventoryError ? 'error' : 'success'}>{inventoryError ?? inventoryNotice}</AppAlert>}
+      <div className="resource-detail-layout">
+        <aside>
+          <ResourceIdentityPanel resource={selectedResource} insight={selectedInsight} resourceProgress={selectedProgress} craftDemandQuantity={selectedCraftDemand.quantity} craftDemandCoverage={selectedCraftDemand.coverage} craftDemandUnit={selectedCraftDemand.quantityUnit}
+            onBack={() => { setSelectedResourceSlug(null); navigateToPath('/resources', { mainView: 'resources' }); }} />
+          <div className="resource-detail-actions">
+            <AppButton fullWidth variant="primary" startIcon={<PlaylistAddOutlinedIcon />} onClick={() => addResourceToPlanner(selectedResource)}>{t('Plan collection', 'Planifier la collecte', 'Sammlung planen')}</AppButton>
+            <AppButton fullWidth variant="secondary" startIcon={<Inventory2OutlinedIcon />} onClick={() => openInventoryDialog(selectedResource)}>{t('Add to inventory', 'Ajouter au stock', 'Zum Bestand hinzufügen')}</AppButton>
+          </div>
+        </aside>
+        <div className="resource-detail-content">
+          <nav className="resource-detail-nav" aria-label={t('Resource guide', 'Fiche ressource', 'Ressourcenübersicht')}>
+            {([
+              ['sources', t('Where to find it', 'Où la trouver', 'Fundorte'), selectedProviders.length, <ScienceOutlinedIcon />],
+              ['missions', t('Missions', 'Missions', 'Missionen'), missingMissionGroups.length || missionRewardsLoading ? selectedInsight?.missionObjectiveContractCount || '…' : selectedMissionDemand.length, <RouteOutlinedIcon />],
+              ['blueprints', t('Blueprints', 'Blueprints', 'Blueprints'), selectedBlueprints.length, <ViewInArOutlinedIcon />],
+            ] as const).map(([id, label, count, icon]) => <AppButton key={id} size="sm" variant={detailSection === id ? 'primary' : 'ghost'} ariaPressed={detailSection === id} startIcon={icon} onClick={() => setDetailSection(id)}>{label} <span className="resource-nav-count">{count}</span></AppButton>)}
+          </nav>
+          {detailSection === 'sources' && <ResourceSourcesSection key={selectedResource.id} providers={selectedProviders} hasMaterialSourceData={Boolean(materialSources?.resources) || resourceDataLoading} />}
+          {detailSection === 'missions' && <ResourceMissionSection selection={selectedMissionDemand} resourceId={selectedResource.id} missionRewardsLoading={missionRewardsLoading || missingMissionGroups.length > 0} hasMissionRewardData={Boolean(missionRewards)} />}
+          {detailSection === 'blueprints' && <ResourceBlueprintUsageSection resourceId={selectedResource.id} blueprints={selectedBlueprints} resources={resources} onOpenBlueprint={setActiveBlueprint} />}
+        </div>
+      </div>
+      {inventoryDialogView}
+    </PageLayout>;
+  }
+
+
+  return (
+    <PageLayout
+      width="wide"
+      sx={{ animation: 'if-fade-in 280ms cubic-bezier(0.22,1,0.36,1) both' }}
+    >
+      <PageHeader variant="compact" title={t('Resources', 'Ressources', 'Ressourcen')}
+        description={t('Find a material. Choose a source. Plan your collection.', 'Trouvez un matériau, choisissez une source, préparez votre collecte.', 'Material finden, Quelle wählen, Sammlung planen.')}
+        actions={<details className="resource-catalog-summary"><summary>{resourceStats.resourceCount} {t('resources', 'ressources', 'Ressourcen')}</summary><div>
+          <ResourceFact label={t('Systems', 'Systèmes', 'Systeme')} value={String(resourceStats.systemCount)} />
+          <ResourceFact label={t('Mission-linked', 'Liées aux missions', 'Missionsbezogen')} value={String(resourceStats.missionLinkedCount)} />
+          <ResourceFact label={t('Sources', 'Sources', 'Quellen')} value={String(resourceStats.providerCount)} />
+        </div></details>} />
+
+      {(inventoryNotice || inventoryError) && (
+        <AppAlert severity={inventoryError ? 'error' : 'success'}>
+          {inventoryError ?? inventoryNotice}
+        </AppAlert>
+      )}
+
+      {plannerNoticeView}
+
+      <div className="resource-filter-bar">
+        <AppTextField type="search" placeholder={t('Search resources…', 'Rechercher une ressource…', 'Ressource suchen…')} value={search} onValueChange={setSearch} ariaLabel={t('Search resources', 'Rechercher des ressources', 'Ressourcen suchen')} fieldSx={{ flex: '1 1 230px', minWidth: 0 }} />
+        <AppSelect<ResourceFamilyFilter> label={t('Family', 'Famille', 'Familie')} value={familyFilter}
+          options={(['all', 'metal', 'mineral', 'crystal', 'ice', 'crafting-slot'] as ResourceFamilyFilter[]).map((family) => ({ value: family, label: getResourceFamilyLabel(family, lang) }))}
+          onValueChange={(value) => value && setFamilyFilter(value)} fieldSx={{ minWidth: 150 }} />
+        <details className="resource-filter-options"><summary>{t('Filters & sort', 'Filtres et tri', 'Filter & Sortierung')}{sourceTypeFilter !== 'all' || sortBy !== 'name-asc' ? ' •' : ''}</summary>
+          <div><AppSelect<ResourceSourceTypeFilter> label={t('Source type', 'Type de source', 'Quellentyp')} value={sourceTypeFilter}
+            options={(['all', 'planetary', 'asteroid'] as ResourceSourceTypeFilter[]).map((type) => ({ value: type, label: getSourceTypeLabel(type, lang) }))}
+            onValueChange={(value) => value && setSourceTypeFilter(value)} />
+          <AppSelect<ResourceSort> label={t('Sort resources', 'Trier les ressources', 'Ressourcen sortieren')} value={sortBy}
+            options={RESOURCE_SORT_OPTIONS.map((option) => ({ value: option.value, label: loc(option.label, lang) }))}
+            onValueChange={(value) => value && setSortBy(value)} /></div>
+        </details>
+      </div>
+
+      {/* Resource list */}
+      {resourceDataLoading && resources.length === 0 ? (
+        <SurfaceState
+          tone="loading"
+          title={t('Loading resources', 'Chargement des ressources')}
+          description={t('Preparing material and provider data.', 'Préparation des données de matériaux et de sources.')}
+        />
+      ) : filteredResources.length === 0 ? (
+        <SurfaceState
+          icon={<ImageNotSupportedOutlinedIcon sx={{ fontSize: '2rem' }} />}
+          title={t('No resource matches the current filters.', 'Aucune ressource ne correspond aux filtres actuels.')}
+          description={t('Broaden the search or clear one of the active filters.', 'Élargissez la recherche ou retirez un des filtres actifs.')}
+        />
+      ) : (
+        <>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) minmax(280px, 340px)' },
+              gap: { xs: 1.5, lg: 2 },
+              alignItems: 'flex-start',
+            }}
+          >
+            <div className="resource-register-desktop">
+              <div className="resource-section-heading"><h2>{filteredResources.length} {t('resources', 'ressources', 'Ressourcen')}</h2><span>{t('Select to explore', 'Sélectionnez pour explorer', 'Zum Erkunden auswählen')}</span></div>
+              <div className="resource-register" role="list">
+                {renderedResources.map((resource) => {
+                  const insight = resourceInsightById.get(resource.id);
+                  const selected = previewResource?.id === resource.id;
+                  return <div role="listitem" key={resource.id}>
+                    <button type="button" className="resource-register-row" aria-pressed={selected}
+                      aria-label={t(`Explore ${resource.name}`, `Explorer ${resource.name}`, `${resource.name} erkunden`)} onClick={() => setPreviewResourceId(resource.id)}>
+                      <ResourceThumbnail resource={resource} size={48} />
+                      <span className="resource-register-identity"><strong>{resource.name}</strong>{resource.visualKind && <span>{getResourceFamilyLabel(resource.visualKind as ResourceFamilyFilter, lang)}</span>}</span>
+                      <span className="resource-register-location"><strong>{insight?.systems.join(', ') || '—'}</strong><small>{insight?.providerCount ?? 0} {t('sources', 'sources', 'Quellen')}</small></span>
+                      <ChevronRightOutlinedIcon sx={{ fontSize: 18, color: selected ? 'primary.main' : 'text.secondary' }} />
+                    </button>
+                  </div>;
+                })}
+              </div>
+            </div>
+
+            {/* Mobile list */}
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+              <ResourceMobileList
+                resources={renderedResources}
+                resourceInsightById={resourceInsightById}
+                onOpen={openResourceDetail}
+              />
+            </Box>
+
+            {/* Preview panel */}
+            <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'sticky', top: 12 }}>
+              <ResourcePreviewPanel
+                resource={previewResource}
+                insight={previewInsight}
+                providers={previewProviders}
+                linkedBlueprints={previewLinkedBlueprints}
+                onOpen={openResourceDetail}
+                onAddToPlanner={addResourceToPlanner}
+                onAddToInventory={openInventoryDialog}
+                onOpenBlueprint={setActiveBlueprint}
+              />
+            </Box>
+          </Box>
+          {visibleCount < filteredResources.length && (
+            <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+          )}
+        </>
+      )}
+
+      {inventoryDialogView}
     </PageLayout>
   );
 }

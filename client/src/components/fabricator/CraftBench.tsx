@@ -506,8 +506,7 @@ export function buildStatMeters(
         improved: lowerIsBetter ? delta < 0 : delta > 0,
         neutral: Math.abs(baseVal !== 0 ? (finalVal / baseVal - 1) * 100 : 0) < 0.005,
       };
-    })
-    .slice(0, 12);
+    });
 }
 
 export function StatMeterRow({ meter }: { meter: StatMeter }) {
