@@ -29,7 +29,7 @@ export interface OperationContract {
   recordPath: string;
   templateId: string | null;
   buyInAmount?: number | null;
-  blueprintRewards: { chance: number | null; poolId: string; poolName: string; blueprints: { id: string; name: string }[] }[];
+  blueprintRewards: { chance: number | null; poolId: string; poolName: string; blueprints: { id: string; name: string | null }[] }[];
   prerequisites: { type: string; attributes: Record<string, unknown>; refs: unknown[] }[];
 }
 

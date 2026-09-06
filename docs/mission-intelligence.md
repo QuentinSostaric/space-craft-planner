@@ -13,7 +13,7 @@ Avec `npm run dev` (Node 24), ouvrir :
 - [Tous les contrats](http://localhost:5173/missions?view=directory)
 - [Récompenses de blueprints existantes](http://localhost:5173/missions?view=catalog)
 
-Les liens historiques `/missions/<contrat>` et le catalogue publié restent compatibles. Les paramètres `track`, `target` et `operation` relient les dossiers aux objectifs de réputation. Les réglages et les étapes cochées sont conservés localement, séparés par build et par réputation/opération. Aucun compte n’est nécessaire.
+Les liens historiques `/missions/<contrat>` et le catalogue publié restent compatibles. Les paramètres `track`, `target` et `operation` relient les dossiers aux objectifs de réputation. Les réglages et les étapes terminées sont conservés localement, séparés par build et par réputation/opération. Aucun compte n’est nécessaire.
 
 ## Données retrouvées
 
@@ -49,13 +49,13 @@ Exemples vérifiés sur le snapshot :
 
 ## Dossiers d’opérations
 
-Les dossiers présentent préparation, prérequis, frais éventuels, étapes cochables, récompenses possibles et preuves repliables. Ils sont des guides revus à partir des fichiers, pas une reconstruction automatique complète des interactions Subsumption.
+Les dossiers affichent un repère photographique réel, l’objectif en cours et le bouton « Terminer l’étape ». La validation avance vers la première étape restante ; « Annuler » restaure la dernière action. L’opération choisie et sa progression sont mémorisées localement. Parcours complet, préparation, prérequis et récompenses sont accessibles à la demande. Les preuves techniques restent dans les rapports de datamining. Ils sont des guides revus à partir des fichiers, pas une reconstruction automatique complète des interactions Subsumption.
 
 - QV : Shubin 800 points et 175 000 aUEC pour les droits partagés ; 2 200 points et 850 000 aUEC pour les droits exclusifs. Courant, redémarrage, préparation optique, laser et astéroïde sont distingués.
 - TSG : InterSec 5 800 points **et** tag d’introduction. Les variantes marquées non publiables sont exclues du guide.
 - Siege : le dossier suit SOO2/Northrock du build 4.10 ; il ne mélange pas les objectifs de l’ancien événement CDF.
-- Onyx : progression Hockrow et répétitions distinguées ; une description P2M4 pointant vers P2M1 est signalée.
-- Storm Breaker : dossier de mécanismes documentés, sans prétendre connaître toute la chaîne ni des codes universels ; incohérence Pyro I/Pyro IV signalée.
+- Onyx : progression Hockrow et répétitions distinguées ; la divergence de description P2M4/P2M1 reste documentée dans le rapport technique.
+- Storm Breaker : dossier de mécanismes documentés, sans prétendre connaître toute la chaîne ni des codes universels ; l’incohérence historique Pyro I/Pyro IV reste documentée dans le rapport technique.
 
 Les codes dynamiques, quantités non établies, durée réelle, activation des événements et parcours physiques optimaux restent à documenter. Les sept dossiers ont une checklist ; les autres familles sont consultables dans les données générales ou inventoriées dans le rapport, sans guide complet inventé.
 
@@ -73,3 +73,10 @@ Une correction compatible accompagne la proposition : la normalisation des donn�
 ## Validation
 
 Tests d’extraction : ordre des résultats, gains multiples et inconnus, bornes de rang, cooldowns, refresh des offres, preuves et dépendances des opérations. Tests du moteur : contre-exemple au classement glouton, changements de rang, plafonds, durées, limites de recherche, exclusions. Tests d’interface : recalcul après modification, saisies invalides, mode temps/nombre, attente incluse, liens de déblocage et isolation des checklists par build/opération. Vérification manuelle dans le navigateur avec les données LIVE locales.
+
+
+### Refonte UX du 6 septembre
+
+La [revue ciblée](ux/operations-2026-09-06.md) détaille les décisions et les références photographiques. Les images distantes conservent leur attribution ; si leur chargement échoue, l’objectif et son action restent utilisables. Les repères ne prétendent pas cartographier le trajet exact. Les vues de Solanki, Hartmoore et Admin Center suivent les étapes d’Orison ; le laser QV dispose de sa propre photo.
+
+Validation : 92 tests client, contrôle TypeScript et architecture UI ; vérification des vues sombre/claire, mobile 390 px, avancement et annulation dans le navigateur. Le cas réel d’un blueprint sans nom dans Onyx est couvert contre les régressions.

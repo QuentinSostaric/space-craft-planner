@@ -145,7 +145,7 @@ describe('mission reputation controls', () => {
   });
 });
 
-describe('operation checklists', () => {
+describe('operation guidance', () => {
   it('opens the operation reputation goal while preserving the player’s stored current points', () => {
     const data = operations();
     data.operations[0].accessGoals = [{
@@ -156,6 +156,7 @@ describe('operation checklists', () => {
     localStorage.setItem(`itemfab:mission-route:12519617:${trackId}`, JSON.stringify({ current: '4', target: '10' }));
     window.history.replaceState({}, '', '/missions?view=operations');
     renderWithProviders(<MissionWorkspace catalog={<div>Contract catalog</div>} />);
+    fireEvent.click(screen.getByText('Preparation', { exact: true }));
     fireEvent.click(screen.getByText('Plan this reputation'));
     expect(screen.getByRole('spinbutton', { name: 'Target reputation points' })).toHaveValue(50);
     expect(screen.getByRole('spinbutton', { name: 'Current reputation points' })).toHaveValue(4);
@@ -164,29 +165,117 @@ describe('operation checklists', () => {
     expect(params.get('operation')).toBe('one');
   });
 
-  it('persists progress on the device and keeps separate checklists for each operation', () => {
+  it('completes the current step, resumes at the next objective and keeps each operation separate', () => {
     const view = renderWithProviders(<MissionOperationsPanel />);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Activate switches' }));
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
     fireEvent.click(screen.getByRole('button', { name: /Operation Two/ }));
-    expect(screen.getByRole('checkbox', { name: 'Activate switches' })).not.toBeChecked();
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '0');
     fireEvent.click(screen.getByRole('button', { name: /Operation One/ }));
-    expect(screen.getByRole('checkbox', { name: 'Activate switches' })).toBeChecked();
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
     view.unmount();
     renderWithProviders(<MissionOperationsPanel />);
-    expect(screen.getByRole('checkbox', { name: 'Activate switches' })).toBeChecked();
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
+    fireEvent.click(screen.getByText('Route', { exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('shows completion and lets the player undo the last completed step', () => {
+    renderWithProviders(<MissionOperationsPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    expect(screen.getByText('Operation complete', { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '2');
+    expect(screen.queryByRole('button', { name: 'Complete step' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.queryByText('Operation complete', { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
+    expect(JSON.parse(localStorage.getItem('itemfab:operation:12519617:one') ?? '[]')).toEqual(['switches']);
+  });
+
+  it('lets the player inspect the route without changing progress and resumes the first incomplete step after completion', () => {
+    renderWithProviders(<MissionOperationsPanel />);
+    fireEvent.click(screen.getByText('Route', { exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Activate laser' }));
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '0');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
+  });
+
+  it('allows inspecting and reopening a completed objective after the operation is complete', () => {
+    renderWithProviders(<MissionOperationsPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    expect(screen.getByText('Operation complete', { exact: true })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Route', { exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Activate switches' }));
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '2');
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen step' }));
+    expect(screen.getByRole('button', { name: 'Complete step' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
+    expect(JSON.parse(localStorage.getItem('itemfab:operation:12519617:one') ?? '[]')).toEqual(['laser']);
+  });
+
+  it('keeps reward groups usable when an extracted blueprint has no resolved name', () => {
+    const data = operations();
+    data.operations[0].contracts = [{
+      id: 'asd-repeat-contract', debugName: 'ASD_Repeat', title: 'Project Hyperion', description: '',
+      notForRelease: false, workInProgress: false, recordPath: 'test.xml', templateId: null,
+      blueprintRewards: [{
+        chance: null, poolId: 'asd-rewards', poolName: 'ASD reward pool',
+        blueprints: [{ id: 'unresolved-blueprint', name: null }, { id: 'resolved-blueprint', name: 'Field Repair Tool' }],
+      }],
+      prerequisites: [],
+    }];
+    snapshots.operations = data;
+    renderWithProviders(<MissionOperationsPanel />);
+    fireEvent.click(screen.getByText('Rewards', { exact: true }));
+    fireEvent.click(screen.getByText('Reward group 1 · 2 blueprints'));
+
+    const unidentified = screen.getByText('Unidentified blueprint');
+    expect(unidentified).toBeVisible();
+    expect(unidentified.closest('a')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Field Repair Tool' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Complete step' })).toBeEnabled();
+  });
+
+  it('keeps the active objective usable if the location image fails to load', () => {
+    const data = operations();
+    data.operations[0] = operation('qv-breaker', 'QV Breaker Stations');
+    snapshots.operations = data;
+    renderWithProviders(<MissionOperationsPanel />);
+    fireEvent.error(screen.getByRole('img'));
+
+    expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
   });
 
   it('does not reuse old-build or unknown-step completion marks', () => {
     localStorage.setItem('itemfab:operation:12519617:one', JSON.stringify(['switches', 'removed-step']));
     const view = renderWithProviders(<MissionOperationsPanel />);
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
     view.unmount();
     snapshots.operations = operations('next-build');
     renderWithProviders(<MissionOperationsPanel />);
-    expect(screen.getByRole('checkbox', { name: 'Activate switches' })).not.toBeChecked();
+    expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '0');
   });
 });
