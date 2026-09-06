@@ -957,7 +957,7 @@ export function FabricatorPage() {
             ragged bottom edge that read as accidental. Stretching gives every
             row a flat baseline, which is what makes the grid look deliberate.
           */}
-          <Box key={`work-${selected.id}`} className={`workspace-work-grid fabricator-dashboard${lanes.length ? ' fabricator-dashboard--with-routes' : ''}`} sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
+          <Box key={`work-${selected.id}`} className="workspace-work-grid fabricator-dashboard" sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
             {/* Craft simulator */}
             {detailReady ? (
               <BentoPanel

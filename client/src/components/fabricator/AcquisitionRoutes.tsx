@@ -717,7 +717,8 @@ export function AcquisitionRoutes({
           px: 1.25,
           py: 1.25,
           overflowX: 'auto',
-          overscrollBehavior: 'contain',
+          // The horizontal rail must let vertical wheel gestures reach the page.
+          overscrollBehaviorX: 'contain',
           backgroundColor: 'ui.bgElev',
           borderTop: `1px solid ${theme.palette.ui.border}`,
           borderBottom: `1px solid ${theme.palette.ui.border}`,

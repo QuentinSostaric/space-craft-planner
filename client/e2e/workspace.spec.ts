@@ -223,7 +223,8 @@ test('populated reputation routes show complete rank cards and usable mission li
   for (const list of await panel.locator('.acquisition-rank-missions').all()) {
     const bounds = await list.boundingBox();
     expect(bounds!.height).toBeGreaterThanOrEqual(220);
-    expect(bounds!.width).toBeGreaterThan(400);
+    expect(bounds!.width).toBeGreaterThan(230);
+    expect(bounds!.width).toBeLessThanOrEqual(268);
   }
   await expect(panel.getByRole('link', { name: /Blackbox Retrieval Very Dangerous/ })).toBeVisible();
   const reached = panel.getByRole('button', { name: 'Prospective Associate — mark as reached', exact: true });
@@ -233,4 +234,28 @@ test('populated reputation routes show complete rank cards and usable mission li
   const firstList = panel.locator('.acquisition-rank-missions').first();
   await firstList.getByRole('link', { name: /Mining assignment 1.8/ }).focus();
   await expect(firstList.getByRole('link', { name: /Mining assignment 1.8/ })).toBeInViewport();
+  const pageScroll = page.locator('#main-content');
+  await panel.getByText('Rank 1', { exact: true }).hover();
+  const beforeRailWheel = await pageScroll.evaluate(element => element.scrollTop);
+  await page.mouse.wheel(0, -140);
+  await expect.poll(() => pageScroll.evaluate(element => element.scrollTop)).toBeLessThan(beforeRailWheel);
+});
+
+test('Fabricator panels let the page scroll instead of trapping the wheel', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  const consent = page.getByRole('button', { name: 'Essential only', exact: true });
+  if (await consent.isVisible()) await consent.click();
+  const pageScroll = page.locator('#main-content');
+  for (const id of ['craft-configure', 'craft-result', 'craft-acquire', 'craft-materials', 'craft-dismantle', 'craft-data']) {
+    const body = page.locator(`#${id} > .fabricator-panel-body`);
+    await body.scrollIntoViewIfNeeded();
+    await body.hover();
+    const before = await pageScroll.evaluate(element => element.scrollTop);
+    const maximum = await pageScroll.evaluate(element => element.scrollHeight - element.clientHeight);
+    const delta = before > maximum / 2 ? -120 : 120;
+    await page.mouse.wheel(0, delta);
+    await expect.poll(() => pageScroll.evaluate(element => element.scrollTop)).not.toBe(before);
+    expect(await body.evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+  }
 });

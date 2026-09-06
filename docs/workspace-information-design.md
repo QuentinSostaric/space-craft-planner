@@ -10,12 +10,13 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 - Rendre les actions explicites ; les confirmations de tâche et de rang peuvent être annulées.
 - Montrer les compteurs chargés ou un état d'attente. Zéro ne remplace pas une donnée non chargée.
 - Conserver les tokens des thèmes clair/sombre, le focus clavier et la préférence de réduction des animations.
+- Dans le Fabricator, laisser la molette faire défiler la page ; seules les listes de missions défilent verticalement à l’intérieur de leur carte.
 
 ## Application
 
 | Espace | Premier regard | Détails disponibles |
 | --- | --- | --- |
-| Fabricator | Fiche du CQ7 Rifle par défaut ; composition compacte inspirée de main : bandeau d’indicateurs, simulation large, acquisition en bande et trois panneaux complémentaires | Les liens `/item/…` conservent leur objet ; sans routes, les panneaux tiennent dans un viewport 1080p ; avec des routes de réputation, la page grandit pour afficher les cartes de missions complètes, et les longues listes défilent dans chaque rang |
+| Fabricator | Fiche du CQ7 Rifle par défaut ; composition compacte inspirée de main : bandeau d’indicateurs, simulation large, acquisition en bande et trois panneaux complémentaires | Les liens `/item/…` conservent leur objet ; les panneaux suivent la hauteur du contenu sans défilement interne ; les cartes de rang conservent une largeur de 268 px et leur liste de missions défile indépendamment |
 | Objet | Simulation et toutes les caractéristiques visibles, acquisition, matériaux, démontage et données objet | Navigation de section conservée sur les écrans étroits, description et visuel agrandi à la demande |
 | Blueprints | Image sur environ 40 % de la carte du registre, identité et matériaux, actions en pied | Filtres avancés et fiches détaillées |
 | Ressources | Choix du matériau, meilleures sources disponibles, collecte/stock | Propriétés, sources complètes, missions chargées à la demande, blueprints |
@@ -36,4 +37,4 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 
 Tests d'interaction : détails complets du changelog, sélection/source/mission/stock des ressources, conservation des notes et annulation, agrégation des crafts et collectes, liens directs du planificateur. Vérification visuelle locale des principales pages sur ordinateur et écran de 390 px. La vue authentifiée du compte et les organisations avec membres ont été revues dans le code, sans connexion à un compte pendant cette passe.
 
-Les 124 tests du client, les 64 scénarios E2E, le contrôle des conventions UI et le build passent. Les scénarios de navigation ont été adaptés au CQ7 par défaut et à la densité fixe. Un parcours de réputation rempli vérifie la hauteur disponible, les trois rangs, leurs actions et l’accès aux dernières missions. Les huit références visuelles du shell et de la fiche objet ont été régénérées et inspectées sur ordinateur et mobile, en clair et sombre.
+Les 124 tests du client, les 68 scénarios E2E, le contrôle des conventions UI et le build passent. Les scénarios de navigation ont été adaptés au CQ7 par défaut et à la densité fixe. Un parcours de réputation rempli vérifie la hauteur disponible, la largeur des trois rangs, leurs actions et l’accès aux dernières missions. La molette est vérifiée au-dessus des six panneaux ainsi que de l’en-tête d’un rang. Les huit références visuelles du shell et de la fiche objet ont été régénérées et inspectées sur ordinateur et mobile, en clair et sombre.
