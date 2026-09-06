@@ -1709,23 +1709,6 @@ function MissionCatalog() {
     return [...set].sort();
   }, [allContracts, missionRewards]);
 
-  const allFactions = useMemo(() => {
-    const set = new Set<string>();
-    for (const group of missionRewards?.factionGroups ?? []) {
-      const label = group.faction?.displayName;
-      if (label) {
-        set.add(label);
-      }
-    }
-    for (const { group, contract } of allContracts) {
-      const label = group.faction?.displayName ?? contract.faction?.displayName;
-      if (label) {
-        set.add(label);
-      }
-    }
-    return [...set].sort();
-  }, [allContracts, missionRewards]);
-
   const allRewardBlueprints = useMemo(() => {
     const set = new Set<string>();
     for (const { contract } of allContracts) {
@@ -1948,13 +1931,6 @@ function MissionCatalog() {
     );
   }
 
-  const summary = missionRewards.summary;
-  const missionPageStats = {
-    contractCount: summary?.blueprintRewardContractCount ?? allContracts.length,
-    employerCount: allEmployers.length,
-    factionCount: summary?.factionGroupCount ?? allFactions.length,
-    rewardedBlueprintCount: summary?.uniqueRewardedBlueprintCount ?? 0,
-  };
 
   return (
     <PageLayout
@@ -1998,23 +1974,10 @@ function MissionCatalog() {
               )}
             />
           )}
-          <PageHeader
-            title={t('Missions', 'Missions')}
-            description={t(
-              'Explore contracts, faction employers and blueprint rewards across the published dataset.',
-              'Explorez les contrats, les employeurs de faction et les récompenses de blueprints du dataset publié.',
-            )}
-            stats={(
-              <>
-                <PageStatCard label={t('Contracts', 'Contrats')} value={String(missionPageStats.contractCount)} domain="blue" />
-                <PageStatCard label={t('Employers', 'Employeurs')} value={String(missionPageStats.employerCount)} domain="magenta" />
-                <PageStatCard label={t('Factions', 'Factions')} value={String(missionPageStats.factionCount)} domain="magenta" />
-                <PageStatCard label={t('Rewarded blueprints', 'Blueprints récompensés')} value={String(missionPageStats.rewardedBlueprintCount)} />
-              </>
-            )}
-          />
-
-          <MissionPayoutsSection payouts={missionRewards?.missionPayouts ?? null} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1 }}>
+            <Typography component="h2" sx={{ fontFamily: FONT_DISPLAY, fontSize: '1.25rem', fontWeight: 650 }}>{t('Quests & contracts', 'Quêtes & contrats')}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('Select a quest to view its contracts and blueprints.', 'Sélectionnez une quête pour voir ses contrats et blueprints.')}</Typography>
+          </Box>
 
           {/* Filter bar */}
           <MissionsFilterBar
@@ -2125,6 +2088,10 @@ function MissionCatalog() {
               )}
             </>
           )}
+          <Box component="details" sx={{ borderTop: '1px solid', borderColor: 'ui.border', pt: 1.5 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13 }}>{t('Other contracts & aUEC payouts', 'Autres contrats & paiements aUEC')}</summary>
+            <MissionPayoutsSection payouts={missionRewards?.missionPayouts ?? null} />
+          </Box>
         </>
       )}
     </PageLayout>

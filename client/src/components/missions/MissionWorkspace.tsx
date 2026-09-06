@@ -1,55 +1,44 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Box } from '../../ui/system';
 import { AppButton } from '../ui/controls';
-import { PageLayout } from '../ui/page';
+import { PageHeader, PageLayout } from '../ui/page';
 import { useI18n } from '../../i18n/I18nContext';
 import { navigateToPath, missionSlugFromPathname } from '../../utils/slug';
 import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
 import { MissionProgressionPanel } from './MissionProgressionPanel';
 import { MissionOperationsPanel } from './MissionOperationsPanel';
+import { MissionOperationShelf } from './MissionOperationShelf';
 import { MissionContractDirectory } from './MissionContractDirectory';
 
-type MissionView = 'catalog' | 'reputation' | 'operations' | 'directory';
+function readRoute() {
+  const params = new URLSearchParams(window.location.search);
+  return { contract: missionSlugFromPathname(window.location.pathname), operation: params.get('operation'), legacy: params.get('view') };
+}
 
-function readView(): MissionView {
-  if (missionSlugFromPathname(window.location.pathname)) return 'catalog';
-  const value = new URLSearchParams(window.location.search).get('view');
-  return value === 'reputation' || value === 'operations' || value === 'directory' ? value : 'catalog';
+export function BackToMissions() {
+  const { t } = useI18n();
+  return <AppButton sx={{ alignSelf: 'flex-start' }} href="/missions" size="sm" variant="ghost" startIcon={<i className="pi pi-arrow-left" aria-hidden="true" />} onClick={(event) => {
+    if (!shouldHandleInternalLinkClick(event)) return;
+    event.preventDefault(); navigateToPath('/missions', { mainView: 'missions' });
+  }}>{t('Back to missions', 'Retour aux missions')}</AppButton>;
 }
 
 export function MissionWorkspace({ catalog }: { catalog: ReactNode }) {
   const { t } = useI18n();
-  const [view, setView] = useState(readView);
+  const [route, setRoute] = useState(readRoute);
   useEffect(() => {
-    const sync = () => setView(readView());
+    const sync = () => setRoute(readRoute());
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, []);
-  const views: { id: MissionView; label: string; icon: string }[] = [
-    { id: 'catalog', label: t('Blueprint rewards', 'Récompenses blueprints'), icon: 'pi pi-box' },
-    { id: 'directory', label: t('All contracts', 'Tous les contrats'), icon: 'pi pi-list' },
-    { id: 'reputation', label: t('Reputation planner', 'Progression de réputation'), icon: 'pi pi-chart-line' },
-    { id: 'operations', label: t('Operations & events', 'Opérations & événements'), icon: 'pi pi-flag' },
-  ];
-  return (
-    <Box>
-      <PageLayout sx={{ pb: 0 }}>
-        <Box component="nav" aria-label={t('Mission tools', 'Outils de mission')} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {views.map((item) => (
-            <AppButton key={item.id} href={`/missions?view=${item.id}`} variant={view === item.id ? 'primary' : 'secondary'}
-              sx={{ flex: { xs: '1 1 calc(50% - 8px)', sm: '0 0 auto' }, maxWidth: { xs: 'calc(50% - 4px)', sm: 'none' }, minWidth: 0, whiteSpace: 'normal', textAlign: 'left', justifyContent: 'flex-start' }}
-              ariaPressed={view === item.id} startIcon={<i aria-hidden="true" className={item.icon} />}
-              onClick={(event) => {
-                if (!shouldHandleInternalLinkClick(event)) return;
-                event.preventDefault();
-                navigateToPath(`/missions?view=${item.id}`, { mainView: 'missions' });
-              }}>
-              {item.label}
-            </AppButton>
-          ))}
-        </Box>
-      </PageLayout>
-      {view === 'catalog' ? catalog : view === 'directory' ? <MissionContractDirectory /> : view === 'reputation' ? <MissionProgressionPanel /> : <MissionOperationsPanel />}
-    </Box>
-  );
+  if (route.contract) return <>{catalog}</>;
+  // Preserve shared planner/directory links, without making them competing home tabs.
+  if (route.legacy === 'reputation' || route.legacy === 'directory') return <><PageLayout sx={{ pb: 0 }}><BackToMissions /></PageLayout>{route.legacy === 'reputation' ? <MissionProgressionPanel /> : <MissionContractDirectory />}</>;
+  if (route.operation) return <><PageLayout sx={{ pb: 0 }}><BackToMissions /></PageLayout><MissionOperationsPanel operationId={route.operation} /></>;
+  return <>
+    <PageLayout width="wide" sx={{ pb: 0 }}>
+      <PageHeader title={t('Missions', 'Missions')} description={t('Find a quest, unlock an operation and earn your next blueprints.', 'Trouvez une quête, débloquez une opération et obtenez vos prochains blueprints.')} />
+      <MissionOperationShelf />
+    </PageLayout>
+    {catalog}
+  </>;
 }

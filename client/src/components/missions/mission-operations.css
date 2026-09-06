@@ -79,3 +79,37 @@
   .operation-route { grid-template-columns: 1fr; }
 }
 @media(prefers-reduced-motion: reduce) { .operation-workspace *, .operation-picker * { animation: none !important; transition: none !important; } }
+/* Mission home: an operation shelf above the existing quest catalogue. */
+.mission-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.mission-section-heading h2 { margin: 0; font-size: 16px; font-weight: 650; }
+.mission-section-heading > span { color: var(--sc-text-secondary); font-size: 11px; }
+.mission-operation-shelf-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(155px, 1fr); overflow-x: auto; gap: 10px; padding-bottom: 8px; scrollbar-width: thin; }
+.mission-operation-card { min-width: 0; position: relative; border: 1px solid var(--sc-border); border-radius: 5px; overflow: hidden; background: var(--sc-surface-1); }
+.mission-operation-card > a:first-child { display: block; color: var(--sc-text); text-decoration: none; height: 100%; }
+.mission-operation-card:hover { border-color: var(--sc-primary); }
+.mission-operation-card-image { height: 85px; position: relative; overflow: hidden; display: grid; place-items: center; background: var(--sc-primary-soft); }
+.mission-operation-card-image img { width: 100%; height: 100%; object-fit: cover; }
+.mission-operation-card-image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg,rgba(5,12,20,.8),transparent 80%); }
+.mission-operation-card-image > span { position: absolute; bottom: 7px; left: 10px; z-index: 1; color: white; font-size: 10px; }
+.mission-operation-card strong { font-size: 12px; font-weight: 600; display: block; min-height: 40px; padding: 10px 10px 0; }
+.mission-operation-card-meta { display: flex; justify-content: space-between; gap: 6px; padding: 5px 10px 12px; color: var(--sc-text-secondary); font-size: 10px; }
+.mission-operation-credit { position: absolute; top: 4px; right: 4px; z-index: 2; background: rgba(5,12,20,.75); color: white; font-size: 7px; padding: 2px 3px; text-decoration: none; border-radius: 2px; }
+.operation-overview { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); border-top: 1px solid var(--sc-border); }
+.operation-overview > * { min-width: 0; padding: 22px 24px; }
+.operation-overview > :last-child { border-left: 1px solid var(--sc-border); }
+.operation-blueprints > p { font-size: 12px; line-height: 1.5; color: var(--sc-text-secondary); margin: 0 0 14px; }
+.operation-blueprint-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-bottom: 10px; }
+.operation-blueprint { border: 1px solid var(--sc-border); border-radius: 4px; color: var(--sc-text); text-decoration: none; overflow: hidden; }
+.operation-blueprint-art { height: 75px; background: var(--sc-surface-2); display: grid; place-items: center; }
+.operation-blueprint-art img { width: 100%; height: 100%; object-fit: contain; }
+.operation-blueprint-art .pi { font-size: 25px; color: var(--sc-text-disabled); }
+.operation-blueprint > span { font-size: 11px; display: block; padding: 8px; line-height: 1.4; overflow-wrap: anywhere; }
+.operation-blueprint:hover { border-color: var(--sc-primary); }
+.operation-field-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--sc-border); scroll-margin-top: 20px; }
+.operation-field-heading h2 { font-size: 16px; font-weight: 650; margin: 0; }
+.operation-field-heading span { font-size: 11px; color: var(--sc-text-secondary); }
+@media(max-width: 899px) { .operation-overview { grid-template-columns: 1fr; } .operation-overview > :last-child { border-left: 0; border-top: 1px solid var(--sc-border); } }
+@media(max-width: 650px) { .mission-section-heading { flex-wrap: wrap; gap: 4px; } .operation-overview > * { padding: 18px 16px; } .operation-blueprint-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .operation-field-heading { padding: 14px 16px; } }
+.operation-blueprint-art { overflow: hidden; }
+.operation-blueprint-art img { display: block; min-height: 0; max-height: 100%; }
+.operation-overview > .operation-unlock { border-bottom: 0; }

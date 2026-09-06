@@ -9,7 +9,8 @@ Le build de référence est **LIVE 4.10.191.2241, 12519617, 26 août 2026**, iss
 Avec `npm run dev` (Node 24), ouvrir :
 
 - [Progression de réputation](http://localhost:5173/missions?view=reputation)
-- [Opérations et événements](http://localhost:5173/missions?view=operations)
+- [Accueil Missions : opérations et catalogue](http://localhost:5173/missions)
+- [Déblocage Tactical Strike Groups](http://localhost:5173/missions?operation=tactical-strike-groups)
 - [Tous les contrats](http://localhost:5173/missions?view=directory)
 - [Récompenses de blueprints existantes](http://localhost:5173/missions?view=catalog)
 
@@ -49,7 +50,7 @@ Exemples vérifiés sur le snapshot :
 
 ## Dossiers d’opérations
 
-Les dossiers affichent un repère photographique réel, l’objectif en cours et le bouton « Terminer l’étape ». La validation avance vers la première étape restante ; « Annuler » restaure la dernière action. L’opération choisie et sa progression sont mémorisées localement. Parcours complet, préparation, prérequis et récompenses sont accessibles à la demande. Les preuves techniques restent dans les rapports de datamining. Ils sont des guides revus à partir des fichiers, pas une reconstruction automatique complète des interactions Subsumption.
+L’accueil Missions rassemble le bandeau des opérations et le catalogue de quêtes. Une fiche d’opération affiche d’abord son déblocage (employeur, catégorie, rang et points) et les blueprints possibles, puis le repère photographique, l’objectif en cours et le bouton « Terminer l’étape ». La validation avance vers la première étape restante ; « Annuler » restaure la dernière action. L’opération est identifiée dans l’URL ; sa progression est mémorisée localement. Le bouton « Aller au parcours » rejoint directement le terrain. Le détail des contrats de progression, le parcours complet et la préparation sont accessibles à la demande. Les preuves techniques restent dans les rapports de datamining. Ils sont des guides revus à partir des fichiers, pas une reconstruction automatique complète des interactions Subsumption.
 
 - QV : Shubin 800 points et 175 000 aUEC pour les droits partagés ; 2 200 points et 850 000 aUEC pour les droits exclusifs. Courant, redémarrage, préparation optique, laser et astéroïde sont distingués.
 - TSG : InterSec 5 800 points **et** tag d’introduction. Les variantes marquées non publiables sont exclues du guide.
@@ -79,4 +80,20 @@ Tests d’extraction : ordre des résultats, gains multiples et inconnus, bornes
 
 La [revue ciblée](ux/operations-2026-09-06.md) détaille les décisions et les références photographiques. Les images distantes conservent leur attribution ; si leur chargement échoue, l’objectif et son action restent utilisables. Les repères ne prétendent pas cartographier le trajet exact. Les vues de Solanki, Hartmoore et Admin Center suivent les étapes d’Orison ; le laser QV dispose de sa propre photo.
 
-Validation : 92 tests client, contrôle TypeScript et architecture UI ; vérification des vues sombre/claire, mobile 390 px, avancement et annulation dans le navigateur. Le cas réel d’un blueprint sans nom dans Onyx est couvert contre les régressions.
+Validation de la première refonte : 92 tests client, contrôle TypeScript et architecture UI ; vérification des vues sombre/claire, mobile 390 px, avancement et annulation dans le navigateur. Le cas réel d’un blueprint sans nom dans Onyx est couvert contre les régressions.
+
+
+### Accueil unifié et déblocage intégré
+
+Les quatre onglets ont été retirés. `/missions` affiche les opérations au-dessus du catalogue historique ; `/missions?operation=<id>` ouvre la fiche. Les liens de contrats et les anciens liens directs vers le planificateur restent compatibles. Les paiements aUEC sont repliés sous le catalogue.
+
+`operationUnlockPlanner.ts` ajoute un modèle limité d’historique à côté du moteur général, sans modifier ses restrictions : une introduction vérifiée, jouée une fois, puis les contrats répétables dont tous les prérequis d’historique sont satisfaits. Le joueur peut confirmer une introduction déjà accomplie ; cette confirmation est partagée entre opérations du même employeur/axe/build. Le gain de l’introduction n’est jamais ajouté une seconde fois. Un rang ne prouve pas cet historique.
+
+Exemples vérifiés sur le snapshot :
+
+- InterSec Standing, Neutral 0 → Sr. Contractor 5 800 : 36 réussites, dont l’introduction, en changeant de contrat avec les rangs.
+- Rayari Standing, 0 → Contractor 2 200 : 22 réussites avec introduction. Cet accès concerne les commandes de matériaux irradiés associées à Storm Breaker.
+- Hathor : premières commandes Rayari de gemmes à 800 ; commande de Carinite seule à 2 200, avec introduction. Ces seuils n’ouvrent ni les cartes d’accès ni les contrats Foxwell.
+- Shubin : introduction encore bloquée par des conditions non modélisées ; après sa confirmation et 100 points connus, sept contrats mènent aux 800 points des droits partagés QV. La fiche ne prétend pas résoudre le départ inconnu.
+
+Le résultat minimise le nombre de contrats dans ce modèle, avec réussite complète et offres disponibles ; il ne garantit pas la durée réelle. Les conditions et preuves nouvelles sont également persistées dans la source `mission-operation-guides.json` de l’exporter, avec assertions sur les records XML.

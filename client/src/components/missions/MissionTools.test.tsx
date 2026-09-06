@@ -154,10 +154,11 @@ describe('operation guidance', () => {
     }];
     snapshots.operations = data;
     localStorage.setItem(`itemfab:mission-route:12519617:${trackId}`, JSON.stringify({ current: '4', target: '10' }));
-    window.history.replaceState({}, '', '/missions?view=operations');
+    window.history.replaceState({}, '', '/missions?operation=one');
     renderWithProviders(<MissionWorkspace catalog={<div>Contract catalog</div>} />);
-    fireEvent.click(screen.getByText('Preparation', { exact: true }));
-    fireEvent.click(screen.getByText('Plan this reputation'));
+    expect(screen.getByText('Test Faction')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Current points' })).toHaveValue(4);
+    fireEvent.click(screen.getByText('Advanced planner'));
     expect(screen.getByRole('spinbutton', { name: 'Target reputation points' })).toHaveValue(50);
     expect(screen.getByRole('spinbutton', { name: 'Current reputation points' })).toHaveValue(4);
     const params = new URLSearchParams(window.location.search);
@@ -172,10 +173,10 @@ describe('operation guidance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Complete step' }));
     expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '1');
-    fireEvent.click(screen.getByRole('button', { name: /Operation Two/ }));
+    view.rerender(<MissionOperationsPanel operationId="two" />);
     expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '0');
-    fireEvent.click(screen.getByRole('button', { name: /Operation One/ }));
+    view.rerender(<MissionOperationsPanel operationId="one" />);
     expect(screen.getByRole('heading', { name: 'Activate laser' })).toBeInTheDocument();
     view.unmount();
     renderWithProviders(<MissionOperationsPanel />);
@@ -243,8 +244,7 @@ describe('operation guidance', () => {
     }];
     snapshots.operations = data;
     renderWithProviders(<MissionOperationsPanel />);
-    fireEvent.click(screen.getByText('Rewards', { exact: true }));
-    fireEvent.click(screen.getByText('Reward group 1 · 2 blueprints'));
+    expect(screen.getByRole('heading', { name: 'Blueprint rewards' })).toBeInTheDocument();
 
     const unidentified = screen.getByText('Unidentified blueprint');
     expect(unidentified).toBeVisible();
@@ -278,4 +278,65 @@ describe('operation guidance', () => {
     expect(screen.getByRole('heading', { name: 'Activate switches' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Operation progress' })).toHaveAttribute('aria-valuenow', '0');
   });
+});
+
+
+describe('unified mission navigation', () => {
+  it('shows operations above the catalogue, opens a detail and returns to the same mission home', () => {
+    renderWithProviders(<MissionWorkspace catalog={<div>Quest catalogue</div>} />);
+    expect(screen.getByText('Quest catalogue')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Operations & events' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Mission tools' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Open operation : Operation One' }));
+    expect(screen.queryByText('Quest catalogue')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Operation One' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Unlock this operation' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Back to missions' }));
+    expect(screen.getByText('Quest catalogue')).toBeInTheDocument();
+    expect(window.location.pathname + window.location.search).toBe('/missions');
+  });
+
+  it('keeps a contract detail separate from the operation shelf', () => {
+    window.history.replaceState({}, '', '/missions/test-contract');
+    renderWithProviders(<MissionWorkspace catalog={<div>Contract detail</div>} />);
+    expect(screen.getByText('Contract detail')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Operations & events' })).not.toBeInTheDocument();
+  });
+
+  it('maps the old operations tab URL to mission home and reports unknown operation links', () => {
+    window.history.replaceState({}, '', '/missions?view=operations');
+    const view = renderWithProviders(<MissionWorkspace catalog={<div>Quest catalogue</div>} />);
+    expect(screen.getByText('Quest catalogue')).toBeInTheDocument();
+    view.unmount();
+    renderWithProviders(<MissionOperationsPanel operationId="missing" />);
+    expect(screen.getByText('Operation not found')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Operation One' })).not.toBeInTheDocument();
+  });
+});
+
+
+it('shares confirmed employer introduction history between operations without adding its reward again', () => {
+  const faction = 'a9ab3e4f-30a3-4816-a1dd-4df51fd6678c';
+  const tag = '893d5cad-2a8c-4c27-bdbe-98f05603bf5a';
+  const track = `${faction}:test-scope`;
+  const data = intelligence();
+  data.tracks[0] = { ...data.tracks[0], id: track, factionGuid: faction };
+  const intro = mission('1850226f-16e3-4160-9172-698e5397ed18', 'Employer introduction', 6);
+  intro.completionTags = [tag];
+  intro.excludedCompletionTags = [tag];
+  const repeat = mission('repeat', 'Patrol', 10);
+  repeat.requiredCompletionTags = [tag];
+  for (const entry of [intro, repeat]) entry.reputationRewards[0].trackId = track;
+  data.missions = [intro, repeat];
+  snapshots.intelligence = data;
+  const ops = operations();
+  for (const entry of ops.operations) entry.accessGoals = [{ title: 'Unlock access', factionReputationGuid: faction, scopeGuid: 'test-scope', targetReputation: 20, completionTag: tag, note: 'Complete the introduction.' }];
+  snapshots.operations = ops;
+  const view = renderWithProviders(<MissionOperationsPanel operationId="one" />);
+  expect(screen.getByText('3 contracts', { exact: true })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: /^I have already completed the introduction/ }));
+  expect(screen.getByText('2 contracts', { exact: true })).toBeInTheDocument();
+  view.rerender(<MissionOperationsPanel operationId="two" />);
+  expect(screen.getByRole('checkbox', { name: /^I have already completed the introduction/ })).toBeChecked();
+  expect(screen.getByText('2 contracts', { exact: true })).toBeInTheDocument();
 });

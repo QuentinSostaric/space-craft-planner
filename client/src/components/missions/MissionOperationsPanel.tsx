@@ -5,11 +5,10 @@ import { SurfaceState } from '../ui/feedback';
 import { PageLayout } from '../ui/page';
 import { useMissionSnapshot } from '../../hooks/useMissionSnapshot';
 import type { MissionOperation, MissionOperationsData, OperationText } from '../../types/missionOperations';
-import { OperationScene, operationIcon } from './OperationScene';
+import { OperationScene } from './OperationScene';
 import { gameplayDescription, gameplayTeam } from './operationGameplay';
-import { navigateToPath, toSlug } from '../../utils/slug';
-import { shouldHandleInternalLinkClick } from '../../utils/spaLinks';
-import { useCraft } from '../../store/CraftContext';
+import { OperationUnlockPanel } from './OperationUnlockPanel';
+import { OperationBlueprintRewards } from './OperationBlueprintRewards';
 import './mission-operations.css';
 
 function useOperationText() {
@@ -20,8 +19,6 @@ function useOperationText() {
 function OperationDossier({ operation, buildNumber }: { operation: MissionOperation; buildNumber: string }) {
   const { t } = useI18n();
   const text = useOperationText();
-  const { activeDataset } = useCraft();
-  const canOpenBlueprints = String(activeDataset.buildNumber) === String(buildNumber) && activeDataset.channel === 'live';
   const storageKey = `itemfab:operation:${buildNumber}:${operation.id}`;
   const [checked, setChecked] = useState<string[]>(() => {
     try {
@@ -59,12 +56,16 @@ function OperationDossier({ operation, buildNumber }: { operation: MissionOperat
     setInspecting(false);
     setNotice(t('Last action undone.', 'Dernière action annulée.'));
   }
-  const rewards = [...new Map(operation.contracts.flatMap((contract) => contract.blueprintRewards ?? []).map((pool) => [pool.poolId, pool])).values()];
   return <article className="operation-workspace">
     <header className="operation-header">
       <div><span className="operation-eyebrow">{operation.systems.join(' / ')}</span><h1>{operation.title}</h1></div>
-      <div className="operation-completion"><span>{done}<span> / {operation.steps.length}</span></span><span>{t('completed', 'terminées')}</span></div>
+      <AppButton href="#operation-journey" size="sm" variant="ghost">{t('Go to walkthrough', 'Aller au parcours')} <i className="pi pi-arrow-down" aria-hidden="true" /></AppButton>
     </header>
+    <div className="operation-overview">
+      <OperationUnlockPanel operation={operation} buildNumber={buildNumber} />
+      <OperationBlueprintRewards operation={operation} buildNumber={buildNumber} />
+    </div>
+    <div className="operation-field-heading" id="operation-journey"><h2>{t('In the field', 'Sur le terrain')}</h2><span>{t('Your saved walkthrough', 'Votre parcours enregistré')}</span></div>
     <div className="operation-progress" role="progressbar" aria-label={t('Operation progress', 'Progression de l’opération')} aria-valuemin={0} aria-valuemax={operation.steps.length || 1} aria-valuenow={done}><span style={{ width: `${done / (operation.steps.length || 1) * 100}%` }} /></div>
     <section className="operation-focus" aria-label={t('Current objective', 'Objectif en cours')}>
       <OperationScene operation={operation} activeStep={activeStep} complete={complete} />
@@ -92,51 +93,21 @@ function OperationDossier({ operation, buildNumber }: { operation: MissionOperat
         <summary><i className="pi pi-briefcase" aria-hidden="true" /><span>{t('Preparation', 'Préparation')}</span><small>{t('Gear & access', 'Équipement & accès')}</small><i className="pi pi-chevron-down" aria-hidden="true" /></summary>
         <div className="operation-disclosure-body"><p className="operation-team"><i className="pi pi-users" aria-hidden="true" /> {text(gameplayTeam(operation))}</p>
           {operation.requirements.length > 0 && <ul className="operation-requirements">{operation.requirements.map((requirement, i) => <li key={i}>{text(requirement.text)}</li>)}</ul>}
-          {(operation.accessGoals?.length ?? 0) > 0 && <div className="operation-access">{operation.accessGoals!.map((goal, index) => {
-            const params = new URLSearchParams({ view: 'reputation', track: `${goal.factionReputationGuid}:${goal.scopeGuid}`, target: String(goal.targetReputation), operation: operation.id });
-            const href = `/missions?${params}`;
-            return <div key={index}><strong>{text(goal.title)}</strong><span>{goal.targetReputation.toLocaleString()} {t('reputation points', 'points de réputation')}{goal.buyInUec != null && ` · ${goal.buyInUec.toLocaleString()} aUEC`}</span><p>{text(goal.note)}</p><AppButton href={href} size="sm" onClick={(event) => { if (!shouldHandleInternalLinkClick(event)) return; event.preventDefault(); navigateToPath(href, { mainView: 'missions' }); }}>{t('Plan this reputation', 'Planifier cette réputation')}</AppButton></div>;
-          })}</div>}
+
         </div>
       </details>
-      {rewards.length > 0 && <details className="operation-disclosure">
-        <summary><i className="pi pi-box" aria-hidden="true" /><span>{t('Rewards', 'Récompenses')}</span><small>Blueprints</small><i className="pi pi-chevron-down" aria-hidden="true" /></summary>
-        <div className="operation-disclosure-body"><p>{t('Possible rewards depend on the contract. Blueprints are not guaranteed.', 'Les récompenses possibles dépendent du contrat. Les blueprints ne sont pas garantis.')}</p>
-          {rewards.map((pool, index) => <details key={pool.poolId} className="operation-reward"><summary>{t('Reward group', 'Groupe de récompenses')} {index + 1} · {pool.blueprints.length} blueprints</summary><ul>{pool.blueprints.map((blueprint) => <li key={blueprint.id}>{canOpenBlueprints && blueprint.name && !blueprint.name.startsWith('BP_') ? <a href={`/item/${toSlug(blueprint.name)}`}>{blueprint.name}</a> : (blueprint.name && !blueprint.name.startsWith('BP_') ? blueprint.name : t('Unidentified blueprint', 'Blueprint non identifié'))}</li>)}</ul></details>)}
-        </div>
-      </details>}
+
     </div>
   </article>;
 }
 
-function OperationsExplorer({ data }: { data: MissionOperationsData }) {
-  const { t } = useI18n();
-  const selectionKey = `itemfab:operation-selection:${data.build.buildNumber}`;
-  const [selectedId, setSelectedId] = useState(() => {
-    const query = new URLSearchParams(window.location.search).get('operation');
-    if (query) return query;
-    try { return localStorage.getItem(selectionKey) ?? data.operations[0]?.id ?? ''; } catch { return data.operations[0]?.id ?? ''; }
-  });
-  const selected = data.operations.find((operation) => operation.id === selectedId) ?? data.operations[0];
-  function select(id: string) {
-    setSelectedId(id);
-    try { localStorage.setItem(selectionKey, id); } catch { /* Selection works without storage. */ }
-    const url = new URL(window.location.href);
-    url.searchParams.set('operation', id);
-    window.history.replaceState(window.history.state, '', url);
-  }
-  return <div className="operations-desk">
-    <nav className="operation-picker" aria-label={t('Choose your operation', 'Choisir une opération')}>{data.operations.map((operation) => <button key={operation.id} type="button" aria-pressed={selected?.id === operation.id} onClick={() => select(operation.id)}><i className={`pi ${operationIcon(operation.id)}`} aria-hidden="true" /><span>{operation.title}</span></button>)}</nav>
-    {selected ? <OperationDossier key={`${data.build.buildNumber}:${selected.id}`} operation={selected} buildNumber={data.build.buildNumber} /> : <SurfaceState title={t('No operations available', 'Aucune opération disponible')} />}
-  </div>;
-}
-
-export function MissionOperationsPanel() {
+export function MissionOperationsPanel({ operationId }: { operationId?: string } = {}) {
   const { t } = useI18n();
   const { data, loading, error, retry } = useMissionSnapshot<MissionOperationsData>('operations');
+  const selected = operationId ? data?.operations.find((operation) => operation.id === operationId) : data?.operations[0];
   return <PageLayout width="wide">
     {loading ? <SurfaceState tone="loading" title={t('Loading operations…', 'Chargement des opérations…')} />
       : error || !data ? <SurfaceState tone="error" title={t('Operations unavailable', 'Opérations indisponibles')} actionLabel={t('Retry', 'Réessayer')} onAction={retry} />
-        : <OperationsExplorer data={data} />}
+        : selected ? <OperationDossier key={`${data.build.buildNumber}:${selected.id}`} operation={selected} buildNumber={data.build.buildNumber} /> : <SurfaceState title={t('Operation not found', 'Opération introuvable')} />}
   </PageLayout>;
 }
