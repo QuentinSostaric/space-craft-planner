@@ -15,7 +15,7 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 
 | Espace | Premier regard | Détails disponibles |
 | --- | --- | --- |
-| Fabricator | Fiche du Vendetta HMG par défaut ; composition inspirée de main : bandeau d’indicateurs, simulation large, acquisition en bande et trois panneaux complémentaires, dans un dashboard 1080p | Les liens `/item/…` conservent leur objet ; les longues listes défilent dans leur panneau |
+| Fabricator | Fiche du CQ7 Rifle par défaut ; composition compacte inspirée de main : bandeau d’indicateurs, simulation large, acquisition en bande et trois panneaux complémentaires | Les liens `/item/…` conservent leur objet ; sans routes, les panneaux tiennent dans un viewport 1080p ; avec des routes de réputation, la page grandit pour afficher les cartes de missions complètes, et les longues listes défilent dans chaque rang |
 | Objet | Simulation et toutes les caractéristiques visibles, acquisition, matériaux, démontage et données objet | Navigation de section conservée sur les écrans étroits, description et visuel agrandi à la demande |
 | Blueprints | Image sur environ 40 % de la carte du registre, identité et matériaux, actions en pied | Filtres avancés et fiches détaillées |
 | Ressources | Choix du matériau, meilleures sources disponibles, collecte/stock | Propriétés, sources complètes, missions chargées à la demande, blueprints |
@@ -36,4 +36,4 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 
 Tests d'interaction : détails complets du changelog, sélection/source/mission/stock des ressources, conservation des notes et annulation, agrégation des crafts et collectes, liens directs du planificateur. Vérification visuelle locale des principales pages sur ordinateur et écran de 390 px. La vue authentifiée du compte et les organisations avec membres ont été revues dans le code, sans connexion à un compte pendant cette passe.
 
-Les 124 tests du client, les 60 scénarios E2E, le contrôle des conventions UI et le build passent. Les scénarios de navigation ont été adaptés au Vendetta par défaut et à la densité fixe. Les huit références visuelles du shell et de la fiche objet ont été régénérées et inspectées sur ordinateur et mobile, en clair et sombre.
+Les 124 tests du client, les 64 scénarios E2E, le contrôle des conventions UI et le build passent. Les scénarios de navigation ont été adaptés au CQ7 par défaut et à la densité fixe. Un parcours de réputation rempli vérifie la hauteur disponible, les trois rangs, leurs actions et l’accès aux dernières missions. Les huit références visuelles du shell et de la fiche objet ont été régénérées et inspectées sur ordinateur et mobile, en clair et sombre.

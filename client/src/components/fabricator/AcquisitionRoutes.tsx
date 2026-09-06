@@ -709,7 +709,7 @@ export function AcquisitionRoutes({
         turns the rail into a well the rank cards sit inside; without the tone
         change the nesting just reads as two borders.
       */}
-      <Box
+      <Box className="acquisition-rank-rail"
         sx={{
           display: 'flex',
           alignItems: 'stretch',
@@ -739,10 +739,10 @@ export function AcquisitionRoutes({
                 : theme.palette.ui.borderStrong;
 
           return (
-            <Box key={tierKey} sx={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
+            <Box key={tierKey} className="acquisition-rank-column" sx={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
               <Paper
                 /* Replays when the route changes, since the key carries scopeKey. */
-                className="if-appear"
+                className="if-appear acquisition-rank-card"
                 sx={{
                   width: 268,
                   display: 'flex',
@@ -825,7 +825,7 @@ export function AcquisitionRoutes({
                   card is tall they compressed into each other instead of
                   overflowing, and the list rendered as overlapping text.
                 */}
-                <Box
+                <Box className="acquisition-rank-missions"
                   sx={{
                     flex: 1,
                     minHeight: 0,

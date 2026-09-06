@@ -370,7 +370,7 @@ export function FabricatorPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const slug = itemSlugFromPathname(window.location.pathname);
-    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : blueprints.find(bp => bp.name === 'Vendetta HMG') ?? blueprints[0];
+    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0];
     return initial?.id ?? null;
   });
   const [requestedGoalId, setRequestedGoalId] = useState(() => new URLSearchParams(window.location.search).get('goal'));
@@ -432,7 +432,7 @@ export function FabricatorPage() {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
-  // Fabricator opens the standard Vendetta; deep links always select the requested item.
+  // Fabricator opens CQ7 Rifle; deep links always select the requested item.
   // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
   // the item page); back/forward keep the selection in sync.
   useEffect(() => {
@@ -440,7 +440,7 @@ export function FabricatorPage() {
       setRequestedGoalId(new URLSearchParams(window.location.search).get('goal'));
       const slug = itemSlugFromPathname(window.location.pathname);
       if (!slug) {
-        setSelectedId((blueprints.find(bp => bp.name === 'Vendetta HMG') ?? blueprints[0])?.id ?? null);
+        setSelectedId((blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0])?.id ?? null);
         return;
       }
       const fromUrl = blueprints.find((bp) => toSlug(bp.name) === slug);
@@ -957,7 +957,7 @@ export function FabricatorPage() {
             ragged bottom edge that read as accidental. Stretching gives every
             row a flat baseline, which is what makes the grid look deliberate.
           */}
-          <Box key={`work-${selected.id}`} className="workspace-work-grid fabricator-dashboard" sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
+          <Box key={`work-${selected.id}`} className={`workspace-work-grid fabricator-dashboard${lanes.length ? ' fabricator-dashboard--with-routes' : ''}`} sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
             {/* Craft simulator */}
             {detailReady ? (
               <BentoPanel

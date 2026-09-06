@@ -107,3 +107,19 @@
   .fabricator-dashboard #craft-dismantle,
   .fabricator-dashboard #craft-data { grid-row: 3; }
 }
+
+/* Reputation routes need the complete rank cards, including their mission lists. */
+@media (min-width: 900px) {
+  .acquisition-rank-rail > .acquisition-rank-column { flex: 1 0 280px; min-width: 0; }
+  .acquisition-rank-column > .acquisition-rank-card { width: auto; flex: 1; min-width: 0; }
+}
+@media (min-width: 1400px) and (min-height: 850px) {
+  .workspace-page:has(> .fabricator-dashboard--with-routes) {
+    height: auto;
+    min-height: calc(100dvh - 108px);
+    grid-template-rows: auto auto auto auto;
+  }
+  .fabricator-dashboard--with-routes.workspace-work-grid { grid-template-rows: auto auto auto; }
+  .fabricator-dashboard--with-routes #craft-acquire { max-height: none; }
+  .fabricator-dashboard--with-routes #craft-acquire > .fabricator-panel-body { overflow: visible; }
+}

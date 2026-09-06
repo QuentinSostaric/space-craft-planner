@@ -8,6 +8,7 @@ const blueprint = {
   craftTimeSecs: 180,
   baseStats: { damage: 18 },
   detailsLoaded: true,
+  dismantle: { dismantleTimeSecs: 15, efficiency: 0.5, deterministic: true, returns: [] },
   slots: [
     {
       id: 'frame',
@@ -32,7 +33,7 @@ const dataset = {
   label: 'Workspace test',
   version: '4.10.0',
   published: true,
-  blueprints: [blueprint, { ...blueprint, id: 'vendetta', name: 'Vendetta HMG', dismantle: { dismantleTimeSecs: 15, efficiency: 0.5, deterministic: true, materials: [] } }],
+  blueprints: [{ ...blueprint, id: 'vendetta', name: 'Vendetta HMG' }, blueprint],
   resources: [],
   blueprintCount: 2,
   resourceCount: 0,
@@ -72,7 +73,7 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && message.text().includes('same key')) errors.push(message.text()); });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   await page.goto('/item/cq7-rifle');
   await expect(page).toHaveURL(/\/item\/cq7-rifle$/);
   await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
@@ -102,11 +103,11 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
 
 test('the workspace stays compact and the shell fits the viewport', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
   await expect(page.getByRole('button', { name: /^(Comfort|Dense)$/ })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
   const bounds = await page.locator('header').first().boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
@@ -143,7 +144,7 @@ test('search preserves input on blur and navigates only on explicit selection', 
 test('reduced motion disables workspace entrances', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   const duration = await page
     .locator('.workspace-page')
     .first()
@@ -152,10 +153,10 @@ test('reduced motion disables workspace entrances', async ({ page }) => {
 });
 
 
-test('the default Vendetta dashboard keeps all six panels in a 1080p viewport', async ({ page }) => {
+test('the dashboard without acquisition routes keeps all six panels in a 1080p viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   const consent = page.getByRole('button', { name: 'Essential only', exact: true });
   if (await consent.isVisible()) await consent.click();
   for (const id of ['craft-configure', 'craft-result', 'craft-acquire', 'craft-materials', 'craft-dismantle', 'craft-data']) {
@@ -166,8 +167,70 @@ test('the default Vendetta dashboard keeps all six panels in a 1080p viewport', 
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1080);
     expect(await panel.evaluate(element => element.tagName)).not.toBe('DETAILS');
   }
-  await page.goto('/item/cq7-rifle');
-  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
-  await page.goBack();
+  await page.goto('/item/vendetta-hmg');
   await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+});
+
+
+test('populated reputation routes show complete rank cards and usable mission lists', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const standings = [
+    { displayName: 'Prospective Associate', minReputation: 0 },
+    { displayName: 'Associate', minReputation: 2400 },
+    { displayName: 'Trusted Associate', minReputation: 6000 },
+  ];
+  const scope = { guid: 'recco-standing', scopeName: 'Standing', displayName: 'Standing', standings };
+  const requirement = (index: number) => ({ scopeGuid: scope.guid, scopeName: 'Standing', standingName: standings[index].displayName, minReputation: standings[index].minReputation });
+  const contracts = standings.flatMap((_, rank) => Array.from({ length: 8 }, (_, index) => ({
+    contractDebugName: `recco-rank-${rank}-mission-${index}`,
+    contractorDisplayName: 'Recco Battaglia', title: { displayText: `Mining assignment ${rank + 1}.${index + 1}` },
+    minimumRequiredStandings: [requirement(rank)], reputationScope: scope,
+    availability: { localities: ['Nyx'] }, rewardedBlueprints: [],
+  })));
+  const target = {
+    contractDebugName: 'recco-blackbox', title: { displayText: 'Blackbox Retrieval Very Dangerous' },
+    minimumRequiredStandings: [requirement(2)], availability: { localities: ['Nyx'] }, maxChance: 1,
+  };
+  const missionRewards = {
+    reputationScopesDetailed: [scope],
+    factionGroups: [{ id: 'recco', contractorDisplayName: 'Recco Battaglia', contracts, reputationScopes: [scope] }],
+    blueprintAcquisitionGraph: [{
+      blueprint, contractCount: 1, factionCount: 1, localityCount: 1, standings: [requirement(2)],
+      factions: [{ contractorDisplayName: 'Recco Battaglia', contracts: [target] }],
+    }],
+  };
+  const populated = { ...dataset, hasMissionRewards: true, missionRewards };
+  await page.route('**/api/game-data/public**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/game-data/public') return route.fulfill({ json: { datasets: [populated], defaultChannel: 'live' } });
+    if (path.includes('/factions/')) return route.fulfill({ json: { datasetId: dataset.datasetId, factionId: 'recco', contracts } });
+    if (path.endsWith('/mission-rewards')) return route.fulfill({ json: { datasetId: dataset.datasetId, missionRewards } });
+    return route.fulfill({ json: { dataset: populated } });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  const panel = page.locator('#craft-acquire');
+  await expect(panel.getByRole('link', { name: /Mining assignment 1.1/ })).toBeVisible();
+  await expect(panel.locator('.acquisition-rank-card')).toHaveCount(3);
+  const dimensions = await panel.evaluate(element => {
+    const body = element.querySelector('.fabricator-panel-body')!;
+    return { height: element.clientHeight, bodyHeight: body.clientHeight, contentHeight: body.scrollHeight };
+  });
+  expect(dimensions.height).toBeGreaterThan(400);
+  expect(dimensions.bodyHeight).toBeGreaterThanOrEqual(dimensions.contentHeight - 1);
+  for (const list of await panel.locator('.acquisition-rank-missions').all()) {
+    const bounds = await list.boundingBox();
+    expect(bounds!.height).toBeGreaterThanOrEqual(220);
+    expect(bounds!.width).toBeGreaterThan(400);
+  }
+  await expect(panel.getByRole('link', { name: /Blackbox Retrieval Very Dangerous/ })).toBeVisible();
+  const reached = panel.getByRole('button', { name: 'Prospective Associate — mark as reached', exact: true });
+  await reached.click();
+  await expect(panel.getByRole('button', { name: 'Prospective Associate — undo reached rank' })).toHaveAttribute('aria-pressed', 'true');
+  await panel.getByRole('button', { name: 'Prospective Associate — undo reached rank' }).click();
+  const firstList = panel.locator('.acquisition-rank-missions').first();
+  await firstList.getByRole('link', { name: /Mining assignment 1.8/ }).focus();
+  await expect(firstList.getByRole('link', { name: /Mining assignment 1.8/ })).toBeInViewport();
 });
