@@ -32,9 +32,9 @@ const dataset = {
   label: 'Workspace test',
   version: '4.10.0',
   published: true,
-  blueprints: [blueprint],
+  blueprints: [blueprint, { ...blueprint, id: 'vendetta', name: 'Vendetta HMG', dismantle: { dismantleTimeSecs: 15, efficiency: 0.5, deterministic: true, materials: [] } }],
   resources: [],
-  blueprintCount: 1,
+  blueprintCount: 2,
   resourceCount: 0,
   hasDismantling: false,
   hasMissionRewards: false,
@@ -72,8 +72,8 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && message.text().includes('same key')) errors.push(message.text()); });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Simulate CQ7 Rifle', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await page.goto('/item/cq7-rifle');
   await expect(page).toHaveURL(/\/item\/cq7-rifle$/);
   await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
   await expect(page).toHaveScreenshot('item-workspace.png');
@@ -81,7 +81,9 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
   await expect(
     page.getByRole('spinbutton', { name: 'Quality value for Iron', exact: true }),
   ).toHaveValue('1000');
-  await page.getByRole('link', { name: '01 / Configure' }).click();
+  if (page.viewportSize()!.width < 1400 || page.viewportSize()!.height < 850) {
+    await page.getByRole('link', { name: '01 / Configure' }).click();
+  }
   await expect(page.locator('#craft-configure')).toBeInViewport();
   const slotPositions = await page
     .getByRole('listitem', { name: 'Iron — Frame' })
@@ -100,11 +102,11 @@ test('Fabricator opens a blueprint workspace and preserves craft navigation', as
 
 test('the workspace stays compact and the shell fits the viewport', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
   await expect(page.getByRole('button', { name: /^(Comfort|Dense)$/ })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
   const bounds = await page.locator('header').first().boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
@@ -141,10 +143,31 @@ test('search preserves input on blur and navigates only on explicit selection', 
 test('reduced motion disables workspace entrances', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
   const duration = await page
     .locator('.workspace-page')
     .first()
     .evaluate((el) => getComputedStyle(el).animationDuration);
   expect(parseFloat(duration)).toBeLessThanOrEqual(0.001);
+});
+
+
+test('the default Vendetta dashboard keeps all six panels in a 1080p viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  const consent = page.getByRole('button', { name: 'Essential only', exact: true });
+  if (await consent.isVisible()) await consent.click();
+  for (const id of ['craft-configure', 'craft-result', 'craft-acquire', 'craft-materials', 'craft-dismantle', 'craft-data']) {
+    const panel = page.locator(`#${id}`);
+    await expect(panel).toBeVisible();
+    const bounds = await panel.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1080);
+    expect(await panel.evaluate(element => element.tagName)).not.toBe('DETAILS');
+  }
+  await page.goto('/item/cq7-rifle');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
 });

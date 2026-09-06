@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders, screen } from '../test/render';
+import { renderWithProviders, screen, within } from '../test/render';
 import { DatasetChangelogPage } from './DatasetChangelogPage';
 
 const data = vi.hoisted(() => {
@@ -17,11 +17,15 @@ describe('changelog information disclosure', () => {
     const user = userEvent.setup();
     renderWithProviders(<DatasetChangelogPage />);
     await screen.findAllByText('Engine test');
-    const summary = screen.getAllByText('View all 12 changes').at(-1)!;
-    const lastMetric = screen.getAllByText('metric-11').at(-1)!;
-    expect(lastMetric).not.toBeVisible();
-    await user.click(summary);
-    expect(lastMetric).toBeVisible();
+    const trigger = screen.getAllByRole('button', { name: 'View all 12 changes — Engine test' }).at(-1)!;
+    expect(screen.queryByText('metric-00')).not.toBeInTheDocument();
+    expect(screen.queryByText('metric-11')).not.toBeInTheDocument();
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog', { name: 'Engine test' });
+    expect(within(dialog).getByText('metric-00')).toBeVisible();
+    expect(within(dialog).getByText('metric-11')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await user.type(screen.getByRole('searchbox', { name: 'Search changes' }), 'metric-11');
     expect(screen.getAllByText('Engine test').length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /^Added/ }));

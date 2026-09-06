@@ -75,28 +75,17 @@ html[data-density='compact'] .workbench-register-row {
     min-height: 56px;
   }
 }
-/* Register reuses the complete blueprint card, including every quick action. */
-.workspace-blueprint-register .blueprint-card-link {
-  flex-direction: row;
-}
+/* Image-led register: artwork gets a full-height plate beside the identity. */
+.workspace-blueprint-register .blueprint-card-link { flex-direction: row; min-width: 0; }
 .workspace-blueprint-register .blueprint-card-preview {
-  width: 120px;
-  height: auto;
-  min-height: 150px;
-  flex: 0 0 120px;
-  border-bottom: 0;
-  border-right: 1px solid var(--sc-border);
+  width: 40%; flex: 0 0 40%; height: auto; min-height: 178px;
+  border-bottom: 0; border-right: 1px solid var(--sc-border);
 }
-.workspace-blueprint-register .blueprint-card-details {
-  min-width: 0;
-  gap: 8px;
-  padding: 12px;
-}
+.workspace-blueprint-register .blueprint-card-details { min-width: 0; gap: 8px; padding: 12px; }
+.workspace-blueprint-register .blueprint-card { contain-intrinsic-size: auto 225px; }
+.workspace-blueprint-register .blueprint-card-actions { opacity: 1; }
 @media (max-width: 599px) {
-  .workspace-blueprint-register .blueprint-card-preview {
-    width: 88px;
-    flex-basis: 88px;
-  }
+  .workspace-blueprint-register .blueprint-card-preview { width: 38%; flex-basis: 38%; min-height: 170px; }
 }
 
 /* Motion has three speeds: response, state change and entrance. */
@@ -269,23 +258,4 @@ html[data-theme] .global-search-field input:focus-visible { outline: none; box-s
 @media (prefers-reduced-motion: reduce) {
   .workspace-disclosure > summary::after { transition: none; }
   .workspace-disclosure[open] > .workspace-disclosure-body { animation: none; }
-}
-
-/* A register row keeps actions beside the item, without an empty hover footer. */
-.workspace-blueprint-register .blueprint-card-actions { opacity: 1; }
-.workspace-blueprint-register .blueprint-card-preview { min-height: 130px; }
-@media (min-width: 900px) {
-  .workspace-blueprint-register .blueprint-card { flex-direction: row; contain-intrinsic-size: auto 150px; }
-  .workspace-blueprint-register .blueprint-card-link { min-width: 0; }
-  .workspace-blueprint-register .blueprint-card-preview { width: 88px; flex-basis: 88px; }
-  .workspace-blueprint-register .blueprint-card-actions {
-    grid-template-columns: minmax(0, 1fr);
-    align-content: center;
-    width: 100px;
-    flex: 0 0 100px;
-    padding: 8px;
-    gap: 6px;
-    border-top: 0;
-    border-left: 1px solid var(--sc-border);
-  }
 }

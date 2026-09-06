@@ -19,6 +19,7 @@ import type {
 import { GPP_LABELS, GPP_LOWER_IS_BETTER, STAT_LABELS, STAT_LOWER_IS_BETTER } from '../types';
 import { AppChip } from './ui/data-display/AppChip';
 import { AppButton, AppSelect, AppTextField } from './ui/controls';
+import { AppDialog } from './ui/overlays/AppDialog';
 import { SurfaceState } from './ui/feedback';
 import { PageHeader, PageLayout } from './ui/page';
 import './changelog-focus.css';
@@ -572,30 +573,34 @@ function DetailPill({ item }: { item: StructuredChangeDetail }) {
 }
 
 function ChangeDetailsCell({ row, lang }: { row: FlatChangeRow; lang: Lang }) {
-  if (row.detailItems.length === 0) return <Typography variant="body2" sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>{row.details}</Typography>;
+  const [open, setOpen] = useState(false);
   const orderedDomains: ChangeDomain[] = ['stats', 'modifiers', 'materials', 'craft', 'identity', 'resources'];
-  const ordered = [...row.detailItems].sort((a, b) => orderedDomains.indexOf(a.domain) - orderedDomains.indexOf(b.domain));
-  const preview = ordered.slice(0, 2);
-  return (
-    <Stack spacing={0.6}>
-      {preview.map((item) => <DetailPill key={item.id} item={item} />)}
-      {ordered.length > 2 && (
-        <details className="workspace-disclosure changelog-details">
-          <summary>{lang === 'fr' ? `Voir les ${ordered.length} changements` : lang === 'de' ? `Alle ${ordered.length} Änderungen` : `View all ${ordered.length} changes`}</summary>
-          <div className="workspace-disclosure-body">
-            {orderedDomains.map((domain) => {
-              const items = ordered.filter((item) => item.domain === domain);
-              if (!items.length) return null;
-              return <Box key={domain} sx={{ mb: 1 }}>
-                <Typography sx={{ fontSize: '.75rem', color: 'text.secondary', mb: 0.5 }}>{domainLabel(domain, lang)}</Typography>
-                <Stack spacing={0.5}>{items.map((item) => <DetailPill key={item.id} item={item} />)}</Stack>
-              </Box>;
-            })}
-          </div>
-        </details>
-      )}
-    </Stack>
-  );
+  const count = row.detailItems.length;
+  const label = count
+    ? lang === 'fr' ? (count === 1 ? 'Voir le changement' : `Voir les ${count} changements`) : lang === 'de' ? (count === 1 ? 'Änderung anzeigen' : `Alle ${count} Änderungen`) : (count === 1 ? 'View change' : `View all ${count} changes`)
+    : lang === 'fr' ? 'Voir les détails' : lang === 'de' ? 'Details anzeigen' : 'View details';
+  return <>
+    <AppButton variant="ghost" size="sm" onClick={() => setOpen(true)} ariaLabel={`${label} — ${row.name}`}>{label} ↗</AppButton>
+    {open && <AppDialog open onOpenChange={setOpen} title={row.name}
+      description={`${row.type} · ${row.status === 'Added' ? (lang === 'fr' ? 'Ajouté' : 'Added') : row.status === 'Removed' ? (lang === 'fr' ? 'Retiré' : 'Removed') : (lang === 'fr' ? 'Modifié' : 'Changed')}`}
+      closeLabel={lang === 'fr' ? 'Fermer' : lang === 'de' ? 'Schließen' : 'Close'} width="min(54rem, calc(100vw - 2rem))"
+      partSx={{
+        root: { backgroundColor: 'ui.surface', border: '1px solid', borderColor: 'ui.border', borderRadius: '8px', boxShadow: '0 20px 80px #0006', overflow: 'hidden' },
+        header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'ui.border' },
+        headerTitle: { fontSize: '1rem', fontWeight: 700 },
+        closeButton: { width: 34, height: 34 },
+        content: { p: 2, overflowY: 'auto', maxHeight: '70dvh' },
+        mask: { backgroundColor: '#0008' },
+      }}>
+      {count === 0 ? <Typography sx={{ overflowWrap: 'anywhere' }}>{row.details}</Typography> : orderedDomains.map(domain => {
+        const items = row.detailItems.filter(item => item.domain === domain);
+        return items.length ? <Box key={domain} sx={{ mb: 2 }}>
+          <Typography component="h3" sx={{ fontSize: '.8rem', fontWeight: 700, color: 'text.secondary', mb: 1 }}>{domainLabel(domain, lang)}</Typography>
+          <Stack spacing={0.75}>{items.map(item => <DetailPill key={item.id} item={item} />)}</Stack>
+        </Box> : null;
+      })}
+    </AppDialog>}
+  </>;
 }
 
 function ChangeIdentity({ row, imageUrl }: { row: FlatChangeRow; imageUrl?: string | null }) {
@@ -882,7 +887,7 @@ export function DatasetChangelogPage() {
                       <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Name', 'Nom')}</TableCell>
                       <TableCell component="th" scope="col" sx={monoHeaderSx}>Type</TableCell>
                       <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Status', 'Statut')}</TableCell>
-                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Stats / modifiers', 'Stats / modifiers')}</TableCell>
+                      <TableCell component="th" scope="col" sx={monoHeaderSx}>{t('Modifications', 'Modifications', 'Änderungen')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -891,7 +896,7 @@ export function DatasetChangelogPage() {
                         key={row.id}
                         sx={{
                           '&:hover': { bgcolor: (rowTheme) => alpha(rowTheme.palette.primary.main, 0.04) },
-                          '& td, & th': { borderColor: 'ui.border' },
+                          '& td, & th': { borderColor: 'ui.border', py: 0.5 },
                         }}
                       >
                         <TableCell component="th" scope="row" sx={{ borderColor: 'ui.border' }}>
@@ -920,7 +925,7 @@ export function DatasetChangelogPage() {
 
               <Stack role="list" aria-label={t('Dataset changes', 'Changements du dataset')} spacing={1} sx={{ display: { xs: 'flex', md: 'none' }, p: 1.5 }}>
                 {filteredRows.map((row) => (
-                  <Paper key={row.id} component="article" role="listitem" variant="outlined" sx={{ p: 1.5, borderColor: 'ui.border', bgcolor: 'background.paper' }}>
+                  <Paper key={row.id} component="article" role="listitem" variant="outlined" sx={{ p: 1, borderColor: 'ui.border', bgcolor: 'background.paper' }}>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
                       <Box sx={{ minWidth: 0 }}>
                         <ChangeIdentity row={row} imageUrl={rowImages.get(row.id)} />

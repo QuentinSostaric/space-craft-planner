@@ -249,7 +249,7 @@ export function FabricatorPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const slug = itemSlugFromPathname(window.location.pathname);
-    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : null;
+    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : blueprints.find(bp => bp.name === 'Vendetta HMG') ?? blueprints[0];
     return initial?.id ?? null;
   });
   const [requestedGoalId, setRequestedGoalId] = useState(() => new URLSearchParams(window.location.search).get('goal'));
@@ -311,7 +311,7 @@ export function FabricatorPage() {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
-  // The home screen starts with item selection; deep links select an exact item.
+  // Fabricator opens the standard Vendetta; deep links always select the requested item.
   // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
   // the item page); back/forward keep the selection in sync.
   useEffect(() => {
@@ -319,7 +319,7 @@ export function FabricatorPage() {
       setRequestedGoalId(new URLSearchParams(window.location.search).get('goal'));
       const slug = itemSlugFromPathname(window.location.pathname);
       if (!slug) {
-        setSelectedId(null);
+        setSelectedId((blueprints.find(bp => bp.name === 'Vendetta HMG') ?? blueprints[0])?.id ?? null);
         return;
       }
       const fromUrl = blueprints.find((bp) => toSlug(bp.name) === slug);
@@ -553,7 +553,7 @@ export function FabricatorPage() {
 
       {selected && (
         <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Box className="fabricator-breadcrumb" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <AppButton variant="ghost" size="sm" onClick={() => navigateToPath('/blueprints')}>
               ← {t('Blueprints', 'Blueprints', 'Baupläne')}
             </AppButton>
@@ -782,7 +782,7 @@ export function FabricatorPage() {
             </Box>
           </Paper>
 
-          <Box component="nav" className="workspace-section-links" onClick={(event) => {
+          <Box component="nav" className="workspace-section-links fabricator-section-links" onClick={(event) => {
             const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#"]');
             const section = link ? document.getElementById(link.hash.slice(1)) : null;
             if (section instanceof HTMLDetailsElement) section.open = true;
@@ -801,7 +801,7 @@ export function FabricatorPage() {
             ragged bottom edge that read as accidental. Stretching gives every
             row a flat baseline, which is what makes the grid look deliberate.
           */}
-          <Box key={`work-${selected.id}`} className="workspace-work-grid" sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
+          <Box key={`work-${selected.id}`} className="workspace-work-grid fabricator-dashboard" sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 1.5, alignItems: 'stretch' }}>
             {/* Craft simulator */}
             {detailReady ? (
               <BentoPanel
@@ -935,13 +935,7 @@ export function FabricatorPage() {
                     <Box className="if-appear" sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(230px, 100%), 1fr))', gap: '9px 14px', alignContent: 'start' }}>
                       {statMeters.length > 0 ? (
                         <>
-                          {statMeters.slice(0, 4).map((meter) => <StatMeterRow key={meter.key} meter={meter} />)}
-                          {statMeters.length > 4 && (
-                            <details className="fabricator-extra-stats">
-                              <summary>{t(`All characteristics (+${statMeters.length - 4})`, `Toutes les caractéristiques (+${statMeters.length - 4})`, `Alle Eigenschaften (+${statMeters.length - 4})`)}</summary>
-                              <div>{statMeters.slice(4).map((meter) => <StatMeterRow key={meter.key} meter={meter} />)}</div>
-                            </details>
-                          )}
+                          {statMeters.map((meter) => <StatMeterRow key={meter.key} meter={meter} />)}
                         </>
                       ) : (
                         <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.disabled' }}>
@@ -955,14 +949,10 @@ export function FabricatorPage() {
             )}
 
             {/* Acquisition context appears when the player needs to find the blueprint. */}
-            <details id="craft-acquire" className="workspace-disclosure fabricator-disclosure fabricator-acquisition">
-              <summary>
-                <strong>{t('Acquire this blueprint', 'Obtenir ce blueprint', 'Diesen Bauplan beschaffen')}</strong>
-                <span className="fabricator-disclosure-note">
-                  {entry ? `${entry.contractCount} ${entry.contractCount === 1 ? t('contract', 'contrat', 'Auftrag') : t('contracts', 'contrats', 'Aufträge')} · ${formatProbabilityPercent(bestChance)} ${t('best chance', 'meilleure chance', 'beste Chance')}`
-                    : missionRewards ? t('No confirmed mission reward', 'Aucune récompense de mission confirmée', 'Keine bestätigte Missionsbelohnung') : t('Loading…', 'Chargement…', 'Laden…')}
-                </span>
-              </summary>
+            <BentoPanel id="craft-acquire" title={t('Acquire this blueprint', 'Obtenir ce blueprint', 'Diesen Bauplan beschaffen')} span={4}
+              right={<Typography sx={{ fontFamily: FONT_MONO, fontSize: '.7rem', color: 'text.secondary' }}>
+                {entry ? `${entry.contractCount} ${t('contracts', 'contrats', 'Aufträge')}` : missionRewards ? '—' : '…'}
+              </Typography>}>
               <div className="fabricator-acquisition-content">
                 <dl className="fabricator-acquisition-facts">
                   <div><dt>{t('Best drop chance', 'Meilleure chance', 'Beste Dropchance')}</dt><dd>{!missionRewards ? '…' : entry ? formatProbabilityPercent(bestChance) : '—'}</dd></div>
@@ -980,7 +970,7 @@ export function FabricatorPage() {
                   </Typography>
                 )}
               </div>
-            </details>
+            </BentoPanel>
 
             {/* Materials & sourcing */}
             {showMaterials && (
@@ -988,7 +978,6 @@ export function FabricatorPage() {
                 accent={theme.palette.domain.green}
                 id="craft-materials" title={t('Materials & sourcing', 'Matériaux & sourcing')}
                 span={12}
-                collapsible
                 right={
                   <BentoHero
                     value={totalRequiredScu > 0 ? formatResourceQuantity(totalRequiredScu, 'scu', lang) : String(requiredResources.length)}
@@ -1097,7 +1086,6 @@ export function FabricatorPage() {
                 accent={theme.palette.domain.orange}
                 id="craft-dismantle" title={t('Estimated dismantle return', 'Estimation du démontage')}
                 span={12}
-                collapsible
                 right={
                   <>
                     <Typography
@@ -1275,7 +1263,7 @@ export function FabricatorPage() {
             {/* Field data */}
             {detailReady && (
               <BentoPanel id="craft-data" title={t('Field data', 'Données objet', 'Objektdaten')} span={12}
-                collapsible bodySx={{ p: 1.5 }}>
+                bodySx={{ p: 1.5 }}>
                 {hasBlueprintFieldData(selected) ? (
                   <FieldDataBody blueprint={selected} />
                 ) : (

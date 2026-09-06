@@ -375,13 +375,8 @@ export const BlueprintCard = memo(function BlueprintCard({
           className="blueprint-card-preview"
           sx={{
             position: 'relative',
-            height: 'var(--workspace-preview-height)',
+            height: 184,
             backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.46) : alpha(theme.palette.primary.main, 0.02),
-            backgroundImage:
-              theme.palette.mode === 'dark'
-                ? `linear-gradient(${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.075)} 1px, transparent 1px)`
-                : 'none',
-            backgroundSize: '28px 28px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -405,7 +400,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           )}
 
           {/* Large Image / Icon */}
-          <Box sx={{ width: '100%', height: '100%', p: { xs: 1.5, md: 1.75 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ width: '100%', height: '100%', p: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {showImage ? (
               <CardMedia
                 component="img"
@@ -417,8 +412,10 @@ export const BlueprintCard = memo(function BlueprintCard({
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 sx={{
-                  maxHeight: '100%',
-                  maxWidth: '100%',
+                  width: '100%',
+                  height: '100%',
+                  maxHeight: thumbMode === 'logo' ? 88 : '100%',
+                  maxWidth: thumbMode === 'logo' ? 100 : '100%',
                   objectFit: 'contain',
                   filter: thumbMode === 'item' ? (theme.palette.mode === 'dark' ? 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' : 'drop-shadow(0 8px 16px rgba(0,0,0,0.1))') : 'none',
                   p: thumbMode === 'logo' ? 2 : 0,

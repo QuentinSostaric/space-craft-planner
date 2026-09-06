@@ -54,7 +54,7 @@ export function BentoPanel({
       ]}
     >
       <BentoHeader accent={accent} title={title} note={note} right={right} summary={collapsible} />
-      <Box sx={bodySx}>{children}</Box>
+      <Box className="fabricator-panel-body" sx={bodySx}>{children}</Box>
     </Paper>
   );
 }

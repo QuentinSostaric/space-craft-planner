@@ -15,12 +15,12 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 
 | Espace | Premier regard | Détails disponibles |
 | --- | --- | --- |
-| Atelier | Sélection d'objet illustrée, recherche et collection personnelle | Suggestions d'acquisition, guide de production |
-| Objet | Qualité des matériaux et résultat de simulation | Toutes les caractéristiques, acquisition/réputation, matériaux, démontage, données objet |
-| Blueprints | Identité, matériaux et actions à côté de l'objet | Filtres avancés et fiches détaillées |
+| Fabricator | Fiche du Vendetta HMG par défaut, six panneaux ouverts dans un dashboard 1080p | Les liens `/item/…` conservent leur objet ; les longues listes défilent dans leur panneau |
+| Objet | Simulation et toutes les caractéristiques visibles, acquisition, matériaux, démontage et données objet | Navigation de section conservée sur les écrans étroits, description et visuel agrandi à la demande |
+| Blueprints | Image sur environ 40 % de la carte du registre, identité et matériaux, actions en pied | Filtres avancés et fiches détaillées |
 | Ressources | Choix du matériau, meilleures sources disponibles, collecte/stock | Propriétés, sources complètes, missions chargées à la demande, blueprints |
 | Planificateur | Prochaine tâche avec validation/annulation ; accès aux crafts et collectes sauvegardés | Checklist complète, édition, organisation/export, un tableau de production à la fois |
-| Changelog | Versions comparées, statut et valeurs avant/après | Filtres avancés et intégralité des changements de chaque objet |
+| Changelog | Lignes compactes : image, nom, type, statut et accès aux modifications | Un clic ouvre toutes les valeurs avant/après dans une fenêtre, sans allonger la liste |
 | Compte / organisations | Connexion ou actions courantes ; espaces partagés | Fonctionnement, conditions de synchronisation et détails des accès |
 
 ## Continuité fonctionnelle
@@ -36,4 +36,4 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 
 Tests d'interaction : détails complets du changelog, sélection/source/mission/stock des ressources, conservation des notes et annulation, agrégation des crafts et collectes, liens directs du planificateur. Vérification visuelle locale des principales pages sur ordinateur et écran de 390 px. La vue authentifiée du compte et les organisations avec membres ont été revues dans le code, sans connexion à un compte pendant cette passe.
 
-Les 124 tests du client, les 56 scénarios E2E, le contrôle des conventions UI et le build passent. Les scénarios de navigation ont été adaptés au nouvel accueil et à la densité fixe. Les huit références visuelles du shell et de la fiche objet ont été régénérées et inspectées sur ordinateur et mobile, en clair et sombre.
+Les 124 tests du client, les 60 scénarios E2E, le contrôle des conventions UI et le build passent. Les scénarios de navigation ont été adaptés au Vendetta par défaut et à la densité fixe. Les huit références visuelles du shell et de la fiche objet ont été régénérées et inspectées sur ordinateur et mobile, en clair et sombre.

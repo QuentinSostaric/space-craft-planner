@@ -8,7 +8,4 @@
 .changelog-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .changelog-thumbnail { display: grid; place-items: center; flex: 0 0 42px; height: 42px; color: var(--sc-text-secondary); background: var(--sc-bg); border-radius: 4px; overflow: hidden; }
 .changelog-thumbnail img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.changelog-details { background: transparent; border: 0; }
-.changelog-details > summary { min-height: 32px; padding: 4px 2px; font-size: .75rem; font-weight: 500; }
-.changelog-details > .workspace-disclosure-body { padding: 8px 0 0; }
 @media(max-width: 599px) { .changelog-stat-count { margin-left: 0; flex-basis: 100%; padding: 4px; } }
