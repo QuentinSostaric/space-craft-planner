@@ -10,7 +10,7 @@ import {
   StarBorderIcon,
   StarIcon,
 } from '../ui/icons';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCraft } from '../store/CraftContext';
 import { loc, useI18n } from '../i18n/I18nContext';
 import { useCraftSimulator } from '../hooks/useCraftSimulator';
@@ -194,6 +194,65 @@ function gradeOf(score: number, theme: Theme): { label: LocalizedString; color: 
   return { label: { en: 'Defective', fr: 'Défectueux', de: 'Defekt' }, color: theme.palette.error.main };
 }
 
+/** KPI tile of the ribbon — label, big number, and either a meter or a hint. */
+function KpiTile({
+  label,
+  value,
+  hint,
+  accent,
+  meterPct,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent: string;
+  meterPct?: number;
+}) {
+  return (
+    <Paper
+      sx={{
+        position: 'relative',
+        borderRadius: '5px',
+        backgroundColor: 'ui.surface',
+        px: 1.5,
+        py: 0.875,
+        minWidth: 0,
+        overflow: 'hidden',
+        boxShadow: `inset 2px 0 0 0 ${accent}`,
+      }}
+    >
+      <Typography sx={{ fontSize: '0.6875rem', color: 'text.secondary', mb: 0.625, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontFamily: FONT_DISPLAY,
+          fontWeight: 800,
+          fontSize: '1.1rem',
+          letterSpacing: '-0.02em',
+          lineHeight: 1,
+          color: 'text.primary',
+          fontVariantNumeric: 'tabular-nums',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </Typography>
+      {meterPct != null ? (
+        <Box sx={{ mt: 0.625, height: 3, borderRadius: '2px', backgroundColor: 'ui.surface3', overflow: 'hidden' }}>
+          <Box sx={{ height: '100%', width: `${Math.max(0, Math.min(100, meterPct))}%`, backgroundColor: accent, borderRadius: '2px' }} />
+        </Box>
+      ) : (
+        <Typography
+          sx={{ fontFamily: FONT_MONO, fontSize: '0.6875rem', color: 'text.disabled', mt: 0.5, lineHeight: 1.5 }}
+        >
+          {hint ?? ' '}
+        </Typography>
+      )}
+    </Paper>
+  );
+}
+
 /** Shared column template for the Materials & sourcing table. */
 const MATERIAL_GRID = '18px minmax(0, 1fr) 68px 58px 24px';
 /** Dismantle compares the minimum recipe composition with the nominal return. */
@@ -207,16 +266,78 @@ const materialHeadSx = {
   color: 'text.disabled',
 } as const;
 
-/** Item lore is secondary to the live simulation. */
+// ─── Item description (clamped, expandable) ──────────────────────────────────
+
+const DESCRIPTION_CLAMP_LINES = 2;
+
 function ItemDescription({ blueprint }: { blueprint: Blueprint }) {
   const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const textRef = useRef<HTMLElement | null>(null);
   const description = blueprint.identity?.descriptionBody ?? blueprint.identity?.description;
+
+  /*
+   * The toggle only appears when the text is actually clamped. Without the
+   * measurement a one-line description still offered a control that visibly did
+   * nothing — and making the paragraph itself the button meant screen readers
+   * announced the entire blurb as the control's name.
+   */
+  useLayoutEffect(() => {
+    const node = textRef.current;
+    if (!node || !description) {
+      setOverflows(false);
+      return;
+    }
+    const measure = () => setOverflows(node.scrollHeight - node.clientHeight > 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [description, expanded]);
+
   if (!description) return null;
+
   return (
-    <details className="fabricator-item-description">
-      <summary>{t('About this item', 'À propos de cet objet', 'Über dieses Objekt')}</summary>
-      <p>{description}</p>
-    </details>
+    <Box sx={{ mt: 0.5, maxWidth: '84ch' }}>
+      <Typography
+        ref={textRef}
+        id={`item-description-${blueprint.id}`}
+        sx={{
+          fontSize: TEXT_LABEL,
+          lineHeight: 1.5,
+          color: 'text.secondary',
+          ...(expanded ? {} : {
+            display: '-webkit-box',
+            WebkitLineClamp: DESCRIPTION_CLAMP_LINES,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }),
+        }}
+      >
+        {description}
+      </Typography>
+      {(overflows || expanded) && (
+        <ButtonBase
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          aria-controls={`item-description-${blueprint.id}`}
+          sx={{
+            mt: 0.25,
+            fontFamily: FONT_MONO,
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            color: 'primary.main',
+            '&:hover': { textDecoration: 'underline' },
+          }}
+        >
+          {expanded ? t('Less', 'Moins') : t('More', 'Plus')}
+        </ButtonBase>
+      )}
+    </Box>
   );
 }
 
@@ -481,6 +602,8 @@ export function FabricatorPage() {
 
   const showMaterials = detailReady && requiredResources.length > 0;
   const showDismantle = detailReady && Boolean(dismantleEstimate) && dismantleTimeSecs > 0;
+  const closingPanelCount = [showMaterials, showDismantle, detailReady].filter(Boolean).length;
+  const closingPanelSpan = closingPanelCount ? 12 / closingPanelCount : 12;
 
   const inInventory = selected ? inventoryIds.includes(selected.id) : false;
   const isFavorite = selected ? favoriteIds.includes(selected.id) : false;
@@ -782,6 +905,39 @@ export function FabricatorPage() {
             </Box>
           </Paper>
 
+          {/* ── KPI ribbon ── */}
+          <Box className="fabricator-kpi-ribbon" sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' }, gap: 1.125 }}>
+            <KpiTile
+              label={t('Best drop chance', 'Meilleure chance')}
+              value={!missionRewards ? '…' : entry ? formatProbabilityPercent(bestChance) : '—'}
+              accent={theme.palette.domain.blue}
+              meterPct={entry ? bestChance * 100 : 0}
+            />
+            <KpiTile
+              label={t('Reputation needed', 'Réputation requise')}
+              value={!missionRewards ? '…' : entry ? topStanding?.standingName ?? t('None', 'Aucune') : '—'}
+              hint={t('to unlock a direct drop', 'pour débloquer un drop direct')}
+              accent={theme.palette.domain.magenta}
+            />
+            <KpiTile
+              label={t('Source contracts', 'Contrats sources')}
+              value={!missionRewards ? '…' : entry ? String(entry.contractCount) : '0'}
+              hint={`${lanes.length} ${t('factions', 'factions')}`}
+              accent={theme.palette.domain.blue}
+            />
+            <KpiTile
+              label={t('Localities', 'Localités')}
+              value={!missionRewards ? '…' : entry ? String(entry.localityCount) : '0'}
+              accent={theme.palette.domain.cyan}
+            />
+            <KpiTile
+              label={t('Craft time', 'Temps de craft')}
+              value={craftTimeLabel}
+              hint={totalRequiredScu > 0 ? `${formatResourceQuantity(totalRequiredScu, 'scu', lang)} ${t('materials', 'matériaux')}` : undefined}
+              accent={theme.palette.primary.main}
+            />
+          </Box>
+
           <Box component="nav" className="workspace-section-links fabricator-section-links" onClick={(event) => {
             const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#"]');
             const section = link ? document.getElementById(link.hash.slice(1)) : null;
@@ -934,9 +1090,7 @@ export function FabricatorPage() {
                   ) : (
                     <Box className="if-appear" sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(230px, 100%), 1fr))', gap: '9px 14px', alignContent: 'start' }}>
                       {statMeters.length > 0 ? (
-                        <>
-                          {statMeters.map((meter) => <StatMeterRow key={meter.key} meter={meter} />)}
-                        </>
+                        statMeters.map((meter) => <StatMeterRow key={meter.key} meter={meter} />)
                       ) : (
                         <Typography sx={{ fontSize: TEXT_LABEL, color: 'text.disabled' }}>
                           {t('No modifiable stats', 'Aucune stat modifiable')}
@@ -948,36 +1102,33 @@ export function FabricatorPage() {
               </BentoPanel>
             )}
 
-            {/* Acquisition context appears when the player needs to find the blueprint. */}
-            <BentoPanel id="craft-acquire" title={t('Acquire this blueprint', 'Obtenir ce blueprint', 'Diesen Bauplan beschaffen')} span={4}
-              right={<Typography sx={{ fontFamily: FONT_MONO, fontSize: '.7rem', color: 'text.secondary' }}>
-                {entry ? `${entry.contractCount} ${t('contracts', 'contrats', 'Aufträge')}` : missionRewards ? '—' : '…'}
-              </Typography>}>
-              <div className="fabricator-acquisition-content">
-                <dl className="fabricator-acquisition-facts">
-                  <div><dt>{t('Best drop chance', 'Meilleure chance', 'Beste Dropchance')}</dt><dd>{!missionRewards ? '…' : entry ? formatProbabilityPercent(bestChance) : '—'}</dd></div>
-                  <div><dt>{t('Reputation needed', 'Réputation requise', 'Benötigter Ruf')}</dt><dd>{!missionRewards ? '…' : topStanding?.standingName ?? t('None', 'Aucune', 'Keine')}</dd><span>{t('to unlock a direct drop', 'pour débloquer un drop direct', 'für einen direkten Drop')}</span></div>
-                  <div><dt>{t('Source contracts', 'Contrats sources', 'Quellaufträge')}</dt><dd>{!missionRewards ? '…' : entry?.contractCount ?? 0}</dd><span>{lanes.length} {t('factions', 'factions', 'Fraktionen')}</span></div>
-                  <div><dt>{t('Localities', 'Localités', 'Orte')}</dt><dd>{!missionRewards ? '…' : entry?.localityCount ?? 0}</dd></div>
-                </dl>
-                {lanes.length > 0 ? (
-                  <AcquisitionRoutes lanes={lanes} progress={progress} onReach={handleReach} />
-                ) : (
-                  <Typography variant="body2" sx={{ color: 'text.secondary', p: 1.5 }}>
-                    {missionRewards
-                      ? t('This blueprint is not rewarded by any known mission in this game build.', 'Ce blueprint n’est récompensé par aucune mission connue dans ce build du jeu.', 'Kein bekannter Auftrag in diesem Build belohnt diesen Bauplan.')
-                      : t('Loading mission rewards…', 'Chargement des récompenses de mission…', 'Missionsbelohnungen werden geladen…')}
-                  </Typography>
-                )}
-              </div>
-            </BentoPanel>
+            {/* Acquisition routes */}
+            {lanes.length > 0 ? (
+              <AcquisitionRoutes
+                id="craft-acquire"
+                lanes={lanes}
+                progress={progress}
+                onReach={handleReach}
+              />
+            ) : (
+              <BentoPanel accent={theme.palette.domain.blue} id="craft-acquire" title={t('Acquisition routes', 'Routes d’acquisition')} span={12} bodySx={{ p: 1.5 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {missionRewards
+                    ? t(
+                        'This blueprint is not rewarded by any known mission in the current dataset.',
+                        'Ce blueprint n’est récompensé par aucune mission connue dans ce build du jeu.',
+                      )
+                    : t('Loading mission rewards…', 'Chargement des récompenses de mission…')}
+                </Typography>
+              </BentoPanel>
+            )}
 
             {/* Materials & sourcing */}
             {showMaterials && (
               <BentoPanel
                 accent={theme.palette.domain.green}
                 id="craft-materials" title={t('Materials & sourcing', 'Matériaux & sourcing')}
-                span={12}
+                span={closingPanelSpan}
                 right={
                   <BentoHero
                     value={totalRequiredScu > 0 ? formatResourceQuantity(totalRequiredScu, 'scu', lang) : String(requiredResources.length)}
@@ -1085,7 +1236,7 @@ export function FabricatorPage() {
               <BentoPanel
                 accent={theme.palette.domain.orange}
                 id="craft-dismantle" title={t('Estimated dismantle return', 'Estimation du démontage')}
-                span={12}
+                span={closingPanelSpan}
                 right={
                   <>
                     <Typography
@@ -1262,7 +1413,7 @@ export function FabricatorPage() {
 
             {/* Field data */}
             {detailReady && (
-              <BentoPanel id="craft-data" title={t('Field data', 'Données objet', 'Objektdaten')} span={12}
+              <BentoPanel id="craft-data" title={t('Field data', 'Données objet', 'Objektdaten')} span={closingPanelSpan}
                 bodySx={{ p: 1.5 }}>
                 {hasBlueprintFieldData(selected) ? (
                   <FieldDataBody blueprint={selected} />

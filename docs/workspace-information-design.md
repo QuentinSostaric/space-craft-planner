@@ -15,7 +15,7 @@ Cette évolution étend aux autres pages les principes validés sur Missions : d
 
 | Espace | Premier regard | Détails disponibles |
 | --- | --- | --- |
-| Fabricator | Fiche du Vendetta HMG par défaut, six panneaux ouverts dans un dashboard 1080p | Les liens `/item/…` conservent leur objet ; les longues listes défilent dans leur panneau |
+| Fabricator | Fiche du Vendetta HMG par défaut ; composition inspirée de main : bandeau d’indicateurs, simulation large, acquisition en bande et trois panneaux complémentaires, dans un dashboard 1080p | Les liens `/item/…` conservent leur objet ; les longues listes défilent dans leur panneau |
 | Objet | Simulation et toutes les caractéristiques visibles, acquisition, matériaux, démontage et données objet | Navigation de section conservée sur les écrans étroits, description et visuel agrandi à la demande |
 | Blueprints | Image sur environ 40 % de la carte du registre, identité et matériaux, actions en pied | Filtres avancés et fiches détaillées |
 | Ressources | Choix du matériau, meilleures sources disponibles, collecte/stock | Propriétés, sources complètes, missions chargées à la demande, blueprints |
