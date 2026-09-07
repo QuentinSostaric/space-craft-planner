@@ -377,6 +377,7 @@ export async function createOrganizationCraftRequest(
     appBaseUrl: normalizeBaseUrl(appBaseUrl),
     storageScope: normalizeStorageScope(storageScope),
     datasetScope: normalizedDatasetScope,
+    source: 'organization',
     organizationSid: normalizedSid,
     organizationName:
       organizationRecord?.name ??
@@ -404,6 +405,14 @@ export async function createOrganizationCraftRequest(
     respondedAt: null,
   };
 
+  return persistNewCraftRequest(store, requesterAccount, ownerAccount, request, normalizedDatasetScope);
+}
+
+// Shared persistence/lifecycle for already-authorized organization and
+// community requests. Caller verifies the current offer and both identities.
+export async function persistNewCraftRequest(store, requesterAccount, ownerAccount, request, datasetScope = 'live') {
+  const now = request.createdAt;
+
   const nextRequesterAccount = {
     ...requesterAccount,
     outgoingCraftRequests: [request, ...(requesterAccount.outgoingCraftRequests ?? [])],
@@ -422,7 +431,7 @@ export async function createOrganizationCraftRequest(
     ownerPreviousAccount: ownerAccount,
     ownerNextAccount: nextOwnerAccount,
     requesterNextAccount: nextRequesterAccount,
-    datasetScope: normalizedDatasetScope,
+    datasetScope,
   });
 
   return {

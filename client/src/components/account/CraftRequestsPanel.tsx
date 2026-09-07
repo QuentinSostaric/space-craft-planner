@@ -500,7 +500,9 @@ export function CraftRequestsPanel({
                             <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
                               {displayName}
                             </Box>{' '}
-                            · {request.organizationName}
+                            · {request.source === 'community'
+                              ? t('Community marketplace', 'Marketplace communautaire', 'Community-Marktplatz')
+                              : request.organizationName}
                           </Typography>
                         </Stack>
                       </Box>
@@ -698,7 +700,12 @@ export function CraftRequestsPanel({
                               {t('RSI profile', 'Profil RSI', 'RSI-Profil')} · {rsiHandle}
                             </AppButton>
                           )}
-                          {request.organizationSid && (
+                          {request.source === 'community' && (
+                            <AppButton href="/marketplace" variant="ghost" size="sm">
+                              {t('Community marketplace', 'Marketplace communautaire', 'Community-Marktplatz')}
+                            </AppButton>
+                          )}
+                          {request.source !== 'community' && request.organizationSid && (
                             <AppButton
                               href={`https://robertsspaceindustries.com/orgs/${encodeURIComponent(request.organizationSid)}`}
                               target="_blank"

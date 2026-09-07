@@ -1,4 +1,5 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { normalizeMarketplaceBlocks, normalizeMarketplaceSelection, syncMarketplaceIndexes, purgeMarketplaceAccountData, withMarketplaceAccountLocks } from './marketplaceStorage.mjs';
 import { getJsonObject, listObjectKeys, putJsonObject } from './r2Storage.mjs';
 import {
   readOrganizationRecord,
@@ -373,11 +374,12 @@ function normalizeAccountCraftRequest(value) {
   }
 
   const id = String(value.id ?? '').trim();
-  const organizationSid = normalizeOrganizationSid(value.organizationSid);
+  const source = value.source === 'community' ? 'community' : 'organization';
+  const organizationSid = source === 'community' ? null : normalizeOrganizationSid(value.organizationSid);
   const blueprintId = String(value.blueprintId ?? '').trim();
   const requesterAccountId = String(value.requesterAccountId ?? '').trim();
   const ownerAccountId = String(value.ownerAccountId ?? '').trim();
-  if (!id || !organizationSid || !blueprintId || !requesterAccountId || !ownerAccountId) {
+  if (!id || (source === 'organization' && !organizationSid) || !blueprintId || !requesterAccountId || !ownerAccountId) {
     return null;
   }
 
@@ -386,8 +388,9 @@ function normalizeAccountCraftRequest(value) {
     appBaseUrl: normalizeOptionalString(value.appBaseUrl),
     storageScope: normalizeCraftRequestStorageScope(value.storageScope),
     datasetScope: normalizeAccountDatasetScope(value.datasetScope),
+    source,
     organizationSid,
-    organizationName: String(value.organizationName ?? organizationSid).trim() || organizationSid,
+    organizationName: source === 'community' ? null : String(value.organizationName ?? organizationSid).trim() || organizationSid,
     blueprintId,
     blueprintName: String(value.blueprintName ?? blueprintId).trim() || blueprintId,
     requesterAccountId,
@@ -996,6 +999,7 @@ function createEmptyAccountScopeRecord(accountId, datasetScope = 'live', { now }
     planner: createEmptyAccountState().planner,
     organizationBlueprintShares: {},
     organizationResourceShares: {},
+    marketplace: normalizeMarketplaceSelection(null),
     sharedBlueprintIds: [],
     sharedResourceEntryIds: [],
     incomingCraftRequests: [],
@@ -1061,6 +1065,7 @@ function normalizeAccountScopeRecord(value, { accountId, datasetScope = 'live', 
     sharedResourceEntryIds,
     incomingCraftRequests,
     outgoingCraftRequests,
+    marketplace: normalizeMarketplaceSelection(value?.marketplace, state.inventoryBlueprintIds, inventoryResources, fallbackAccount?.marketplaceBlockedAccounts),
     createdAt: normalizeIsoTimestamp(value?.createdAt) ?? now,
     updatedAt: normalizeIsoTimestamp(value?.updatedAt) ?? normalizeIsoTimestamp(value?.createdAt) ?? now,
   };
@@ -1076,6 +1081,7 @@ function createLiveScopeFromLegacyAccount(account, datasetScope = 'live') {
     planner: account.planner,
     organizationBlueprintShares: account.organizationBlueprintShares,
     organizationResourceShares: account.organizationResourceShares,
+    marketplace: account.marketplace,
     sharedBlueprintIds: account.sharedBlueprintIds,
     sharedResourceEntryIds: account.sharedResourceEntryIds,
     incomingCraftRequests: account.incomingCraftRequests,
@@ -1099,10 +1105,12 @@ function mergeAccountWithScope(account, scopeRecord) {
     planner: scopeRecord.planner,
     organizationBlueprintShares: scopeRecord.organizationBlueprintShares,
     organizationResourceShares: scopeRecord.organizationResourceShares,
+    marketplace: normalizeMarketplaceSelection(scopeRecord.marketplace, scopeRecord.inventoryBlueprintIds, scopeRecord.inventoryResources, account.marketplaceBlockedAccounts),
     sharedBlueprintIds: scopeRecord.sharedBlueprintIds,
     sharedResourceEntryIds: scopeRecord.sharedResourceEntryIds,
     incomingCraftRequests: scopeRecord.incomingCraftRequests,
     outgoingCraftRequests: scopeRecord.outgoingCraftRequests,
+    updatedAt: [account.updatedAt, scopeRecord.updatedAt].filter(Boolean).sort().at(-1) ?? null,
   };
 }
 
@@ -1129,9 +1137,14 @@ async function readAccountScopeRecord(store, account, datasetScope = 'live') {
   );
 }
 
-async function writeAccountScopeRecord(store, account, datasetScope = 'live', previousScopedAccount = undefined) {
+async function writeAccountScopeRecord(store, account, datasetScope = 'live', previousScopedAccount = undefined, { refreshMarketplaceIndexes = false, replaceMarketplace = false, marketplaceOnly = false } = {}) {
+  return withMarketplaceAccountLocks(store, [account.accountId], lockedStore => writeAccountScopeRecordLocked(lockedStore, account, datasetScope, previousScopedAccount, { refreshMarketplaceIndexes, replaceMarketplace, marketplaceOnly }));
+}
+
+async function writeAccountScopeRecordLocked(store, account, datasetScope, previousScopedAccount, { refreshMarketplaceIndexes, replaceMarketplace, marketplaceOnly }) {
+  if (!await readAccountRecord(store, account.accountId)) throw new Error('Account no longer exists.');
   const normalizedScope = normalizeAccountDatasetScope(datasetScope);
-  const scopeRecord = normalizeAccountScopeRecord({
+  const desiredRecord = normalizeAccountScopeRecord({
     accountId: account.accountId,
     datasetScope: normalizedScope,
     favoriteBlueprintIds: account.favoriteBlueprintIds,
@@ -1140,6 +1153,7 @@ async function writeAccountScopeRecord(store, account, datasetScope = 'live', pr
     planner: account.planner,
     organizationBlueprintShares: account.organizationBlueprintShares,
     organizationResourceShares: account.organizationResourceShares,
+    marketplace: account.marketplace,
     sharedBlueprintIds: account.sharedBlueprintIds,
     sharedResourceEntryIds: account.sharedResourceEntryIds,
     incomingCraftRequests: account.incomingCraftRequests,
@@ -1148,13 +1162,33 @@ async function writeAccountScopeRecord(store, account, datasetScope = 'live', pr
     updatedAt: toIsoNow(),
   }, { accountId: account.accountId, datasetScope: normalizedScope, fallbackAccount: account });
 
-  await store.writeJson(getAccountScopeObjectKey(account.accountId, normalizedScope), scopeRecord);
+  let currentBeforeWrite = previousScopedAccount;
+  const scopeRecord = await store.updateJsonAtomically(getAccountScopeObjectKey(account.accountId, normalizedScope), current => {
+    if (current) currentBeforeWrite = mergeAccountWithScope(account, normalizeAccountScopeRecord(current, {
+      accountId: account.accountId, datasetScope: normalizedScope, fallbackAccount: account,
+    }));
+    // Inventory and planner writes must not reinstate an older publication
+    // consent. Conversely a publication changes only choices, never stock that
+    // changed after its initial read. CAS retries re-evaluate both from storage.
+    const next = { ...desiredRecord };
+    if (current && previousScopedAccount) {
+      for (const field of ['favoriteBlueprintIds', 'inventoryBlueprintIds', 'inventoryResources', 'planner', 'organizationBlueprintShares', 'organizationResourceShares', 'sharedBlueprintIds', 'sharedResourceEntryIds', 'incomingCraftRequests', 'outgoingCraftRequests']) {
+        if (JSON.stringify(desiredRecord[field]) === JSON.stringify(previousScopedAccount[field])) next[field] = current[field];
+      }
+    }
+    return normalizeAccountScopeRecord({
+      ...(marketplaceOnly && current ? current : next),
+      marketplace: replaceMarketplace ? desiredRecord.marketplace : current?.marketplace ?? desiredRecord.marketplace,
+      updatedAt: toIsoNow(),
+    }, { accountId: account.accountId, datasetScope: normalizedScope, fallbackAccount: account });
+  });
   await syncOrganizationScopedShareIndexesForAccount(
     store,
-    previousScopedAccount,
+    currentBeforeWrite,
     mergeAccountWithScope(account, scopeRecord),
     normalizedScope,
   );
+  await syncMarketplaceIndexes(store, currentBeforeWrite, mergeAccountWithScope(account, scopeRecord), normalizedScope, { forceWrite: refreshMarketplaceIndexes });
   return mergeAccountWithScope(account, scopeRecord);
 }
 
@@ -1188,11 +1222,12 @@ export async function copyLiveAccountScopeToPtu(store, accountId, fallbackProfil
     ...previousPtuAccount,
     ...liveAccount,
     datasetScope: 'ptu',
+    marketplace: normalizeMarketplaceSelection(null),
     incomingCraftRequests: copyCraftRequestsToPtu(liveAccount.incomingCraftRequests),
     outgoingCraftRequests: copyCraftRequestsToPtu(liveAccount.outgoingCraftRequests),
     updatedAt: now,
   };
-  return writeAccountScopeRecord(store, nextPtuAccount, 'ptu', previousPtuAccount);
+  return writeAccountScopeRecord(store, nextPtuAccount, 'ptu', previousPtuAccount, { replaceMarketplace: true });
 }
 
 export async function saveScopedCraftRequestCollections(
@@ -1292,6 +1327,9 @@ export function createDefaultAccountRecord(profile, { accountId, now } = {}) {
     planner: createEmptyAccountState().planner,
     organizationBlueprintShares: {},
     organizationResourceShares: {},
+    marketplace: normalizeMarketplaceSelection(null),
+    marketplaceBlockedAccounts: [],
+    marketplaceIdentityVersion: null,
     sharedBlueprintIds: [],
     sharedResourceEntryIds: [],
     organizations: [],
@@ -1376,6 +1414,9 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
     sharedBlueprintIds,
     sharedResourceEntryIds,
     organizations,
+    marketplace: normalizeMarketplaceSelection(value?.marketplace, state.inventoryBlueprintIds, inventoryResources, value?.marketplaceBlockedAccounts),
+    marketplaceBlockedAccounts: normalizeMarketplaceBlocks(value?.marketplaceBlockedAccounts),
+    marketplaceIdentityVersion: typeof value?.marketplaceIdentityVersion === 'string' ? value.marketplaceIdentityVersion : null,
     ignoredOrganizationSids,
     incomingCraftRequests,
     outgoingCraftRequests,
@@ -1390,8 +1431,12 @@ export function normalizeAccountRecord(value, { fallbackProfile, accountId } = {
   };
 }
 
-async function writeNormalizedAccountRecord(store, accountRecord, { previousAccount } = {}) {
-  const normalizedAccount = normalizeAccountRecord(accountRecord, {
+async function writeNormalizedAccountRecord(store, accountRecord, options = {}) {
+  return withMarketplaceAccountLocks(store, [accountRecord.accountId], lockedStore => writeNormalizedAccountRecordLocked(lockedStore, accountRecord, options));
+}
+
+async function writeNormalizedAccountRecordLocked(store, accountRecord, { replaceRsi = false, updateMarketplaceBlocks = null, allowCreate = false } = {}) {
+  let normalizedAccount = normalizeAccountRecord(accountRecord, {
     fallbackProfile: accountRecord?.profile,
     accountId: accountRecord?.accountId,
   });
@@ -1399,26 +1444,59 @@ async function writeNormalizedAccountRecord(store, accountRecord, { previousAcco
     throw new Error('A valid account record is required.');
   }
 
-  const previousAccountRecord =
-    previousAccount !== undefined
-      ? previousAccount
-      : await readAccountRecord(
-          store,
-          normalizedAccount.accountId,
-          normalizedAccount.profile,
-        );
-
-  await store.writeJson(getAccountObjectKey(normalizedAccount.accountId), normalizedAccount);
+  let previousAccountRecord = null;
+  let identityChanged = false;
+  const desiredAccount = normalizedAccount;
+  normalizedAccount = await store.updateJsonAtomically(getAccountObjectKey(desiredAccount.accountId), raw => {
+    const current = raw ? normalizeAccountRecord(raw) : null;
+    if (!current && !allowCreate) throw new Error('Account no longer exists.');
+    previousAccountRecord = current;
+    const next = {
+      ...(updateMarketplaceBlocks && current ? current : desiredAccount),
+      rsi: replaceRsi || !current ? desiredAccount.rsi : current.rsi,
+      lastRsiLinkAt: replaceRsi || !current ? desiredAccount.lastRsiLinkAt : current.lastRsiLinkAt,
+      marketplace: current?.marketplace ?? desiredAccount.marketplace,
+      marketplaceBlockedAccounts: updateMarketplaceBlocks
+        ? updateMarketplaceBlocks(current?.marketplaceBlockedAccounts ?? [])
+        : current?.marketplaceBlockedAccounts ?? desiredAccount.marketplaceBlockedAccounts,
+      marketplaceIdentityVersion: current?.marketplaceIdentityVersion ?? desiredAccount.marketplaceIdentityVersion,
+    };
+    identityChanged = Boolean(current && (
+      String(current.rsi?.handle ?? '').toLowerCase() !== String(next.rsi?.handle ?? '').toLowerCase()
+      || isVerifiedRsiLink(current.rsi) !== isVerifiedRsiLink(next.rsi)
+    ));
+    if (identityChanged) {
+      next.marketplaceIdentityVersion = crypto.randomUUID();
+      next.marketplace = normalizeMarketplaceSelection(null);
+    }
+    return normalizeAccountRecord(next);
+  });
   await syncOrganizationShareIndexesForAccount(
     store,
     previousAccountRecord,
     normalizedAccount,
   );
+  // Consent is attached to the verified RSI identity. Re-linking another
+  // identity must never silently publish the previous owner's selections.
+  if (identityChanged) {
+    for (const datasetScope of ACCOUNT_DATASET_SCOPES) {
+      const previousScope = await readAccountScopeRecord(store, previousAccountRecord, datasetScope);
+      await writeAccountScopeRecord(store, mergeAccountWithScope(normalizedAccount, {
+        ...previousScope, marketplace: normalizeMarketplaceSelection(null),
+      }), datasetScope, mergeAccountWithScope(previousAccountRecord, previousScope), { replaceMarketplace: true, marketplaceOnly: true });
+    }
+  }
   return normalizedAccount;
 }
 
 export async function writeAccountRecord(store, accountRecord) {
   return writeNormalizedAccountRecord(store, accountRecord);
+}
+
+export async function saveAccountMarketplaceBlocks(store, accountId, updateBlocks) {
+  const existing = await readAccountRecord(store, accountId);
+  if (!existing) throw new Error('Account not found.');
+  return writeNormalizedAccountRecord(store, existing, { updateMarketplaceBlocks: blocks => normalizeMarketplaceBlocks(updateBlocks(blocks)) });
 }
 
 export function getNextAllowedRsiLinkAt(account, now = Date.now()) {
@@ -1464,6 +1542,21 @@ export function createBucketAccountStore(bucket) {
         },
       });
     },
+    async updateJsonAtomically(key, updater) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const object = await bucket.get(key);
+        if (object && !object.etag) throw new Error('Atomic account storage requires an ETag.');
+        const current = object ? JSON.parse(await object.text()) : null;
+        const next = await updater(current);
+        if (next === undefined) return current;
+        const saved = await bucket.put(key, JSON.stringify(next), {
+          onlyIf: object ? { etagMatches: object.etag } : { etagDoesNotMatch: '*' },
+          httpMetadata: { contentType: 'application/json; charset=utf-8' },
+        });
+        if (saved) return next;
+      }
+      throw new Error('Concurrent account changes could not be saved. Retry shortly.');
+    },
     async consumeJson(key, validate = () => true) {
       const object = await bucket.get(key);
       if (!object) return null;
@@ -1505,6 +1598,10 @@ export function createBucketAccountStore(bucket) {
 
       return keys;
     },
+    async listJsonPage(prefix, { cursor = null, limit = 20 } = {}) {
+      const listing = await bucket.list({ prefix, cursor: cursor ?? undefined, limit });
+      return { keys: (listing.objects ?? []).map(entry => entry.key).filter(Boolean), nextCursor: listing.truncated ? listing.cursor ?? null : null };
+    },
   };
 }
 
@@ -1516,6 +1613,31 @@ export function createS3AccountStore(client, bucketName) {
   return {
     async readJson(key) {
       return getJsonObject(client, bucketName, key);
+    },
+    async updateJsonAtomically(key, updater) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        let object = null;
+        try {
+          object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+        } catch (error) {
+          if (error?.name !== 'NoSuchKey' && error?.$metadata?.httpStatusCode !== 404) throw error;
+        }
+        if (object && !object.ETag) throw new Error('Atomic account storage requires an ETag.');
+        const current = object ? JSON.parse(await object.Body.transformToString()) : null;
+        const next = await updater(current);
+        if (next === undefined) return current;
+        try {
+          await client.send(new PutObjectCommand({
+            Bucket: bucketName, Key: key, Body: JSON.stringify(next),
+            ...(object ? { IfMatch: object.ETag } : { IfNoneMatch: '*' }),
+            ContentType: 'application/json; charset=utf-8', CacheControl: 'no-store',
+          }));
+          return next;
+        } catch (error) {
+          if (error?.name !== 'PreconditionFailed' && error?.$metadata?.httpStatusCode !== 412) throw error;
+        }
+      }
+      throw new Error('Concurrent account changes could not be saved. Retry shortly.');
     },
     async consumeJson(key, validate = () => true) {
       let object;
@@ -1555,6 +1677,10 @@ export function createS3AccountStore(client, bucketName) {
     },
     async listJsonKeys(prefix) {
       return listObjectKeys(client, bucketName, prefix);
+    },
+    async listJsonPage(prefix, { cursor = null, limit = 20 } = {}) {
+      const listing = await client.send(new ListObjectsV2Command({ Bucket: bucketName, Prefix: prefix, ContinuationToken: cursor ?? undefined, MaxKeys: limit }));
+      return { keys: (listing.Contents ?? []).map(entry => entry.Key).filter(Boolean), nextCursor: listing.IsTruncated ? listing.NextContinuationToken ?? null : null };
     },
   };
 }
@@ -1713,7 +1839,7 @@ export async function upsertDiscordAccount(store, profile) {
     lastLoginAt: now,
   };
 
-  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing });
+  return writeNormalizedAccountRecord(store, nextRecord, { previousAccount: existing, allowCreate: true });
 }
 
 export async function saveAccountState(store, accountId, stateSnapshot, fallbackProfile = null, options = {}) {
@@ -1764,6 +1890,16 @@ export async function saveAccountState(store, accountId, stateSnapshot, fallback
   };
 
   return writeAccountScopeRecord(store, nextRecord, datasetScope, existing);
+}
+
+export async function saveAccountMarketplaceSelection(store, accountId, selection, fallbackProfile = null, options = {}) {
+  const datasetScope = normalizeAccountDatasetScope(options.datasetScope);
+  const existing = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
+  if (!existing) throw new Error('Account not found.');
+  return writeAccountScopeRecord(store, {
+    ...existing,
+    marketplace: normalizeMarketplaceSelection({ ...selection, identityHandle: selection.enabled && isVerifiedRsiLink(existing.rsi) ? existing.rsi.handle : null, identityVersion: existing.marketplaceIdentityVersion }, existing.inventoryBlueprintIds, existing.inventoryResources, existing.marketplaceBlockedAccounts),
+  }, datasetScope, existing, { refreshMarketplaceIndexes: true, replaceMarketplace: true, marketplaceOnly: true });
 }
 
 export async function saveAccountOnboardingState(
@@ -1962,6 +2098,10 @@ export async function saveAccountOrganizationResourceShares(
 }
 
 export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProfile = null) {
+  return withMarketplaceAccountLocks(store, [accountId], lockedStore => saveRsiAccountLinkLocked(lockedStore, accountId, rsiLink, fallbackProfile));
+}
+
+async function saveRsiAccountLinkLocked(store, accountId, rsiLink, fallbackProfile) {
   const existing = await readAccountRecord(store, accountId, fallbackProfile);
   if (!existing) {
     throw new Error(`Account "${accountId}" does not exist.`);
@@ -2028,6 +2168,7 @@ export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProf
 
   const savedAccount = await writeNormalizedAccountRecord(store, nextRecord, {
     previousAccount: existing,
+    replaceRsi: true,
   });
   if (previousHandleKey && previousHandleKey !== nextHandleKey) {
     await deleteRsiHandleIndex(store, existing.rsi?.handle, accountId);
@@ -2037,6 +2178,10 @@ export async function saveRsiAccountLink(store, accountId, rsiLink, fallbackProf
 }
 
 export async function clearRsiAccountLink(store, accountId, fallbackProfile = null) {
+  return withMarketplaceAccountLocks(store, [accountId], lockedStore => clearRsiAccountLinkLocked(lockedStore, accountId, fallbackProfile));
+}
+
+async function clearRsiAccountLinkLocked(store, accountId, fallbackProfile) {
   const existing = await readAccountRecord(store, accountId, fallbackProfile);
   if (!existing) {
     throw new Error(`Account "${accountId}" does not exist.`);
@@ -2081,22 +2226,32 @@ export async function clearRsiAccountLink(store, accountId, fallbackProfile = nu
 
   const savedAccount = await writeNormalizedAccountRecord(store, nextRecord, {
     previousAccount: existing,
+    replaceRsi: true,
   });
   await deleteRsiHandleIndex(store, existing.rsi?.handle, accountId);
   return savedAccount;
 }
 
 export async function deleteAccountRecord(store, accountId, fallbackProfile = null) {
+  return withMarketplaceAccountLocks(store, [accountId], lockedStore => deleteAccountRecordLocked(lockedStore, accountId, fallbackProfile));
+}
+
+async function deleteAccountRecordLocked(store, accountId, fallbackProfile) {
   // Revoke before deleting: an interrupted deletion must not leave live tokens
   // able to recreate an account whose records were already removed.
   await bumpAccountSessionEpoch(store, accountId);
   const existing = await readAccountRecord(store, accountId, fallbackProfile);
   if (existing) {
+    await purgeMarketplaceAccountData(store, existing, {
+      readAccount: targetId => readAccountRecord(store, targetId),
+      removeBlock: (blockerId, removedId) => saveAccountMarketplaceBlocks(store, blockerId, blocks => blocks.filter(entry => entry.accountId !== removedId)),
+    });
     await syncOrganizationShareIndexesForAccount(store, existing, null);
     for (const datasetScope of ACCOUNT_DATASET_SCOPES) {
       const scopedAccount = await readScopedAccountRecord(store, accountId, fallbackProfile, datasetScope);
       if (scopedAccount) {
         await syncOrganizationScopedShareIndexesForAccount(store, scopedAccount, null, datasetScope);
+        await syncMarketplaceIndexes(store, scopedAccount, null, datasetScope);
       }
       await store.deleteObject(getAccountScopeObjectKey(accountId, datasetScope));
     }

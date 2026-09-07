@@ -9,6 +9,13 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  createMarketplaceCraftRequest,
+  saveMarketplacePublication,
+  setMarketplaceBlock,
+  type MarketplaceCraftDraft,
+  type MarketplacePublication,
+} from '../services/marketplaceService';
+import {
   addAccountOrganization,
   claimAccountOrganization,
   copyLiveAccountDataToPtu,
@@ -89,6 +96,9 @@ interface AuthState {
   setAccountDatasetScope: (datasetScope: AccountDatasetScope) => void;
   copyLiveDataToPtu: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  updateMarketplace: (publication: MarketplacePublication) => Promise<void>;
+  requestMarketplaceCraft: (draft: MarketplaceCraftDraft) => Promise<AccountCraftRequest>;
+  blockMarketplaceMember: (handle: string, blocked: boolean) => Promise<void>;
   flushPendingMutations: () => Promise<void>;
   loginWithDiscord: (returnTo?: string) => void;
   loginWithCitizenId: (returnTo?: string) => void;
@@ -1695,6 +1705,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return decision;
   }, [accountDatasetScope, enqueueMutation]);
 
+  // Community actions are deliberate online operations, never replayed from an
+  // offline queue. Apply their account response only to the originating scope.
+  const runMarketplaceAction = useCallback(async <T extends { account: StoredAccount }>(
+    action: () => Promise<T>,
+    applyResponse: (current: StoredAccount, response: T) => StoredAccount,
+  ): Promise<T> => {
+    const key = activeMutationStorageKeyRef.current;
+    if (!key || logoutInProgressRef.current) throw new Error('Sign in before using the marketplace.');
+    await flushPendingMutationsRef.current();
+    if (pendingMutationsRef.current.length) throw new Error('Sync pending account changes before continuing.');
+    if (activeMutationStorageKeyRef.current !== key || logoutInProgressRef.current) {
+      throw new Error('The active account changed. Please try again.');
+    }
+    accountRefreshIdRef.current += 1;
+    const response = await action();
+    if (activeMutationStorageKeyRef.current === key && !logoutInProgressRef.current) {
+      accountRefreshIdRef.current += 1;
+      const current = serverAccountRef.current;
+      if (!current || current.accountId !== response.account.accountId) return response;
+      const next = applyResponse(current, response);
+      serverAccountRef.current = next;
+      setServerAccount(next);
+      broadcastChannelRef.current?.postMessage({ type: 'server-account-updated', accountId: response.account.accountId });
+    }
+    return response;
+  }, []);
+
+  const updateMarketplace = useCallback<AuthState['updateMarketplace']>(async (publication) => {
+    await runMarketplaceAction(() => saveMarketplacePublication(accountDatasetScope, publication),
+      (current, response) => ({ ...current, marketplace: response.account.marketplace }));
+  }, [accountDatasetScope, runMarketplaceAction]);
+
+  const requestMarketplaceCraft = useCallback<AuthState['requestMarketplaceCraft']>(async (draft) => {
+    const response = await runMarketplaceAction(() => createMarketplaceCraftRequest(accountDatasetScope, draft),
+      (current, result) => ({ ...current, outgoingCraftRequests: current.outgoingCraftRequests.some(request => request.id === result.request.id)
+        ? current.outgoingCraftRequests : [result.request, ...current.outgoingCraftRequests] }));
+    return response.request;
+  }, [accountDatasetScope, runMarketplaceAction]);
+
+  const blockMarketplaceMember = useCallback<AuthState['blockMarketplaceMember']>(async (handle, blocked) => {
+    await runMarketplaceAction(() => setMarketplaceBlock(accountDatasetScope, handle, blocked),
+      (current, response) => ({ ...current, marketplace: response.account.marketplace }));
+  }, [accountDatasetScope, runMarketplaceAction]);
+
   const value = useMemo<AuthState>(
     () => ({
       enabled: session.enabled,
@@ -1716,6 +1770,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccountDatasetScope,
       copyLiveDataToPtu,
       refreshSession,
+      updateMarketplace,
+      requestMarketplaceCraft,
+      blockMarketplaceMember,
       flushPendingMutations,
       loginWithDiscord,
       loginWithCitizenId,
@@ -1769,6 +1826,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queueOrganizationBlueprintSharesUpdate,
       queueOrganizationResourceSharesUpdate,
       refreshSession,
+      updateMarketplace,
+      requestMarketplaceCraft,
+      blockMarketplaceMember,
       removeOrganization,
       requestOrganizationCraftBinding,
       respondToCraftRequestBinding,

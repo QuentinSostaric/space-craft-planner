@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { installDeterministicState } from './fixtures';
 
-const routes = ['/', '/blueprints', '/missions', '/resources', '/planner', '/changelog', '/account', '/privacy'];
+const routes = ['/', '/blueprints', '/missions', '/resources', '/planner', '/marketplace', '/organizations', '/changelog', '/account', '/privacy'];
 
 for (const route of routes) {
   test(`route ${route} renders without runtime errors`, async ({ page }) => {

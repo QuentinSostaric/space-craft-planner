@@ -15,6 +15,7 @@ export function WorkspaceToolbar({ view }: { view: MainView }) {
     resources: t('Resource database', 'Base de ressources', 'Ressourcendatenbank'),
     planner: t('Operations planner', 'Planification des opérations', 'Einsatzplanung'),
     organizations: t('Organizations', 'Organisations', 'Organisationen'),
+    marketplace: t('Community marketplace', 'Marketplace communautaire', 'Community-Marktplatz'),
     account: t('Account', 'Compte', 'Konto'),
     changelog: t('Dataset changes', 'Évolution des données', 'Datenänderungen'),
     privacy: t('Privacy', 'Confidentialité', 'Datenschutz'),

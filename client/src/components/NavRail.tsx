@@ -15,6 +15,7 @@ export type MainView =
   | 'missions'
   | 'resources'
   | 'organizations'
+  | 'marketplace'
   | 'planner'
   | 'changelog'
   | 'account'
@@ -239,6 +240,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   const goToBlueprints = useCallback(() => onChangeView('blueprints'), [onChangeView]);
   const goToMissions = useCallback(() => onChangeView('missions'), [onChangeView]);
   const goToResources = useCallback(() => onChangeView('resources'), [onChangeView]);
+  const goToMarketplace = useCallback(() => onChangeView('marketplace'), [onChangeView]);
   const goToOrganizations = useCallback(() => onChangeView('organizations'), [onChangeView]);
   const goToPlanner = useCallback(() => onChangeView('planner'), [onChangeView]);
   const goToChangelog = useCallback(() => onChangeView('changelog'), [onChangeView]);
@@ -328,6 +330,7 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
   ];
 
   const moreItems = [
+    { key: 'marketplace', active: mainView === 'marketplace', label: t('Marketplace', 'Marketplace', 'Marktplatz'), icon: <TravelExploreOutlinedIcon sx={{ fontSize: MOBILE_ICON_SIZE }} />, onNavigate: goToMarketplace },
     {
       key: 'account',
       active: mainView === 'account',
@@ -526,9 +529,10 @@ export function NavRail({ mainView, onChangeView }: NavRailProps) {
           onNavigate={goToResources}
         />
 
+        <NavSectionLabel>{t('Community', 'Communauté', 'Community')}</NavSectionLabel>
+        <NavItem active={mainView === 'marketplace'} label={t('Marketplace', 'Marketplace', 'Marktplatz')} icon={<TravelExploreOutlinedIcon sx={{ fontSize: DESKTOP_ICON_SIZE }} />} href="/marketplace" onNavigate={goToMarketplace} />
         {canAccessOrganizations && (
           <>
-            <NavSectionLabel>{t('Community', 'Communauté', 'Community')}</NavSectionLabel>
             <NavItem
               active={mainView === 'organizations'}
               label={t('Organizations', 'Organisations', 'Organisationen')}

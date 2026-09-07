@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
 import { applyOptimisticAccountMutations, buildMutationStorageKey, resolveClientStorageScope, type PersistedAccountMutation } from './accountMutations';
 import * as authService from '../services/authService';
+import * as marketplaceService from '../services/marketplaceService';
 import type { AccountDatasetScope, StoredAccount } from '../services/authService';
 
 vi.hoisted(() => vi.resetModules());
@@ -18,6 +19,12 @@ vi.mock('../services/authService', async (importOriginal) => ({
 vi.mock('../services/apiBaseUrl', () => ({
   isTauriRuntime: () => false,
   clearDesktopAuthSession: vi.fn(),
+}));
+vi.mock('../services/marketplaceService', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../services/marketplaceService')>(),
+  saveMarketplacePublication: vi.fn(),
+  createMarketplaceCraftRequest: vi.fn(),
+  setMarketplaceBlock: vi.fn(),
 }));
 
 function accountFixture(datasetScope: AccountDatasetScope = 'live'): StoredAccount {
@@ -56,6 +63,63 @@ async function renderAccount() {
 }
 
 describe('Account synchronization', () => {
+  it('does not publish a selection while inventory changes cannot be synchronized', async () => {
+    vi.mocked(authService.saveCurrentAccountState).mockRejectedValueOnce(new Error('Offline'));
+    const { result } = await renderAccount();
+    act(() => result.current.queueAccountStateUpdate(snapshot => ({ ...snapshot, inventoryBlueprintIds: ['unsaved'] }), { flushAfterMs: 60_000 }));
+    await act(async () => {
+      await expect(result.current.updateMarketplace({ enabled: true, blueprintIds: ['unsaved'], resourceEntryIds: [] })).rejects.toThrow('Sync pending account changes');
+    });
+    expect(marketplaceService.saveMarketplacePublication).not.toHaveBeenCalled();
+    expect(result.current.pendingMutationCount).toBe(1);
+  });
+
+  it('does not apply a delayed LIVE marketplace response to the active PTU account', async () => {
+    const delayed = deferred<{ account: StoredAccount }>();
+    vi.mocked(marketplaceService.saveMarketplacePublication).mockReturnValueOnce(delayed.promise);
+    const { result } = await renderAccount();
+    let save!: Promise<void>;
+    act(() => { save = result.current.updateMarketplace({ enabled: true, blueprintIds: [], resourceEntryIds: [] }); });
+    await waitFor(() => expect(marketplaceService.saveMarketplacePublication).toHaveBeenCalledWith('live', expect.objectContaining({ enabled: true })));
+    act(() => result.current.setAccountDatasetScope('ptu'));
+    await waitFor(() => expect(result.current.account?.datasetScope).toBe('ptu'));
+    await act(async () => {
+      delayed.resolve({ account: { ...accountFixture('live'), marketplace: { enabled: true, blueprintIds: ['live-private'], resourceEntryIds: [], blockedHandles: [] } } });
+      await save;
+    });
+    expect(result.current.account?.datasetScope).toBe('ptu');
+    expect(result.current.account?.marketplace?.enabled).not.toBe(true);
+    expect(result.current.pendingMutationCount).toBe(0);
+  });
+
+  it('does not enqueue failed community requests for an automatic retry', async () => {
+    vi.mocked(marketplaceService.createMarketplaceCraftRequest).mockRejectedValueOnce(new Error('Request already pending.'));
+    const { result } = await renderAccount();
+    await act(async () => {
+      await expect(result.current.requestMarketplaceCraft({ blueprintId: 'rifle', ownerHandle: 'OtherCitizen' })).rejects.toThrow('already pending');
+    });
+    expect(result.current.pendingMutationCount).toBe(0);
+    await act(async () => { await result.current.flushPendingMutations(); });
+    expect(marketplaceService.createMarketplaceCraftRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves an acknowledged inventory edit when an older marketplace response arrives', async () => {
+    const delayed = deferred<{ account: StoredAccount }>();
+    vi.mocked(marketplaceService.saveMarketplacePublication).mockReturnValueOnce(delayed.promise);
+    const { result } = await renderAccount();
+    let save!: Promise<void>;
+    act(() => { save = result.current.updateMarketplace({ enabled: false, blueprintIds: [], resourceEntryIds: [] }); });
+    await waitFor(() => expect(marketplaceService.saveMarketplacePublication).toHaveBeenCalled());
+    act(() => result.current.queueAccountStateUpdate(snapshot => ({ ...snapshot, inventoryBlueprintIds: ['newer-owned'] }), { flushAfterMs: 60_000 }));
+    await act(async () => { await result.current.flushPendingMutations(); });
+    expect(result.current.pendingMutationCount).toBe(0);
+    await act(async () => {
+      delayed.resolve({ account: { ...accountFixture(), marketplace: { enabled: false, blueprintIds: [], resourceEntryIds: [], blockedHandles: [] } } });
+      await save;
+    });
+    expect(result.current.account?.inventoryBlueprintIds).toEqual(['newer-owned']);
+    expect(result.current.account?.marketplace?.enabled).toBe(false);
+  });
   it('keeps a newer edit queued while an earlier snapshot finishes saving', async () => {
     const firstSave = deferred<StoredAccount>();
     vi.mocked(authService.saveCurrentAccountState).mockImplementationOnce(() => firstSave.promise);
