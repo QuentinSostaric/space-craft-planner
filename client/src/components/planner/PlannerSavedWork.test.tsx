@@ -116,14 +116,27 @@ beforeEach(() => {
     expect(quality()).toHaveAttribute('aria-valuetext', '75% quality, 750 of 1000');
     window.history.pushState({}, '', '/item/saved-rifle');
     fireEvent.popState(window);
-    expect(quality()).toHaveAttribute('aria-valuenow', '0');
+    expect(quality()).toHaveAttribute('aria-valuetext', '50% quality, 500 of 1000');
     expect(quantity(1)).toBeInTheDocument();
 
     craft.value.goals = [{ ...goal, blueprintId: 'different-item' }];
     window.history.pushState({}, '', '/item/saved-rifle?goal=my-saved-goal');
     fireEvent.popState(window);
     page.rerender(<FabricatorPage />);
-    expect(quality()).toHaveAttribute('aria-valuenow', '0');
+    expect(quality()).toHaveAttribute('aria-valuetext', '50% quality, 500 of 1000');
     expect(quantity(1)).toBeInTheDocument();
   });
+  it('initializes fresh slots at 500 after delayed details and preserves edits on refresh', () => {
+    window.history.replaceState({}, '', '/item/saved-rifle');
+    craft.value.activeDataset = { datasetId: 'test-dataset', blueprints: [{ ...blueprint, detailsLoaded: false, slots: [] }] };
+    const page = renderWithProviders(<FabricatorPage />);
+    craft.value.activeDataset = { datasetId: 'test-dataset', blueprints: [{ ...blueprint }] };
+    page.rerender(<FabricatorPage />);
+    expect(quality()).toHaveAttribute('aria-valuetext', '50% quality, 500 of 1000');
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quality' }));
+    craft.value.activeDataset = { datasetId: 'test-dataset', blueprints: [{ ...blueprint, identity: { description: 'Refreshed metadata' } }] };
+    page.rerender(<FabricatorPage />);
+    expect(quality()).toHaveAttribute('aria-valuetext', '55% quality, 550 of 1000');
+  });
+
 });
