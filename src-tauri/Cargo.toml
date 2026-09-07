@@ -19,7 +19,7 @@ reqwest = { version = "0.13.3", default-features = false, features = ["json", "r
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 tauri = { version = "2", default-features = false, features = ["wry", "x11", "dbus"] }
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
