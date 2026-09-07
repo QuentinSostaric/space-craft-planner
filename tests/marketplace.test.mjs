@@ -491,3 +491,22 @@ test('account deletion and report creation share participant locks so purged rep
   assert.equal(await store.readJson(`marketplace/reports/${report.id}.json`), null);
   assert.ok(![...records.keys()].some(key => key.startsWith('marketplace/report-participants/') && key.includes(report.id)));
 });
+
+test('publishers see their own valid offers on the first page regardless of index order', async () => {
+  const { store } = fixture();
+  const owner = await seed(store, '501');
+  await publish(store, owner);
+  const other = await seed(store, '502');
+  await publish(store, other);
+  const paged = { ...store, listJsonPage: async () => ({ keys: [], nextCursor: 'later' }) };
+  const first = await listMarketplaceMembers(paged, owner);
+  assert.equal(first.members.length, 1);
+  assert.equal(first.members[0].handle, owner.rsi.handle);
+  assert.deepEqual(first.members[0].sharedBlueprintIds, ['blueprint-a']);
+  assert.equal(first.members[0].sharedResources[0].id, 'iron-lot');
+  assert.equal((await listMarketplaceMembers(store, owner)).members.filter(member => member.handle === owner.rsi.handle).length, 1);
+  assert.deepEqual((await listMarketplaceMembers(paged, owner, { blueprintId: 'blueprint-b' })).members, []);
+  assert.deepEqual((await listMarketplaceMembers(paged, owner, { cursor: 'later' })).members, []);
+  await updateMarketplaceSelection(store, owner, { enabled: false });
+  assert.deepEqual((await listMarketplaceMembers(paged, owner)).members, []);
+});

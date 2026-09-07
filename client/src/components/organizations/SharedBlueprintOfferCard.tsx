@@ -9,7 +9,7 @@ import { SharedOfferOwnerIdentity } from './SharedOfferOwner';
 import type { SharedBlueprintOfferCardProps } from './sharedOfferTypes';
 export type { SharedBlueprintOfferCardProps, SharedOfferOwner } from './sharedOfferTypes';
 
-export function SharedBlueprintOfferCard({ blueprint, owner, contextLabel, requestState = 'available', busy = false, onRequest, onOpenBlueprint, onManageSharing, onViewRequests, extraAction }: SharedBlueprintOfferCardProps) {
+export function SharedBlueprintOfferCard({ blueprint, owner, contextLabel, requestState = 'available', busy = false, onRequest, onOpenBlueprint, onManageSharing, onViewRequests, extraAction, selectionPreview = false }: SharedBlueprintOfferCardProps) {
   const { t, lang } = useI18n();
   const image = sanitizeExternalHttpsUrl(blueprint.media?.image?.imageUrl ?? blueprint.media?.primaryVisual?.imageUrl ?? blueprint.media?.manufacturerLogo?.imageUrl);
   const hasOpenRequest = requestState === 'pending' || requestState === 'accepted';
@@ -25,7 +25,7 @@ export function SharedBlueprintOfferCard({ blueprint, owner, contextLabel, reque
       </Box>
       <Box sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}><SharedOfferOwnerIdentity owner={owner} /></Box>
       <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {requestState === 'self' ? <>
+        {selectionPreview ? null : requestState === 'self' ? <>
           <AppChip label={t('Your shared blueprint', 'Votre blueprint partagé', 'Dein geteilter Blueprint')} size="sm" outlined sx={{ alignSelf: 'flex-start' }} />
           {onManageSharing && <AppButton variant="secondary" onClick={onManageSharing} sx={{ minHeight: 44 }}>{t('Manage my sharing', 'Gérer mes partages', 'Meine Freigaben verwalten')}</AppButton>}
         </> : <>

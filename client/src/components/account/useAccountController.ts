@@ -1,30 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { trackEvent } from '../../analytics/posthog';
-import { useAuth } from '../../auth/AuthContext';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { trackEvent } from "../../analytics/posthog";
+import { useAuth } from "../../auth/AuthContext";
 import {
   computeLocalAccountImportPlan,
   readLocalAccountCollections,
   writeLocalInventoryResources,
-} from '../../auth/localAccountImport';
-import { useScLog } from '../../hooks/ScLogSyncContext';
-import { useAsyncAction } from '../../hooks/useAsyncAction';
-import { useI18n } from '../../i18n/I18nContext';
-import { isTauriRuntime } from '../../services/apiBaseUrl';
+} from "../../auth/localAccountImport";
+import { useScLog } from "../../hooks/ScLogSyncContext";
+import { useAsyncAction } from "../../hooks/useAsyncAction";
+import { useI18n } from "../../i18n/I18nContext";
+import { isTauriRuntime } from "../../services/apiBaseUrl";
 import {
   requestRsiLinkChallenge,
+  fetchCurrentAccount,
   type AccountInventoryResourceEntry,
   type AccountInventoryResourceQuantityUnit,
   type RsiLinkChallenge,
-} from '../../services/authService';
-import { readCustomScPaths, resolveScPaths, SC_PATHS_CHANGED } from '../../services/scInstallPaths';
-import { DEFAULT_INVENTORY_IDS, useCraft } from '../../store/CraftContext';
-import { useTheme } from '../../ui/system';
+} from "../../services/authService";
+import {
+  readCustomScPaths,
+  resolveScPaths,
+  SC_PATHS_CHANGED,
+} from "../../services/scInstallPaths";
+import { useCraft } from "../../store/CraftContext";
+import { useTheme } from "../../ui/system";
 import {
   formatResourceQuantity,
   getObtainableBlueprintIds,
   isPlaceholderResource,
   isResourceSlot,
-} from '../../utils/crafting';
+} from "../../utils/crafting";
 import {
   ACCOUNT_BLUEPRINT_BATCH_SIZE,
   ALL_RESOURCES_SHARE_OPTION,
@@ -39,9 +44,12 @@ import {
   type AccountLibraryEntry,
   type ResourceBatchDraftRow,
   type ResourceBulkShareDraft,
-} from './accountHelpers';
-import { useAccountConfirmation } from './useAccountConfirmation';
-import { useAccountLibraryPreferences, useAccountNavigation } from './useAccountNavigation';
+} from "./accountHelpers";
+import { useAccountConfirmation } from "./useAccountConfirmation";
+import {
+  useAccountLibraryPreferences,
+  useAccountNavigation,
+} from "./useAccountNavigation";
 
 export function useAccountController() {
   const { t, lang } = useI18n();
@@ -98,6 +106,9 @@ export function useAccountController() {
   const { sync, watcher } = useScLog();
   const urlAuthError = useMemo(() => readAuthError(), []);
   const deleteAction = useAsyncAction();
+  const exportAction = useAsyncAction();
+  const exportIdentity = useRef(account?.accountId);
+  exportIdentity.current = account?.accountId;
   const { preferences, updatePreferences } = useAccountLibraryPreferences();
   const {
     filter: assetFilter,
@@ -106,9 +117,11 @@ export function useAccountController() {
     sharing: sharingFilter,
     view: assetView,
   } = preferences;
-  const setAssetFilter = (filter: AccountAssetFilter) => updatePreferences({ filter });
+  const setAssetFilter = (filter: AccountAssetFilter) =>
+    updatePreferences({ filter });
   const setAssetSearch = (search: string) => updatePreferences({ search });
-  const { confirmation, requestConfirmation, resolveConfirmation } = useAccountConfirmation();
+  const { confirmation, requestConfirmation, resolveConfirmation } =
+    useAccountConfirmation();
   const sessionAction = useAsyncAction();
   const handleRefresh = () =>
     sessionAction.run(
@@ -117,25 +130,33 @@ export function useAccountController() {
         await refreshSession();
       },
       t(
-        'Unable to refresh your account.',
-        'Impossible d’actualiser le compte.',
-        'Konto konnte nicht aktualisiert werden.',
+        "Unable to refresh your account.",
+        "Impossible d’actualiser le compte.",
+        "Konto konnte nicht aktualisiert werden.",
       ),
     );
   const handleLogout = () =>
     sessionAction.run(
       logout,
-      t('Unable to sign out.', 'Impossible de se déconnecter.', 'Abmeldung fehlgeschlagen.'),
+      t(
+        "Unable to sign out.",
+        "Impossible de se déconnecter.",
+        "Abmeldung fehlgeschlagen.",
+      ),
     );
-  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(
+    null,
+  );
   const [importModalDismissed, setImportModalDismissed] = useState(false);
   const importAction = useAsyncAction();
   const copyLiveToPtuAction = useAsyncAction();
   const onboardingAction = useAsyncAction();
   const [rsiDialogOpen, setRsiDialogOpen] = useState(false);
-  const [rsiChallenge, setRsiChallenge] = useState<RsiLinkChallenge | null>(null);
-  const rsiCode = rsiChallenge?.code ?? '';
-  const [rsiHandleInput, setRsiHandleInput] = useState('');
+  const [rsiChallenge, setRsiChallenge] = useState<RsiLinkChallenge | null>(
+    null,
+  );
+  const rsiCode = rsiChallenge?.code ?? "";
+  const [rsiHandleInput, setRsiHandleInput] = useState("");
   const rsiAction = useAsyncAction();
   const rsiVerifyInFlightRef = useRef(false);
   const [rsiCopyFeedback, setRsiCopyFeedback] = useState<string | null>(null);
@@ -151,79 +172,129 @@ export function useAccountController() {
     );
     return () => window.clearTimeout(timer);
   }, [rsiChallenge]);
-  const [blueprintCollectionError, setBlueprintCollectionError] = useState<string | null>(null);
-  const [sharedBlueprintError, setSharedBlueprintError] = useState<string | null>(null);
-  const [shareDialogBlueprintId, setShareDialogBlueprintId] = useState<string | null>(null);
-  const [shareDialogSelection, setShareDialogSelection] = useState<string[]>([]);
-  const [sharedBlueprintBusyId, setSharedBlueprintBusyId] = useState<string | null>(null);
-  const [resourceCollectionError, setResourceCollectionError] = useState<string | null>(null);
-  const [resourceCollectionNotice, setResourceCollectionNotice] = useState<string | null>(null);
-  const [shareDialogResourceEntryId, setShareDialogResourceEntryId] = useState<string | null>(null);
-  const [shareDialogResourceSelection, setShareDialogResourceSelection] = useState<string[]>([]);
-  const [sharedResourceBusyId, setSharedResourceBusyId] = useState<string | null>(null);
+  const [blueprintCollectionError, setBlueprintCollectionError] = useState<
+    string | null
+  >(null);
+  const [sharedBlueprintError, setSharedBlueprintError] = useState<
+    string | null
+  >(null);
+  const [shareDialogBlueprintId, setShareDialogBlueprintId] = useState<
+    string | null
+  >(null);
+  const [shareDialogSelection, setShareDialogSelection] = useState<string[]>(
+    [],
+  );
+  const [sharedBlueprintBusyId, setSharedBlueprintBusyId] = useState<
+    string | null
+  >(null);
+  const [resourceCollectionError, setResourceCollectionError] = useState<
+    string | null
+  >(null);
+  const [resourceCollectionNotice, setResourceCollectionNotice] = useState<
+    string | null
+  >(null);
+  const [shareDialogResourceEntryId, setShareDialogResourceEntryId] = useState<
+    string | null
+  >(null);
+  const [shareDialogResourceSelection, setShareDialogResourceSelection] =
+    useState<string[]>([]);
+  const [sharedResourceBusyId, setSharedResourceBusyId] = useState<
+    string | null
+  >(null);
   const [resourceBatchDialogOpen, setResourceBatchDialogOpen] = useState(false);
-  const [resourceBatchRows, setResourceBatchRows] = useState<ResourceBatchDraftRow[]>([]);
+  const [resourceBatchRows, setResourceBatchRows] = useState<
+    ResourceBatchDraftRow[]
+  >([]);
   const [resourceBatchBusy, setResourceBatchBusy] = useState(false);
-  const [resourceBatchError, setResourceBatchError] = useState<string | null>(null);
-  const [resourceBulkShareDialogOpen, setResourceBulkShareDialogOpen] = useState(false);
-  const [resourceBulkShareDraft, setResourceBulkShareDraft] = useState<ResourceBulkShareDraft>({
-    organizationSid: '',
-    resourceId: ALL_RESOURCES_SHARE_OPTION,
-    minQuality: '',
-    maxQuality: '',
-  });
+  const [resourceBatchError, setResourceBatchError] = useState<string | null>(
+    null,
+  );
+  const [resourceBulkShareDialogOpen, setResourceBulkShareDialogOpen] =
+    useState(false);
+  const [resourceBulkShareDraft, setResourceBulkShareDraft] =
+    useState<ResourceBulkShareDraft>({
+      organizationSid: "",
+      resourceId: ALL_RESOURCES_SHARE_OPTION,
+      minQuality: "",
+      maxQuality: "",
+    });
   const [resourceBulkShareBusy, setResourceBulkShareBusy] = useState(false);
-  const [resourceBulkShareError, setResourceBulkShareError] = useState<string | null>(null);
-  const [organizationSidInput, setOrganizationSidInput] = useState('');
+  const [resourceBulkShareError, setResourceBulkShareError] = useState<
+    string | null
+  >(null);
+  const [organizationSidInput, setOrganizationSidInput] = useState("");
   const [organizationAddBusy, setOrganizationAddBusy] = useState(false);
-  const [organizationActionSid, setOrganizationActionSid] = useState<string | null>(null);
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [organizationNotice, setOrganizationNotice] = useState<string | null>(null);
-  const [organizationClaimDialogSid, setOrganizationClaimDialogSid] = useState<string | null>(null);
-  const [organizationDeleteDialogSid, setOrganizationDeleteDialogSid] = useState<string | null>(null);
-  const [organizationSharingDialogState, setOrganizationSharingDialogState] = useState<{
-    sid: string;
-    enabled: boolean;
-  } | null>(null);
-  const [craftRequestActionId, setCraftRequestActionId] = useState<string | null>(null);
-  const [craftRequestError, setCraftRequestError] = useState<string | null>(null);
-  const [craftRequestNotice, setCraftRequestNotice] = useState<string | null>(null);
-  const [visibleBlueprintCount, setVisibleBlueprintCount] = useState(ACCOUNT_BLUEPRINT_BATCH_SIZE);
-  const [localAccountCollections, setLocalAccountCollections] = useState(() => readLocalAccountCollections());
+  const [organizationActionSid, setOrganizationActionSid] = useState<
+    string | null
+  >(null);
+  const [organizationError, setOrganizationError] = useState<string | null>(
+    null,
+  );
+  const [organizationNotice, setOrganizationNotice] = useState<string | null>(
+    null,
+  );
+  const [organizationClaimDialogSid, setOrganizationClaimDialogSid] = useState<
+    string | null
+  >(null);
+  const [organizationDeleteDialogSid, setOrganizationDeleteDialogSid] =
+    useState<string | null>(null);
+  const [organizationSharingDialogState, setOrganizationSharingDialogState] =
+    useState<{
+      sid: string;
+      enabled: boolean;
+    } | null>(null);
+  const [craftRequestActionId, setCraftRequestActionId] = useState<
+    string | null
+  >(null);
+  const [craftRequestError, setCraftRequestError] = useState<string | null>(
+    null,
+  );
+  const [craftRequestNotice, setCraftRequestNotice] = useState<string | null>(
+    null,
+  );
+  const [visibleBlueprintCount, setVisibleBlueprintCount] = useState(
+    ACCOUNT_BLUEPRINT_BATCH_SIZE,
+  );
+  const [localAccountCollections, setLocalAccountCollections] = useState(() =>
+    readLocalAccountCollections(),
+  );
 
   const { activeTab, setActiveTab } = useAccountNavigation();
 
   // Custom SC installation paths (settings tab)
-  const [customPaths, setCustomPaths] = useState<Array<{ id: string; label: string; path: string }>>(() => {
+  const [customPaths, setCustomPaths] = useState<
+    Array<{ id: string; label: string; path: string }>
+  >(() => {
     try {
       return readCustomScPaths();
     } catch {
       return [];
     }
   });
-  const [customPathInput, setCustomPathInput] = useState('');
-  const [customPathLabel, setCustomPathLabel] = useState<string>('LIVE');
+  const [customPathInput, setCustomPathInput] = useState("");
+  const [customPathLabel, setCustomPathLabel] = useState<string>("LIVE");
   const [watcherError, setWatcherError] = useState<string | null>(() => {
     try {
       readCustomScPaths();
       return null;
     } catch {
       return t(
-        'Saved installation paths could not be read. Add them again below.',
-        'Les chemins enregistrés sont illisibles. Ajoute-les à nouveau ci-dessous.',
-        'Gespeicherte Installationspfade sind ungültig. Füge sie unten erneut hinzu.',
+        "Saved installation paths could not be read. Add them again below.",
+        "Les chemins enregistrés sont illisibles. Ajoute-les à nouveau ci-dessous.",
+        "Gespeicherte Installationspfade sind ungültig. Füge sie unten erneut hinzu.",
       );
     }
   });
   const [watcherBusy, setWatcherBusy] = useState(false);
   const resolvedLivePath =
-    resolveScPaths(sync.installPaths ?? { live: null, ptu: null }, customPaths).find(
-      (entry) => entry.scope === 'live',
-    )?.path ?? null;
+    resolveScPaths(
+      sync.installPaths ?? { live: null, ptu: null },
+      customPaths,
+    ).find((entry) => entry.scope === "live")?.path ?? null;
 
   const saveCustomPaths = (next: typeof customPaths) => {
     try {
-      localStorage.setItem('sc-custom-install-paths', JSON.stringify(next));
+      localStorage.setItem("sc-custom-install-paths", JSON.stringify(next));
       setCustomPaths(next);
       setWatcherError(null);
       window.dispatchEvent(new Event(SC_PATHS_CHANGED));
@@ -231,9 +302,9 @@ export function useAccountController() {
     } catch {
       setWatcherError(
         t(
-          'Unable to save installation paths in this browser.',
-          'Impossible d’enregistrer les chemins dans ce navigateur.',
-          'Installationspfade konnten nicht gespeichert werden.',
+          "Unable to save installation paths in this browser.",
+          "Impossible d’enregistrer les chemins dans ce navigateur.",
+          "Installationspfade konnten nicht gespeichert werden.",
         ),
       );
       return false;
@@ -245,26 +316,30 @@ export function useAccountController() {
     if (
       resolveScPaths({ live: null, ptu: null }, [
         ...customPaths,
-        { id: 'candidate', label: customPathLabel, path },
+        { id: "candidate", label: customPathLabel, path },
       ]).length <= customPaths.length
     ) {
       setWatcherError(
         t(
-          'This installation path is already saved.',
-          'Ce chemin d’installation est déjà enregistré.',
-          'Dieser Installationspfad ist bereits gespeichert.',
+          "This installation path is already saved.",
+          "Ce chemin d’installation est déjà enregistré.",
+          "Dieser Installationspfad ist bereits gespeichert.",
         ),
       );
       return;
     }
-    if (saveCustomPaths([...customPaths, { id: crypto.randomUUID(), label: customPathLabel, path }]))
-      setCustomPathInput('');
+    if (
+      saveCustomPaths([
+        ...customPaths,
+        { id: crypto.randomUUID(), label: customPathLabel, path },
+      ])
+    )
+      setCustomPathInput("");
   };
   const removeCustomPath = (id: string) => {
     saveCustomPaths(customPaths.filter((p) => p.id !== id));
   };
 
-  const defaultInventoryIdSet = useMemo(() => new Set<string>(DEFAULT_INVENTORY_IDS), []);
   const handleWatcherToggle = async (enabled: boolean) => {
     setWatcherError(null);
     const livePath = resolvedLivePath;
@@ -278,7 +353,9 @@ export function useAccountController() {
         watcher.setAutoStart(false);
       }
     } catch (err: unknown) {
-      setWatcherError(err instanceof Error ? err.message : 'Failed to toggle watcher.');
+      setWatcherError(
+        err instanceof Error ? err.message : "Failed to toggle watcher.",
+      );
     } finally {
       setWatcherBusy(false);
     }
@@ -294,7 +371,11 @@ export function useAccountController() {
         await watcher.disableAutoStartup();
       }
     } catch (err: unknown) {
-      setWatcherError(err instanceof Error ? err.message : 'Failed to update startup setting.');
+      setWatcherError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update startup setting.",
+      );
     } finally {
       setWatcherBusy(false);
     }
@@ -302,7 +383,8 @@ export function useAccountController() {
 
   const favoriteSnapshotIds = account?.favoriteBlueprintIds ?? favoriteIds;
   const inventorySnapshotIds = account?.inventoryBlueprintIds ?? inventoryIds;
-  const organizationBlueprintShares = account?.organizationBlueprintShares ?? {};
+  const organizationBlueprintShares =
+    account?.organizationBlueprintShares ?? {};
   const organizationResourceShares = account?.organizationResourceShares ?? {};
   const inventoryResources = account?.inventoryResources ?? [];
   const sharedBlueprintIdSet = useMemo(
@@ -315,7 +397,9 @@ export function useAccountController() {
   );
   const sharedOrganizationIdsByBlueprintId = useMemo(() => {
     const nextMap = new Map<string, string[]>();
-    for (const [sid, blueprintIds] of Object.entries(organizationBlueprintShares)) {
+    for (const [sid, blueprintIds] of Object.entries(
+      organizationBlueprintShares,
+    )) {
       for (const blueprintId of blueprintIds) {
         const currentOrganizationIds = nextMap.get(blueprintId) ?? [];
         currentOrganizationIds.push(sid);
@@ -326,7 +410,9 @@ export function useAccountController() {
   }, [organizationBlueprintShares]);
   const sharedOrganizationIdsByResourceEntryId = useMemo(() => {
     const nextMap = new Map<string, string[]>();
-    for (const [sid, resourceEntryIds] of Object.entries(organizationResourceShares)) {
+    for (const [sid, resourceEntryIds] of Object.entries(
+      organizationResourceShares,
+    )) {
       for (const resourceEntryId of resourceEntryIds) {
         const currentOrganizationIds = nextMap.get(resourceEntryId) ?? [];
         currentOrganizationIds.push(sid);
@@ -339,34 +425,58 @@ export function useAccountController() {
   const favoriteCount = favoriteSnapshotIds.length;
   const inventoryCount = inventorySnapshotIds.length;
   const rsiVerificationRequired = account?.rsi?.verificationRequired === true;
-  const canManageOrganizations = Boolean(account?.rsi?.handle) && !rsiVerificationRequired;
+  const canManageOrganizations =
+    Boolean(account?.rsi?.handle) && !rsiVerificationRequired;
   const organizationClaimDialogTarget =
-    linkedOrganizations.find((organization) => organization.sid === organizationClaimDialogSid) ?? null;
+    linkedOrganizations.find(
+      (organization) => organization.sid === organizationClaimDialogSid,
+    ) ?? null;
   const organizationDeleteDialogTarget =
-    linkedOrganizations.find((organization) => organization.sid === organizationDeleteDialogSid) ?? null;
+    linkedOrganizations.find(
+      (organization) => organization.sid === organizationDeleteDialogSid,
+    ) ?? null;
   const organizationSharingDialogTarget =
-    linkedOrganizations.find((organization) => organization.sid === organizationSharingDialogState?.sid) ??
-    null;
+    linkedOrganizations.find(
+      (organization) =>
+        organization.sid === organizationSharingDialogState?.sid,
+    ) ?? null;
   const localImportPlan = useMemo(
     () => computeLocalAccountImportPlan(account, localAccountCollections),
     [account, localAccountCollections],
   );
-  const importDialogOpen = Boolean(account && localImportPlan.hasPendingImport && !importModalDismissed);
+  const importDialogOpen = Boolean(
+    account && localImportPlan.hasPendingImport && !importModalDismissed,
+  );
 
-  const obtainableBlueprintIds = useMemo(() => getObtainableBlueprintIds(missionRewards), [missionRewards]);
+  const obtainableBlueprintIds = useMemo(
+    () => getObtainableBlueprintIds(missionRewards),
+    [missionRewards],
+  );
   const totalObtainableBlueprintCount = obtainableBlueprintIds.size;
-  const ownedBlueprintCount = inventorySnapshotIds.filter((id) => obtainableBlueprintIds.has(id)).length;
+  const ownedBlueprintCount = inventorySnapshotIds.filter((id) =>
+    obtainableBlueprintIds.has(id),
+  ).length;
   const blueprintProgress =
     totalObtainableBlueprintCount > 0
-      ? (Math.min(ownedBlueprintCount, totalObtainableBlueprintCount) / totalObtainableBlueprintCount) * 100
+      ? (Math.min(ownedBlueprintCount, totalObtainableBlueprintCount) /
+          totalObtainableBlueprintCount) *
+        100
       : 0;
 
   const pendingCraftRequestCount = useMemo(() => {
-    return (account?.incomingCraftRequests ?? []).filter((req) => req.status === 'pending').length;
+    return (account?.incomingCraftRequests ?? []).filter(
+      (req) => req.status === "pending",
+    ).length;
   }, [account?.incomingCraftRequests]);
 
-  const favoriteIdSet = useMemo(() => new Set(favoriteSnapshotIds), [favoriteSnapshotIds]);
-  const inventoryIdSet = useMemo(() => new Set(inventorySnapshotIds), [inventorySnapshotIds]);
+  const favoriteIdSet = useMemo(
+    () => new Set(favoriteSnapshotIds),
+    [favoriteSnapshotIds],
+  );
+  const inventoryIdSet = useMemo(
+    () => new Set(inventorySnapshotIds),
+    [inventorySnapshotIds],
+  );
   const blueprintById = useMemo(
     () => new Map(blueprints.map((blueprint) => [blueprint.id, blueprint])),
     [blueprints],
@@ -385,7 +495,10 @@ export function useAccountController() {
       activeDataset.resources
         .filter((resource) => !isPlaceholderResource(resource))
         .sort((left, right) =>
-          left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true }),
+          left.name.localeCompare(right.name, undefined, {
+            sensitivity: "base",
+            numeric: true,
+          }),
         ),
     [activeDataset.resources],
   );
@@ -393,7 +506,7 @@ export function useAccountController() {
     const nextMap = new Map<string, AccountInventoryResourceQuantityUnit>(
       activeDataset.resources
         .filter((resource) => !isPlaceholderResource(resource))
-        .map((resource) => [resource.id, 'scu']),
+        .map((resource) => [resource.id, "scu"]),
     );
 
     for (const blueprint of blueprints) {
@@ -404,31 +517,45 @@ export function useAccountController() {
 
         const resourceId = slot.requiredResource
           .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '');
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
 
         if (!resourceId) {
           continue;
         }
 
-        nextMap.set(resourceId, slot.quantityUnit === 'count' ? 'count' : 'scu');
+        nextMap.set(
+          resourceId,
+          slot.quantityUnit === "count" ? "count" : "scu",
+        );
       }
     }
 
     return nextMap;
   }, [activeDataset.resources, blueprints]);
   const resourceInsightById = useMemo(
-    () => new Map((activeDataset.resourceInsights ?? []).map((insight) => [insight.resourceId, insight])),
+    () =>
+      new Map(
+        (activeDataset.resourceInsights ?? []).map((insight) => [
+          insight.resourceId,
+          insight,
+        ]),
+      ),
     [activeDataset.resourceInsights],
   );
   const shareDialogBlueprint = shareDialogBlueprintId
     ? (blueprintById.get(shareDialogBlueprintId) ?? null)
     : null;
   const shareDialogResourceEntry = shareDialogResourceEntryId
-    ? (inventoryResources.find((resourceEntry) => resourceEntry.id === shareDialogResourceEntryId) ?? null)
+    ? (inventoryResources.find(
+        (resourceEntry) => resourceEntry.id === shareDialogResourceEntryId,
+      ) ?? null)
     : null;
   const hiddenBlueprintCount = useMemo(() => {
-    const referencedIds = new Set([...inventorySnapshotIds, ...favoriteSnapshotIds]);
+    const referencedIds = new Set([
+      ...inventorySnapshotIds,
+      ...favoriteSnapshotIds,
+    ]);
     let hiddenCount = 0;
     for (const blueprintId of referencedIds) {
       if (!blueprintById.has(blueprintId)) {
@@ -442,9 +569,12 @@ export function useAccountController() {
     const entries: AccountLibraryEntry[] = [];
     const includedBlueprintIds = new Set<string>();
 
-    const includeInventoryBlueprints = assetFilter === 'all' || assetFilter === 'inventory-blueprints';
-    const includeFavoriteBlueprints = assetFilter === 'all' || assetFilter === 'favorite-blueprints';
-    const includeResources = assetFilter === 'all' || assetFilter === 'resources';
+    const includeInventoryBlueprints =
+      assetFilter === "all" || assetFilter === "inventory-blueprints";
+    const includeFavoriteBlueprints =
+      assetFilter === "all" || assetFilter === "favorite-blueprints";
+    const includeResources =
+      assetFilter === "all" || assetFilter === "resources";
 
     if (includeInventoryBlueprints) {
       for (const blueprintId of inventorySnapshotIds) {
@@ -453,14 +583,20 @@ export function useAccountController() {
           continue;
         }
         includedBlueprintIds.add(blueprint.id);
-        const sharedOrganizationIds = sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
+        const sharedOrganizationIds =
+          sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
         entries.push({
           key: `blueprint:${blueprint.id}`,
-          kind: 'blueprint',
+          kind: "blueprint",
           blueprint,
-          searchHaystack: [blueprint.name, blueprint.manufacturer, blueprint.category, 'inventory']
+          searchHaystack: [
+            blueprint.name,
+            blueprint.manufacturer,
+            blueprint.category,
+            "inventory",
+          ]
             .filter(Boolean)
-            .join(' ')
+            .join(" ")
             .toLowerCase(),
           isFavorite: favoriteIdSet.has(blueprint.id),
           isInInventory: true,
@@ -477,14 +613,20 @@ export function useAccountController() {
           continue;
         }
         includedBlueprintIds.add(blueprint.id);
-        const sharedOrganizationIds = sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
+        const sharedOrganizationIds =
+          sharedOrganizationIdsByBlueprintId.get(blueprint.id) ?? [];
         entries.push({
           key: `blueprint:${blueprint.id}`,
-          kind: 'blueprint',
+          kind: "blueprint",
           blueprint,
-          searchHaystack: [blueprint.name, blueprint.manufacturer, blueprint.category, 'favorite']
+          searchHaystack: [
+            blueprint.name,
+            blueprint.manufacturer,
+            blueprint.category,
+            "favorite",
+          ]
             .filter(Boolean)
-            .join(' ')
+            .join(" ")
             .toLowerCase(),
           isFavorite: true,
           isInInventory: inventoryIdSet.has(blueprint.id),
@@ -497,20 +639,28 @@ export function useAccountController() {
     if (includeResources) {
       for (const resourceEntry of inventoryResources) {
         const resource = resourceById.get(resourceEntry.resourceId) ?? null;
-        const sharedOrganizationIds = sharedOrganizationIdsByResourceEntryId.get(resourceEntry.id) ?? [];
+        const sharedOrganizationIds =
+          sharedOrganizationIdsByResourceEntryId.get(resourceEntry.id) ?? [];
         entries.push({
           key: `resource:${resourceEntry.id}`,
-          kind: 'resource',
+          kind: "resource",
           resourceEntry,
           resource,
           searchHaystack: [
             resourceEntry.resourceName,
             resource?.description,
-            formatResourceQuantity(resourceEntry.quantity, resourceEntry.quantityUnit, 'en', 'long'),
-            resourceEntry.quality == null ? '' : `quality ${resourceEntry.quality}`,
+            formatResourceQuantity(
+              resourceEntry.quantity,
+              resourceEntry.quantityUnit,
+              "en",
+              "long",
+            ),
+            resourceEntry.quality == null
+              ? ""
+              : `quality ${resourceEntry.quality}`,
           ]
             .filter(Boolean)
-            .join(' ')
+            .join(" ")
             .toLowerCase(),
           isShared: sharedOrganizationIds.length > 0,
           sharedOrganizationIds,
@@ -520,12 +670,14 @@ export function useAccountController() {
 
     return sortAccountLibrary(
       entries.filter((entry) => {
-        if (sharingFilter === 'shared' && !entry.isShared) return false;
-        if (sharingFilter === 'private' && entry.isShared) return false;
+        if (sharingFilter === "shared" && !entry.isShared) return false;
+        if (sharingFilter === "private" && entry.isShared) return false;
         if (!normalizedSearch) {
           return true;
         }
-        return normalizedSearch.split(/\s+/).every((term) => entry.searchHaystack.includes(term));
+        return normalizedSearch
+          .split(/\s+/)
+          .every((term) => entry.searchHaystack.includes(term));
       }),
       assetSort,
       lang,
@@ -551,11 +703,13 @@ export function useAccountController() {
     [filteredAssetEntries, visibleBlueprintCount],
   );
   const filteredBlueprintEntryCount = useMemo(
-    () => filteredAssetEntries.filter((entry) => entry.kind === 'blueprint').length,
+    () =>
+      filteredAssetEntries.filter((entry) => entry.kind === "blueprint").length,
     [filteredAssetEntries],
   );
   const filteredResourceEntryCount = useMemo(
-    () => filteredAssetEntries.filter((entry) => entry.kind === 'resource').length,
+    () =>
+      filteredAssetEntries.filter((entry) => entry.kind === "resource").length,
     [filteredAssetEntries],
   );
   const bulkResourceSharePreview = useMemo(() => {
@@ -604,8 +758,12 @@ export function useAccountController() {
       })
       .map((resourceEntry) => resourceEntry.id);
 
-    const existingSharedIds = new Set(organizationResourceShares[targetOrganizationSid] ?? []);
-    const newEntryIds = matchingEntryIds.filter((resourceEntryId) => !existingSharedIds.has(resourceEntryId));
+    const existingSharedIds = new Set(
+      organizationResourceShares[targetOrganizationSid] ?? [],
+    );
+    const newEntryIds = matchingEntryIds.filter(
+      (resourceEntryId) => !existingSharedIds.has(resourceEntryId),
+    );
 
     return {
       matchingEntryIds,
@@ -645,25 +803,37 @@ export function useAccountController() {
     setResourceBatchError(null);
     setResourceBulkShareDialogOpen(false);
     setResourceBulkShareDraft({
-      organizationSid: '',
+      organizationSid: "",
       resourceId: ALL_RESOURCES_SHARE_OPTION,
-      minQuality: '',
-      maxQuality: '',
+      minQuality: "",
+      maxQuality: "",
     });
     setResourceBulkShareBusy(false);
     setResourceBulkShareError(null);
-    setOrganizationSidInput('');
+    setOrganizationSidInput("");
     setOrganizationClaimDialogSid(null);
     setOrganizationDeleteDialogSid(null);
     setOrganizationSharingDialogState(null);
     setCraftRequestActionId(null);
     setCraftRequestError(null);
     setCraftRequestNotice(null);
-  }, [account?.accountId, user?.id, activeDataset.channel, resolveConfirmation]);
+  }, [
+    account?.accountId,
+    user?.id,
+    activeDataset.channel,
+    resolveConfirmation,
+  ]);
 
   useEffect(() => {
     setVisibleBlueprintCount(ACCOUNT_BLUEPRINT_BATCH_SIZE);
-  }, [assetFilter, assetSearch, assetSort, sharingFilter, account?.accountId, filteredAssetEntries.length]);
+  }, [
+    assetFilter,
+    assetSearch,
+    assetSort,
+    sharingFilter,
+    account?.accountId,
+    filteredAssetEntries.length,
+  ]);
 
   const handlePersistedBlueprintCollectionsUpdate = async (nextCollections: {
     favoriteBlueprintIds?: string[];
@@ -688,7 +858,9 @@ export function useAccountController() {
   const handleAddBlueprints = async (ids: string[]) => {
     queueAccountStateUpdate((snapshot) => ({
       ...snapshot,
-      inventoryBlueprintIds: [...new Set([...snapshot.inventoryBlueprintIds, ...ids])],
+      inventoryBlueprintIds: [
+        ...new Set([...snapshot.inventoryBlueprintIds, ...ids]),
+      ],
     }));
   };
 
@@ -701,7 +873,9 @@ export function useAccountController() {
     try {
       queueAccountStateUpdate((snapshot) => ({
         ...snapshot,
-        favoriteBlueprintIds: snapshot.favoriteBlueprintIds.includes(blueprintId)
+        favoriteBlueprintIds: snapshot.favoriteBlueprintIds.includes(
+          blueprintId,
+        )
           ? snapshot.favoriteBlueprintIds.filter((id) => id !== blueprintId)
           : [...snapshot.favoriteBlueprintIds, blueprintId],
       }));
@@ -710,9 +884,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Unable to update favorites.',
-              'Impossible de modifier les favoris.',
-              'Favoriten konnten nicht aktualisiert werden.',
+              "Unable to update favorites.",
+              "Impossible de modifier les favoris.",
+              "Favoriten konnten nicht aktualisiert werden.",
             ),
       );
     }
@@ -724,11 +898,12 @@ export function useAccountController() {
       toggleInventory(blueprintId);
       return;
     }
-    if (defaultInventoryIdSet.has(blueprintId)) return;
     try {
       queueAccountStateUpdate((snapshot) => ({
         ...snapshot,
-        inventoryBlueprintIds: snapshot.inventoryBlueprintIds.includes(blueprintId)
+        inventoryBlueprintIds: snapshot.inventoryBlueprintIds.includes(
+          blueprintId,
+        )
           ? snapshot.inventoryBlueprintIds.filter((id) => id !== blueprintId)
           : [...snapshot.inventoryBlueprintIds, blueprintId],
       }));
@@ -737,9 +912,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Unable to update inventory.',
-              'Impossible de modifier l’inventaire.',
-              'Inventar konnte nicht aktualisiert werden.',
+              "Unable to update inventory.",
+              "Impossible de modifier l’inventaire.",
+              "Inventar konnte nicht aktualisiert werden.",
             ),
       );
     }
@@ -748,9 +923,9 @@ export function useAccountController() {
   const handleDeleteAccount = async () => {
     const confirmed = await requestConfirmation(
       t(
-        'Delete your cloud account and Discord-linked data permanently? This also signs you out.',
-        'Supprimer definitivement ton compte cloud et les donnees liees a Discord ? Cela te deconnectera aussi.',
-        'Soll dein Cloud-Konto mit den Discord-gebundenen Daten dauerhaft gelöscht werden? Du wirst dabei auch abgemeldet.',
+        "Delete your cloud account and Discord-linked data permanently? This also signs you out.",
+        "Supprimer definitivement ton compte cloud et les donnees liees a Discord ? Cela te deconnectera aussi.",
+        "Soll dein Cloud-Konto mit den Discord-gebundenen Daten dauerhaft gelöscht werden? Du wirst dabei auch abgemeldet.",
       ),
     );
     if (!confirmed) {
@@ -760,9 +935,9 @@ export function useAccountController() {
     await deleteAction.run(
       () => deleteAccount(),
       t(
-        'Failed to delete the account.',
-        'La suppression du compte a echoue.',
-        'Das Konto konnte nicht gelöscht werden.',
+        "Failed to delete the account.",
+        "La suppression du compte a echoue.",
+        "Das Konto konnte nicht gelöscht werden.",
       ),
     );
   };
@@ -770,9 +945,9 @@ export function useAccountController() {
   const handleCopyLiveDataToPtu = async () => {
     const confirmed = await requestConfirmation(
       t(
-        'Copy your LIVE favorites, inventory, planner, organization shares and craft requests into PTU? This replaces the current PTU account data.',
-        'Copier tes favoris, inventaire, planner, partages d organisation et demandes de craft LIVE vers le PTU ? Cela remplace les donnees de compte PTU actuelles.',
-        'LIVE-Favoriten, Inventar, Planner, Organisationsfreigaben und Craft-Anfragen nach PTU kopieren? Das ersetzt die aktuellen PTU-Kontodaten.',
+        "Copy your LIVE favorites, inventory, planner, organization shares and craft requests into PTU? This replaces the current PTU account data.",
+        "Copier tes favoris, inventaire, planner, partages d organisation et demandes de craft LIVE vers le PTU ? Cela remplace les donnees de compte PTU actuelles.",
+        "LIVE-Favoriten, Inventar, Planner, Organisationsfreigaben und Craft-Anfragen nach PTU kopieren? Das ersetzt die aktuellen PTU-Kontodaten.",
       ),
     );
     if (!confirmed) {
@@ -782,9 +957,9 @@ export function useAccountController() {
     await copyLiveToPtuAction.run(
       () => copyLiveDataToPtu(),
       t(
-        'Failed to copy LIVE account data to PTU.',
-        'La copie des donnees de compte LIVE vers PTU a echoue.',
-        'Die LIVE-Kontodaten konnten nicht nach PTU kopiert werden.',
+        "Failed to copy LIVE account data to PTU.",
+        "La copie des donnees de compte LIVE vers PTU a echoue.",
+        "Die LIVE-Kontodaten konnten nicht nach PTU kopiert werden.",
       ),
     );
   };
@@ -796,16 +971,28 @@ export function useAccountController() {
 
     await importAction.run(
       async () => {
-        const importedFavoriteIds = new Set(localImportPlan.missingFavoriteBlueprintIds);
-        const importedInventoryIds = new Set(localImportPlan.missingInventoryBlueprintIds);
+        const importedFavoriteIds = new Set(
+          localImportPlan.missingFavoriteBlueprintIds,
+        );
+        const importedInventoryIds = new Set(
+          localImportPlan.missingInventoryBlueprintIds,
+        );
         const importedResourceEntryIds = new Set(
-          localImportPlan.missingInventoryResources.map((resourceEntry) => resourceEntry.id),
+          localImportPlan.missingInventoryResources.map(
+            (resourceEntry) => resourceEntry.id,
+          ),
         );
         const nextFavoriteBlueprintIds = [
-          ...new Set([...account.favoriteBlueprintIds, ...localImportPlan.missingFavoriteBlueprintIds]),
+          ...new Set([
+            ...account.favoriteBlueprintIds,
+            ...localImportPlan.missingFavoriteBlueprintIds,
+          ]),
         ];
         const nextInventoryBlueprintIds = [
-          ...new Set([...account.inventoryBlueprintIds, ...localImportPlan.missingInventoryBlueprintIds]),
+          ...new Set([
+            ...account.inventoryBlueprintIds,
+            ...localImportPlan.missingInventoryBlueprintIds,
+          ]),
         ];
         const nextInventoryResources = [
           ...(account.inventoryResources ?? []),
@@ -834,17 +1021,21 @@ export function useAccountController() {
           ),
         };
         replaceLocalBlueprintCollections({
-          favoriteBlueprintIds: nextLocalAccountCollections.favoriteBlueprintIds,
-          inventoryBlueprintIds: nextLocalAccountCollections.inventoryBlueprintIds,
+          favoriteBlueprintIds:
+            nextLocalAccountCollections.favoriteBlueprintIds,
+          inventoryBlueprintIds:
+            nextLocalAccountCollections.inventoryBlueprintIds,
         });
-        writeLocalInventoryResources(nextLocalAccountCollections.inventoryResources);
+        writeLocalInventoryResources(
+          nextLocalAccountCollections.inventoryResources,
+        );
         setLocalAccountCollections(nextLocalAccountCollections);
         setImportModalDismissed(true);
       },
       t(
-        'Failed to import the local collections.',
-        'L import des collections locales a echoue.',
-        'Der Import der lokalen Sammlungen ist fehlgeschlagen.',
+        "Failed to import the local collections.",
+        "L import des collections locales a echoue.",
+        "Der Import der lokalen Sammlungen ist fehlgeschlagen.",
       ),
     );
   };
@@ -854,7 +1045,7 @@ export function useAccountController() {
     rsiUnlinkAction.clearError();
     rsiAction.clearError();
     setRsiCopyFeedback(null);
-    setRsiHandleInput(account?.rsi?.handle ?? '');
+    setRsiHandleInput(account?.rsi?.handle ?? "");
     setRsiChallenge(null);
     setRsiDialogOpen(true);
   };
@@ -863,14 +1054,18 @@ export function useAccountController() {
     try {
       await navigator.clipboard.writeText(rsiCode);
       setRsiCopyFeedback(
-        t('Verification code copied.', 'Code de verification copie.', 'Verifizierungscode kopiert.'),
+        t(
+          "Verification code copied.",
+          "Code de verification copie.",
+          "Verifizierungscode kopiert.",
+        ),
       );
     } catch {
       setRsiCopyFeedback(
         t(
-          'Copy failed. Select the code manually.',
-          'La copie a echoue. Selectionne le code manuellement.',
-          'Kopieren fehlgeschlagen. Bitte den Code manuell markieren.',
+          "Copy failed. Select the code manually.",
+          "La copie a echoue. Selectionne le code manuellement.",
+          "Kopieren fehlgeschlagen. Bitte den Code manuell markieren.",
         ),
       );
     }
@@ -886,8 +1081,13 @@ export function useAccountController() {
     try {
       await rsiAction.run(
         async () => {
-          if (!rsiChallenge || Date.parse(rsiChallenge.expiresAt) <= Date.now()) {
-            setRsiChallenge(await requestRsiLinkChallenge(rsiHandleInput.trim()));
+          if (
+            !rsiChallenge ||
+            Date.parse(rsiChallenge.expiresAt) <= Date.now()
+          ) {
+            setRsiChallenge(
+              await requestRsiLinkChallenge(rsiHandleInput.trim()),
+            );
             return;
           }
           await linkRsiAccount(rsiChallenge.handle, rsiChallenge.code);
@@ -895,9 +1095,9 @@ export function useAccountController() {
           setRsiDialogOpen(false);
         },
         t(
-          'Failed to verify the RSI account.',
-          'La verification du compte RSI a echoue.',
-          'Die Verifizierung des RSI-Kontos ist fehlgeschlagen.',
+          "Failed to verify the RSI account.",
+          "La verification du compte RSI a echoue.",
+          "Die Verifizierung des RSI-Kontos ist fehlgeschlagen.",
         ),
       );
     } finally {
@@ -913,7 +1113,7 @@ export function useAccountController() {
 
   const handleStartRsiLink = () => {
     if (citizenIdRsiLinkEnabled) {
-      handleCitizenIdRsiLink('/account');
+      handleCitizenIdRsiLink("/account");
       return;
     }
 
@@ -926,9 +1126,9 @@ export function useAccountController() {
         await updateOnboardingState({ completed: true });
       },
       t(
-        'Failed to update onboarding.',
-        'La mise a jour de l onboarding a echoue.',
-        'Onboarding konnte nicht aktualisiert werden.',
+        "Failed to update onboarding.",
+        "La mise a jour de l onboarding a echoue.",
+        "Onboarding konnte nicht aktualisiert werden.",
       ),
     );
   };
@@ -937,9 +1137,9 @@ export function useAccountController() {
     if (
       !(await requestConfirmation(
         t(
-          'Unlink your RSI identity? Organization access and sharing will be removed. Your personal inventory is kept.',
-          'Délier ton identité RSI ? L’accès aux organisations et leurs partages seront retirés. Ton inventaire personnel est conservé.',
-          'RSI-Identität trennen? Organisationszugang und Freigaben werden entfernt. Dein persönliches Inventar bleibt erhalten.',
+          "Unlink your RSI identity? Organization access and sharing will be removed. Your personal inventory is kept.",
+          "Délier ton identité RSI ? L’accès aux organisations et leurs partages seront retirés. Ton inventaire personnel est conservé.",
+          "RSI-Identität trennen? Organisationszugang und Freigaben werden entfernt. Dein persönliches Inventar bleibt erhalten.",
         ),
       ))
     )
@@ -947,9 +1147,9 @@ export function useAccountController() {
     await rsiUnlinkAction.run(
       () => unlinkRsiAccount(),
       t(
-        'Failed to remove the RSI account link.',
-        'La suppression du lien RSI a echoue.',
-        'Die RSI-Verknüpfung konnte nicht entfernt werden.',
+        "Failed to remove the RSI account link.",
+        "La suppression du lien RSI a echoue.",
+        "Die RSI-Verknüpfung konnte nicht entfernt werden.",
       ),
     );
   };
@@ -962,7 +1162,9 @@ export function useAccountController() {
     blurFocusedElement();
     setSharedBlueprintError(null);
     setShareDialogBlueprintId(blueprintId);
-    setShareDialogSelection(sharedOrganizationIdsByBlueprintId.get(blueprintId) ?? []);
+    setShareDialogSelection(
+      sharedOrganizationIdsByBlueprintId.get(blueprintId) ?? [],
+    );
   };
 
   const closeShareBlueprintDialog = () => {
@@ -981,22 +1183,32 @@ export function useAccountController() {
     setSharedBlueprintError(null);
     try {
       const nextOrganizationBlueprintShares = Object.fromEntries(
-        Object.entries(account.organizationBlueprintShares ?? {}).map(([sid, blueprintIds]) => [
-          sid,
-          blueprintIds.filter((blueprintId) => blueprintId !== shareDialogBlueprintId),
-        ]),
+        Object.entries(account.organizationBlueprintShares ?? {}).map(
+          ([sid, blueprintIds]) => [
+            sid,
+            blueprintIds.filter(
+              (blueprintId) => blueprintId !== shareDialogBlueprintId,
+            ),
+          ],
+        ),
       ) as Record<string, string[]>;
 
       for (const sid of shareDialogSelection) {
         const currentBlueprintIds = nextOrganizationBlueprintShares[sid] ?? [];
-        nextOrganizationBlueprintShares[sid] = [...new Set([...currentBlueprintIds, shareDialogBlueprintId])];
+        nextOrganizationBlueprintShares[sid] = [
+          ...new Set([...currentBlueprintIds, shareDialogBlueprintId]),
+        ];
       }
 
       const prunedOrganizationBlueprintShares = Object.fromEntries(
-        Object.entries(nextOrganizationBlueprintShares).filter(([, blueprintIds]) => blueprintIds.length > 0),
+        Object.entries(nextOrganizationBlueprintShares).filter(
+          ([, blueprintIds]) => blueprintIds.length > 0,
+        ),
       );
 
-      await updateOrganizationBlueprintShares(prunedOrganizationBlueprintShares);
+      await updateOrganizationBlueprintShares(
+        prunedOrganizationBlueprintShares,
+      );
       setShareDialogBlueprintId(null);
       setShareDialogSelection([]);
     } catch (error) {
@@ -1004,9 +1216,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to update blueprint sharing.',
-              'La mise a jour du partage blueprint a echoue.',
-              'Die Blueprint-Freigabe konnte nicht aktualisiert werden.',
+              "Failed to update blueprint sharing.",
+              "La mise a jour du partage blueprint a echoue.",
+              "Die Blueprint-Freigabe konnte nicht aktualisiert werden.",
             ),
       );
     } finally {
@@ -1022,7 +1234,9 @@ export function useAccountController() {
     blurFocusedElement();
     setResourceCollectionError(null);
     setShareDialogResourceEntryId(resourceEntryId);
-    setShareDialogResourceSelection(sharedOrganizationIdsByResourceEntryId.get(resourceEntryId) ?? []);
+    setShareDialogResourceSelection(
+      sharedOrganizationIdsByResourceEntryId.get(resourceEntryId) ?? [],
+    );
   };
 
   const closeShareResourceDialog = () => {
@@ -1032,13 +1246,16 @@ export function useAccountController() {
     }
   };
 
-  const createEmptyResourceBatchRow = (resourceId = sortedResources[0]?.id ?? ''): ResourceBatchDraftRow => {
-    const quantityUnit = resourceQuantityUnitById.get(resourceId) ?? 'scu';
+  const createEmptyResourceBatchRow = (
+    resourceId = sortedResources[0]?.id ?? "",
+  ): ResourceBatchDraftRow => {
+    const quantityUnit = resourceQuantityUnitById.get(resourceId) ?? "scu";
     return {
       id: globalThis.crypto.randomUUID(),
       resourceId,
-      quantity: quantityUnit === 'count' ? '1' : RESOURCE_BATCH_SCU_STEP.toFixed(6),
-      quality: '',
+      quantity:
+        quantityUnit === "count" ? "1" : RESOURCE_BATCH_SCU_STEP.toFixed(6),
+      quality: "",
     };
   };
 
@@ -1059,7 +1276,7 @@ export function useAccountController() {
         id: entry.id,
         resourceId: entry.resourceId,
         quantity: String(entry.quantity),
-        quality: entry.quality == null ? '' : String(entry.quality),
+        quality: entry.quality == null ? "" : String(entry.quality),
       },
     ]);
     setResourceBatchDialogOpen(true);
@@ -1076,10 +1293,16 @@ export function useAccountController() {
   };
 
   const addResourceBatchRow = () => {
-    setResourceBatchRows((currentRows) => [...currentRows, createEmptyResourceBatchRow()]);
+    setResourceBatchRows((currentRows) => [
+      ...currentRows,
+      createEmptyResourceBatchRow(),
+    ]);
   };
 
-  const updateResourceBatchRow = (rowId: string, updates: Partial<ResourceBatchDraftRow>) => {
+  const updateResourceBatchRow = (
+    rowId: string,
+    updates: Partial<ResourceBatchDraftRow>,
+  ) => {
     setResourceBatchRows((currentRows) =>
       currentRows.map((row) => {
         if (row.id !== rowId) {
@@ -1088,8 +1311,10 @@ export function useAccountController() {
 
         const nextRow = { ...row, ...updates };
         if (updates.resourceId !== undefined) {
-          const quantityUnit = resourceQuantityUnitById.get(nextRow.resourceId) ?? 'scu';
-          nextRow.quantity = quantityUnit === 'count' ? '1' : RESOURCE_BATCH_SCU_STEP.toFixed(6);
+          const quantityUnit =
+            resourceQuantityUnitById.get(nextRow.resourceId) ?? "scu";
+          nextRow.quantity =
+            quantityUnit === "count" ? "1" : RESOURCE_BATCH_SCU_STEP.toFixed(6);
         }
         return nextRow;
       }),
@@ -1122,36 +1347,43 @@ export function useAccountController() {
       if (editingResourceId && !originalEntry) {
         setResourceBatchError(
           t(
-            'This resource lot was removed. Close the editor and refresh your inventory.',
-            'Ce lot a été retiré. Ferme l’éditeur et actualise ton inventaire.',
-            'Dieser Bestand wurde entfernt. Schließe den Editor und aktualisiere dein Inventar.',
+            "This resource lot was removed. Close the editor and refresh your inventory.",
+            "Ce lot a été retiré. Ferme l’éditeur et actualise ton inventaire.",
+            "Dieser Bestand wurde entfernt. Schließe den Editor und aktualisiere dein Inventar.",
           ),
         );
         return;
       }
       const resource =
         resourceById.get(row.resourceId) ??
-        (originalEntry ? { id: originalEntry.resourceId, name: originalEntry.resourceName } : null);
+        (originalEntry
+          ? { id: originalEntry.resourceId, name: originalEntry.resourceName }
+          : null);
       if (!resource) {
         setResourceBatchError(
           t(
-            'Choose a valid resource for every row before saving.',
-            'Choisis une ressource valide sur chaque ligne avant d enregistrer.',
-            'Wahle fur jede Zeile eine gultige Ressource, bevor du speicherst.',
+            "Choose a valid resource for every row before saving.",
+            "Choisis une ressource valide sur chaque ligne avant d enregistrer.",
+            "Wahle fur jede Zeile eine gultige Ressource, bevor du speicherst.",
           ),
         );
         return;
       }
 
       const quantityUnit =
-        originalEntry?.quantityUnit ?? resourceQuantityUnitById.get(row.resourceId) ?? 'scu';
-      const normalizedQuantity = normalizeBatchResourceQuantity(row.quantity, quantityUnit);
+        originalEntry?.quantityUnit ??
+        resourceQuantityUnitById.get(row.resourceId) ??
+        "scu";
+      const normalizedQuantity = normalizeBatchResourceQuantity(
+        row.quantity,
+        quantityUnit,
+      );
       if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
         setResourceBatchError(
           t(
-            'Enter a valid quantity on every row before saving.',
-            'Saisis une quantite valide sur chaque ligne avant d enregistrer.',
-            'Gib in jeder Zeile eine gultige Menge ein, bevor du speicherst.',
+            "Enter a valid quantity on every row before saving.",
+            "Saisis une quantite valide sur chaque ligne avant d enregistrer.",
+            "Gib in jeder Zeile eine gultige Menge ein, bevor du speicherst.",
           ),
         );
         return;
@@ -1161,9 +1393,9 @@ export function useAccountController() {
       if (Number.isNaN(normalizedQuality)) {
         setResourceBatchError(
           t(
-            'Quality must be between 0 and 1000, or left empty.',
-            'La qualité doit être comprise entre 0 et 1000, ou laissée vide.',
-            'Qualität muss zwischen 0 und 1000 liegen oder leer bleiben.',
+            "Quality must be between 0 and 1000, or left empty.",
+            "La qualité doit être comprise entre 0 et 1000, ou laissée vide.",
+            "Qualität muss zwischen 0 und 1000 liegen oder leer bleiben.",
           ),
         );
         return;
@@ -1187,12 +1419,15 @@ export function useAccountController() {
     setResourceBatchBusy(true);
     try {
       queueInventoryResourcesUpdate((current) => {
-        if (editingResourceId && !current.some((entry) => entry.id === editingResourceId))
+        if (
+          editingResourceId &&
+          !current.some((entry) => entry.id === editingResourceId)
+        )
           throw new Error(
             t(
-              'This resource lot no longer exists.',
-              'Ce lot n’existe plus.',
-              'Dieser Bestand existiert nicht mehr.',
+              "This resource lot no longer exists.",
+              "Ce lot n’existe plus.",
+              "Dieser Bestand existiert nicht mehr.",
             ),
           );
         return editingResourceId
@@ -1206,21 +1441,21 @@ export function useAccountController() {
       setResourceBatchDialogOpen(false);
       setResourceBatchRows([]);
       if (!editingResourceId) {
-        trackEvent('inventory_item_added', {
-          inventory_source: 'resource_batch',
+        trackEvent("inventory_item_added", {
+          inventory_source: "resource_batch",
           inventory_delta: normalizedEntries.length,
         });
       }
       setResourceCollectionNotice(
         t(
           editingResourceId
-            ? 'Resource updated.'
+            ? "Resource updated."
             : `${normalizedEntries.length} resource entries added to your account inventory.`,
           editingResourceId
-            ? 'Ressource mise à jour.'
+            ? "Ressource mise à jour."
             : `${normalizedEntries.length} ressources ajoutées à ton inventaire.`,
           editingResourceId
-            ? 'Ressource aktualisiert.'
+            ? "Ressource aktualisiert."
             : `${normalizedEntries.length} Ressourceneinträge hinzugefügt.`,
         ),
       );
@@ -1229,9 +1464,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to update the resource inventory.',
-              'La mise a jour de l inventaire des ressources a echoue.',
-              'Das Ressourceninventar konnte nicht aktualisiert werden.',
+              "Failed to update the resource inventory.",
+              "La mise a jour de l inventaire des ressources a echoue.",
+              "Das Ressourceninventar konnte nicht aktualisiert werden.",
             ),
       );
     } finally {
@@ -1244,10 +1479,10 @@ export function useAccountController() {
     setResourceCollectionNotice(null);
     setResourceBulkShareError(null);
     setResourceBulkShareDraft({
-      organizationSid: linkedOrganizations[0]?.sid ?? '',
+      organizationSid: linkedOrganizations[0]?.sid ?? "",
       resourceId: ALL_RESOURCES_SHARE_OPTION,
-      minQuality: '',
-      maxQuality: '',
+      minQuality: "",
+      maxQuality: "",
     });
     setResourceBulkShareDialogOpen(true);
   };
@@ -1270,9 +1505,9 @@ export function useAccountController() {
     if (!organizationSid) {
       setResourceBulkShareError(
         t(
-          'Choose which linked organization should receive these resource shares.',
-          'Choisis quelle organisation liee doit recevoir ce partage de ressources.',
-          'Wahle aus, welche verknupfte Organisation diese Ressourcenfreigabe erhalten soll.',
+          "Choose which linked organization should receive these resource shares.",
+          "Choisis quelle organisation liee doit recevoir ce partage de ressources.",
+          "Wahle aus, welche verknupfte Organisation diese Ressourcenfreigabe erhalten soll.",
         ),
       );
       return;
@@ -1284,9 +1519,9 @@ export function useAccountController() {
     if (Number.isNaN(minQuality) || Number.isNaN(maxQuality)) {
       setResourceBulkShareError(
         t(
-          'Quality must be between 0 and 1000, or left empty.',
-          'La qualité doit être comprise entre 0 et 1000, ou laissée vide.',
-          'Qualität muss zwischen 0 und 1000 liegen oder leer bleiben.',
+          "Quality must be between 0 and 1000, or left empty.",
+          "La qualité doit être comprise entre 0 et 1000, ou laissée vide.",
+          "Qualität muss zwischen 0 und 1000 liegen oder leer bleiben.",
         ),
       );
       return;
@@ -1295,9 +1530,9 @@ export function useAccountController() {
     if (minQuality != null && maxQuality != null && minQuality > maxQuality) {
       setResourceBulkShareError(
         t(
-          'Minimum quality cannot be higher than maximum quality.',
-          'La qualite minimale ne peut pas etre superieure a la qualite maximale.',
-          'Die minimale Qualitat kann nicht hoher als die maximale Qualitat sein.',
+          "Minimum quality cannot be higher than maximum quality.",
+          "La qualite minimale ne peut pas etre superieure a la qualite maximale.",
+          "Die minimale Qualitat kann nicht hoher als die maximale Qualitat sein.",
         ),
       );
       return;
@@ -1306,9 +1541,9 @@ export function useAccountController() {
     if (bulkResourceSharePreview.matchingEntryIds.length === 0) {
       setResourceBulkShareError(
         t(
-          'No stored resource entries match this filter yet.',
-          'Aucune entree ressource stockee ne correspond encore a ce filtre.',
-          'Keine gespeicherten Ressourceneintrage passen aktuell zu diesem Filter.',
+          "No stored resource entries match this filter yet.",
+          "Aucune entree ressource stockee ne correspond encore a ce filtre.",
+          "Keine gespeicherten Ressourceneintrage passen aktuell zu diesem Filter.",
         ),
       );
       return;
@@ -1317,9 +1552,9 @@ export function useAccountController() {
     if (bulkResourceSharePreview.newEntryIds.length === 0) {
       setResourceBulkShareError(
         t(
-          'All matching entries are already shared with this organization.',
-          'Toutes les entrees correspondantes sont deja partagees avec cette organisation.',
-          'Alle passenden Eintrage sind bereits mit dieser Organisation geteilt.',
+          "All matching entries are already shared with this organization.",
+          "Toutes les entrees correspondantes sont deja partagees avec cette organisation.",
+          "Alle passenden Eintrage sind bereits mit dieser Organisation geteilt.",
         ),
       );
       return;
@@ -1333,9 +1568,13 @@ export function useAccountController() {
       const nextOrganizationResourceShares = {
         ...(account.organizationResourceShares ?? {}),
       };
-      const currentSharedIds = nextOrganizationResourceShares[organizationSid] ?? [];
+      const currentSharedIds =
+        nextOrganizationResourceShares[organizationSid] ?? [];
       nextOrganizationResourceShares[organizationSid] = [
-        ...new Set([...currentSharedIds, ...bulkResourceSharePreview.newEntryIds]),
+        ...new Set([
+          ...currentSharedIds,
+          ...bulkResourceSharePreview.newEntryIds,
+        ]),
       ];
 
       const prunedOrganizationResourceShares = Object.fromEntries(
@@ -1358,9 +1597,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to update resource sharing.',
-              'La mise a jour du partage des ressources a echoue.',
-              'Die Ressourcenfreigabe konnte nicht aktualisiert werden.',
+              "Failed to update resource sharing.",
+              "La mise a jour du partage des ressources a echoue.",
+              "Die Ressourcenfreigabe konnte nicht aktualisiert werden.",
             ),
       );
     } finally {
@@ -1377,14 +1616,20 @@ export function useAccountController() {
     setResourceCollectionError(null);
     try {
       const nextOrganizationResourceShares = Object.fromEntries(
-        Object.entries(account.organizationResourceShares ?? {}).map(([sid, resourceEntryIds]) => [
-          sid,
-          resourceEntryIds.filter((resourceEntryId) => resourceEntryId !== shareDialogResourceEntryId),
-        ]),
+        Object.entries(account.organizationResourceShares ?? {}).map(
+          ([sid, resourceEntryIds]) => [
+            sid,
+            resourceEntryIds.filter(
+              (resourceEntryId) =>
+                resourceEntryId !== shareDialogResourceEntryId,
+            ),
+          ],
+        ),
       ) as Record<string, string[]>;
 
       for (const sid of shareDialogResourceSelection) {
-        const currentResourceEntryIds = nextOrganizationResourceShares[sid] ?? [];
+        const currentResourceEntryIds =
+          nextOrganizationResourceShares[sid] ?? [];
         nextOrganizationResourceShares[sid] = [
           ...new Set([...currentResourceEntryIds, shareDialogResourceEntryId]),
         ];
@@ -1404,9 +1649,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to update resource sharing.',
-              'La mise a jour du partage des ressources a echoue.',
-              'Die Ressourcenfreigabe konnte nicht aktualisiert werden.',
+              "Failed to update resource sharing.",
+              "La mise a jour du partage des ressources a echoue.",
+              "Die Ressourcenfreigabe konnte nicht aktualisiert werden.",
             ),
       );
     } finally {
@@ -1419,7 +1664,9 @@ export function useAccountController() {
       return;
     }
 
-    const entry = inventoryResources.find((item) => item.id === resourceEntryId);
+    const entry = inventoryResources.find(
+      (item) => item.id === resourceEntryId,
+    );
     if (
       !entry ||
       !(await requestConfirmation(
@@ -1429,8 +1676,16 @@ export function useAccountController() {
           `${entry.resourceName} aus dem Inventar entfernen? Die Organisationsfreigaben werden ebenfalls entfernt.`,
         ),
         {
-          title: t('Remove resource?', 'Retirer la ressource ?', 'Ressource entfernen?'),
-          label: t('Remove resource', 'Retirer la ressource', 'Ressource entfernen'),
+          title: t(
+            "Remove resource?",
+            "Retirer la ressource ?",
+            "Ressource entfernen?",
+          ),
+          label: t(
+            "Remove resource",
+            "Retirer la ressource",
+            "Ressource entfernen",
+          ),
         },
       ))
     )
@@ -1442,9 +1697,9 @@ export function useAccountController() {
         if (currentAccount.accountId !== account.accountId)
           throw new Error(
             t(
-              'Your account changed. Please try again.',
-              'Ton compte a changé. Réessaie.',
-              'Dein Konto hat sich geändert. Bitte erneut versuchen.',
+              "Your account changed. Please try again.",
+              "Ton compte a changé. Réessaie.",
+              "Dein Konto hat sich geändert. Bitte erneut versuchen.",
             ),
           );
         return current.filter((entry) => entry.id !== resourceEntryId);
@@ -1459,9 +1714,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to update the resource inventory.',
-              'La mise a jour de l inventaire des ressources a echoue.',
-              'Das Ressourceninventar konnte nicht aktualisiert werden.',
+              "Failed to update the resource inventory.",
+              "La mise a jour de l inventaire des ressources a echoue.",
+              "Das Ressourceninventar konnte nicht aktualisiert werden.",
             ),
       );
     } finally {
@@ -1475,12 +1730,17 @@ export function useAccountController() {
       return;
     }
 
-    if (linkedOrganizations.some((organization) => normalizeOrganizationSidInput(organization.sid) === sid)) {
+    if (
+      linkedOrganizations.some(
+        (organization) =>
+          normalizeOrganizationSidInput(organization.sid) === sid,
+      )
+    ) {
       setOrganizationError(
         t(
-          'This organization is already linked to your account.',
-          'Cette organisation est deja liee a ton compte.',
-          'Diese Organisation ist bereits mit deinem Konto verknüpft.',
+          "This organization is already linked to your account.",
+          "Cette organisation est deja liee a ton compte.",
+          "Diese Organisation ist bereits mit deinem Konto verknüpft.",
         ),
       );
       return;
@@ -1491,15 +1751,15 @@ export function useAccountController() {
     setOrganizationNotice(null);
     try {
       await addOrganization(sid);
-      setOrganizationSidInput('');
+      setOrganizationSidInput("");
     } catch (error) {
       setOrganizationError(
         error instanceof Error
           ? error.message
           : t(
-              'Failed to add the organization.',
-              'L ajout de l organisation a echoue.',
-              'Die Organisation konnte nicht hinzugefügt werden.',
+              "Failed to add the organization.",
+              "L ajout de l organisation a echoue.",
+              "Die Organisation konnte nicht hinzugefügt werden.",
             ),
       );
     } finally {
@@ -1518,9 +1778,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to remove the organization.',
-              'La suppression de l organisation a echoue.',
-              'Die Organisation konnte nicht entfernt werden.',
+              "Failed to remove the organization.",
+              "La suppression de l organisation a echoue.",
+              "Die Organisation konnte nicht entfernt werden.",
             ),
       );
     } finally {
@@ -1580,9 +1840,9 @@ export function useAccountController() {
       await claimOrganization(targetSid);
       setOrganizationNotice(
         t(
-          'Your organization claim request was sent for manual review.',
-          'Ta demande de claim d organisation a ete envoyee pour revue manuelle.',
-          'Deine Organisationsanfrage wurde zur manuellen Prüfung gesendet.',
+          "Your organization claim request was sent for manual review.",
+          "Ta demande de claim d organisation a ete envoyee pour revue manuelle.",
+          "Deine Organisationsanfrage wurde zur manuellen Prüfung gesendet.",
         ),
       );
       setOrganizationClaimDialogSid(null);
@@ -1591,9 +1851,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to send the organization claim request.',
-              'L envoi de la demande de claim d organisation a echoue.',
-              'Die Organisationsanfrage konnte nicht gesendet werden.',
+              "Failed to send the organization claim request.",
+              "L envoi de la demande de claim d organisation a echoue.",
+              "Die Organisationsanfrage konnte nicht gesendet werden.",
             ),
       );
     } finally {
@@ -1614,9 +1874,9 @@ export function useAccountController() {
       await deleteOrganization(targetSid);
       setOrganizationNotice(
         t(
-          'Organization deleted from the app.',
-          'Organisation supprimee de l appli.',
-          'Organisation wurde aus der App entfernt.',
+          "Organization deleted from the app.",
+          "Organisation supprimee de l appli.",
+          "Organisation wurde aus der App entfernt.",
         ),
       );
       setOrganizationDeleteDialogSid(null);
@@ -1625,9 +1885,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to delete the organization.',
-              'La suppression de l organisation a echoue.',
-              'Die Organisation konnte nicht gelöscht werden.',
+              "Failed to delete the organization.",
+              "La suppression de l organisation a echoue.",
+              "Die Organisation konnte nicht gelöscht werden.",
             ),
       );
     } finally {
@@ -1649,14 +1909,14 @@ export function useAccountController() {
       setOrganizationNotice(
         enabled
           ? t(
-              'Blueprint sharing enabled for this organization.',
-              'Le partage de blueprints est active pour cette organisation.',
-              'Die Blueprint-Freigabe ist für diese Organisation aktiviert.',
+              "Blueprint sharing enabled for this organization.",
+              "Le partage de blueprints est active pour cette organisation.",
+              "Die Blueprint-Freigabe ist für diese Organisation aktiviert.",
             )
           : t(
-              'Blueprint sharing disabled for this organization.',
-              'Le partage de blueprints est desactive pour cette organisation.',
-              'Die Blueprint-Freigabe ist für diese Organisation deaktiviert.',
+              "Blueprint sharing disabled for this organization.",
+              "Le partage de blueprints est desactive pour cette organisation.",
+              "Die Blueprint-Freigabe ist für diese Organisation deaktiviert.",
             ),
       );
       setOrganizationSharingDialogState(null);
@@ -1665,9 +1925,9 @@ export function useAccountController() {
         error instanceof Error
           ? error.message
           : t(
-              'Failed to update organization blueprint sharing.',
-              'La mise a jour du partage des blueprints de l organisation a echoue.',
-              'Die Blueprint-Freigabe der Organisation konnte nicht aktualisiert werden.',
+              "Failed to update organization blueprint sharing.",
+              "La mise a jour du partage des blueprints de l organisation a echoue.",
+              "Die Blueprint-Freigabe der Organisation konnte nicht aktualisiert werden.",
             ),
       );
     } finally {
@@ -1677,7 +1937,7 @@ export function useAccountController() {
 
   const handleRespondToCraftRequest = async (
     requestId: string,
-    decision: 'accepted' | 'denied' | 'closed' | 'deleted',
+    decision: "accepted" | "denied" | "closed" | "deleted",
   ) => {
     setCraftRequestActionId(requestId);
     setCraftRequestError(null);
@@ -1685,20 +1945,32 @@ export function useAccountController() {
     try {
       await respondToCraftRequest(requestId, decision);
       setCraftRequestNotice(
-        decision === 'accepted'
-          ? t('Craft request accepted.', 'Demande de craft acceptee.', 'Craft-Anfrage angenommen.')
-          : decision === 'denied'
-            ? t('Craft request denied.', 'Demande de craft refusee.', 'Craft-Anfrage abgelehnt.')
-            : t('Craft request closed.', 'Demande de craft cloturee.', 'Craft-Anfrage geschlossen.'),
+        decision === "accepted"
+          ? t(
+              "Craft request accepted.",
+              "Demande de craft acceptee.",
+              "Craft-Anfrage angenommen.",
+            )
+          : decision === "denied"
+            ? t(
+                "Craft request denied.",
+                "Demande de craft refusee.",
+                "Craft-Anfrage abgelehnt.",
+              )
+            : t(
+                "Craft request closed.",
+                "Demande de craft cloturee.",
+                "Craft-Anfrage geschlossen.",
+              ),
       );
     } catch (error) {
       setCraftRequestError(
         error instanceof Error
           ? error.message
           : t(
-              'Failed to answer the craft request.',
-              'La reponse a la demande de craft a echoue.',
-              'Die Craft-Anfrage konnte nicht beantwortet werden.',
+              "Failed to answer the craft request.",
+              "La reponse a la demande de craft a echoue.",
+              "Die Craft-Anfrage konnte nicht beantwortet werden.",
             ),
       );
     } finally {
@@ -1710,33 +1982,53 @@ export function useAccountController() {
     onboardingAction.run(async () => {
       await updateOnboardingState({ dismissed: true });
     });
-  const exportAccount = () => {
-    if (!account) return;
-    const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            format: 'sc-craft-account-export',
-            version: 1,
-            exportedAt: new Date().toISOString(),
-            datasetScope: activeDataset.channel,
-            account,
-          },
-          null,
-          2,
-        ),
-      ],
-      { type: 'application/json' },
+  const exportAccount = () =>
+    exportAction.run(
+      async () => {
+        if (!account) return;
+        const accountId = account.accountId;
+        await flushPendingMutations();
+        const [live, ptu] = await Promise.all([
+          fetchCurrentAccount("live"),
+          fetchCurrentAccount("ptu"),
+        ]);
+        if (exportIdentity.current !== accountId) return;
+        if (live.accountId !== accountId || ptu.accountId !== accountId)
+          throw new Error("Account changed during export.");
+        if (live.datasetScope !== "live" || ptu.datasetScope !== "ptu")
+          throw new Error(
+            "Incomplete account scopes. Please retry the download.",
+          );
+        const blob = new Blob(
+          [
+            JSON.stringify(
+              {
+                format: "sc-craft-personal-data",
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                accounts: { live, ptu },
+              },
+              null,
+              2,
+            ),
+          ],
+          { type: "application/json" },
+        );
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `sc-craft-personal-data-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+      t(
+        "Unable to download your data.",
+        "Impossible de télécharger tes données.",
+        "Deine Daten konnten nicht heruntergeladen werden.",
+      ),
     );
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `sc-craft-account-${activeDataset.channel}-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
 
   return {
     confirmation,
@@ -1758,6 +2050,7 @@ export function useAccountController() {
     watcherBusy,
     resolvedLivePath,
     exportAccount,
+    exportAction,
     handleDismissOnboarding,
     localAccountCollections,
     t,
@@ -1846,7 +2139,6 @@ export function useAccountController() {
     watcherError,
     addCustomPath,
     removeCustomPath,
-    defaultInventoryIdSet,
     handleWatcherToggle,
     handleAutoStartupToggle,
     inventoryResources,

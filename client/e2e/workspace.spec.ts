@@ -170,7 +170,7 @@ test('the dashboard without acquisition routes keeps all six panels in a 1080p v
   await page.goto('/item/vendetta-hmg');
   await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
 });
 
 
@@ -258,4 +258,25 @@ test('Fabricator panels let the page scroll instead of trapping the wheel', asyn
     await expect.poll(() => pageScroll.evaluate(element => element.scrollTop)).not.toBe(before);
     expect(await body.evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
   }
+});
+
+test('Fabricator starts at quality 500 and restores the last blueprint without overriding deep links', async ({ page }) => {
+  await page.goto('/item/vendetta-hmg');
+  const quality = page.getByRole('spinbutton', { name: 'Quality value for Iron', exact: true });
+  await expect(quality).toHaveValue('500');
+  await quality.fill('720');
+  await expect(quality).toHaveValue('720');
+  expect(await page.evaluate(() => localStorage.getItem('sc-craft-fabricator-blueprint:live'))).toBe('vendetta');
+  await page.goto('/account');
+  await page.getByRole('link', { name: 'Fabricator', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await expect(quality).toHaveValue('500');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Vendetta HMG', exact: true })).toBeVisible();
+  await page.goto('/item/cq7-rifle');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
+  await expect(quality).toHaveValue('500');
+  await page.evaluate(() => localStorage.setItem('sc-craft-fabricator-blueprint:live', 'removed-blueprint'));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'CQ7 Rifle', exact: true })).toBeVisible();
 });

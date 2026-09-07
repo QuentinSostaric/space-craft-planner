@@ -13,6 +13,7 @@ export interface SharedBlueprintOfferCardProps {
   blueprint: Blueprint;
   owner: SharedOfferOwner;
   contextLabel?: string;
+  selectionPreview?: boolean;
   requestState?: 'available' | 'pending' | 'accepted' | 'self' | 'unavailable';
   busy?: boolean;
   onRequest?: () => void;
@@ -27,6 +28,7 @@ export interface SharedResourceOfferCardProps {
   resource?: Resource | null;
   owner: SharedOfferOwner;
   contextLabel?: string;
+  selectionPreview?: boolean;
   onOpenResource?: () => void;
   onContact?: () => void;
   contactLabel?: string;

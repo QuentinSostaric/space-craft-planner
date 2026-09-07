@@ -51,6 +51,17 @@ import type {
 import { CATEGORY_LABELS } from '../types';
 import './fabricator/fabricator-focus.css';
 
+const LAST_BLUEPRINT_KEY = 'sc-craft-fabricator-blueprint';
+function rememberedBlueprint(blueprints: Blueprint[], channel: string) {
+  try {
+    const id = localStorage.getItem(`${LAST_BLUEPRINT_KEY}:${channel}`);
+    return blueprints.find(blueprint => blueprint.id === id);
+  } catch { return undefined; }
+}
+function rememberBlueprint(id: string, channel: string) {
+  try { localStorage.setItem(`${LAST_BLUEPRINT_KEY}:${channel}`, id); } catch { /* Storage may be unavailable. */ }
+}
+
 const PROGRESS_KEY = 'if-acquisition-progress';
 /** Which view the Projected result panel shows: the radar, or the stat meters. */
 const RADAR_VIEW_KEY = 'if-fabricator-radar-view';
@@ -370,7 +381,7 @@ export function FabricatorPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const slug = itemSlugFromPathname(window.location.pathname);
-    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0];
+    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : rememberedBlueprint(blueprints, activeDataset.channel) ?? blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0];
     return initial?.id ?? null;
   });
   const [requestedGoalId, setRequestedGoalId] = useState(() => new URLSearchParams(window.location.search).get('goal'));
@@ -416,23 +427,25 @@ export function FabricatorPage() {
   }, []);
   const clearAssignments = useCallback(() => setSlotAssignments({}), []);
   const requestedGoal = goals.find((goal) => goal.id === requestedGoalId && goal.blueprintId === selectedId);
+  const configurationBlueprint = blueprints.find(blueprint => blueprint.id === selectedId);
   useEffect(() => {
     // A goal is an explicit handoff to this item's local simulator. Apply it
     // once per destination, including after a delayed account load; fetching
     // blueprint details or changing unrelated planner data must not erase edits.
+    if (!configurationBlueprint?.detailsLoaded && !requestedGoal) return;
     const configuration = `${activeDataset.datasetId}:${selectedId ?? ''}:${requestedGoalId ?? ''}:${requestedGoal ? 'saved' : 'default'}`;
     if (appliedConfiguration.current === configuration) return;
     appliedConfiguration.current = configuration;
-    setSlotAssignments(requestedGoal ? { ...requestedGoal.slotAssignments } : {});
+    setSlotAssignments(requestedGoal ? { ...requestedGoal.slotAssignments } : Object.fromEntries((configurationBlueprint?.slots ?? []).map(slot => [slot.id, 500])));
     setQty(requestedGoal ? Math.max(1, Math.min(99, Math.round(requestedGoal.quantity))) : 1);
     setHasPlanned(false);
-  }, [selectedId, requestedGoalId, requestedGoal, activeDataset.datasetId]);
+  }, [selectedId, requestedGoalId, requestedGoal, activeDataset.datasetId, configurationBlueprint]);
 
   useEffect(() => {
     if (activeDataset.datasetId) void ensureMissionRewardsLoaded();
   }, [activeDataset.datasetId, ensureMissionRewardsLoaded]);
 
-  // Fabricator opens CQ7 Rifle; deep links always select the requested item.
+  // Restore the last local selection per channel; an explicit deep link takes priority.
   // Deep links: /item/<slug> selects the blueprint here (the Fabricator IS
   // the item page); back/forward keep the selection in sync.
   useEffect(() => {
@@ -440,16 +453,18 @@ export function FabricatorPage() {
       setRequestedGoalId(new URLSearchParams(window.location.search).get('goal'));
       const slug = itemSlugFromPathname(window.location.pathname);
       if (!slug) {
-        setSelectedId((blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0])?.id ?? null);
+        const restored = rememberedBlueprint(blueprints, activeDataset.channel) ?? blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0];
+        setSelectedId(restored?.id ?? null);
         return;
       }
       const fromUrl = blueprints.find((bp) => toSlug(bp.name) === slug);
       setSelectedId(fromUrl?.id ?? null);
+      if (fromUrl) rememberBlueprint(fromUrl.id, activeDataset.channel);
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [blueprints]);
+  }, [blueprints, activeDataset.channel]);
 
   const selected: Blueprint | null = useMemo(
     () => blueprints.find((bp) => bp.id === selectedId) ?? null,
@@ -524,12 +539,13 @@ export function FabricatorPage() {
     setSelectedId(bp?.id ?? null);
     const currentSlug = itemSlugFromPathname(window.location.pathname);
     if (bp) {
+      rememberBlueprint(bp.id, activeDataset.channel);
       const slug = toSlug(bp.name);
       if (currentSlug !== slug) navigateToPath(`/item/${slug}`, { blueprintId: bp.id });
     } else if (currentSlug) {
       navigateToPath('/');
     }
-  }, []);
+  }, [activeDataset.channel]);
 
   const handleReach = useCallback((scopeKey: string, rep: number) => {
     setProgress((prev) => {

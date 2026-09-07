@@ -73,6 +73,7 @@ export async function installAccountState(page: Page, options: {
   colorScheme?: 'light' | 'dark' | 'no-preference';
   guest?: boolean;
   enabled?: boolean;
+  starterBlueprint?: boolean;
 } = {}) {
   const errors = await installDeterministicState(page);
   await page.addInitScript((theme) => {
@@ -85,24 +86,29 @@ export async function installAccountState(page: Page, options: {
   }, options.colorScheme === 'light' ? 'light' : 'dark');
 
   let account = createTestAccount();
+  const blueprints = options.starterBlueprint ? [...accountBlueprints, {
+    ...accountBlueprints[0], id: 'bp_craft_cds_armor_light_arms_01_01_01', name: 'Field Recon Suit Arms',
+  }] : accountBlueprints;
+  if (options.starterBlueprint) account.inventoryBlueprintIds.push('bp_craft_cds_armor_light_arms_01_01_01');
   const resourceWrites: AccountInventoryResourceEntry[][] = [];
   const shareWrites: Record<string, string[]>[] = [];
   const mutations: Array<{ path: string; method: string; body: unknown }> = [];
   const unexpectedApiCalls: string[] = [];
   const dataset = {
-    ...emptyDataset, datasetId: 'e2e-account-live', blueprints: accountBlueprints, resources,
-    blueprintCount: accountBlueprints.length, resourceCount: resources.length,
+    ...emptyDataset, datasetId: 'e2e-account-live', blueprints, resources,
+    blueprintCount: blueprints.length, resourceCount: resources.length,
   };
 
   await page.route('**/api/**', async route => {
     const request = route.request();
-    const path = new URL(request.url()).pathname;
+    const url = new URL(request.url());
+    const path = url.pathname;
     const method = request.method();
     if (path === '/api/game-data/public') return route.fulfill({ json: { datasets: [dataset], defaultChannel: 'live' } });
     if (path.startsWith('/api/game-data/public/')) {
       if (path.includes('/blueprints/')) {
         const id = decodeURIComponent(path.split('/').pop()!);
-        return route.fulfill({ json: { datasetId: dataset.datasetId, blueprint: accountBlueprints.find(blueprint => blueprint.id === id) } });
+        return route.fulfill({ json: { datasetId: dataset.datasetId, blueprint: blueprints.find(blueprint => blueprint.id === id) } });
       }
       return route.fulfill({ json: { dataset } });
     }
@@ -111,7 +117,7 @@ export async function installAccountState(page: Page, options: {
       enabled: options.enabled ?? true, provider: 'discord', user: options.guest ? null : user,
       citizenIdLoginEnabled: true, citizenIdRsiLinkEnabled: true, citizenIdBrandEnvironment: 'production',
     } });
-    if (path === '/api/auth/account' && method === 'GET') return route.fulfill({ json: { account } });
+    if (path === '/api/auth/account' && method === 'GET') return route.fulfill({ json: { account: { ...account, datasetScope: url.searchParams.get('datasetScope') === 'ptu' ? 'ptu' : 'live' } } });
 
     if (method !== 'GET') mutations.push({ path, method, body: request.postData() ? request.postDataJSON() : null });
     if (path === '/api/auth/account/resources' && method === 'PUT') {

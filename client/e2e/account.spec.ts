@@ -137,24 +137,25 @@ test('Adding an existing favorite to owned blueprints preserves the collection a
   expect(state.unexpectedApiCalls).toEqual([]);
 });
 
-test('Settings export the current account scope and apply local language and appearance preferences', async ({ page, colorScheme }, testInfo) => {
+test('Settings export both account scopes and apply local language and appearance preferences', async ({ page, colorScheme }, testInfo) => {
   const state = await installAccountState(page, { colorScheme });
   await page.goto('/account?section=settings');
   const panel = page.locator('#account-tabpanel-settings');
   const downloadPromise = page.waitForEvent('download');
-  await panel.getByRole('button', { name: 'Export LIVE JSON', exact: true }).click();
+  await panel.getByRole('button', { name: 'Download my personal data', exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/^sc-craft-account-live-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(download.suggestedFilename()).toMatch(/^sc-craft-personal-data-\d{4}-\d{2}-\d{2}\.json$/);
   const downloadPath = testInfo.outputPath(download.suggestedFilename());
   await download.saveAs(downloadPath);
   const exported = JSON.parse(await readFile(downloadPath, 'utf8'));
-  expect(exported).toMatchObject({ format: 'sc-craft-account-export', version: 1, datasetScope: 'live' });
-  expect(exported.account.datasetScope).toBe('live');
-  expect(exported.account.inventoryBlueprintIds).toEqual(['account-rifle']);
-  expect(exported.account.favoriteBlueprintIds).toEqual(['account-pistol']);
-  expect(exported.account.inventoryResources).toEqual(initialResourceEntries);
-  expect(exported.account.organizationResourceShares).toEqual({ TESTORG: ['iron-lot'] });
-  expect(exported.account.incomingCraftRequests[0].id).toBe('incoming-request');
+  expect(exported).toMatchObject({ format: 'sc-craft-personal-data', version: 1 });
+  expect(exported.accounts.live.datasetScope).toBe('live');
+  expect(exported.accounts.ptu.datasetScope).toBe('ptu');
+  expect(exported.accounts.live.inventoryBlueprintIds).toEqual(['account-rifle']);
+  expect(exported.accounts.live.favoriteBlueprintIds).toEqual(['account-pistol']);
+  expect(exported.accounts.live.inventoryResources).toEqual(initialResourceEntries);
+  expect(exported.accounts.live.organizationResourceShares).toEqual({ TESTORG: ['iron-lot'] });
+  expect(exported.accounts.live.incomingCraftRequests[0].id).toBe('incoming-request');
 
   const nextTheme = colorScheme === 'light' ? 'dark' : 'light';
   await chooseOption(page, panel.getByRole('button', { name: 'Appearance', exact: true }), nextTheme === 'dark' ? 'Dark' : 'Light');
@@ -162,7 +163,7 @@ test('Settings export the current account scope and apply local language and app
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sc-craft-theme')!))).toBe(nextTheme);
   await chooseOption(page, panel.getByRole('button', { name: 'Language', exact: true }), 'Français');
   await expect(panel.getByRole('heading', { name: 'Paramètres', exact: true })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Exporter le JSON LIVE', exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Télécharger mes données personnelles', exact: true })).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sc-craft-lang')!))).toBe('fr');
   expect(state.mutations).toEqual([]);
   expect(state.errors).toEqual([]);
@@ -285,5 +286,21 @@ test('A guest sees the unavailable sign-in state without account controls', asyn
   const screenshotPath = testInfo.outputPath('account-guest.png');
   await page.screenshot({ path: screenshotPath, fullPage: true, animations: 'disabled' });
   await testInfo.attach('Account guest', { path: screenshotPath, contentType: 'image/png' });
+  expect(state.errors).toEqual([]);
+});
+
+test('Every owned blueprint has the same visible actions and starter blueprints can be removed', async ({ page, colorScheme }) => {
+  const state = await installAccountState(page, { colorScheme, starterBlueprint: true });
+  await page.goto('/account?section=inventory');
+  const panel = inventoryPanel(page);
+  const card = panel.locator('.blueprint-card').filter({ hasText: 'Field Recon Suit Arms' });
+  await expect(card).toBeVisible();
+  for (const name of ['Favorite', 'Inventory', 'Simulate']) await expect(card.getByRole('button', { name, exact: true })).toBeVisible();
+  await expect(card.locator('.blueprint-card-actions')).toHaveCSS('opacity', '1');
+  await card.getByRole('button', { name: 'Inventory', exact: true }).click();
+  await expect.poll(() => state.getAccount().inventoryBlueprintIds.includes('bp_craft_cds_armor_light_arms_01_01_01')).toBe(false);
+  await expect(card).toHaveCount(0);
+  await page.reload();
+  await expect(card).toHaveCount(0);
   expect(state.errors).toEqual([]);
 });

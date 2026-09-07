@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '../../auth/AuthContext';
-import { useI18n } from '../../i18n/I18nContext';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
+import { useI18n } from "../../i18n/I18nContext";
 import {
   fetchMarketplace,
   reportMarketplaceMember,
@@ -8,26 +8,34 @@ import {
   type MarketplaceMember,
   type MarketplacePublication,
   type MarketplaceReportReason,
-} from '../../services/marketplaceService';
-import { useCraft } from '../../store/CraftContext';
-import type { Blueprint } from '../../types';
-import type { CraftRequestDraft } from '../organizations';
+} from "../../services/marketplaceService";
+import { useCraft } from "../../store/CraftContext";
+import type { Blueprint } from "../../types";
+import type { CraftRequestDraft } from "../organizations";
 
-export type MarketplaceTab = 'browse' | 'listings' | 'safety' | 'moderation';
-export type OfferType = 'blueprints' | 'resources';
+export type MarketplaceTab = "browse" | "listings" | "safety" | "moderation";
+export type OfferType = "blueprints" | "resources" | "contributors";
 
 function readRoute() {
   const params = new URLSearchParams(window.location.search);
-  const tabValue = params.get('tab');
+  const tabValue = params.get("tab");
   return {
-    tab: (['browse', 'listings', 'safety', 'moderation'].includes(tabValue ?? '')
+    tab: (["browse", "listings", "safety", "moderation"].includes(
+      tabValue ?? "",
+    )
       ? tabValue
-      : 'browse') as MarketplaceTab,
-    type: (params.get('type') === 'resources' || (!params.has('type') && params.has('resource'))
-      ? 'resources'
-      : 'blueprints') as OfferType,
-    assetId: (params.get('blueprint') ?? params.get('resource') ?? '').slice(0, 200),
-    ownerHandle: (params.get('owner') ?? '').slice(0, 60),
+      : "browse") as MarketplaceTab,
+    type: (params.get("type") === "contributors"
+      ? "contributors"
+      : params.get("type") === "resources" ||
+          (!params.has("type") && params.has("resource"))
+        ? "resources"
+        : "blueprints") as OfferType,
+    assetId: (params.get("blueprint") ?? params.get("resource") ?? "").slice(
+      0,
+      200,
+    ),
+    ownerHandle: (params.get("owner") ?? "").slice(0, 60),
   };
 }
 
@@ -44,19 +52,26 @@ export function useMarketplaceController() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [request, setRequest] = useState<{ blueprint: Blueprint; member: MarketplaceMember } | null>(null);
+  const [request, setRequest] = useState<{
+    blueprint: Blueprint;
+    member: MarketplaceMember;
+  } | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [reportHandle, setReportHandle] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
-  const identity = `${auth.account?.accountId ?? ''}:${scope}`;
+  const identity = `${auth.account?.accountId ?? ""}:${scope}`;
   const identityRef = useRef(identity);
   identityRef.current = identity;
   const requestId = useRef(0);
   const actionInFlight = useRef(false);
   const verified = Boolean(
-    auth.account?.rsi?.handle && auth.account.rsi.verifiedAt && !auth.account.rsi.verificationRequired,
+    auth.account?.rsi?.handle &&
+      auth.account.rsi.verifiedAt &&
+      !auth.account.rsi.verificationRequired,
   );
-  const canBrowse = Boolean(verified && auth.account && (auth.account.datasetScope ?? 'live') === scope);
+  const canBrowse = Boolean(
+    verified && auth.account && (auth.account.datasetScope ?? "live") === scope,
+  );
   const blueprintById = useMemo(
     () => new Map(activeDataset.blueprints.map((item) => [item.id, item])),
     [activeDataset.blueprints],
@@ -68,13 +83,13 @@ export function useMarketplaceController() {
 
   useEffect(() => {
     const onPop = () => {
-      if (window.location.pathname === '/marketplace') setRoute(readRoute());
+      if (window.location.pathname === "/marketplace") setRoute(readRoute());
     };
-    window.addEventListener('popstate', onPop);
+    window.addEventListener("popstate", onPop);
     return () => {
-      window.removeEventListener('popstate', onPop);
+      window.removeEventListener("popstate", onPop);
       requestId.current += 1;
-      identityRef.current = '';
+      identityRef.current = "";
     };
   }, []);
 
@@ -82,11 +97,19 @@ export function useMarketplaceController() {
     (next: Partial<typeof route>) => {
       const value = { ...route, ...next };
       const params = new URLSearchParams();
-      if (value.tab !== 'browse') params.set('tab', value.tab);
-      params.set('type', value.type);
-      if (value.assetId) params.set(value.type === 'blueprints' ? 'blueprint' : 'resource', value.assetId);
-      if (value.ownerHandle) params.set('owner', value.ownerHandle);
-      window.history.pushState(window.history.state, '', `/marketplace?${params}`);
+      if (value.tab !== "browse") params.set("tab", value.tab);
+      params.set("type", value.type);
+      if (value.assetId)
+        params.set(
+          value.type === "blueprints" ? "blueprint" : "resource",
+          value.assetId,
+        );
+      if (value.ownerHandle) params.set("owner", value.ownerHandle);
+      window.history.pushState(
+        window.history.state,
+        "",
+        `/marketplace?${params}`,
+      );
       setRoute(value);
     },
     [route],
@@ -97,7 +120,7 @@ export function useMarketplaceController() {
       limit: 20,
       ownerHandle: route.ownerHandle || undefined,
       ...(route.assetId
-        ? route.type === 'blueprints'
+        ? route.type === "blueprints"
           ? { blueprintId: route.assetId }
           : { resourceId: route.assetId }
         : {}),
@@ -121,10 +144,15 @@ export function useMarketplaceController() {
         setCursor(null);
       }
       try {
-        const result = await fetchMarketplace(scope, { ...filters, cursor: nextCursor });
+        const result = await fetchMarketplace(scope, {
+          ...filters,
+          cursor: nextCursor,
+        });
         if (id !== requestId.current) return;
         if (result.datasetScope !== scope)
-          throw new Error('The marketplace returned a different dataset scope.');
+          throw new Error(
+            "The marketplace returned a different dataset scope.",
+          );
         setMembers((current) =>
           nextCursor
             ? [
@@ -132,7 +160,9 @@ export function useMarketplaceController() {
                 ...result.members.filter(
                   (member) =>
                     !current.some(
-                      (existing) => existing.handle.toLowerCase() === member.handle.toLowerCase(),
+                      (existing) =>
+                        existing.handle.toLowerCase() ===
+                        member.handle.toLowerCase(),
                     ),
                 ),
               ]
@@ -145,9 +175,9 @@ export function useMarketplaceController() {
             error instanceof Error
               ? error.message
               : t(
-                  'Unable to load the marketplace.',
-                  'Impossible de charger la marketplace.',
-                  'Marktplatz konnte nicht geladen werden.',
+                  "Unable to load the marketplace.",
+                  "Impossible de charger la marketplace.",
+                  "Marktplatz konnte nicht geladen werden.",
                 ),
           );
       } finally {
@@ -192,9 +222,9 @@ export function useMarketplaceController() {
           error instanceof Error
             ? error.message
             : t(
-                'The action failed. Try again.',
-                'L’action a échoué. Réessaie.',
-                'Aktion fehlgeschlagen. Versuche es erneut.',
+                "The action failed. Try again.",
+                "L’action a échoué. Réessaie.",
+                "Aktion fehlgeschlagen. Versuche es erneut.",
               ),
         );
       return false;
@@ -211,11 +241,15 @@ export function useMarketplaceController() {
       () => auth.updateMarketplace(publication),
       publication.enabled
         ? t(
-            'Your selection is now published.',
-            'Ta sélection est maintenant publiée.',
-            'Deine Auswahl ist jetzt veröffentlicht.',
+            "Your selection is now published.",
+            "Ta sélection est maintenant publiée.",
+            "Deine Auswahl ist jetzt veröffentlicht.",
           )
-        : t('Your listings are private.', 'Tes annonces sont privées.', 'Deine Angebote sind privat.'),
+        : t(
+            "Your listings are private.",
+            "Tes annonces sont privées.",
+            "Deine Angebote sind privat.",
+          ),
     );
     if (ok) void load();
     return ok;
@@ -224,12 +258,14 @@ export function useMarketplaceController() {
     const ok = await run(
       () => auth.blockMarketplaceMember(handle, blocked),
       blocked
-        ? t('Player blocked.', 'Joueur bloqué.', 'Spieler blockiert.')
-        : t('Player unblocked.', 'Joueur débloqué.', 'Spieler entsperrt.'),
+        ? t("Player blocked.", "Joueur bloqué.", "Spieler blockiert.")
+        : t("Player unblocked.", "Joueur débloqué.", "Spieler entsperrt."),
     );
     if (ok) {
       setMembers((current) =>
-        current.filter((member) => member.handle.toLowerCase() !== handle.toLowerCase()),
+        current.filter(
+          (member) => member.handle.toLowerCase() !== handle.toLowerCase(),
+        ),
       );
       void load();
     }
@@ -253,14 +289,18 @@ export function useMarketplaceController() {
           failure =
             error instanceof Error
               ? error.message
-              : t('Request failed.', 'La demande a échoué.', 'Anfrage fehlgeschlagen.');
+              : t(
+                  "Request failed.",
+                  "La demande a échoué.",
+                  "Anfrage fehlgeschlagen.",
+                );
           throw error;
         }
       },
       t(
-        'Craft request sent. Follow it in Account → Craft requests.',
-        'Demande envoyée. Retrouve son suivi dans Account → Demandes de craft.',
-        'Craft-Anfrage gesendet. Verfolge sie unter Konto → Craft-Anfragen.',
+        "Craft request sent. Follow it in Account → Craft requests.",
+        "Demande envoyée. Retrouve son suivi dans Account → Demandes de craft.",
+        "Craft-Anfrage gesendet. Verfolge sie unter Konto → Craft-Anfragen.",
       ),
     );
     if (identityRef.current === key) {
@@ -281,14 +321,18 @@ export function useMarketplaceController() {
           failure =
             error instanceof Error
               ? error.message
-              : t('Report failed.', 'Le signalement a échoué.', 'Meldung fehlgeschlagen.');
+              : t(
+                  "Report failed.",
+                  "Le signalement a échoué.",
+                  "Meldung fehlgeschlagen.",
+                );
           throw error;
         }
       },
       t(
-        'Report sent to app moderators.',
-        'Signalement transmis aux modérateurs de l’app.',
-        'Meldung an die App-Moderatoren gesendet.',
+        "Report sent to app moderators.",
+        "Signalement transmis aux modérateurs de l’app.",
+        "Meldung an die App-Moderatoren gesendet.",
       ),
     );
     if (identityRef.current === key) {

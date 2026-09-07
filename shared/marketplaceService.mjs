@@ -107,6 +107,9 @@ export async function listMarketplaceMembers(store, actor, options = {}) {
     references = await Promise.all(keys.map(key => store.readJson(key)));
     nextCursor = page.nextCursor;
   }
+  // Include the current publisher on the first page, through the same privacy
+  // checks as every other player. Index ordering must not hide their own offers.
+  if (!options.cursor && !ownerHandle) references.unshift({ accountId: actor.accountId });
   const candidates = [...new Set(references.map(reference => reference?.accountId).filter(Boolean))];
   const members = await Promise.all(candidates.map(async accountId => {
     const account = await readScopedAccountRecord(store, accountId, null, datasetScope);

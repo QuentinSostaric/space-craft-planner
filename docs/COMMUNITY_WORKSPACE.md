@@ -12,15 +12,15 @@ Each blueprint offer shows its provider without requiring hover. Requests identi
 
 ## Marketplace publication
 
-Viewing offers requires an authenticated, verified RSI identity. A guest can read the introduction without loading private catalogues. The three member sections are Browse offers, My listings and Safety & privacy; administrators also have Moderation.
+Viewing offers requires an authenticated, verified RSI identity. A guest can read the introduction without loading private catalogues. The catalog follows the organization layout: Blueprints, Resources and Contributors, with separate My listings and Safety & privacy sections. Administrators also have Moderation.
 
-Publication is private by default. The user selects owned blueprints and current resource lots and explicitly enables publication. Organization shares are never promoted into community offers. LIVE and PTU have independent selections, and copying LIVE data to PTU does not copy publication consent. Publishing at most 400 offers in total (blueprints and lots combined) per environment bounds indexing work. Withdrawing does not remove inventory. A user who loses RSI verification can still withdraw and manage blocks.
+Publication is private by default. The user selects owned blueprints and current resource lots in separate views and explicitly clicks Publish. There is no additional visibility checkbox. Edits remain unpublished until that action; withdrawal is separate. Organization shares are never promoted into community offers. LIVE and PTU have independent selections, and copying LIVE data to PTU does not copy publication consent. Publishing at most 400 offers in total (blueprints and lots combined) per environment bounds indexing work. Withdrawing does not remove inventory. A user who loses RSI verification can still withdraw and manage blocks.
 
 The publication limit also leaves room for replacing a previous selection under the documented [Cloudflare Workers internal-service request limits](https://developers.cloudflare.com/workers/platform/limits/). Conditional writes use the [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/#conditional-operations) and the supported [S3 conditional operations](https://developers.cloudflare.com/r2/api/s3/api/).
 
 The listing projection contains the provider’s public RSI handle/name/profile URL, chosen blueprint IDs, selected lot quantities/qualities and an update timestamp. It does not expose Discord identities, organization memberships, unselected stock or private account data. The internal consent is tied to the verified RSI identity; changing that identity cannot reuse an earlier publication choice.
 
-Search can select an exact dataset item and/or RSI handle. The directory reads dedicated indexes with bounded cursor pagination, not a full scan of accounts. Counts in the UI describe loaded offers, not an invented total. A listing is rechecked against the current account, inventory, verification, publication and suspension/block state before being returned or used for a craft request. Stale index entries therefore cannot reveal withdrawn stock.
+Search can select an exact dataset item and/or RSI handle. The directory reads dedicated indexes with bounded cursor pagination, not a full scan of accounts. Counts in the UI describe loaded offers, not an invented total. The first page includes the current publisher through the same consent, scope and availability checks; the page can therefore contain one own publisher in addition to the requested index page. My listings also links to an exact own-provider view. A listing is rechecked against the current account, inventory, verification, publication and suspension/block state before being returned or used for a craft request. Stale index entries therefore cannot reveal withdrawn stock.
 
 ## Requests, blocking and moderation
 
@@ -51,3 +51,11 @@ npm run test:e2e --workspace client -- e2e/organizations.spec.ts e2e/marketplace
 ```
 
 Browser tests use deterministic accounts and API fixtures, never real publications or messages. Server tests exercise real service and handler boundaries with in-memory storage, including consent races, private projections, scoping, authorization and moderation. Native desktop execution, real Citizen iD/RSI/Discord services and deployed R2 behavior need a deployment-environment check; local tests do not establish those external results. This work does not deploy the app or publish any user listing or game dataset.
+
+## Account and Fabricator follow-up
+
+Account blueprint cards and list rows expose the same favorite, inventory, simulation and organization-sharing actions, including starter blueprints. Starter entries can be removed like any other owned blueprint. Inventory card actions remain visible without hover.
+
+Settings separate personal data access from local inventory transfers. The JSON download fetches the signed-in account in both LIVE and PTU and is explicitly not presented as an importable backup.
+
+The Fabricator starts fresh material slots at quality 500 after blueprint details load. Explicit planner configurations keep their saved qualities. The last selected blueprint ID is stored locally per LIVE/PTU channel; direct item links override that preference, and missing IDs fall back to an available blueprint. No account data or complete blueprint objects are stored in this preference.
