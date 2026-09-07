@@ -2,7 +2,7 @@ const DESKTOP_OAUTH_STATE_PREFIX = 'auth/desktop/oauth-state/';
 const DESKTOP_EXCHANGE_PREFIX = 'auth/desktop/exchange/';
 const DESKTOP_OAUTH_STATE_MAX_AGE_MS = 5 * 60 * 1000;
 const DESKTOP_EXCHANGE_MAX_AGE_MS = 2 * 60 * 1000;
-const DESKTOP_CLEANUP_PREFIXES = [DESKTOP_OAUTH_STATE_PREFIX, DESKTOP_EXCHANGE_PREFIX];
+const DESKTOP_CLEANUP_PREFIXES = [DESKTOP_OAUTH_STATE_PREFIX, DESKTOP_EXCHANGE_PREFIX, 'auth/web/citizenid-state/'];
 
 const textEncoder = new TextEncoder();
 const hmacKeyCache = new Map();

@@ -1,3 +1,4 @@
+import { cleanupExpiredDesktopAuthArtifacts } from './desktopAuth.mjs';
 import {
   appendQueryParam,
   buildExpiredCookie,
@@ -220,7 +221,7 @@ export function getCitizenIdScopes(env) {
     : [...DEFAULT_CITIZENID_SCOPES];
 }
 
-export async function createCitizenIdStateCookie(requestOrUrl, env, returnTo = '/') {
+export async function createCitizenIdStateCookie(requestOrUrl, env, returnTo = '/', store = null) {
   const sessionSecret = String(env?.AUTH_SESSION_SECRET ?? '').trim();
   if (!sessionSecret) {
     throw new Error('AUTH_SESSION_SECRET is required to create Citizen iD OAuth state cookies.');
@@ -235,6 +236,10 @@ export async function createCitizenIdStateCookie(requestOrUrl, env, returnTo = '
     returnTo: sanitizeReturnTo(returnTo),
     expiresAt: Date.now() + CITIZENID_STATE_COOKIE_MAX_AGE * 1000,
   };
+  if (store) {
+    await cleanupExpiredDesktopAuthArtifacts(store);
+    await store.writeJson(`auth/web/citizenid-state/${payload.nonce}.json`, { expiresAt: payload.expiresAt });
+  }
   const signedPayload = await encodeSignedPayload(payload, sessionSecret);
 
   return {
@@ -245,6 +250,14 @@ export async function createCitizenIdStateCookie(requestOrUrl, env, returnTo = '
       path: '/',
     }),
   };
+}
+
+// The signed cookie binds the callback to the browser; the atomic record makes
+// it single-use across concurrent requests and separate Worker instances.
+export async function consumeCitizenIdWebState(store, oauthState) {
+  if (!store?.consumeJson) throw new Error('Atomic auth storage is required.');
+  return Boolean(await store.consumeJson(`auth/web/citizenid-state/${oauthState.nonce}.json`,
+    payload => Number(payload?.expiresAt) > Date.now()));
 }
 
 export async function readCitizenIdStateFromCookies(cookieHeader, env) {

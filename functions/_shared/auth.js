@@ -25,6 +25,7 @@ import {
   buildExpiredCitizenIdStateCookie,
   CitizenIdDiscordLinkRequiredError,
   createCitizenIdStateCookie,
+  consumeCitizenIdWebState,
   exchangeCitizenIdCode,
   getCitizenIdBrandEnvironment,
   isCitizenIdAuthConfigured,
@@ -474,7 +475,7 @@ export async function handleCitizenIdLoginRequest(request, env) {
   const rawReturnTo = requestUrl.searchParams.get('returnTo')
     || (isDesktopRequest(request) ? 'https://tauri.localhost/' : null);
   const returnTo = sanitizeReturnTo(rawReturnTo);
-  const { state, cookie } = await createCitizenIdStateCookie(request, env, returnTo);
+  const { state, cookie } = await createCitizenIdStateCookie(request, env, returnTo, accountStore);
   const authorizationUrl = buildCitizenIdAuthorizationUrl(request, env, state);
 
   return redirectResponse(authorizationUrl, {
@@ -492,7 +493,6 @@ export async function handleCitizenIdCallbackRequest(request, env) {
   const state = requestUrl.searchParams.get('state');
   const oauthState = await readCitizenIdStateFromCookies(request.headers.get('cookie'), env);
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(request, env);
-  const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), request, env);
   const returnTo = oauthState?.returnTo ?? '/';
   const accountStore = getAccountStore(request, env);
   const desktopState = isDesktopOAuthState(state)
@@ -528,8 +528,13 @@ export async function handleCitizenIdCallbackRequest(request, env) {
 
   if (!code || !state || !oauthState || oauthState.nonce !== state) {
     return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
-      cookies: [expiredStateCookie, expiredSessionCookie],
+      cookies: [expiredStateCookie],
     });
+  }
+
+  if (!await consumeCitizenIdWebState(accountStore, oauthState)) {
+    return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo,
+      'This sign-in attempt has already been processed. Return to Account and start a new sign-in if needed.'));
   }
 
   try {
@@ -554,7 +559,7 @@ export async function handleCitizenIdCallbackRequest(request, env) {
           ? error.message
           : 'citizenid_oauth_failed';
     return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, message), {
-      cookies: [expiredStateCookie, expiredSessionCookie],
+      cookies: [expiredStateCookie],
     });
   }
 }
