@@ -32,12 +32,12 @@
     "planner:purge-goals": "node scripts/purgePlannerGoals.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1116.0"
+    "@aws-sdk/client-s3": "^3.1126.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",
     "concurrently": "^10.0.5",
-    "wrangler": "4.125.0"
+    "wrangler": "4.129.0"
   },
   "overrides": {
     "dompurify": ">=3.4.13",
