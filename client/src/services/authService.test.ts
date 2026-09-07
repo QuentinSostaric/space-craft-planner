@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { requestRsiLinkChallenge, verifyAndLinkRsiAccount } from './authService';
+import { requestRsiLinkChallenge, saveAccountOnboardingState, unlinkRsiAccount, verifyAndLinkRsiAccount } from './authService';
 import { fetchTauriApi } from './apiBaseUrl';
 
 // Rebind the native bridge mock even if another test imported its real module
@@ -65,5 +65,18 @@ describe('RSI verification', () => {
     )));
     await expect(verifyAndLinkRsiAccount('TestCitizen', 'expired-proof'))
       .rejects.toMatchObject({ status: 403, message: 'Request a new verification code.' });
+  });
+
+  it('keeps account responses in the selected dataset after linking, unlinking and onboarding', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({ account: { datasetScope: 'ptu' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await verifyAndLinkRsiAccount('TestCitizen', 'server-proof', 'ptu');
+    await unlinkRsiAccount('ptu');
+    await saveAccountOnboardingState({ completed: true }, 'ptu');
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/auth/account/rsi-link?datasetScope=ptu',
+      '/api/auth/account/rsi-link?datasetScope=ptu',
+      '/api/auth/account/onboarding?datasetScope=ptu',
+    ]);
   });
 });

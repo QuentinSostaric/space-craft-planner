@@ -64,6 +64,7 @@ export function AppSelect<T extends string | number>({
   partSx,
 }: AppSelectProps<T>) {
   const theme = useTheme();
+  const compiledParts = compilePrimePartClasses(theme, partSx);
 
   return (
     <FieldShell
@@ -98,7 +99,20 @@ export function AppSelect<T extends string | number>({
           onBlur={onBlur}
           onFocus={onFocus}
           className={compilePrimeRootClass(theme, [{ width: '100%' }, sx], className)}
-          pt={compilePrimePartClasses(theme, partSx)}
+          pt={{
+            ...compiledParts,
+            // PrimeReact renders a separate trigger and a native select in
+            // addition to its focus input. All three need the field's name.
+            trigger: {
+              ...compiledParts.trigger,
+              'aria-label': label ? undefined : ariaLabel,
+              'aria-labelledby': label ? labelId : undefined,
+            },
+            select: {
+              'aria-label': label ? undefined : ariaLabel,
+              'aria-labelledby': label ? labelId : undefined,
+            },
+          }}
         />
       )}
     </FieldShell>

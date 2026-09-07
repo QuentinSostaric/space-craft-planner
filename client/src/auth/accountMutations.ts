@@ -241,7 +241,7 @@ function normalizeResourceQuantity(
     return Math.max(1, Math.round(quantity));
   }
 
-  return Math.round(quantity * 1000) / 1000;
+  return Math.round(quantity * 1_000_000) / 1_000_000;
 }
 
 function normalizeResourceQuality(value: unknown): number | null {
@@ -440,8 +440,11 @@ function applyAccountSnapshotMutation(
   mutation: AccountSnapshotMutation,
 ): StoredAccount {
   const snapshot = normalizeAccountStateSnapshot(mutation.payload);
-  const organizationBlueprintShares = normalizeOrganizationBlueprintSharesPayload(
-    account.organizationBlueprintShares,
+  const inventorySet = new Set(snapshot.inventoryBlueprintIds);
+  const organizationBlueprintShares = Object.fromEntries(
+    Object.entries(normalizeOrganizationBlueprintSharesPayload(account.organizationBlueprintShares))
+      .map(([sid, blueprintIds]) => [sid, blueprintIds.filter((id) => inventorySet.has(id))])
+      .filter(([, blueprintIds]) => blueprintIds.length > 0),
   );
 
   return {

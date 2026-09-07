@@ -313,8 +313,8 @@ export async function saveCurrentAccountState(
 export async function saveAccountOnboardingState(payload: {
   completed?: boolean;
   dismissed?: boolean;
-}): Promise<StoredAccount> {
-  const response = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/onboarding', {
+}, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
+  const response = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/onboarding', datasetScope), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -352,8 +352,9 @@ export async function requestRsiLinkChallenge(handle: string): Promise<RsiLinkCh
 export async function verifyAndLinkRsiAccount(
   handle: string,
   code: string,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/rsi-link', {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/rsi-link', datasetScope), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -364,8 +365,8 @@ export async function verifyAndLinkRsiAccount(
   return payload.account;
 }
 
-export async function unlinkRsiAccount(): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/rsi-link', {
+export async function unlinkRsiAccount(datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/rsi-link', datasetScope), {
     method: 'DELETE',
   });
 
