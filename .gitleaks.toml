@@ -34,6 +34,13 @@ keywords = [
 ]
 tags = ["secret", "oauth"]
 
+[[rules.allowlists]]
+description = "Non-secret marketplace session fixture used only by in-memory tests"
+condition = "AND"
+paths = ['''(^|/)tests/marketplace\.test\.mjs$''']
+regexTarget = "secret"
+regexes = ['''^test-only-marketplace-secret$''']
+
 [[rules]]
 id = "hardcoded-cloudflare-api-token"
 description = "Hardcoded Cloudflare API token"

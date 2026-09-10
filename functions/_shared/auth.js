@@ -25,6 +25,7 @@ import {
   buildExpiredCitizenIdStateCookie,
   CitizenIdDiscordLinkRequiredError,
   createCitizenIdStateCookie,
+  consumeCitizenIdWebState,
   exchangeCitizenIdCode,
   getCitizenIdBrandEnvironment,
   isCitizenIdAuthConfigured,
@@ -95,6 +96,12 @@ import {
 } from '../../shared/rsiVerification.mjs';
 import { getGameDataBucket } from './runtimeBuckets.js';
 import { readBoundedBody } from './requestBody.js';
+import { projectAccountForClient, projectCraftRequestForAccount } from '../../shared/accountPrivacy.mjs';
+import {
+  listMarketplaceMembers, updateMarketplaceSelection, createMarketplaceCraftRequest,
+  updateMarketplaceBlock, reportMarketplaceProvider, listMarketplaceReports,
+  moderateMarketplaceReport, MarketplaceError,
+} from '../../shared/marketplaceService.mjs';
 
 function noStoreJson(payload, init = {}) {
   const headers = new Headers(init.headers ?? {});
@@ -141,6 +148,9 @@ function redirectResponse(location, { status = 302, headers = {}, cookies = [] }
 }
 
 function getAccountStore(request, env) {
+  // The local HTTP adapter injects its configured S3 store. This is a trusted
+  // runtime binding, never a request parameter or JSON payload field.
+  if (env?.ACCOUNT_STORE) return env.ACCOUNT_STORE;
   return createBucketAccountStore(getGameDataBucket(env, request));
 }
 
@@ -184,6 +194,7 @@ async function syncCraftRequestStatusBestEffort(
   requesterAccount,
   label = 'craft-request-status-sync',
 ) {
+  if (requestRecord?.source === 'community') return;
   try {
     await syncCraftRequestStatusViaWorker(
       env,
@@ -262,12 +273,13 @@ async function buildScopedDecoratedAccount(accountStore, account, env, datasetSc
     normalizedDatasetScope,
   );
   const scopedState = refreshedScopedAccount ?? scopedAccount ?? {};
-  return {
+  return projectAccountForClient({
     ...decoratedAccount,
     datasetScope: scopedState.datasetScope ?? normalizedDatasetScope,
     favoriteBlueprintIds: scopedState.favoriteBlueprintIds ?? decoratedAccount.favoriteBlueprintIds,
     inventoryBlueprintIds: scopedState.inventoryBlueprintIds ?? decoratedAccount.inventoryBlueprintIds,
     inventoryResources: scopedState.inventoryResources ?? decoratedAccount.inventoryResources,
+    marketplace: scopedState.marketplace ?? decoratedAccount.marketplace,
     planner: scopedState.planner ?? decoratedAccount.planner,
     organizationBlueprintShares:
       scopedState.organizationBlueprintShares ?? decoratedAccount.organizationBlueprintShares,
@@ -279,7 +291,7 @@ async function buildScopedDecoratedAccount(accountStore, account, env, datasetSc
     organizations: decoratedAccount.organizations,
     incomingCraftRequests: scopedState.incomingCraftRequests ?? decoratedAccount.incomingCraftRequests,
     outgoingCraftRequests: scopedState.outgoingCraftRequests ?? decoratedAccount.outgoingCraftRequests,
-  };
+  });
 }
 
 async function readAccountJsonFromRequest(request) {
@@ -297,7 +309,7 @@ async function readAccountJsonFromRequest(request) {
 }
 
 function organizationErrorResponse(error, fallbackMessage) {
-  if (error instanceof OrganizationServiceError) {
+  if (error instanceof OrganizationServiceError || error instanceof MarketplaceError) {
     return errorResponse(error.status, error.message);
   }
 
@@ -308,7 +320,7 @@ function organizationErrorResponse(error, fallbackMessage) {
 }
 
 function craftRequestErrorResponse(error, fallbackMessage) {
-  if (error instanceof CraftRequestServiceError) {
+  if (error instanceof CraftRequestServiceError || error instanceof MarketplaceError) {
     return errorResponse(error.status, error.message);
   }
 
@@ -463,7 +475,7 @@ export async function handleCitizenIdLoginRequest(request, env) {
   const rawReturnTo = requestUrl.searchParams.get('returnTo')
     || (isDesktopRequest(request) ? 'https://tauri.localhost/' : null);
   const returnTo = sanitizeReturnTo(rawReturnTo);
-  const { state, cookie } = await createCitizenIdStateCookie(request, env, returnTo);
+  const { state, cookie } = await createCitizenIdStateCookie(request, env, returnTo, accountStore);
   const authorizationUrl = buildCitizenIdAuthorizationUrl(request, env, state);
 
   return redirectResponse(authorizationUrl, {
@@ -481,7 +493,6 @@ export async function handleCitizenIdCallbackRequest(request, env) {
   const state = requestUrl.searchParams.get('state');
   const oauthState = await readCitizenIdStateFromCookies(request.headers.get('cookie'), env);
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(request, env);
-  const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), request, env);
   const returnTo = oauthState?.returnTo ?? '/';
   const accountStore = getAccountStore(request, env);
   const desktopState = isDesktopOAuthState(state)
@@ -517,8 +528,13 @@ export async function handleCitizenIdCallbackRequest(request, env) {
 
   if (!code || !state || !oauthState || oauthState.nonce !== state) {
     return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
-      cookies: [expiredStateCookie, expiredSessionCookie],
+      cookies: [expiredStateCookie],
     });
+  }
+
+  if (!await consumeCitizenIdWebState(accountStore, oauthState)) {
+    return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo,
+      'This sign-in attempt has already been processed. Return to Account and start a new sign-in if needed.'));
   }
 
   try {
@@ -543,7 +559,7 @@ export async function handleCitizenIdCallbackRequest(request, env) {
           ? error.message
           : 'citizenid_oauth_failed';
     return redirectResponse(buildCitizenIdCallbackErrorRedirect(returnTo, message), {
-      cookies: [expiredStateCookie, expiredSessionCookie],
+      cookies: [expiredStateCookie],
     });
   }
 }
@@ -652,6 +668,50 @@ async function withAuthenticatedAccountJson(request, env, handler) {
 
 export async function handleAccountRequest(request, env) {
   return withAuthenticatedAccount(request, env, (_accountStore, _session, account) => account);
+}
+
+export async function handleMarketplaceRequest(request, env, action, reportId = null) {
+  try {
+    const session = await requireAuthenticatedSession(request, env);
+    if (!session) return errorResponse(401, 'Authentication required.');
+    let payload = null;
+    if (request.method !== 'GET') {
+      try { payload = await readAccountJsonFromRequest(request); }
+      catch { return errorResponse(400, 'Invalid JSON body or request too large.'); }
+    }
+    const url = new URL(request.url);
+    const datasetScope = url.searchParams.get('datasetScope') ?? payload?.datasetScope ?? 'live';
+    if (!['live', 'ptu'].includes(datasetScope)) return errorResponse(400, 'Dataset scope must be LIVE or PTU.');
+    const store = getAccountStore(request, env);
+    const ensured = await ensureAccountForSession(store, session);
+    const account = await readScopedAccountRecord(store, ensured.accountId, session.user, datasetScope);
+    const pagination = { limit: url.searchParams.get('limit') ?? 20, cursor: url.searchParams.get('cursor') };
+    if (action === 'list') return noStoreJson(await listMarketplaceMembers(store, account, {
+      ...pagination, datasetScope,
+      blueprintId: url.searchParams.get('blueprintId'), resourceId: url.searchParams.get('resourceId'),
+      ownerHandle: url.searchParams.get('ownerHandle'),
+    }));
+    if (action === 'update' || action === 'block') {
+      const next = action === 'update'
+        ? await updateMarketplaceSelection(store, account, payload, datasetScope)
+        : await updateMarketplaceBlock(store, account, payload, datasetScope);
+      return noStoreJson({ account: await buildScopedDecoratedAccount(store, next, env, datasetScope) });
+    }
+    if (action === 'create') {
+      const result = await createMarketplaceCraftRequest(store, account, payload, {
+        datasetScope, appBaseUrl: resolveAppBaseUrlFromRequest(request, env), storageScope: resolveCraftRequestStorageScope(request, env),
+      });
+      // Community introductions stay inside SC Craft; no unsolicited third-party messages.
+      return noStoreJson({ account: await buildScopedDecoratedAccount(store, result.account, env, datasetScope), request: projectCraftRequestForAccount(result.request, account.accountId) });
+    }
+    if (action === 'report') return noStoreJson({ report: await reportMarketplaceProvider(store, account, payload) });
+    if (action === 'reports') return noStoreJson(await listMarketplaceReports(store, account, pagination));
+    if (action === 'moderate') return noStoreJson({ report: await moderateMarketplaceReport(store, account, reportId, payload) });
+    return errorResponse(404, 'Marketplace action not found.');
+  } catch (error) {
+    if (error instanceof MarketplaceError || error instanceof CraftRequestServiceError) return errorResponse(error.status, error.message);
+    return errorResponse(500, 'Marketplace action failed. Please try again.');
+  }
 }
 
 export async function handleAccountUpdateRequest(request, env) {

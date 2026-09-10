@@ -9,6 +9,13 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  createMarketplaceCraftRequest,
+  saveMarketplacePublication,
+  setMarketplaceBlock,
+  type MarketplaceCraftDraft,
+  type MarketplacePublication,
+} from '../services/marketplaceService';
+import {
   addAccountOrganization,
   claimAccountOrganization,
   copyLiveAccountDataToPtu,
@@ -89,6 +96,9 @@ interface AuthState {
   setAccountDatasetScope: (datasetScope: AccountDatasetScope) => void;
   copyLiveDataToPtu: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  updateMarketplace: (publication: MarketplacePublication) => Promise<void>;
+  requestMarketplaceCraft: (draft: MarketplaceCraftDraft) => Promise<AccountCraftRequest>;
+  blockMarketplaceMember: (handle: string, blocked: boolean) => Promise<void>;
   flushPendingMutations: () => Promise<void>;
   loginWithDiscord: (returnTo?: string) => void;
   loginWithCitizenId: (returnTo?: string) => void;
@@ -337,6 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const retryTimerRef = useRef<number | null>(null);
   const retryDelayRef = useRef(RETRY_DELAY_INITIAL_MS);
   const flushInFlightRef = useRef(false);
+  const logoutInProgressRef = useRef(false);
   const pendingMutationsRef = useRef<PersistedAccountMutation[]>([]);
   const serverAccountRef = useRef<StoredAccount | null>(null);
   const syncStatusRef = useRef<AccountSyncStatus>('idle');
@@ -358,6 +369,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : null,
     [accountDatasetScope, serverAccount?.accountId, storageScope],
   );
+  const activeMutationStorageKeyRef = useRef(mutationStorageKey);
+  activeMutationStorageKeyRef.current = mutationStorageKey;
 
   const account = useMemo(() => {
     const optimisticAccount = applyOptimisticAccountMutations(serverAccount, pendingMutations);
@@ -544,6 +557,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!mutationStorageKey || !serverAccount?.accountId) {
+      pendingMutationsRef.current = [];
       setPendingMutations([]);
       return;
     }
@@ -632,11 +646,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const currentAccount = serverAccountRef.current;
-    if (!currentAccount || !mutationStorageKey || !mutationLockKey) {
+    if (!isAccountDatasetScopeReady(currentAccount, accountDatasetScope) || !mutationStorageKey || !mutationLockKey) {
       return;
     }
 
-    const latestMutations = readPersistedAccountMutations(mutationStorageKey).filter(
+    // Storage is a persistence layer. The live queue also contains edits that
+    // could not be persisted (for example when a browser's quota is exhausted).
+    const latestMutations = pendingMutationsRef.current.filter(
       (mutation) => mutation.accountId === currentAccount.accountId,
     );
     if (latestMutations.length === 0) {
@@ -658,12 +674,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let hadSyncError = false;
     let latestSyncErrorMessage = syncError;
 
+    const isCurrentFlush = () =>
+      activeMutationStorageKeyRef.current === mutationStorageKey &&
+      serverAccountRef.current?.accountId === currentAccount.accountId;
+
     const markProgress = (nextAccount: StoredAccount, nextMutations: PersistedAccountMutation[]) => {
+      // Only acknowledge IDs from this batch. A newer coalesced snapshot or a
+      // new command may have been queued while the network request was pending.
+      const remainingIds = new Set(nextMutations.map((mutation) => mutation.id));
+      const completedIds = new Set(
+        latestMutations.filter((mutation) => !remainingIds.has(mutation.id)).map((mutation) => mutation.id),
+      );
+      if (!isCurrentFlush()) {
+        const storedMutations = readPersistedAccountMutations(mutationStorageKey);
+        writePersistedAccountMutations(
+          mutationStorageKey,
+          storedMutations.filter((mutation) => !completedIds.has(mutation.id)),
+        );
+        return false;
+      }
       workingAccount = nextAccount;
+      accountRefreshIdRef.current += 1;
+      serverAccountRef.current = nextAccount;
       setServerAccount(nextAccount);
-      updatePersistedMutations(nextMutations);
+      updatePersistedMutations(
+        pendingMutationsRef.current.filter((mutation) => !completedIds.has(mutation.id)),
+      );
       setLastFlushAt(Date.now());
       retryDelayRef.current = RETRY_DELAY_INITIAL_MS;
+      return true;
     };
 
     const handleMutationFailure = (
@@ -671,6 +710,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error: unknown,
       fallbackMessage: string,
     ): boolean => {
+      if (!isCurrentFlush()) {
+        return true;
+      }
       const nextMessage = extractSyncErrorMessage(error, fallbackMessage);
       latestSyncErrorMessage = nextMessage;
       setSyncError(nextMessage);
@@ -686,7 +728,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextMutations = workingMutations.filter(
         (mutation) => !failedIds.has(mutation.id),
       );
-      updatePersistedMutations(nextMutations);
+      updatePersistedMutations(
+        pendingMutationsRef.current.filter((mutation) => !failedIds.has(mutation.id)),
+      );
       workingMutations = nextMutations;
       return false;
     };
@@ -706,7 +750,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             (mutation) => mutation.id !== snapshotMutation.id,
           );
           workingMutations = nextMutations;
-          markProgress(nextAccount, nextMutations);
+          if (!markProgress(nextAccount, nextMutations)) return;
         } catch (error) {
           if (
             handleMutationFailure(
@@ -740,7 +784,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             (mutation) => mutation.id !== inventoryResourcesMutation.id,
           );
           workingMutations = nextMutations;
-          markProgress(nextAccount, nextMutations);
+          if (!markProgress(nextAccount, nextMutations)) return;
         } catch (error) {
           if (
             handleMutationFailure(
@@ -808,7 +852,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           workingMutations = nextMutations;
-          markProgress(result.account, nextMutations);
+          if (!markProgress(result.account, nextMutations)) return;
           if (retryableMutations.length > 0) {
             setSyncStatus('error');
             hadSyncError = true;
@@ -851,7 +895,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 (entry) => entry.id !== mutation.id,
               );
               workingMutations = nextMutations;
-              markProgress(result.account, nextMutations);
+              if (!markProgress(result.account, nextMutations)) return;
               break;
             }
             case 'organization-membership': {
@@ -863,7 +907,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 (entry) => entry.id !== mutation.id,
               );
               workingMutations = nextMutations;
-              markProgress(nextAccount, nextMutations);
+              if (!markProgress(nextAccount, nextMutations)) return;
               break;
             }
             case 'organization-sharing': {
@@ -876,7 +920,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 (entry) => entry.id !== mutation.id,
               );
               workingMutations = nextMutations;
-              markProgress(nextAccount, nextMutations);
+              if (!markProgress(nextAccount, nextMutations)) return;
               break;
             }
             case 'organization-claim': {
@@ -885,7 +929,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 (entry) => entry.id !== mutation.id,
               );
               workingMutations = nextMutations;
-              markProgress(nextAccount, nextMutations);
+              if (!markProgress(nextAccount, nextMutations)) return;
               break;
             }
             case 'organization-refresh': {
@@ -893,7 +937,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 (entry) => entry.id !== mutation.id,
               );
               workingMutations = nextMutations;
-              markProgress(workingAccount, nextMutations);
+              if (!markProgress(workingAccount, nextMutations)) return;
               break;
             }
             default:
@@ -932,7 +976,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             (mutation) => mutation.id !== sharesMutation.id,
           );
           workingMutations = nextMutations;
-          markProgress(nextAccount, nextMutations);
+          if (!markProgress(nextAccount, nextMutations)) return;
         } catch (error) {
           if (
             handleMutationFailure(
@@ -966,7 +1010,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             (mutation) => mutation.id !== resourceSharesMutation.id,
           );
           workingMutations = nextMutations;
-          markProgress(nextAccount, nextMutations);
+          if (!markProgress(nextAccount, nextMutations)) return;
         } catch (error) {
           if (
             handleMutationFailure(
@@ -982,15 +1026,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       flushInFlightRef.current = false;
       releaseFlushLock(mutationLockKey, mutationOwnerIdRef.current);
+      if (!isCurrentFlush()) {
+        scheduleFlushRef.current();
+      }
     }
 
-    if (workingMutations.length > 0) {
+    if (pendingMutationsRef.current.length > 0) {
       if (hadSyncError) {
         setSyncStatus('error');
       } else {
         setSyncStatus('pending');
       }
-      scheduleFlushRef.current(workingMutations);
+      scheduleFlushRef.current();
       return;
     }
 
@@ -1086,6 +1133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const enqueueMutation = useCallback(
     (mutation: PersistedAccountMutation) => {
+      if (logoutInProgressRef.current) {
+        throw new Error('Sign-out is in progress. Wait until it finishes before changing account data.');
+      }
       setSyncError(null);
       const nextMutations = coalescePersistedMutations(
         pendingMutationsRef.current,
@@ -1247,17 +1297,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
-    sessionRefreshIdRef.current += 1;
-    accountRefreshIdRef.current += 1;
-    await logoutAuthSession();
+    if (logoutInProgressRef.current) {
+      throw new Error('Sign-out is already in progress.');
+    }
+    // Close the queue before the final flush: accepting another edit while
+    // revoking the session would leave no authenticated session to save it.
+    logoutInProgressRef.current = true;
     try {
-      await clearDesktopAuthSession();
+      await flushPendingMutationsRef.current();
+      if (pendingMutationsRef.current.length > 0) {
+        throw new Error('Account changes are still pending. Sync them before signing out.');
+      }
+      sessionRefreshIdRef.current += 1;
+      accountRefreshIdRef.current += 1;
+      await logoutAuthSession();
+      try {
+        await clearDesktopAuthSession();
+      } finally {
+        activeMutationStorageKeyRef.current = null;
+        clearMutationStorage(mutationStorageKey, mutationLockKey);
+        pendingMutationsRef.current = [];
+        serverAccountRef.current = null;
+        setPendingMutations([]);
+        setServerAccount(null);
+        await refreshSession();
+      }
     } finally {
-      clearMutationStorage(mutationStorageKey, mutationLockKey);
-      pendingMutationsRef.current = [];
-      setPendingMutations([]);
-      setServerAccount(null);
-      await refreshSession();
+      logoutInProgressRef.current = false;
     }
   }, [mutationLockKey, mutationStorageKey, refreshSession]);
 
@@ -1310,19 +1376,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteAccount = useCallback(async () => {
+    const accountId = serverAccountRef.current?.accountId;
     await deleteCurrentAccount();
+    activeMutationStorageKeyRef.current = null;
+    serverAccountRef.current = null;
     clearMutationStorage(mutationStorageKey, mutationLockKey);
+    if (accountId) {
+      for (const datasetScope of ['live', 'ptu'] as const) {
+        clearMutationStorage(
+          buildScopedMutationStorageKey(accountId, storageScope, datasetScope),
+          buildScopedMutationLockKey(accountId, storageScope, datasetScope),
+        );
+      }
+    }
     pendingMutationsRef.current = [];
     setPendingMutations([]);
     setServerAccount(null);
     await refreshSession();
-  }, [mutationLockKey, mutationStorageKey, refreshSession]);
+  }, [mutationLockKey, mutationStorageKey, refreshSession, storageScope]);
 
   const linkRsiAccount = useCallback(async (handle: string, code: string) => {
-    const nextAccount = await verifyAndLinkRsiAccount(handle, code);
+    const nextAccount = await verifyAndLinkRsiAccount(handle, code, accountDatasetScope);
     setServerAccount(nextAccount);
     setSyncError(null);
-  }, []);
+  }, [accountDatasetScope]);
 
   const linkRsiAccountWithCitizenId = useCallback((returnTo?: string) => {
     if (isTauriRuntime()) {
@@ -1342,16 +1419,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   const unlinkRsiAccountBinding = useCallback(async () => {
-    const nextAccount = await unlinkRsiAccount();
+    const nextAccount = await unlinkRsiAccount(accountDatasetScope);
     setServerAccount(nextAccount);
     setSyncError(null);
-  }, []);
+  }, [accountDatasetScope]);
 
   const updateOnboardingState = useCallback<AuthState['updateOnboardingState']>(async (payload) => {
-    const nextAccount = await saveAccountOnboardingState(payload);
+    const nextAccount = await saveAccountOnboardingState(payload, accountDatasetScope);
     setServerAccount(nextAccount);
     setSyncError(null);
-  }, []);
+  }, [accountDatasetScope]);
 
   const updateOrganizationBlueprintShares = useCallback<
     AuthState['updateOrganizationBlueprintShares']
@@ -1628,6 +1705,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return decision;
   }, [accountDatasetScope, enqueueMutation]);
 
+  // Community actions are deliberate online operations, never replayed from an
+  // offline queue. Apply their account response only to the originating scope.
+  const runMarketplaceAction = useCallback(async <T extends { account: StoredAccount }>(
+    action: () => Promise<T>,
+    applyResponse: (current: StoredAccount, response: T) => StoredAccount,
+  ): Promise<T> => {
+    const key = activeMutationStorageKeyRef.current;
+    if (!key || logoutInProgressRef.current) throw new Error('Sign in before using the marketplace.');
+    await flushPendingMutationsRef.current();
+    if (pendingMutationsRef.current.length) throw new Error('Sync pending account changes before continuing.');
+    if (activeMutationStorageKeyRef.current !== key || logoutInProgressRef.current) {
+      throw new Error('The active account changed. Please try again.');
+    }
+    accountRefreshIdRef.current += 1;
+    const response = await action();
+    if (activeMutationStorageKeyRef.current === key && !logoutInProgressRef.current) {
+      accountRefreshIdRef.current += 1;
+      const current = serverAccountRef.current;
+      if (!current || current.accountId !== response.account.accountId) return response;
+      const next = applyResponse(current, response);
+      serverAccountRef.current = next;
+      setServerAccount(next);
+      broadcastChannelRef.current?.postMessage({ type: 'server-account-updated', accountId: response.account.accountId });
+    }
+    return response;
+  }, []);
+
+  const updateMarketplace = useCallback<AuthState['updateMarketplace']>(async (publication) => {
+    await runMarketplaceAction(() => saveMarketplacePublication(accountDatasetScope, publication),
+      (current, response) => ({ ...current, marketplace: response.account.marketplace }));
+  }, [accountDatasetScope, runMarketplaceAction]);
+
+  const requestMarketplaceCraft = useCallback<AuthState['requestMarketplaceCraft']>(async (draft) => {
+    const response = await runMarketplaceAction(() => createMarketplaceCraftRequest(accountDatasetScope, draft),
+      (current, result) => ({ ...current, outgoingCraftRequests: current.outgoingCraftRequests.some(request => request.id === result.request.id)
+        ? current.outgoingCraftRequests : [result.request, ...current.outgoingCraftRequests] }));
+    return response.request;
+  }, [accountDatasetScope, runMarketplaceAction]);
+
+  const blockMarketplaceMember = useCallback<AuthState['blockMarketplaceMember']>(async (handle, blocked) => {
+    await runMarketplaceAction(() => setMarketplaceBlock(accountDatasetScope, handle, blocked),
+      (current, response) => ({ ...current, marketplace: response.account.marketplace }));
+  }, [accountDatasetScope, runMarketplaceAction]);
+
   const value = useMemo<AuthState>(
     () => ({
       enabled: session.enabled,
@@ -1649,6 +1770,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccountDatasetScope,
       copyLiveDataToPtu,
       refreshSession,
+      updateMarketplace,
+      requestMarketplaceCraft,
+      blockMarketplaceMember,
       flushPendingMutations,
       loginWithDiscord,
       loginWithCitizenId,
@@ -1702,6 +1826,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queueOrganizationBlueprintSharesUpdate,
       queueOrganizationResourceSharesUpdate,
       refreshSession,
+      updateMarketplace,
+      requestMarketplaceCraft,
+      blockMarketplaceMember,
       removeOrganization,
       requestOrganizationCraftBinding,
       respondToCraftRequestBinding,

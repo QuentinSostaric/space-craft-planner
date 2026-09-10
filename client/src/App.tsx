@@ -83,6 +83,14 @@ const LazyOrganizationsView = lazy(() =>
   })),
 );
 
+const LazyMarketplaceView = lazy(() =>
+  import('./components/MarketplacePage').then(({ MarketplacePage }) => ({
+    default: function MarketplaceView() {
+      return <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}><MarketplacePage /><Footer /></Box>;
+    },
+  })),
+);
+
 const LazyPlannerView = lazy(() =>
   import('./components/PlannerPage').then(({ PlannerPage }) => ({
     default: function PlannerView() {
@@ -160,6 +168,7 @@ type ResolvedMainView =
   | 'missions'
   | 'resources'
   | 'organizations'
+  | 'marketplace'
   | 'planner'
   | 'changelog'
   | 'account'
@@ -475,6 +484,7 @@ function MainContentFallback({ view }: { view: ResolvedMainView }) {
       return <MissionsFallback />;
     case 'resources':
       return <ResourcesFallback />;
+    case 'marketplace':
     case 'organizations':
       return <OrganizationsFallback />;
     case 'planner':
@@ -627,6 +637,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
       ? 'missions'
       : mainView === 'resources'
         ? 'resources'
+      : mainView === 'marketplace'
+        ? 'marketplace'
       : mainView === 'organizations'
         ? 'organizations'
       : mainView === 'planner'
@@ -646,6 +658,8 @@ function MainContent({ mainView }: { mainView: MainView }) {
       ? LazyMissionsView
       : resolvedView === 'resources'
         ? LazyResourcesView
+      : resolvedView === 'marketplace'
+        ? LazyMarketplaceView
       : resolvedView === 'organizations'
         ? LazyOrganizationsView
       : resolvedView === 'planner'
@@ -703,6 +717,7 @@ const MAIN_VIEW_PATHS: Partial<Record<MainView, string>> = {
   missions: '/missions',
   resources: '/resources',
   organizations: '/organizations',
+  marketplace: '/marketplace',
   planner: '/planner',
   changelog: '/changelog',
   account: '/account',
@@ -840,6 +855,8 @@ function AppShell() {
             ? t('Missions', 'Missions')
             : guardedMainView === 'resources'
               ? t('Resources', 'Ressources', 'Ressourcen')
+              : guardedMainView === 'marketplace'
+                ? t('Marketplace', 'Marketplace', 'Marktplatz')
               : guardedMainView === 'organizations'
                 ? t('Organizations', 'Organisations', 'Organisationen')
                 : guardedMainView === 'planner'

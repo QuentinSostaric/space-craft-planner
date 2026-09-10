@@ -1,0 +1,252 @@
+import { expect, test } from '@playwright/test';
+import { installCommunityState } from './community-fixtures';
+import { captureCommunityPanel, chooseCommunityOption, switchCommunityScope } from './community-helpers';
+
+test('Community publication starts private and requires an explicit selection, then can be withdrawn', async ({ page, colorScheme }, testInfo) => {
+  const state = await installCommunityState(page, { colorScheme });
+  await page.goto('/marketplace');
+  await page.getByRole('tab', { name: 'My listings', exact: true }).click();
+  await expect(page).toHaveURL(/tab=listings/);
+  const panel = page.getByRole('tabpanel', { name: 'My listings', exact: true });
+  await expect(panel.getByText('Not published', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('checkbox', { name: 'Make my selection visible to the community', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('checkbox', { name: /^Account Rifle/ })).not.toBeChecked();
+  expect(state.publicationWrites).toEqual([]);
+  const publish = panel.getByRole('button', { name: 'Publish my selection', exact: true });
+  await expect(publish).toBeDisabled();
+  await panel.getByRole('checkbox', { name: /^Account Rifle/ }).check();
+  await panel.getByRole('button', { name: /^Resources ·/ }).click();
+  await panel.getByRole('checkbox', { name: /^Iron/ }).check();
+  await publish.click();
+  await expect(panel.getByText('Published', { exact: true })).toBeVisible();
+  expect(state.publicationWrites).toEqual([{ scope: 'live', publication: { enabled: true, blueprintIds: ['account-rifle'], resourceEntryIds: ['iron-lot'] } }]);
+  expect(state.getAccount().organizationBlueprintShares).toEqual({ TESTORG: ['account-rifle'] });
+  expect(state.getAccount().organizationResourceShares).toEqual({ TESTORG: ['iron-lot'] });
+  expect(state.getAccount().inventoryResources.map(entry => entry.id)).toEqual(['iron-lot', 'copper-lot']);
+  await captureCommunityPanel(page, panel, testInfo, 'marketplace-publications');
+  await page.reload();
+  const listingsTab = page.getByRole('tab', { name: 'My listings', exact: true });
+  await expect(listingsTab).toHaveAttribute('aria-selected', 'true');
+  await listingsTab.focus();
+  await listingsTab.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Safety & privacy', exact: true })).toBeFocused();
+  await page.goBack();
+  await expect(listingsTab).toHaveAttribute('aria-selected', 'true');
+  await page.goForward();
+  await expect(page.getByRole('tab', { name: 'Safety & privacy', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await listingsTab.click();
+  await panel.getByRole('button', { name: 'Withdraw all listings', exact: true }).click();
+  await expect(panel.getByText('Not published', { exact: true })).toBeVisible();
+  expect(state.getAccount().marketplace?.enabled).toBe(false);
+  expect(state.getAccount().organizationBlueprintShares).toEqual({ TESTORG: ['account-rifle'] });
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community craft preserves a failed draft and targets the visible provider with a private pending request', async ({ page, colorScheme }, testInfo) => {
+  const state = await installCommunityState(page, { colorScheme, craftFailures: 1 });
+  await page.goto('/marketplace');
+  const card = page.getByRole('article', { name: 'Account Rifle · Other Citizen', exact: true });
+  await expect(card).toBeVisible();
+  await expect(card.getByText('Other Citizen', { exact: true })).toBeVisible();
+  await card.getByRole('button', { name: 'Request Account Rifle from Other Citizen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Request a craft', exact: true });
+  const comment = dialog.getByRole('textbox', { name: 'Comment (optional)', exact: true });
+  await comment.fill('I can collect this at Area18 tomorrow.');
+  await chooseCommunityOption(page, dialog.getByRole('button', { name: 'Resources', exact: true }), 'I will provide the resources');
+  await dialog.getByRole('button', { name: 'Send request', exact: true }).click();
+  await expect(dialog.getByText('Craft requests temporarily unavailable. Please retry.', { exact: true })).toBeVisible();
+  await expect(comment).toHaveValue('I can collect this at Area18 tomorrow.');
+  await dialog.getByRole('button', { name: 'Send request', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(card.getByRole('button', { name: 'Request pending', exact: true })).toBeDisabled();
+  const request = state.getAccount().outgoingCraftRequests.at(-1);
+  expect(request).toMatchObject({ source: 'community', organizationSid: null, organizationName: null,
+    blueprintId: 'account-rifle', ownerRsiHandle: 'OtherCitizen', comment: 'I can collect this at Area18 tomorrow.',
+    resourcesOption: 'has_resources', status: 'pending', datasetScope: 'live' });
+  expect(state.writes.filter(entry => entry.path.endsWith('/marketplace/craft-requests'))).toHaveLength(2);
+  await captureCommunityPanel(page, page.locator('#marketplace-panel-browse'), testInfo, 'marketplace-browse');
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community safety blocks and unblocks a provider without changing organization sharing', async ({ page, colorScheme }, testInfo) => {
+  const state = await installCommunityState(page, { colorScheme });
+  await page.goto('/marketplace');
+  await page.getByRole('tab', { name: 'Safety & privacy', exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Safety & privacy', exact: true });
+  await panel.getByRole('textbox', { name: 'RSI handle to block', exact: true }).fill('OtherCitizen');
+  await panel.getByRole('button', { name: 'Block player', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Unblock', exact: true })).toBeVisible();
+  expect(state.getAccount().marketplace?.blockedHandles).toEqual(['OtherCitizen']);
+  expect(state.getAccount().organizationBlueprintShares).toEqual({ TESTORG: ['account-rifle'] });
+  await captureCommunityPanel(page, panel, testInfo, 'marketplace-safety');
+  await page.getByRole('tab', { name: 'Blueprints', exact: true }).click();
+  await expect(page.getByRole('article', { name: 'Account Rifle · Other Citizen', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('article', { name: 'Account Shotgun · Quiet Miner', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Safety & privacy', exact: true }).click();
+  await panel.getByRole('button', { name: 'Unblock', exact: true }).click();
+  await expect(panel.getByText('You have not blocked anyone.', { exact: true })).toBeVisible();
+  expect(state.getAccount().marketplace?.blockedHandles).toEqual([]);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community listings and inventory publication are isolated between LIVE and PTU', async ({ page, colorScheme }) => {
+  const state = await installCommunityState(page, { colorScheme, published: true });
+  await page.goto('/marketplace');
+  await expect(page.getByRole('article', { name: 'Account Rifle · Other Citizen', exact: true })).toBeVisible();
+  await switchCommunityScope(page, 'PTU');
+  await expect.poll(() => state.reads.some(entry => entry.path === '/api/auth/marketplace' && entry.scope === 'ptu')).toBe(true);
+  await expect(page.getByRole('article', { name: 'Account Rifle · Other Citizen', exact: true })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'My listings', exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: 'My listings', exact: true });
+  await expect(panel.getByRole('checkbox', { name: /^Account Shotgun/ })).toBeVisible();
+  await expect(panel.getByRole('checkbox', { name: /^Account Rifle/ })).toHaveCount(0);
+  await expect(panel.getByText('Not published', { exact: true })).toBeVisible();
+  await switchCommunityScope(page, 'LIVE');
+  await expect(panel.getByRole('checkbox', { name: /^Account Rifle/ })).toBeChecked();
+  await expect(panel.getByText('Published', { exact: true })).toBeVisible();
+  expect(state.publicationWrites).toEqual([]);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community discovery does not fetch private listings for a guest', async ({ page, colorScheme }) => {
+  const state = await installCommunityState(page, { colorScheme, guest: true, enabled: false });
+  await page.goto('/marketplace');
+  await expect(page.getByRole('button', { name: 'Sign in with Citizen iD', exact: true })).toBeDisabled();
+  await expect(page.getByText('Sign-in is temporarily unavailable.', { exact: true })).toBeVisible();
+  expect(state.reads.filter(entry => entry.path === '/api/auth/marketplace')).toEqual([]);
+  expect(state.writes).toEqual([]);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community discovery paginates players and filters items and handles without merging resource lots', async ({ page, colorScheme }, testInfo) => {
+  const state = await installCommunityState(page, { colorScheme, pageSize: 1 });
+  await page.goto('/marketplace');
+  const panel = page.locator('#marketplace-panel-browse');
+  await expect(panel.getByRole('article')).toHaveCount(2);
+  await panel.getByRole('button', { name: 'Load more players', exact: true }).click();
+  await expect(panel.getByRole('article')).toHaveCount(3);
+  await expect(panel.getByRole('button', { name: 'Load more players', exact: true })).toHaveCount(0);
+  await chooseCommunityOption(page, panel.getByRole('button', { name: 'Find an item', exact: true }), 'Account Pistol');
+  await expect(panel.getByRole('article')).toHaveCount(1);
+  await expect(panel.getByRole('article').first()).toHaveAttribute('aria-label', 'Account Pistol · Other Citizen');
+  await panel.getByRole('textbox', { name: 'Exact RSI handle', exact: true }).fill('NoSuchCitizen');
+  await panel.getByRole('button', { name: 'Apply', exact: true }).click();
+  await expect(panel.getByText('No offers found', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await expect(panel.getByRole('textbox', { name: 'Exact RSI handle', exact: true })).toHaveValue('');
+  await expect(panel.getByRole('article')).toHaveCount(2);
+  await page.getByRole('tab', { name: 'Resources', exact: true }).click();
+  await expect(panel.getByRole('article', { name: 'Iron · Other Citizen', exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Load more players', exact: true }).click();
+  await expect(panel.getByRole('article')).toHaveCount(2);
+  await expect(panel.getByRole('article', { name: 'Iron · Quiet Miner', exact: true })).toBeVisible();
+  expect(state.reads.some(entry => entry.query.cursor === '1')).toBe(true);
+  expect(state.reads.some(entry => entry.query.blueprintId === 'account-pistol')).toBe(true);
+  expect(state.reads.some(entry => entry.query.ownerHandle === 'NoSuchCitizen')).toBe(true);
+  await captureCommunityPanel(page, panel, testInfo, 'marketplace-resources');
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community reporting requires a submitted dialog and sends only the chosen provider and reason', async ({ page, colorScheme }) => {
+  const state = await installCommunityState(page, { colorScheme });
+  await page.goto('/marketplace');
+  await expect(page.getByRole('tab', { name: 'Moderation', exact: true })).toHaveCount(0);
+  const card = page.getByRole('article', { name: 'Account Rifle · Other Citizen', exact: true });
+  await card.getByRole('button', { name: 'Report', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Report a listing', exact: true });
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(state.writes.filter(entry => entry.path.endsWith('/reports'))).toEqual([]);
+  await card.getByRole('button', { name: 'Report', exact: true }).click();
+  await chooseCommunityOption(page, dialog.getByRole('button', { name: 'Reason', exact: true }), 'Spam or repeated solicitation');
+  await dialog.getByRole('button', { name: 'Send report', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(state.writes.filter(entry => entry.path.endsWith('/reports'))).toEqual([
+    { path: '/api/auth/marketplace/reports', scope: 'live', body: { ownerHandle: 'OtherCitizen', reason: 'spam' } },
+  ]);
+  expect(state.getAccount().marketplace?.blockedHandles).toEqual([]);
+  expect(state.reads.filter(entry => entry.path === '/api/auth/marketplace/reports')).toEqual([]);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Community administrators paginate reports and confirm suspension and restoration', async ({ page, colorScheme }) => {
+  const state = await installCommunityState(page, { colorScheme, admin: true });
+  await page.goto('/marketplace?tab=moderation');
+  await expect(page.getByRole('tab', { name: 'Moderation', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const panel = page.getByRole('tabpanel', { name: 'Moderation', exact: true });
+  await expect(panel.getByText('OtherCitizen · Spam', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Load more reports', exact: true }).click();
+  await expect(panel.getByText('QuietMiner · Abusive behavior', { exact: true })).toBeVisible();
+  expect(state.reads.some(entry => entry.path === '/api/auth/marketplace/reports' && entry.query.cursor === '1')).toBe(true);
+  await panel.getByRole('button', { name: 'Dismiss report', exact: true }).first().click();
+  await expect.poll(() => state.getReports()[0].status).toBe('dismissed');
+  await expect(panel.getByRole('button', { name: 'Suspend player', exact: true })).toHaveCount(1);
+  await panel.getByRole('button', { name: 'Suspend player', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Confirm moderation action', exact: true });
+  await expect(dialog.getByText('Suspend community access for QuietMiner?', { exact: true })).toBeVisible();
+  expect(state.getReports()[1].status).toBe('pending');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(state.writes.filter(entry => entry.path.endsWith('/report-abuse'))).toEqual([]);
+  await panel.getByRole('button', { name: 'Suspend player', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(panel.getByRole('button', { name: 'Restore access', exact: true })).toBeVisible();
+  expect(state.getReports()[1].status).toBe('suspended');
+  await panel.getByRole('button', { name: 'Restore access', exact: true }).click();
+  await expect(dialog.getByText('Restore community access for QuietMiner?', { exact: true })).toBeVisible();
+  expect(state.getReports()[1].status).toBe('suspended');
+  await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(state.getReports()[1].status).toBe('restored');
+  expect(state.writes.filter(entry => entry.path.includes('/reports/')).map(entry => entry.body.action)).toEqual(['dismiss', 'suspend', 'restore']);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Losing RSI verification blocks discovery and publishing but still permits withdrawing listings', async ({ page, colorScheme }) => {
+  const state = await installCommunityState(page, { colorScheme, unverified: true, published: true });
+  await page.goto('/marketplace?tab=listings');
+  const panel = page.getByRole('tabpanel', { name: 'My listings', exact: true });
+  await expect(panel.getByRole('button', { name: 'Publish changes', exact: true })).toBeDisabled();
+  await panel.getByRole('button', { name: 'Withdraw all listings', exact: true }).click();
+  await expect(panel.getByText('Not published', { exact: true })).toBeVisible();
+  expect(state.getAccount().marketplace?.enabled).toBe(false);
+  await page.getByRole('tab', { name: 'Blueprints', exact: true }).click();
+  await expect(page.locator('#marketplace-panel-browse').getByText('RSI verification required', { exact: true })).toBeVisible();
+  expect(state.reads.filter(entry => entry.path === '/api/auth/marketplace')).toEqual([]);
+  expect(state.getAccount().organizationBlueprintShares).toEqual({ TESTORG: ['account-rifle'] });
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});
+
+test('Resource selection stays accessible after many blueprints and published own offers appear in the catalog', async ({ page, colorScheme }) => {
+  const state = await installCommunityState(page, { colorScheme });
+  state.getAccount().inventoryBlueprintIds.push(...Array.from({ length: 60 }, (_, i) => `extra-blueprint-${i}`));
+  await page.goto('/marketplace?tab=listings');
+  const panel = page.getByRole('tabpanel', { name: 'My listings', exact: true });
+  await panel.getByRole('checkbox', { name: 'Account Rifle', exact: true }).check();
+  await panel.getByRole('button', { name: /^Resources ·/ }).click();
+  await expect(panel.getByRole('checkbox', { name: 'Iron', exact: true })).toBeVisible();
+  await panel.getByRole('checkbox', { name: 'Iron', exact: true }).check();
+  expect(state.publicationWrites).toEqual([]);
+  await panel.getByRole('button', { name: 'Publish my selection', exact: true }).click();
+  await expect(panel.getByText('Published', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'View my published offers', exact: true }).click();
+  const browse = page.locator('#marketplace-panel-browse');
+  const own = browse.getByRole('article', { name: 'Account Rifle · Account Citizen', exact: true });
+  await expect(own).toBeVisible();
+  await expect(own.getByText('Your shared blueprint', { exact: true })).toBeVisible();
+  await expect(own.getByRole('button', { name: /Request/ })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Resources', exact: true }).click();
+  await expect(browse.getByRole('article', { name: 'Iron · Account Citizen', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Contributors', exact: true }).click();
+  await expect(browse.getByText('Account Citizen', { exact: true })).toBeVisible();
+  expect(state.errors).toEqual([]);
+  expect(state.unexpectedApiCalls).toEqual([]);
+});

@@ -122,11 +122,12 @@ export interface AccountOrganization {
 
 export interface AccountCraftRequest {
   id: string;
+  source?: 'organization' | 'community';
   appBaseUrl?: string | null;
   storageScope?: 'prod' | 'dev';
   datasetScope?: AccountDatasetScope;
-  organizationSid: string;
-  organizationName: string;
+  organizationSid: string | null;
+  organizationName: string | null;
   blueprintId: string;
   blueprintName: string;
   requesterAccountId: string;
@@ -199,6 +200,13 @@ export interface OrganizationSharedResourcePayload {
   members: OrganizationSharedResourceMember[];
 }
 
+export interface MarketplaceSettings {
+  enabled: boolean;
+  blueprintIds: string[];
+  resourceEntryIds: string[];
+  blockedHandles: string[];
+}
+
 export interface StoredAccount {
   accountId: string;
   datasetScope?: AccountDatasetScope;
@@ -213,6 +221,7 @@ export interface StoredAccount {
   organizationResourceShares: Record<string, string[]>;
   sharedBlueprintIds: string[];
   sharedResourceEntryIds: string[];
+  marketplace?: MarketplaceSettings;
   organizations: AccountOrganization[];
   incomingCraftRequests: AccountCraftRequest[];
   outgoingCraftRequests: AccountCraftRequest[];
@@ -242,7 +251,7 @@ export class AuthApiError extends Error {
   }
 }
 
-async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const tauriPayload = await fetchTauriApi<T>(path, init);
   if (tauriPayload) {
     return tauriPayload;
@@ -268,7 +277,7 @@ async function authApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-function withDatasetScope(path: string, datasetScope: AccountDatasetScope = 'live'): string {
+export function withDatasetScope(path: string, datasetScope: AccountDatasetScope = 'live'): string {
   const separator = path.includes('?') ? '&' : '?';
   return `${path}${separator}datasetScope=${encodeURIComponent(datasetScope)}`;
 }
@@ -313,8 +322,8 @@ export async function saveCurrentAccountState(
 export async function saveAccountOnboardingState(payload: {
   completed?: boolean;
   dismissed?: boolean;
-}): Promise<StoredAccount> {
-  const response = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/onboarding', {
+}, datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
+  const response = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/onboarding', datasetScope), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -352,8 +361,9 @@ export async function requestRsiLinkChallenge(handle: string): Promise<RsiLinkCh
 export async function verifyAndLinkRsiAccount(
   handle: string,
   code: string,
+  datasetScope: AccountDatasetScope = 'live',
 ): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/rsi-link', {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/rsi-link', datasetScope), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -364,8 +374,8 @@ export async function verifyAndLinkRsiAccount(
   return payload.account;
 }
 
-export async function unlinkRsiAccount(): Promise<StoredAccount> {
-  const payload = await authApiFetch<{ account: StoredAccount }>('/api/auth/account/rsi-link', {
+export async function unlinkRsiAccount(datasetScope: AccountDatasetScope = 'live'): Promise<StoredAccount> {
+  const payload = await authApiFetch<{ account: StoredAccount }>(withDatasetScope('/api/auth/account/rsi-link', datasetScope), {
     method: 'DELETE',
   });
 

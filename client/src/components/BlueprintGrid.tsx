@@ -293,6 +293,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   extraQuickActions,
   resources,
   priority = false,
+  actionsAlwaysVisible = false,
   onSelect,
   onToggleFavorite,
   onToggleInventory,
@@ -315,6 +316,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   extraQuickActions?: BlueprintCardQuickAction[];
   resources: Resource[];
   priority?: boolean;
+  actionsAlwaysVisible?: boolean;
   onSelect: (bp: Blueprint | null) => void;
   onToggleFavorite: (blueprintId: string) => void;
   onToggleInventory?: (blueprintId: string) => void;
@@ -516,7 +518,7 @@ export const BlueprintCard = memo(function BlueprintCard({
           // the resting grid quiet; space stays reserved so the layout never shifts.
           // Touch devices (no hover) always show them.
           '@media (hover: hover) and (pointer: fine)': {
-            opacity: 0,
+            opacity: actionsAlwaysVisible ? 1 : 0,
             transition: 'opacity 160ms ease',
             '.blueprint-card:hover &, .blueprint-card:focus-within &': { opacity: 1 },
           },
@@ -600,6 +602,7 @@ export const BlueprintCard = memo(function BlueprintCard({
   prev.isActive === next.isActive &&
   prev.isFavorite === next.isFavorite &&
   prev.isInInventory === next.isInInventory &&
+  prev.actionsAlwaysVisible === next.actionsAlwaysVisible &&
   prev.isObtainable === next.isObtainable &&
   prev.organizationShareAction?.selected === next.organizationShareAction?.selected &&
   prev.organizationShareAction?.busy === next.organizationShareAction?.busy &&

@@ -319,3 +319,33 @@ test('organization identifiers reject object key traversal and invalid URL input
   for (const value of ['../../accounts/admin', 'A/B', 'A\\B', 'A%2fB', 'A'.repeat(65)]) assert.equal(normalizeOrganizationSid(value), null);
   assert.equal(normalizeOrganizationSid('https://robertsspaceindustries.com/orgs/TEST'), 'TEST');
 });
+
+test('Citizen iD concurrent callbacks redeem the code once and never clear an existing session', async () => {
+  const { handleCitizenIdCallbackRequest } = await import('../functions/_shared/auth.js');
+  const { store } = bucketFixture();
+  const authEnv = { ...env, CITIZENID_CLIENT_ID: 'fixture', CITIZENID_CLIENT_SECRET: 'fixture', ACCOUNT_STORE: store };
+  const { state, cookie } = await createCitizenIdStateCookie('https://itemfab.space', authEnv, '/account', store);
+  let exchanges = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    exchanges += 1;
+    return Response.json({ error: 'invalid_grant', error_description: 'Provider rejected this test code' }, { status: 400 });
+  };
+  try {
+    const request = () => new Request(`https://itemfab.space/api/auth/citizenid/callback?code=fixture&state=${state}`, {
+      headers: { Cookie: cookie.split(';')[0] },
+    });
+    const responses = await Promise.all([handleCitizenIdCallbackRequest(request(), authEnv), handleCitizenIdCallbackRequest(request(), authEnv)]);
+    assert.equal(exchanges, 1);
+    assert.ok(responses.some(response => response.headers.get('location').includes('already')));
+    for (const response of responses) {
+      assert.equal(response.status, 302);
+      assert.ok(!String(response.headers.get('set-cookie')).includes('sc_craft_session='));
+    }
+    await handleCitizenIdCallbackRequest(request(), authEnv);
+    assert.equal(exchanges, 1, 'A later replay cannot retry token redemption');
+    const invalid = await handleCitizenIdCallbackRequest(new Request('https://itemfab.space/api/auth/citizenid/callback?code=fixture&state=wrong'), authEnv);
+    assert.ok(!String(invalid.headers.get('set-cookie')).includes('sc_craft_session='));
+    assert.equal(exchanges, 1, 'Invalid browser state never contacts Citizen iD');
+  } finally { globalThis.fetch = originalFetch; }
+});

@@ -1,6 +1,9 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { Readable } from 'node:stream';
+import { dispatchAccountRoute, isSharedAccountRoute } from '../functions/_shared/accountRouter.js';
+import { projectAccountForClient } from '../shared/accountPrivacy.mjs';
 import {
   buildAuthSessionPayload,
   buildDiscordAuthorizationUrl,
@@ -27,6 +30,7 @@ import {
   buildExpiredCitizenIdStateCookie,
   CitizenIdDiscordLinkRequiredError,
   createCitizenIdStateCookie,
+  consumeCitizenIdWebState,
   exchangeCitizenIdCode,
   getCitizenIdBrandEnvironment,
   isCitizenIdAuthConfigured,
@@ -48,54 +52,16 @@ import {
   getR2Config,
 } from '../shared/r2Storage.mjs';
 import {
-  clearRsiAccountLink,
   createS3AccountStore,
-  deleteAccountRecord,
-  getNextAllowedRsiLinkAt,
-  isRsiLinkRateLimited,
   readAccountRecord,
   readAccountSessionEpoch,
-  saveAccountInventoryResources,
-  saveAccountOnboardingState,
-  saveAccountOrganizationBlueprintShares,
-  saveAccountOrganizationResourceShares,
-  saveAccountState,
   saveRsiAccountLink,
   upsertDiscordAccount,
 } from '../shared/accountStorage.mjs';
 import {
-  addAccountOrganizationBySid,
-  buildOrganizationSharedBlueprints,
-  buildOrganizationSharedResources,
-  claimAccountOrganization,
-  deleteOwnedOrganizationFromApp,
-  OrganizationServiceError,
-  refreshAccountOrganizationMembers,
-  removeAccountOrganizationBySid,
-  setOwnedOrganizationBlueprintSharingEnabled,
   syncCitizenIdAccountOrganizations,
   syncAndDecorateAccountOrganizations,
 } from '../shared/organizationService.mjs';
-import { notifyOrganizationClaimRequest } from '../shared/organizationClaimNotification.mjs';
-import {
-  createOrganizationCraftRequest,
-  CraftRequestServiceError,
-  deleteCraftRequest,
-  respondToCraftRequest,
-  respondToCraftRequestsBulk,
-} from '../shared/craftRequestService.mjs';
-import {
-  notifyCraftRequestOwnerViaWorker,
-  resolveAppBaseUrlFromRequest,
-  resolveCraftRequestStorageScope,
-  syncCraftRequestStatusViaWorker,
-} from '../shared/discordBotRelay.mjs';
-import { scrapeRsiProfileByHandle, verifyRsiHandleOwnership } from '../shared/rsiLink.mjs';
-import {
-  clearRsiVerificationChallenge,
-  createRsiVerificationChallenge,
-  requireRsiVerificationChallenge,
-} from '../shared/rsiVerification.mjs';
 import { isTrustedAuthMutationRequest } from '../shared/authRequestSecurity.mjs';
 import { buildBlueprintCatalogPage } from '../shared/blueprintCatalog.mjs';
 
@@ -207,42 +173,14 @@ function logBackgroundTaskError(label, error) {
   console.error(`[${label}]`, error);
 }
 
-async function syncCraftRequestStatusBestEffort(requestRecord, ownerAccount, requesterAccount, label) {
-  try {
-    await syncCraftRequestStatusViaWorker(
-      process.env,
-      requestRecord,
-      ownerAccount,
-      requesterAccount,
-    );
-  } catch (error) {
-    logBackgroundTaskError(label, error);
-  }
-}
-
 async function buildDecoratedAccount(account) {
   try {
-    return await syncAndDecorateAccountOrganizations(accountStore, account);
+    return projectAccountForClient(await syncAndDecorateAccountOrganizations(accountStore, account));
   } catch {
-    return account;
+    return projectAccountForClient(account);
   }
 }
 
-function sendOrganizationError(response, error, fallbackMessage) {
-  const status = error instanceof OrganizationServiceError ? error.status : 400;
-  const message = error instanceof Error ? error.message : fallbackMessage;
-  sendError(response, status, message, {
-    'Cache-Control': 'no-store',
-  });
-}
-
-function sendCraftRequestError(response, error, fallbackMessage) {
-  const status = error instanceof CraftRequestServiceError ? error.status : 400;
-  const message = error instanceof Error ? error.message : fallbackMessage;
-  sendError(response, status, message, {
-    'Cache-Control': 'no-store',
-  });
-}
 
 async function readJson(key) {
   return getJsonObject(client, r2Config.bucketName, key);
@@ -582,7 +520,7 @@ async function handleCitizenIdLogin(request, response, url) {
   }
 
   const returnTo = sanitizeReturnTo(url.searchParams.get('returnTo'));
-  const { state, cookie } = await createCitizenIdStateCookie(url.toString(), process.env, returnTo);
+  const { state, cookie } = await createCitizenIdStateCookie(url.toString(), process.env, returnTo, accountStore);
   const authorizationUrl = buildCitizenIdAuthorizationUrl(url.toString(), process.env, state);
 
   sendRedirect(response, authorizationUrl, {
@@ -603,7 +541,6 @@ async function handleCitizenIdCallback(request, response, url) {
   const oauthState = await readCitizenIdStateFromCookies(request.headers.cookie, process.env);
   const returnTo = oauthState?.returnTo ?? '/';
   const expiredStateCookie = buildExpiredCitizenIdStateCookie(url.toString(), process.env);
-  const expiredSessionCookie = buildExpiredCookie(getSessionCookieName(), url.toString(), process.env);
   const desktopState = isDesktopOAuthState(state)
     ? await consumeDesktopOAuthState(accountStore, process.env, state, 'citizenid')
     : null;
@@ -638,8 +575,14 @@ async function handleCitizenIdCallback(request, response, url) {
 
   if (!code || !state || !oauthState || oauthState.nonce !== state) {
     sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, 'state_mismatch'), {
-      'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
+      'Set-Cookie': [expiredStateCookie],
     });
+    return;
+  }
+
+  if (!await consumeCitizenIdWebState(accountStore, oauthState)) {
+    sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo,
+      'This sign-in attempt has already been processed. Return to Account and start a new sign-in if needed.'));
     return;
   }
 
@@ -667,7 +610,7 @@ async function handleCitizenIdCallback(request, response, url) {
           ? error.message
           : 'citizenid_oauth_failed';
     sendRedirect(response, buildCitizenIdCallbackErrorRedirect(returnTo, message), {
-      'Set-Cookie': [expiredStateCookie, expiredSessionCookie],
+      'Set-Cookie': [expiredStateCookie],
     });
   }
 }
@@ -735,873 +678,6 @@ async function handleLogout(request, url, response) {
   );
 }
 
-async function handleAccount(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  const account = await ensureAccountForSession(session);
-  const decoratedAccount = await buildDecoratedAccount(account);
-  sendJson(
-    response,
-    200,
-    { account: decoratedAccount },
-    {
-      'Cache-Control': 'no-store',
-    },
-  );
-}
-
-async function handleAccountUpdate(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  await ensureAccountForSession(session);
-  const account = await saveAccountState(accountStore, session.accountId, payload, session.user);
-  const decoratedAccount = await buildDecoratedAccount(account);
-  sendJson(
-    response,
-    200,
-    { account: decoratedAccount },
-    {
-      'Cache-Control': 'no-store',
-    },
-  );
-}
-
-async function handleAccountOnboardingUpdate(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  await ensureAccountForSession(session);
-  const account = await saveAccountOnboardingState(accountStore, session.accountId, session.user, {
-    completed: payload?.completed === true,
-    dismissed: payload?.dismissed === true,
-  });
-  const decoratedAccount = await buildDecoratedAccount(account);
-  sendJson(
-    response,
-    200,
-    { account: decoratedAccount },
-    {
-      'Cache-Control': 'no-store',
-    },
-  );
-}
-
-async function handleAccountSharedBlueprintsUpdate(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  await ensureAccountForSession(session);
-  const account = await saveAccountOrganizationBlueprintShares(
-    accountStore,
-    session.accountId,
-    payload?.organizationBlueprintShares,
-    session.user,
-  );
-  const decoratedAccount = await buildDecoratedAccount(account);
-  sendJson(
-    response,
-    200,
-    { account: decoratedAccount },
-    {
-      'Cache-Control': 'no-store',
-    },
-  );
-}
-
-async function handleAccountResourcesUpdate(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  await ensureAccountForSession(session);
-  const account = await saveAccountInventoryResources(
-    accountStore,
-    session.accountId,
-    payload?.inventoryResources,
-    session.user,
-  );
-  const decoratedAccount = await buildDecoratedAccount(account);
-  sendJson(
-    response,
-    200,
-    { account: decoratedAccount },
-    {
-      'Cache-Control': 'no-store',
-    },
-  );
-}
-
-async function handleAccountSharedResourcesUpdate(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  await ensureAccountForSession(session);
-  const account = await saveAccountOrganizationResourceShares(
-    accountStore,
-    session.accountId,
-    payload?.organizationResourceShares,
-    session.user,
-  );
-  const decoratedAccount = await buildDecoratedAccount(account);
-  sendJson(
-    response,
-    200,
-    { account: decoratedAccount },
-    {
-      'Cache-Control': 'no-store',
-    },
-  );
-}
-
-async function handleRsiVerificationChallenge(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.');
-    return;
-  }
-  try {
-    const payload = await readJsonBody(request);
-    const account = await ensureAccountForSession(session);
-    if (isRsiLinkRateLimited(account)) {
-      sendError(response, 429, 'You can link an RSI account only once every 5 days.');
-      return;
-    }
-    const challenge = await createRsiVerificationChallenge(accountStore, session.accountId, payload?.handle);
-    sendJson(response, 200, { challenge }, { 'Cache-Control': 'no-store' });
-  } catch (error) {
-    sendError(response, 400, error instanceof Error ? error.message : 'Failed to create verification code.');
-  }
-}
-
-async function handleRsiLink(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  const handle = String(payload?.handle ?? '').trim();
-  const code = String(payload?.code ?? '').trim().toUpperCase();
-  if (!handle) {
-    sendError(response, 400, 'RSI handle is required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-  if (!code) {
-    sendError(response, 400, 'Verification code is required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const existingAccount = await ensureAccountForSession(session);
-    if (isRsiLinkRateLimited(existingAccount)) {
-      const nextAllowedAt = getNextAllowedRsiLinkAt(existingAccount);
-      sendError(
-        response,
-        429,
-        nextAllowedAt
-          ? `You can link an RSI account only once every 5 days. Try again after ${nextAllowedAt}.`
-          : 'You can link an RSI account only once every 5 days.',
-        {
-          'Cache-Control': 'no-store',
-        },
-      );
-      return;
-    }
-
-    const challenge = await requireRsiVerificationChallenge(accountStore, session.accountId, handle, code);
-    const verifiedLink = await verifyRsiHandleOwnership(null, challenge.handle, challenge.code);
-    const account = await saveRsiAccountLink(accountStore, session.accountId, verifiedLink, session.user);
-    await clearRsiVerificationChallenge(accountStore, session.accountId);
-    const scrapedProfile = await scrapeRsiProfileByHandle(verifiedLink.handle);
-    const scrapedOrganizations = [
-      scrapedProfile.organization
-        ? {
-            ...scrapedProfile.organization,
-            source: 'profile-main',
-            rank: scrapedProfile.rank,
-            stars: scrapedProfile.stars,
-          }
-        : null,
-      ...(scrapedProfile.affiliations ?? []),
-    ].filter(Boolean);
-    const linkedAccount = scrapedOrganizations.length > 0
-      ? await syncCitizenIdAccountOrganizations(accountStore, account, scrapedOrganizations)
-      : account;
-    const decoratedAccount = await buildDecoratedAccount(linkedAccount);
-    sendJson(
-      response,
-      200,
-      { account: decoratedAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Failed to verify the RSI account.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  }
-}
-
-async function handleRsiUnlink(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    await ensureAccountForSession(session);
-    const account = await clearRsiAccountLink(accountStore, session.accountId, session.user);
-    const decoratedAccount = await buildDecoratedAccount(account);
-    sendJson(
-      response,
-      200,
-      { account: decoratedAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Failed to remove the RSI account link.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  }
-}
-
-async function handleAccountOrganizationsCreate(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const nextAccount = await addAccountOrganizationBySid(
-      accountStore,
-      account,
-      payload?.sid,
-    );
-    sendJson(
-      response,
-      200,
-      { account: nextAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to add the organization.');
-  }
-}
-
-async function handleAccountOrganizationDelete(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const nextAccount = await removeAccountOrganizationBySid(accountStore, account, sid);
-    const decoratedAccount = await buildDecoratedAccount(nextAccount);
-    sendJson(
-      response,
-      200,
-      { account: decoratedAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to remove the organization.');
-  }
-}
-
-async function handleOrganizationDelete(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const nextAccount = await deleteOwnedOrganizationFromApp(accountStore, account, sid);
-    sendJson(
-      response,
-      200,
-      { account: nextAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to delete the organization.');
-  }
-}
-
-async function handleOrganizationSharingUpdate(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const nextAccount = await setOwnedOrganizationBlueprintSharingEnabled(
-      accountStore,
-      account,
-      sid,
-      payload?.enabled,
-    );
-    sendJson(
-      response,
-      200,
-      { account: nextAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to update organization blueprint sharing.');
-  }
-}
-
-async function handleOrganizationClaim(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const reviewerEmail = getOrganizationClaimReviewerEmail();
-    const nextAccount = await claimAccountOrganization(accountStore, account, sid, {
-      reviewerEmail,
-    });
-    const claimRequest = nextAccount.organizations.find((organization) => organization.sid === String(sid).trim().toUpperCase());
-    const notificationPromise =
-      claimRequest?.claimRequestStatus === 'pending' && reviewerEmail
-        ? notifyOrganizationClaimRequest(process.env, {
-            sid: claimRequest.sid,
-            organizationName: claimRequest.name,
-            accountId: nextAccount.accountId,
-            requestedByDiscordDisplayName: nextAccount.profile.displayName,
-            requestedByDiscordUsername: nextAccount.profile.username,
-            requestedByRsiHandle: nextAccount.rsi?.handle ?? null,
-            reviewerEmail,
-            submittedAt: claimRequest.claimRequestSubmittedAt,
-          }).catch((error) => logBackgroundTaskError('organization-claim-review-notify', error))
-        : null;
-    sendJson(
-      response,
-      200,
-      { account: nextAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    await notificationPromise;
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to submit the organization claim request.');
-  }
-}
-
-async function handleOrganizationRefresh(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const nextAccount = await refreshAccountOrganizationMembers(accountStore, account, sid);
-    sendJson(
-      response,
-      200,
-      { account: nextAccount },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to refresh organization members.');
-  }
-}
-
-async function handleOrganizationSharedBlueprints(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const decoratedAccount = await buildDecoratedAccount(account);
-    const payload = await buildOrganizationSharedBlueprints(accountStore, decoratedAccount, sid);
-    sendJson(
-      response,
-      200,
-      payload,
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to load shared organization blueprints.');
-  }
-}
-
-async function handleOrganizationSharedResources(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const decoratedAccount = await buildDecoratedAccount(account);
-    const payload = await buildOrganizationSharedResources(accountStore, decoratedAccount, sid);
-    sendJson(
-      response,
-      200,
-      payload,
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendOrganizationError(response, error, 'Failed to load shared organization resources.');
-  }
-}
-
-async function handleOrganizationCraftRequestCreate(request, response, sid) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const result = await createOrganizationCraftRequest(accountStore, account, {
-      organizationSid: sid,
-      blueprintId: payload?.blueprintId,
-      blueprintName: payload?.blueprintName,
-      ownerHandle: payload?.ownerHandle,
-      comment: payload?.comment,
-      resourcesOption: payload?.resourcesOption,
-      appBaseUrl: resolveAppBaseUrlFromRequest(request, process.env),
-      storageScope: resolveCraftRequestStorageScope(request, process.env),
-    });
-    const notificationPromise = notifyCraftRequestOwnerViaWorker(
-      process.env,
-      result.request,
-      result.ownerAccount,
-      result.requesterAccount,
-    ).catch((error) => logBackgroundTaskError('craft-request-owner-notify', error));
-    const decoratedAccount = await buildDecoratedAccount(result.account);
-    sendJson(
-      response,
-      200,
-      {
-        account: decoratedAccount,
-        request: result.request,
-      },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    await notificationPromise;
-  } catch (error) {
-    sendCraftRequestError(response, error, 'Failed to create the craft request.');
-  }
-}
-
-async function handleCraftRequestDecision(request, response, requestId) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    if (payload?.decision === 'deleted') {
-      const result = await deleteCraftRequest(accountStore, account, requestId);
-      await syncCraftRequestStatusBestEffort(
-        { ...result.request, status: 'deleted' },
-        result.ownerAccount,
-        result.requesterAccount,
-        'craft-request-delete-sync',
-      );
-      const decoratedAccount = await buildDecoratedAccount(result.account);
-      sendJson(
-        response,
-        200,
-        {
-          account: decoratedAccount,
-          requestId,
-          status: 'deleted',
-        },
-        {
-          'Cache-Control': 'no-store',
-        },
-      );
-      return;
-    }
-
-    const result = await respondToCraftRequest(
-      accountStore,
-      account,
-      requestId,
-      payload?.decision,
-    );
-    await syncCraftRequestStatusBestEffort(
-      result.request,
-      result.ownerAccount,
-      result.requesterAccount,
-      'craft-request-status-sync',
-    );
-    const decoratedAccount = await buildDecoratedAccount(result.account);
-    sendJson(
-      response,
-      200,
-      {
-        account: decoratedAccount,
-        requestId: result.requestId,
-        status: result.status,
-      },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendCraftRequestError(response, error, 'Failed to answer the craft request.');
-  }
-}
-
-async function handleCraftRequestBulkDecision(request, response) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  let payload;
-  try {
-    payload = await readJsonBody(request);
-  } catch (error) {
-    sendError(
-      response,
-      400,
-      error instanceof Error ? error.message : 'Invalid JSON body.',
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-    return;
-  }
-
-  try {
-    const account = await ensureAccountForSession(session);
-    const result = await respondToCraftRequestsBulk(
-      accountStore,
-      account,
-      payload?.actions,
-    );
-
-    await Promise.all(
-      result.results.map(async (entry) => {
-        if (!entry.ok || !entry.request || !entry.ownerAccount || !entry.requesterAccount) {
-          return;
-        }
-
-        await syncCraftRequestStatusBestEffort(
-          entry.request,
-          entry.ownerAccount,
-          entry.requesterAccount,
-          'craft-request-bulk-status-sync',
-        );
-      }),
-    );
-
-    const decoratedAccount = await buildDecoratedAccount(result.account);
-    sendJson(
-      response,
-      200,
-      {
-        account: decoratedAccount,
-        results: result.results.map((entry) => ({
-          requestId: entry.requestId,
-          ok: entry.ok,
-          status: entry.status ?? null,
-          error: entry.error ?? null,
-          errorStatus: entry.errorStatus ?? null,
-        })),
-      },
-      {
-        'Cache-Control': 'no-store',
-      },
-    );
-  } catch (error) {
-    sendCraftRequestError(response, error, 'Failed to answer the craft requests.');
-  }
-}
-
-async function handleDeleteAccount(request, response, url) {
-  const session = await requireAuthenticatedSession(request);
-  if (!session) {
-    sendError(response, 401, 'Authentication required.', {
-      'Cache-Control': 'no-store',
-    });
-    return;
-  }
-
-  await deleteAccountRecord(accountStore, session.accountId);
-  sendJson(
-    response,
-    200,
-    { ok: true },
-    {
-      'Cache-Control': 'no-store',
-      'Set-Cookie': [
-        buildExpiredCookie(getSessionCookieName(), url.toString(), process.env),
-        buildExpiredCookie(getOauthStateCookieName(), url.toString(), process.env),
-      ],
-    },
-  );
-}
-
 const server = http.createServer(async (request, response) => {
   if (!request.url) {
     sendError(response, 400, 'Missing request URL.');
@@ -1631,10 +707,31 @@ const server = http.createServer(async (request, response) => {
               vary: 'origin',
             }
           : {}),
-        'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
         'access-control-allow-headers': 'authorization,content-type',
       });
       response.end();
+      return;
+    }
+
+    if (isSharedAccountRoute(path)) {
+      const fetchRequest = new Request(url, {
+        method: request.method,
+        headers: new Headers(Object.entries(request.headers).filter(([, value]) => typeof value === 'string')),
+        ...(!['GET', 'HEAD'].includes(request.method) ? { body: Readable.toWeb(request), duplex: 'half' } : {}),
+      });
+      const result = await dispatchAccountRoute(fetchRequest, {
+        ...process.env,
+        ACCOUNT_STORE: accountStore,
+        AUTH_PUBLIC_ORIGIN: getAllowedOrigin(request) ?? process.env.AUTH_PUBLIC_ORIGIN,
+      });
+      response.statusCode = result.status;
+      for (const [name, value] of result.headers) {
+        if (name.toLowerCase() !== 'set-cookie') response.setHeader(name, value);
+      }
+      const cookies = result.headers.getSetCookie();
+      if (cookies.length) response.setHeader('set-cookie', cookies);
+      response.end(Buffer.from(await result.arrayBuffer()));
       return;
     }
 
@@ -1675,162 +772,6 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === 'POST' && path === '/api/auth/logout') {
       await handleLogout(request, url, response);
-      return;
-    }
-
-    if (request.method === 'GET' && path === '/api/auth/account') {
-      await handleAccount(request, response);
-      return;
-    }
-
-    if (request.method === 'PUT' && path === '/api/auth/account') {
-      await handleAccountUpdate(request, response);
-      return;
-    }
-
-    if (request.method === 'PUT' && path === '/api/auth/account/onboarding') {
-      await handleAccountOnboardingUpdate(request, response);
-      return;
-    }
-
-    if (request.method === 'PUT' && path === '/api/auth/account/shared-blueprints') {
-      await handleAccountSharedBlueprintsUpdate(request, response);
-      return;
-    }
-
-    if (request.method === 'PUT' && path === '/api/auth/account/resources') {
-      await handleAccountResourcesUpdate(request, response);
-      return;
-    }
-
-    if (request.method === 'PUT' && path === '/api/auth/account/shared-resources') {
-      await handleAccountSharedResourcesUpdate(request, response);
-      return;
-    }
-
-    if (request.method === 'DELETE' && path === '/api/auth/account') {
-      await handleDeleteAccount(request, response, url);
-      return;
-    }
-
-    if (request.method === 'POST' && path === '/api/auth/account/organizations') {
-      await handleAccountOrganizationsCreate(request, response);
-      return;
-    }
-
-    const accountOrganizationDeleteMatch = path.match(/^\/api\/auth\/account\/organizations\/([^/]+)$/);
-    if (request.method === 'DELETE' && accountOrganizationDeleteMatch) {
-      await handleAccountOrganizationDelete(
-        request,
-        response,
-        decodeURIComponent(accountOrganizationDeleteMatch[1]),
-      );
-      return;
-    }
-
-    if (request.method === 'POST' && path === '/api/auth/account/rsi-link/challenge') {
-      await handleRsiVerificationChallenge(request, response);
-      return;
-    }
-
-    if (request.method === 'POST' && path === '/api/auth/account/rsi-link') {
-      await handleRsiLink(request, response);
-      return;
-    }
-
-    if (request.method === 'DELETE' && path === '/api/auth/account/rsi-link') {
-      await handleRsiUnlink(request, response);
-      return;
-    }
-
-    const organizationClaimMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/claim$/);
-    if (request.method === 'POST' && organizationClaimMatch) {
-      await handleOrganizationClaim(
-        request,
-        response,
-        decodeURIComponent(organizationClaimMatch[1]),
-      );
-      return;
-    }
-
-    const organizationSharingMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/sharing$/);
-    if (request.method === 'PUT' && organizationSharingMatch) {
-      await handleOrganizationSharingUpdate(
-        request,
-        response,
-        decodeURIComponent(organizationSharingMatch[1]),
-      );
-      return;
-    }
-
-    const organizationRefreshMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)\/refresh$/);
-    if (request.method === 'POST' && organizationRefreshMatch) {
-      await handleOrganizationRefresh(
-        request,
-        response,
-        decodeURIComponent(organizationRefreshMatch[1]),
-      );
-      return;
-    }
-
-    const organizationDeleteMatch = path.match(/^\/api\/auth\/organizations\/([^/]+)$/);
-    if (request.method === 'DELETE' && organizationDeleteMatch) {
-      await handleOrganizationDelete(
-        request,
-        response,
-        decodeURIComponent(organizationDeleteMatch[1]),
-      );
-      return;
-    }
-
-    const organizationSharedBlueprintsMatch = path.match(
-      /^\/api\/auth\/organizations\/([^/]+)\/shared-blueprints$/,
-    );
-    if (request.method === 'GET' && organizationSharedBlueprintsMatch) {
-      await handleOrganizationSharedBlueprints(
-        request,
-        response,
-        decodeURIComponent(organizationSharedBlueprintsMatch[1]),
-      );
-      return;
-    }
-
-    const organizationSharedResourcesMatch = path.match(
-      /^\/api\/auth\/organizations\/([^/]+)\/shared-resources$/,
-    );
-    if (request.method === 'GET' && organizationSharedResourcesMatch) {
-      await handleOrganizationSharedResources(
-        request,
-        response,
-        decodeURIComponent(organizationSharedResourcesMatch[1]),
-      );
-      return;
-    }
-
-    const organizationCraftRequestsMatch = path.match(
-      /^\/api\/auth\/organizations\/([^/]+)\/craft-requests$/,
-    );
-    if (request.method === 'POST' && organizationCraftRequestsMatch) {
-      await handleOrganizationCraftRequestCreate(
-        request,
-        response,
-        decodeURIComponent(organizationCraftRequestsMatch[1]),
-      );
-      return;
-    }
-
-    if (request.method === 'POST' && path === '/api/auth/craft-requests/bulk') {
-      await handleCraftRequestBulkDecision(request, response);
-      return;
-    }
-
-    const craftRequestDecisionMatch = path.match(/^\/api\/auth\/craft-requests\/([^/]+)$/);
-    if (request.method === 'POST' && craftRequestDecisionMatch) {
-      await handleCraftRequestDecision(
-        request,
-        response,
-        decodeURIComponent(craftRequestDecisionMatch[1]),
-      );
       return;
     }
 
