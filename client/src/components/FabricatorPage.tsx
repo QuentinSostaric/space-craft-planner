@@ -52,6 +52,12 @@ import { CATEGORY_LABELS } from '../types';
 import './fabricator/fabricator-focus.css';
 
 const LAST_BLUEPRINT_KEY = 'sc-craft-fabricator-blueprint';
+const LIVE_DEFAULT_BLUEPRINT_ID = 'bp_craft_behr_shotgun_ballistic_01_blue_white01';
+function defaultBlueprint(blueprints: Blueprint[], channel: string) {
+  return (channel === 'live' ? blueprints.find(blueprint => blueprint.id === LIVE_DEFAULT_BLUEPRINT_ID) : undefined)
+    ?? blueprints.find(blueprint => blueprint.name === 'CQ7 Rifle')
+    ?? blueprints[0];
+}
 function rememberedBlueprint(blueprints: Blueprint[], channel: string) {
   try {
     const id = localStorage.getItem(`${LAST_BLUEPRINT_KEY}:${channel}`);
@@ -381,7 +387,7 @@ export function FabricatorPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const slug = itemSlugFromPathname(window.location.pathname);
-    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : rememberedBlueprint(blueprints, activeDataset.channel) ?? blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0];
+    const initial = slug ? blueprints.find(bp => toSlug(bp.name) === slug) : rememberedBlueprint(blueprints, activeDataset.channel) ?? defaultBlueprint(blueprints, activeDataset.channel);
     return initial?.id ?? null;
   });
   const [requestedGoalId, setRequestedGoalId] = useState(() => new URLSearchParams(window.location.search).get('goal'));
@@ -453,7 +459,7 @@ export function FabricatorPage() {
       setRequestedGoalId(new URLSearchParams(window.location.search).get('goal'));
       const slug = itemSlugFromPathname(window.location.pathname);
       if (!slug) {
-        const restored = rememberedBlueprint(blueprints, activeDataset.channel) ?? blueprints.find(bp => bp.name === 'CQ7 Rifle') ?? blueprints[0];
+        const restored = rememberedBlueprint(blueprints, activeDataset.channel) ?? defaultBlueprint(blueprints, activeDataset.channel);
         setSelectedId(restored?.id ?? null);
         return;
       }
