@@ -522,7 +522,6 @@ export const STAT_LOWER_IS_BETTER = new Set<NumericItemStatKey>([
   'spread',
   'reloadSpeed',
   'quantumFuelRequirement',
-  'radarMinAimAssistDistance',
 ]);
 
 export const GPP_LOWER_IS_BETTER = new Set<string>([
@@ -532,7 +531,6 @@ export const GPP_LOWER_IS_BETTER = new Set<string>([
   'GPP_Weapon_ReloadSpeed',
   'GPP_Weapon_Spread',
   'GPP_Quantum_FuelRequirement',
-  'GPP_Radar_MinAimAssistDistance',
 ]);
 
 export type ItemCategory =
