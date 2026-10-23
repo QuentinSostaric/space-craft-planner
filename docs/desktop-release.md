@@ -25,6 +25,18 @@ Example payload:
 }
 ```
 
+## Linux font compatibility
+
+Before initializing GTK/WebKit, the Linux entry point installs an app-scoped
+Fontconfig configuration in `$XDG_CACHE_HOME/space.itemfab.desktop/fontconfig/`
+(or `~/.cache/space.itemfab.desktop/fontconfig/`). It includes the system settings
+and excludes installed WOFF/WOFF2 wrappers. Chromium's shared font caches can
+contain these without a font family, which makes WebKit loop at 100% CPU before
+loading the page ([WebKit bug 325185](https://bugs.webkit.org/show_bug.cgi?id=325185)).
+Downloaded web fonts and hardware acceleration remain available. An explicit
+`FONTCONFIG_FILE` takes precedence. Failure to write the configuration logs a
+diagnostic and leaves the system configuration in use.
+
 ## Release flow
 
 Create one GitHub release per version and publish it. For example:
