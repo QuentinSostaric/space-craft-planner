@@ -14,6 +14,7 @@ import { GameIcon } from './ui/GameIcon';
 import { RarityBadge } from './ui/RarityBadge';
 import { MaterialChips } from './ui/MaterialChips';
 import { getObtainableBlueprintIds, getStandingBucket, isResourceSlot, ls } from '../utils/crafting';
+import { compareBlueprintRecency } from '../utils/blueprintRecency';
 import { BlueprintExplorer } from './BlueprintExplorer';
 import { ShipComponentCard } from './ShipComponentCard';
 import { SurfaceState } from './ui/feedback';
@@ -493,6 +494,15 @@ export const BlueprintCard = memo(function BlueprintCard({
             )}
           </Box>
 
+          {blueprint.introducedInBuild && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: TEXT_LABEL, mt: 0.5 }}>
+              {blueprint.introductionIsBaseline
+                ? t('Observed by build', 'Présent dès la build', 'Seit Build beobachtet')
+                : t('Catalogue since build', 'Catalogue depuis la build', 'Im Katalog seit Build')}
+              {' '}{blueprint.introducedInBuild}
+            </Typography>
+          )}
+
           {/* Materials */}
           <Box sx={{ mt: 'auto', pt: 0.75 }}>
             <MaterialChips
@@ -855,11 +865,13 @@ export function BlueprintGrid() {
       list = list.filter((bp) => getBlueprintSearchHaystack(bp).includes(q));
     }
 
-    return list.sort((left, right) => {
+    return [...list].sort((left, right) => {
       const leftAcquisition = acquisitionByBlueprintId.get(left.id);
       const rightAcquisition = acquisitionByBlueprintId.get(right.id);
 
       switch (blueprintSort) {
+        case 'newest-desc':
+          return compareBlueprintRecency(left, right);
         case 'manufacturer-asc':
           return compareText(left.manufacturer, right.manufacturer) || compareText(left.name, right.name);
         case 'craft-time-asc':

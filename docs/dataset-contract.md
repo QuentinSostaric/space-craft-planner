@@ -27,3 +27,16 @@ aliases/all/{channel}/...
 The browser fetches data through `/api/game-data/public*`. It does not read R2 directly.
 
 Pages Functions resolve aliases, load immutable dataset chunks, and return only the payload required by each route.
+
+## Blueprint introduction history
+
+Core index entries, catalogue entries and detail chunks may include `introducedInBuild`
+(exact numeric build as a string) and `introductionIsBaseline` (boolean). The value is
+the first appearance recorded in the archived catalogue for this channel. It survives
+renaming, reimports and disappearance/reappearance. LIVE and PTU histories are separate.
+When `introductionIsBaseline` is true, the blueprint was already present in the oldest
+available archive: its actual game introduction can be earlier. Missing history is
+`null`/absent, sorts last and must not be replaced with the current dataset build.
+
+The Blueprints library starts with Obtainable and Newest first; ties use name then id.
+Explicit sorting and library filters remain selectable.

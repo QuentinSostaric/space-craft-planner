@@ -93,7 +93,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [acquisitionEmployerFilter, setAcquisitionEmployerFilter] = useState<string | null>(null);
   const [acquisitionScaleFilter, setAcquisitionScaleFilter] = useState<string | null>(null);
   const [acquisitionStandingFilter, setAcquisitionStandingFilter] = useState<StandingBucket>('all');
-  const [blueprintSort, setBlueprintSort] = useState<BlueprintSort>('name-asc');
+  const [blueprintSort, setBlueprintSort] = useState<BlueprintSort>('newest-desc');
 
   // Setters from useState are stable, so the value only changes when an actual
   // filter value changes.

@@ -576,6 +576,7 @@ export type SlotCountFilter = 'all' | '1' | '2' | '3';
 export type CraftTimeBucket = 'all' | '<=60' | '61-120' | '121-180' | '180+';
 export type StandingBucket = 'all' | 'none' | '1-999' | '1000-4999' | '5000-14999' | '15000+';
 export type BlueprintSort =
+  | 'newest-desc'
   | 'name-asc'
   | 'manufacturer-asc'
   | 'craft-time-asc'
@@ -697,6 +698,10 @@ export interface BlueprintDismantle {
 }
 
 export interface Blueprint {
+  /** First archived catalogue build in this dataset's channel, not necessarily the first game release. */
+  introducedInBuild?: string | null;
+  /** Already present in the earliest archive; introduction may predate this build. */
+  introductionIsBaseline?: boolean;
   id: string;
   name: string;
   manufacturer: string;

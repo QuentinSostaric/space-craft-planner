@@ -178,7 +178,7 @@ export function BlueprintDetailsRows({ blueprint }: { blueprint: Blueprint }) {
 }
 
 export function hasBlueprintFieldData(blueprint: Blueprint): boolean {
-  return computeFieldData(blueprint).hasFieldData;
+  return Boolean(blueprint.introducedInBuild) || computeFieldData(blueprint).hasFieldData;
 }
 
 /** The Field Data rows + technical tags, reusable outside the accordion. */
@@ -195,6 +195,11 @@ export function FieldDataBody({ blueprint }: { blueprint: Blueprint }) {
           '& > *:last-child, & > *:nth-last-of-type(2)': { borderBottom: 'none' },
         }}
       >
+        {blueprint.introducedInBuild && <FieldRow
+          label={blueprint.introductionIsBaseline
+            ? t('Observed by build', 'Présent dès la build', 'Seit Build beobachtet')
+            : t('Added to catalogue in build', 'Ajout au catalogue : build', 'Im Katalog seit Build')}
+          value={blueprint.introducedInBuild} />}
         {itemType && <FieldRow label={t('Item Type', 'Type objet')} value={itemType} />}
         {sizeVal && <FieldRow label={t('Size', 'Taille')} value={sizeVal} />}
         {volumeVal && <FieldRow label={t('Volume', 'Volume')} value={volumeVal} />}

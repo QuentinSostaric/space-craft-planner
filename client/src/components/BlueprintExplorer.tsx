@@ -67,6 +67,7 @@ const SEGMENTS: Array<{ value: LibrarySegment; icon: ElementType | null } & Loca
 ];
 
 const SORT_OPTIONS: Array<{ value: BlueprintSort } & LocalizedOption> = [
+  { value: 'newest-desc', label: ls('Newest first', 'Plus récents', 'Neueste zuerst') },
   { value: 'name-asc', label: ls('Name', 'Nom', 'Name') },
   { value: 'manufacturer-asc', label: ls('Manufacturer', 'Fabricant', 'Hersteller') },
   { value: 'craft-time-asc', label: ls('Craft time: fast', 'Craft: rapide', 'Fertigungszeit: schnell') },
