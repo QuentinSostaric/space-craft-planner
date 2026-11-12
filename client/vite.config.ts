@@ -16,6 +16,8 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(appVersion),
   },
   build: {
+    // Keep each release outside stale asset fallback entries cached by the CDN.
+    assetsDir: `assets/${appVersion}`,
     rollupOptions: {
       output: {
         manualChunks(id) {

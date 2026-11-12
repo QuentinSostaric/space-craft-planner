@@ -78,6 +78,10 @@ export async function onRequest(context) {
 
   const response = await context.next();
   const headers = applySecurityHeaders(new Headers(response.headers));
+  // SPA route responses must never inherit immutable caching from an asset fallback.
+  if (headers.get('Content-Type')?.toLowerCase().includes('text/html')) {
+    headers.set('Cache-Control', 'no-store');
+  }
   appendVaryHeader(headers, 'Accept');
   if (url.pathname === '/') {
     headers.set('Link', buildHomeLinkHeader(new URL(request.url).origin));
