@@ -237,7 +237,35 @@ where
         .map(ToString::to_string)
 }
 
+trait DesktopCredentialStore {
+    fn set_password(&self, value: &str) -> Result<(), keyring::Error>;
+    fn get_password(&self) -> Result<String, keyring::Error>;
+    fn delete_credential(&self) -> Result<(), keyring::Error>;
+}
+
+impl DesktopCredentialStore for keyring::Entry {
+    fn set_password(&self, value: &str) -> Result<(), keyring::Error> {
+        self.set_password(value)
+    }
+
+    fn get_password(&self) -> Result<String, keyring::Error> {
+        self.get_password()
+    }
+
+    fn delete_credential(&self) -> Result<(), keyring::Error> {
+        self.delete_credential()
+    }
+}
+
 fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
+    let entry = desktop_credential_entry().ok();
+    write_desktop_session_token_with_store(token, entry.as_ref().map(|entry| entry as _))
+}
+
+fn write_desktop_session_token_with_store(
+    token: Option<&str>,
+    entry: Option<&dyn DesktopCredentialStore>,
+) -> Result<(), String> {
     match token {
         Some(value) => {
             let value = validate_session_token(value)?;
@@ -250,35 +278,37 @@ fn write_desktop_session_token(token: Option<&str>) -> Result<(), String> {
             // leave a plaintext fallback on disk. Only when the credential
             // store demonstrably fails (write error or read-back mismatch) do
             // we create the hardened fallback file.
-            let credential_store_ok = match desktop_credential_entry() {
-                Ok(entry) => {
-                    if entry.set_password(value).is_ok() {
-                        // Verify the write by reading back immediately.
-                        entry
-                            .get_password()
-                            .ok()
-                            .is_some_and(|stored| stored == value)
-                    } else {
-                        false
-                    }
-                }
-                Err(_) => false,
-            };
+            let credential_store_ok = entry.is_some_and(|entry| {
+                entry.set_password(value).is_ok()
+                    && entry
+                        .get_password()
+                        .ok()
+                        .is_some_and(|stored| stored == value)
+            });
 
             if credential_store_ok {
                 // Credential store is healthy: ensure no fallback file exists.
                 remove_session_fallback_file()?;
                 Ok(())
             } else {
-                // Credential store unavailable or unreliable: write the hardened
-                // fallback file as the only durable copy.
+                // A failed write or read-back can leave a previous account's
+                // token behind. Remove it before installing the fallback, or
+                // restoration would prefer that stale credential on restart.
+                if let Some(entry) = entry {
+                    match entry.delete_credential() {
+                        Ok(()) | Err(keyring::Error::NoEntry) => {}
+                        Err(_) => {
+                            return Err("Unable to clear the previous desktop session from the credential store.".to_string());
+                        }
+                    }
+                }
                 write_session_fallback_file(value, &path)
             }
         }
         None => {
             // Logout: clear both the credential store and any fallback file.
             let mut keyring_error = None;
-            if let Ok(entry) = desktop_credential_entry() {
+            if let Some(entry) = entry {
                 match entry.delete_credential() {
                     Ok(()) | Err(keyring::Error::NoEntry) => {}
                     Err(error) => keyring_error = Some(error.to_string()),
@@ -1096,7 +1126,14 @@ fn detect_sc_install_paths() -> ScInstallPaths {
         }
     }
 
-    ScInstallPaths { live, ptu, channels: channel_paths.iter().map(|p| p.to_string_lossy().into_owned()).collect() }
+    ScInstallPaths {
+        live,
+        ptu,
+        channels: channel_paths
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect(),
+    }
 }
 
 // ─── Log reading helpers ──────────────────────────────────────────────────────
@@ -1106,13 +1143,27 @@ fn collect_log_file_paths(channel_path: &Path) -> Result<Vec<PathBuf>, String> {
     for entry in WalkDir::new(channel_path).max_depth(1) {
         let entry = entry.map_err(|e| format!("Unable to list installation logs: {e}"))?;
         let path = entry.path();
-        if is_regular_file(path) && path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("Game.log")) {
+        if is_regular_file(path)
+            && path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("Game.log"))
+        {
             paths.push(path.to_path_buf());
         }
-        if entry.file_type().is_dir() && path != channel_path && path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("logbackups")) {
+        if entry.file_type().is_dir()
+            && path != channel_path
+            && path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("logbackups"))
+        {
             for backup in WalkDir::new(path).follow_links(false) {
                 let backup = backup.map_err(|e| format!("Unable to list backup logs: {e}"))?;
-                if backup.file_type().is_file() && backup.path().extension().is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case("log")) {
+                if backup.file_type().is_file()
+                    && backup
+                        .path()
+                        .extension()
+                        .is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case("log"))
+                {
                     paths.push(backup.into_path());
                 }
             }
@@ -1132,15 +1183,23 @@ fn scan_log_history(channel_path: &Path) -> Result<Vec<String>, String> {
     let mut seen = HashSet::new();
     let mut names = Vec::new();
     for path in paths {
-        let file = open_regular_file(&path).map_err(|e| format!("Unable to read {}: {e}", path.display()))?;
+        let file = open_regular_file(&path)
+            .map_err(|e| format!("Unable to read {}: {e}", path.display()))?;
         let mut reader = BufReader::new(file);
         loop {
             let mut bytes = Vec::new();
-            let count = Read::by_ref(&mut reader).take((MAX_LOG_LINE_BYTES + 1) as u64).read_until(b'\n', &mut bytes)
+            let count = Read::by_ref(&mut reader)
+                .take((MAX_LOG_LINE_BYTES + 1) as u64)
+                .read_until(b'\n', &mut bytes)
                 .map_err(|e| format!("Unable to read {}: {e}", path.display()))?;
-            if count == 0 { break; }
+            if count == 0 {
+                break;
+            }
             if count > MAX_LOG_LINE_BYTES {
-                return Err(format!("Log line exceeds the supported size in {}. Scan incomplete.", path.display()));
+                return Err(format!(
+                    "Log line exceeds the supported size in {}. Scan incomplete.",
+                    path.display()
+                ));
             }
             let text = String::from_utf8_lossy(&bytes);
             names.extend(extract_blueprints_from_lines(text.lines(), &re, &mut seen));
@@ -1190,7 +1249,8 @@ async fn scan_blueprints_from_logs(channel_path: String) -> Result<Vec<String>, 
     let path = validate_sc_channel_path(&channel_path)?;
 
     tauri::async_runtime::spawn_blocking(move || scan_log_history(&path))
-        .await.map_err(|e| format!("Log scan failed: {e}"))?
+        .await
+        .map_err(|e| format!("Log scan failed: {e}"))?
 }
 
 fn extract_complete_log_lines(
@@ -1198,8 +1258,13 @@ fn extract_complete_log_lines(
     re: &Regex,
     known: &mut HashSet<String>,
 ) -> Result<Vec<String>, String> {
-    if pending.split(|b| *b == b'\n').any(|line| line.len() > MAX_LOG_LINE_BYTES) {
-        return Err("Log line exceeds the supported size. Check Game.log and restart monitoring.".into());
+    if pending
+        .split(|b| *b == b'\n')
+        .any(|line| line.len() > MAX_LOG_LINE_BYTES)
+    {
+        return Err(
+            "Log line exceeds the supported size. Check Game.log and restart monitoring.".into(),
+        );
     }
     let Some(end) = pending.iter().rposition(|b| *b == b'\n') else {
         return Ok(Vec::new());
@@ -1242,9 +1307,12 @@ async fn run_log_watcher(
                 break;
             }
             Ok(_) => {
-                let _ = app.emit("sc-log-error", "Game.log is not a regular file. Monitoring stopped.");
+                let _ = app.emit(
+                    "sc-log-error",
+                    "Game.log is not a regular file. Monitoring stopped.",
+                );
                 break;
-            },
+            }
         };
         let current_size = metadata.len();
         let current_modified = metadata.modified().ok();
@@ -1271,7 +1339,7 @@ async fn run_log_watcher(
                 Err(error) => {
                     let _ = app.emit("sc-log-error", format!("Unable to read Game.log: {error}"));
                     break;
-                },
+                }
             };
             if let Err(error) = f.seek(SeekFrom::Start(position)) {
                 let _ = app.emit("sc-log-error", format!("Unable to seek Game.log: {error}"));
@@ -1282,7 +1350,10 @@ async fn run_log_watcher(
                     .saturating_sub(position)
                     .min(MAX_LOG_TAIL_CHUNK_BYTES as u64) as usize,
             );
-            if let Err(error) = f.take(MAX_LOG_TAIL_CHUNK_BYTES as u64).read_to_end(&mut buf) {
+            if let Err(error) = f
+                .take(MAX_LOG_TAIL_CHUNK_BYTES as u64)
+                .read_to_end(&mut buf)
+            {
                 let _ = app.emit("sc-log-error", format!("Unable to read Game.log: {error}"));
                 break;
             }
@@ -1329,7 +1400,10 @@ async fn start_log_watcher(
 
     // Historical import is handled by the full scan. Watching starts at a fixed
     // offset captured before spawning, so events during startup are not lost.
-    let position = open_regular_file(&log_path)?.metadata().map_err(|e| format!("Unable to read Game.log metadata: {e}"))?.len();
+    let position = open_regular_file(&log_path)?
+        .metadata()
+        .map_err(|e| format!("Unable to read Game.log metadata: {e}"))?
+        .len();
     let known = HashSet::new();
 
     let stop = Arc::new(AtomicBool::new(false));
@@ -1526,11 +1600,19 @@ mod tests {
         let mut log = fs::File::create(channel.join("Game.log")).unwrap();
         writeln!(log, "Received Blueprint: Beginning: acquired").unwrap();
         let filler = format!("{}\n", "x".repeat(1023));
-        for _ in 0..17000 { log.write_all(filler.as_bytes()).unwrap(); }
+        for _ in 0..17000 {
+            log.write_all(filler.as_bytes()).unwrap();
+        }
         writeln!(log, "Received Blueprint: End: acquired").unwrap();
         for i in 0..140 {
-            fs::write(channel.join("LogBackups").join("archive").join(format!("{i}.LOG")),
-                format!("Received Blueprint: Backup {i}: acquired\n")).unwrap();
+            fs::write(
+                channel
+                    .join("LogBackups")
+                    .join("archive")
+                    .join(format!("{i}.LOG")),
+                format!("Received Blueprint: Backup {i}: acquired\n"),
+            )
+            .unwrap();
         }
         let names = scan_log_history(&channel).unwrap();
         assert_eq!(names.len(), 142);
@@ -1545,7 +1627,9 @@ mod tests {
         let mut known = HashSet::new();
         let mut pending = Vec::new();
         let mut names = Vec::new();
-        for byte in "Schéma reçu : Équipement: acquis\nReceived Blueprint: Second: acquired\n".as_bytes() {
+        for byte in
+            "Schéma reçu : Équipement: acquis\nReceived Blueprint: Second: acquired\n".as_bytes()
+        {
             pending.push(*byte);
             names.extend(extract_complete_log_lines(&mut pending, &re, &mut known).unwrap());
         }
@@ -1560,7 +1644,9 @@ mod tests {
         let root = create_test_channel_dir("log_errors");
         assert!(scan_log_history(&root).unwrap_err().contains("No Game.log"));
         fs::write(root.join("Game.log"), vec![b'x'; MAX_LOG_LINE_BYTES + 1]).unwrap();
-        assert!(scan_log_history(&root).unwrap_err().contains("Scan incomplete"));
+        assert!(scan_log_history(&root)
+            .unwrap_err()
+            .contains("Scan incomplete"));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1683,78 +1769,151 @@ mod tests {
         assert!(validate_session_token("valid-token-123").is_ok());
     }
 
-    #[test]
-    fn desktop_session_prefers_credential_store_over_fallback() {
-        // Clear keyring FIRST to ensure clean state from previous tests
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
+    struct FakeCredentialStore {
+        token: std::cell::RefCell<Option<String>>,
+        fail_write: bool,
+        fail_read: bool,
+        mismatch_write: bool,
+        fail_delete: bool,
+        deletes: std::cell::Cell<usize>,
+    }
 
-        let root = create_test_channel_dir("desktop_session_prefers_credential_store");
-        let fallback_path = root.join("desktop-session.token");
-        let token = "credential-store-primary-token";
-
-        // Set test override to use our temp directory
-        set_test_session_path_override(Some(fallback_path.clone()));
-
-        // First, check if keyring is actually functional in this environment.
-        // In headless CI (e.g., GitHub Actions), Secret Service may not be available.
-        let test_service = "space.itemfab.desktop.test1";
-        let test_user = "desktop-session-test1";
-        let keyring_functional = match keyring::Entry::new(test_service, test_user) {
-            Ok(entry) => {
-                let test_token = "keyring-functional-test";
-                let ok = entry.set_password(test_token).is_ok()
-                    && entry.get_password().ok().is_some_and(|v| v == test_token);
-                // Clean up test token
-                let _ = entry.delete_credential();
-                ok
+    impl FakeCredentialStore {
+        fn new(token: Option<&str>) -> Self {
+            Self {
+                token: std::cell::RefCell::new(token.map(str::to_string)),
+                fail_write: false,
+                fail_read: false,
+                mismatch_write: false,
+                fail_delete: false,
+                deletes: std::cell::Cell::new(0),
             }
-            Err(_) => false,
-        };
+        }
+    }
 
-        // Write through the full flow - the credential store (keyring) succeeds,
-        // so the fallback file should NOT be created.
-        let result = write_desktop_session_token(Some(token));
-        assert!(result.is_ok(), "write should succeed");
-
-        // The fallback file should NOT exist when credential store succeeds.
-        // If keyring is not functional (e.g., headless CI), the fallback is expected.
-        if keyring_functional {
-            assert!(
-                !fallback_path.exists(),
-                "fallback file must not exist when credential store succeeds"
-            );
-        } else {
-            // In environments without functional keyring, fallback IS expected.
-            // The test still passes because write succeeded; we just can't assert
-            // on the fallback behavior in this environment.
-            eprintln!(
-                "Note: keyring not functional in this environment; fallback created as expected"
-            );
+    impl DesktopCredentialStore for FakeCredentialStore {
+        fn set_password(&self, value: &str) -> Result<(), keyring::Error> {
+            if self.fail_write {
+                return Err(keyring::Error::NoDefaultStore);
+            }
+            if !self.mismatch_write {
+                *self.token.borrow_mut() = Some(value.to_string());
+            }
+            Ok(())
         }
 
-        // Clean up keyring
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
+        fn get_password(&self) -> Result<String, keyring::Error> {
+            if self.fail_read {
+                return Err(keyring::Error::NoDefaultStore);
+            }
+            self.token.borrow().clone().ok_or(keyring::Error::NoEntry)
         }
 
-        // Clean up
-        clear_test_session_path_override();
-        let _ = fs::remove_dir_all(root);
+        fn delete_credential(&self) -> Result<(), keyring::Error> {
+            self.deletes.set(self.deletes.get() + 1);
+            if self.fail_delete {
+                return Err(keyring::Error::NoDefaultStore);
+            }
+            self.token
+                .borrow_mut()
+                .take()
+                .map(|_| ())
+                .ok_or(keyring::Error::NoEntry)
+        }
     }
 
     #[test]
-    fn desktop_session_cross_process_persistence() {
-        // AGGRESSIVE ISOLATION: Clear keyring BEFORE setting up test channel
-        // (previous tests may have left tokens in the shared keyring)
+    fn failed_credential_write_does_not_restore_previous_account() {
+        let root = create_test_channel_dir("stale_credential");
+        let path = root.join("desktop-session.token");
+        set_test_session_path_override(Some(path.clone()));
+
+        // Exercise write errors, successful writes with stale read-back, and
+        // read-back errors. Restoring later must never resurrect account T1.
+        for failure in 0..3 {
+            let mut store = FakeCredentialStore::new(Some("account-T1"));
+            store.fail_write = failure == 0;
+            store.mismatch_write = failure == 1;
+            store.fail_read = failure == 2;
+            write_desktop_session_token_with_store(Some("account-T2"), Some(&store)).unwrap();
+            store.fail_read = false;
+            assert_eq!(
+                restore_desktop_session_token(|| store.get_password().ok(), Some(&path)),
+                Some("account-T2".to_string()),
+            );
+            assert_eq!(store.deletes.get(), 1);
+            assert!(store.token.borrow().is_none());
+        }
+
+        clear_test_session_path_override();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn desktop_session_prefers_fake_credential_store_over_fallback() {
+        let root = create_test_channel_dir("desktop_session_prefers_credential_store");
+        let path = root.join("desktop-session.token");
+        let token = "credential-store-primary-token";
+        let store = FakeCredentialStore::new(None);
+        set_test_session_path_override(Some(path.clone()));
+        // Start with an older fallback; successful secure storage must erase it.
+        write_session_fallback_file("previous-fallback", &path).unwrap();
+        write_desktop_session_token_with_store(Some(token), Some(&store)).unwrap();
+        assert!(!path.exists(), "secure storage must remove the fallback");
+        assert_eq!(store.get_password().unwrap(), token);
+        assert_eq!(store.deletes.get(), 0);
+        assert_eq!(
+            restore_desktop_session_token(|| store.get_password().ok(), Some(&path)),
+            Some(token.to_string()),
+        );
+        clear_test_session_path_override();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_credential_cleanup_rejects_new_session_without_writing_fallback() {
+        let root = create_test_channel_dir("failed_credential_cleanup");
+        let path = root.join("desktop-session.token");
+        set_test_session_path_override(Some(path.clone()));
+        let mut store = FakeCredentialStore::new(Some("account-T1"));
+        store.fail_write = true;
+        store.fail_delete = true;
+        assert!(write_desktop_session_token_with_store(Some("account-T2"), Some(&store)).is_err());
+        assert_eq!(store.deletes.get(), 1);
+        assert!(
+            !path.exists(),
+            "do not report a durable new session while T1 remains"
+        );
+        assert_eq!(store.get_password().unwrap(), "account-T1");
+        clear_test_session_path_override();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_credential_write_with_no_previous_entry_allows_fallback() {
+        let root = create_test_channel_dir("empty_credential_cleanup");
+        let path = root.join("desktop-session.token");
+        set_test_session_path_override(Some(path.clone()));
+        let mut store = FakeCredentialStore::new(None);
+        store.fail_write = true;
+        write_desktop_session_token_with_store(Some("account-T2"), Some(&store)).unwrap();
+        assert_eq!(store.deletes.get(), 1);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "account-T2");
+        clear_test_session_path_override();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn desktop_session_state_recreation_in_one_process() {
+        // This recreates state in one process, not across process boundaries.
+        // The OS store may be absent; this smoke test also permits fallback.
         if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
-        let root = create_test_channel_dir("desktop_session_cross_process");
+        let root = create_test_channel_dir("desktop_session_state_recreation");
         let fallback_path = root.join("desktop-session.token");
-        let token = "cross-process-token-12345";
+        let token = "state-recreation-token-12345";
 
         // Set test override to use our temp directory
         set_test_session_path_override(Some(fallback_path.clone()));
@@ -1764,31 +1923,31 @@ mod tests {
             let _ = entry.delete_credential();
         }
 
-        // Process A: write token
+        // Initial state: write token
         let result = write_desktop_session_token(Some(token));
-        assert!(result.is_ok(), "Process A: write should succeed");
+        assert!(result.is_ok(), "initial write should succeed");
 
-        // Verify credential store has it (same process read-back)
+        // Verify durable storage (credential store or fallback).
         let read_result = read_desktop_session_token();
         assert_eq!(
             read_result,
             Some(token.to_string()),
-            "Process A: read-back should match"
+            "initial read-back should match"
         );
 
-        // Simulate process restart by creating new state
+        // Recreate state without terminating this process.
         let state = DesktopAuthState::new();
         let restored = state.get_token();
         assert_eq!(
             restored,
             Some(token.to_string()),
-            "Process B: should restore from credential store"
+            "new state should restore from durable storage"
         );
 
-        // Process C: logout
+        // Logout from another state instance.
         let state = DesktopAuthState::new();
         let result = state.set_token(None);
-        assert!(result.is_ok(), "Process C: logout should succeed");
+        assert!(result.is_ok(), "logout should succeed");
 
         // Verify both credential store and fallback are cleared
         let read_result = read_desktop_session_token();
@@ -1801,12 +1960,12 @@ mod tests {
             "After logout: fallback file should not exist"
         );
 
-        // Process D: should not restore after logout
+        // New state should not restore after logout.
         let state = DesktopAuthState::new();
         let restored = state.get_token();
         assert!(
             restored.is_none(),
-            "Process D: should not restore after logout"
+            "new state should not restore after logout"
         );
 
         // Clean up keyring
@@ -1820,16 +1979,16 @@ mod tests {
     }
 
     #[test]
-    fn desktop_session_fallback_cross_process_persistence() {
-        // COMPLETE ISOLATION: Clear keyring aggressively BEFORE setting up test channel
-        // (previous tests may have left tokens in the shared keyring)
+    fn desktop_session_fallback_state_recreation_in_one_process() {
+        // This directly seeds the fallback and recreates state in one process.
+        // It does not force an OS-store failure or test process persistence.
         if let Ok(entry) = desktop_credential_entry() {
             let _ = entry.delete_credential();
         }
 
-        let root = create_test_channel_dir("desktop_session_fallback_cross_process");
+        let root = create_test_channel_dir("desktop_session_fallback_state_recreation");
         let fallback_path = root.join("desktop-session.token");
-        let token = "fallback-cross-process-token-67890";
+        let token = "fallback-state-recreation-token-67890";
 
         // Set test override to use our temp directory
         set_test_session_path_override(Some(fallback_path.clone()));
@@ -1842,44 +2001,40 @@ mod tests {
             let _ = entry.delete_credential();
         }
 
-        // Simulate keyring failure by using an invalid service/user
-        // We test the fallback path directly
+        // Seed the fallback path directly, without a credential-store write.
         let result = write_session_fallback_file(token, &fallback_path);
         assert!(result.is_ok(), "write fallback should succeed");
         assert!(fallback_path.exists(), "fallback file should exist");
 
-        // Process A: read from fallback
+        // Initial read from fallback.
         let read_result = read_file_bounded_lossy(&fallback_path, MAX_SESSION_TOKEN_BYTES);
-        assert!(
-            read_result.is_ok(),
-            "Process A: fallback read should succeed"
-        );
+        assert!(read_result.is_ok(), "initial fallback read should succeed");
         assert_eq!(read_result.unwrap(), token);
 
-        // Process B: new state should restore from fallback
+        // New state should restore from fallback in this same process.
         let state = DesktopAuthState::new();
         let restored = state.get_token();
         assert_eq!(
             restored,
             Some(token.to_string()),
-            "Process B: should restore from fallback"
+            "new state should restore from fallback"
         );
 
-        // Process C: logout clears fallback
+        // Logout clears fallback.
         let state = DesktopAuthState::new();
         let result = state.set_token(None);
-        assert!(result.is_ok(), "Process C: logout should succeed");
+        assert!(result.is_ok(), "logout should succeed");
         assert!(
             !fallback_path.exists(),
             "After logout: fallback file should be removed"
         );
 
-        // Process D: should not restore after logout
+        // New state should not restore after logout.
         let state = DesktopAuthState::new();
         let restored = state.get_token();
         assert!(
             restored.is_none(),
-            "Process D: should not restore after logout"
+            "new state should not restore after logout"
         );
 
         // Clean up keyring
