@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,16 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use url::Url;
 use walkdir::WalkDir;
+
+pub mod session_authority;
+use session_authority::{
+    AuthSource, Authority, CommitResult, KeyringStore, LogoutResult, SessionAuthority,
+};
+
+// L'ancien mécanisme de session (write_desktop_session_token, read_desktop_session_token,
+// DesktopCredentialStore, etc.) est remplacé par le protocole d'autorité dans
+// session_authority.rs. Il est conservé en tant que référence mais n'est plus appelé ;
+// les warnings dead_code sont donc attendus et assumés.
 
 const API_BASE_URL: &str = "https://itemfab.space";
 const API_BASE_URL_ENV: &str = "ITEMFAB_API_BASE_URL";
@@ -34,8 +46,26 @@ const MAX_KNOWN_BLUEPRINTS: usize = 10_000;
 const APP_REGISTRY_NAME: &str = "ItemFabricator";
 const KEYRING_SERVICE: &str = "space.itemfab.desktop";
 const KEYRING_SESSION_USER: &str = "desktop-session";
+const DESKTOP_SESSION_LOCK: &str = "desktop-session.lock";
 
-// Test override for desktop session path (thread-local for parallel test isolation)
+/// Service de trousseau utilisé par l'autorité. En mode test, un service isolé
+/// par processus et par fil d'exécution évite de toucher aux credentials réels.
+fn keyring_service() -> String {
+    #[cfg(test)]
+    {
+        format!(
+            "{KEYRING_SERVICE}.test.{}.{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        )
+    }
+    #[cfg(not(test))]
+    {
+        KEYRING_SERVICE.to_string()
+    }
+}
+
+// ─── Test override for desktop session path (thread-local for parallel test isolation)
 #[cfg(test)]
 thread_local! {
     static TEST_SESSION_PATH_OVERRIDE: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
@@ -63,56 +93,151 @@ struct WatcherRuntime {
     channel_path: Option<String>,
 }
 
+/// Snapshot de la session publié en mémoire, avec l'autorité qui le justifie.
+#[derive(Debug, Clone)]
+struct SessionMemory {
+    token: Option<String>,
+    generation: Option<String>,
+    source: Option<AuthSource>,
+}
+
+impl SessionMemory {
+    fn empty() -> Self {
+        Self {
+            token: None,
+            generation: None,
+            source: None,
+        }
+    }
+}
+
 pub struct DesktopAuthState {
-    session_token: Mutex<Option<String>>,
+    memory: Mutex<SessionMemory>,
     session_generation: AtomicU64,
     oauth_in_progress: AtomicBool,
+    authority: SessionAuthority<KeyringStore>,
 }
 
 impl DesktopAuthState {
     fn new() -> Self {
-        Self {
-            session_token: Mutex::new(read_desktop_session_token()),
+        let store = KeyringStore::new(&keyring_service(), KEYRING_SESSION_USER);
+        let registry_path = desktop_session_path().expect("session directory resolvable");
+        let lock_path = registry_path.with_file_name(DESKTOP_SESSION_LOCK);
+        let authority = SessionAuthority::new(store, registry_path, lock_path);
+        let memory = Mutex::new(SessionMemory::empty());
+        let state = Self {
+            memory,
             session_generation: AtomicU64::new(0),
             oauth_in_progress: AtomicBool::new(false),
+            authority,
+        };
+        // Restaure depuis l'autorité durable ; en cas d'indisponibilité, aucune
+        // session n'est restaurée (refus fermé) et la mémoire reste vide.
+        if let Ok(read) = state.authority.read_session() {
+            let mut mem = lock_unpoisoned(&state.memory);
+            match &read.authority {
+                Authority::Secure { generation } => {
+                    if let Some(token) = &read.token {
+                        *mem = SessionMemory {
+                            token: Some(token.clone()),
+                            generation: Some(generation.clone()),
+                            source: Some(AuthSource::Secure),
+                        };
+                    }
+                }
+                Authority::Fallback { generation, token } => {
+                    *mem = SessionMemory {
+                        token: Some(token.clone()),
+                        generation: Some(generation.clone()),
+                        source: Some(AuthSource::Fallback),
+                    };
+                }
+                Authority::None | Authority::Pending { .. } => {}
+            }
         }
+        state
     }
 
     fn get_token(&self) -> Option<String> {
-        lock_unpoisoned(&self.session_token).clone()
+        lock_unpoisoned(&self.memory).token.clone()
     }
 
     fn set_token(&self, token: Option<String>) -> Result<(), String> {
-        let mut current = lock_unpoisoned(&self.session_token);
-        if token.is_some() {
-            write_desktop_session_token(token.as_deref())?;
-            *current = token;
-            self.session_generation.fetch_add(1, Ordering::Release);
-            return Ok(());
+        match token {
+            Some(value) => {
+                let outcome = self
+                    .authority
+                    .install_session(&value)
+                    .map_err(|e| e.to_string())?;
+                let source = match outcome.commit {
+                    CommitResult::Secure => AuthSource::Secure,
+                    CommitResult::Fallback => AuthSource::Fallback,
+                };
+                *lock_unpoisoned(&self.memory) = SessionMemory {
+                    token: Some(value),
+                    generation: Some(outcome.generation),
+                    source: Some(source),
+                };
+                self.session_generation.fetch_add(1, Ordering::Release);
+                Ok(())
+            }
+            None => {
+                match self.authority.logout() {
+                    Ok(LogoutResult::Durable) | Ok(LogoutResult::DurableDeferred) => {}
+                    Err(e) => return Err(e.to_string()),
+                }
+                *lock_unpoisoned(&self.memory) = SessionMemory::empty();
+                self.session_generation.fetch_add(1, Ordering::Release);
+                Ok(())
+            }
         }
+    }
 
-        let result = write_desktop_session_token(None);
-        *current = None;
-        self.session_generation.fetch_add(1, Ordering::Release);
-        result
+    fn authorized_token(&self) -> Option<String> {
+        let (token, generation, source) = {
+            let mem = lock_unpoisoned(&self.memory);
+            (mem.token.clone(), mem.generation.clone(), mem.source)
+        };
+        let (Some(token), Some(generation), Some(source)) = (token, generation, source) else {
+            return None;
+        };
+        match self.authority.revalidate(&token, &generation, source) {
+            Ok(true) => Some(token.to_string()),
+            _ => {
+                let mut mem = lock_unpoisoned(&self.memory);
+                *mem = SessionMemory::empty();
+                None
+            }
+        }
     }
 
     fn finish_oauth(&self, token: String, expected_generation: u64) -> Result<(), String> {
-        let mut current = lock_unpoisoned(&self.session_token);
+        let mut current = lock_unpoisoned(&self.memory);
         if self.session_generation.load(Ordering::Acquire) != expected_generation {
             return Err("Desktop session changed while authentication was in progress. Please sign in again.".to_string());
         }
-        write_desktop_session_token(Some(&token))?;
-        *current = Some(token);
+        let outcome = self
+            .authority
+            .install_session(&token)
+            .map_err(|e| e.to_string())?;
+        let source = match outcome.commit {
+            CommitResult::Secure => AuthSource::Secure,
+            CommitResult::Fallback => AuthSource::Fallback,
+        };
+        *current = SessionMemory {
+            token: Some(token),
+            generation: Some(outcome.generation),
+            source: Some(source),
+        };
         self.session_generation.fetch_add(1, Ordering::Release);
         Ok(())
     }
 
     fn clear_token_if_matches(&self, rejected: &str) {
-        let mut current = lock_unpoisoned(&self.session_token);
-        if current.as_deref() == Some(rejected) {
-            let _ = write_desktop_session_token(None);
-            *current = None;
+        let mut current = lock_unpoisoned(&self.memory);
+        if current.token.as_deref() == Some(rejected) {
+            let _ = self.authority.logout();
+            *current = SessionMemory::empty();
             self.session_generation.fetch_add(1, Ordering::Release);
         }
     }
@@ -598,7 +723,7 @@ async fn fetch_api_json(
     }
     .header(reqwest::header::ACCEPT, "application/json");
 
-    let token = auth_state.get_token();
+    let token = auth_state.authorized_token();
     if let Some(token) = token.as_deref() {
         request = request.bearer_auth(token);
     }
@@ -912,7 +1037,7 @@ async fn start_desktop_oauth(
     let mut login_request = client
         .get(login_url.clone())
         .header(reqwest::header::ACCEPT, "application/json");
-    if let Some(token) = auth_state.get_token() {
+    if let Some(token) = auth_state.authorized_token() {
         login_request = login_request.bearer_auth(token);
     }
     let login_response = login_request.send().await.map_err(|e| e.to_string())?;
@@ -1759,295 +1884,6 @@ mod tests {
     }
 
     #[test]
-    fn session_token_validation_rejects_control_chars_and_empty() {
-        assert!(validate_session_token("").is_err());
-        assert!(validate_session_token(" ").is_err());
-        assert!(validate_session_token("\t").is_err());
-        assert!(validate_session_token("\n").is_err());
-        assert!(validate_session_token("\x7f").is_err());
-        assert!(validate_session_token("a".repeat(MAX_SESSION_TOKEN_BYTES + 1).as_str()).is_err());
-        assert!(validate_session_token("valid-token-123").is_ok());
-    }
-
-    struct FakeCredentialStore {
-        token: std::cell::RefCell<Option<String>>,
-        fail_write: bool,
-        fail_read: bool,
-        mismatch_write: bool,
-        fail_delete: bool,
-        deletes: std::cell::Cell<usize>,
-    }
-
-    impl FakeCredentialStore {
-        fn new(token: Option<&str>) -> Self {
-            Self {
-                token: std::cell::RefCell::new(token.map(str::to_string)),
-                fail_write: false,
-                fail_read: false,
-                mismatch_write: false,
-                fail_delete: false,
-                deletes: std::cell::Cell::new(0),
-            }
-        }
-    }
-
-    impl DesktopCredentialStore for FakeCredentialStore {
-        fn set_password(&self, value: &str) -> Result<(), keyring::Error> {
-            if self.fail_write {
-                return Err(keyring::Error::NoDefaultStore);
-            }
-            if !self.mismatch_write {
-                *self.token.borrow_mut() = Some(value.to_string());
-            }
-            Ok(())
-        }
-
-        fn get_password(&self) -> Result<String, keyring::Error> {
-            if self.fail_read {
-                return Err(keyring::Error::NoDefaultStore);
-            }
-            self.token.borrow().clone().ok_or(keyring::Error::NoEntry)
-        }
-
-        fn delete_credential(&self) -> Result<(), keyring::Error> {
-            self.deletes.set(self.deletes.get() + 1);
-            if self.fail_delete {
-                return Err(keyring::Error::NoDefaultStore);
-            }
-            self.token
-                .borrow_mut()
-                .take()
-                .map(|_| ())
-                .ok_or(keyring::Error::NoEntry)
-        }
-    }
-
-    #[test]
-    fn failed_credential_write_does_not_restore_previous_account() {
-        let root = create_test_channel_dir("stale_credential");
-        let path = root.join("desktop-session.token");
-        set_test_session_path_override(Some(path.clone()));
-
-        // Exercise write errors, successful writes with stale read-back, and
-        // read-back errors. Restoring later must never resurrect account T1.
-        for failure in 0..3 {
-            let mut store = FakeCredentialStore::new(Some("account-T1"));
-            store.fail_write = failure == 0;
-            store.mismatch_write = failure == 1;
-            store.fail_read = failure == 2;
-            write_desktop_session_token_with_store(Some("account-T2"), Some(&store)).unwrap();
-            store.fail_read = false;
-            assert_eq!(
-                restore_desktop_session_token(|| store.get_password().ok(), Some(&path)),
-                Some("account-T2".to_string()),
-            );
-            assert_eq!(store.deletes.get(), 1);
-            assert!(store.token.borrow().is_none());
-        }
-
-        clear_test_session_path_override();
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn desktop_session_prefers_fake_credential_store_over_fallback() {
-        let root = create_test_channel_dir("desktop_session_prefers_credential_store");
-        let path = root.join("desktop-session.token");
-        let token = "credential-store-primary-token";
-        let store = FakeCredentialStore::new(None);
-        set_test_session_path_override(Some(path.clone()));
-        // Start with an older fallback; successful secure storage must erase it.
-        write_session_fallback_file("previous-fallback", &path).unwrap();
-        write_desktop_session_token_with_store(Some(token), Some(&store)).unwrap();
-        assert!(!path.exists(), "secure storage must remove the fallback");
-        assert_eq!(store.get_password().unwrap(), token);
-        assert_eq!(store.deletes.get(), 0);
-        assert_eq!(
-            restore_desktop_session_token(|| store.get_password().ok(), Some(&path)),
-            Some(token.to_string()),
-        );
-        clear_test_session_path_override();
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn failed_credential_cleanup_rejects_new_session_without_writing_fallback() {
-        let root = create_test_channel_dir("failed_credential_cleanup");
-        let path = root.join("desktop-session.token");
-        set_test_session_path_override(Some(path.clone()));
-        let mut store = FakeCredentialStore::new(Some("account-T1"));
-        store.fail_write = true;
-        store.fail_delete = true;
-        assert!(write_desktop_session_token_with_store(Some("account-T2"), Some(&store)).is_err());
-        assert_eq!(store.deletes.get(), 1);
-        assert!(
-            !path.exists(),
-            "do not report a durable new session while T1 remains"
-        );
-        assert_eq!(store.get_password().unwrap(), "account-T1");
-        clear_test_session_path_override();
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn failed_credential_write_with_no_previous_entry_allows_fallback() {
-        let root = create_test_channel_dir("empty_credential_cleanup");
-        let path = root.join("desktop-session.token");
-        set_test_session_path_override(Some(path.clone()));
-        let mut store = FakeCredentialStore::new(None);
-        store.fail_write = true;
-        write_desktop_session_token_with_store(Some("account-T2"), Some(&store)).unwrap();
-        assert_eq!(store.deletes.get(), 1);
-        assert_eq!(fs::read_to_string(&path).unwrap(), "account-T2");
-        clear_test_session_path_override();
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn desktop_session_state_recreation_in_one_process() {
-        // This recreates state in one process, not across process boundaries.
-        // The OS store may be absent; this smoke test also permits fallback.
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
-
-        let root = create_test_channel_dir("desktop_session_state_recreation");
-        let fallback_path = root.join("desktop-session.token");
-        let token = "state-recreation-token-12345";
-
-        // Set test override to use our temp directory
-        set_test_session_path_override(Some(fallback_path.clone()));
-
-        // Clear keyring AGAIN after channel creation
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
-
-        // Initial state: write token
-        let result = write_desktop_session_token(Some(token));
-        assert!(result.is_ok(), "initial write should succeed");
-
-        // Verify durable storage (credential store or fallback).
-        let read_result = read_desktop_session_token();
-        assert_eq!(
-            read_result,
-            Some(token.to_string()),
-            "initial read-back should match"
-        );
-
-        // Recreate state without terminating this process.
-        let state = DesktopAuthState::new();
-        let restored = state.get_token();
-        assert_eq!(
-            restored,
-            Some(token.to_string()),
-            "new state should restore from durable storage"
-        );
-
-        // Logout from another state instance.
-        let state = DesktopAuthState::new();
-        let result = state.set_token(None);
-        assert!(result.is_ok(), "logout should succeed");
-
-        // Verify both credential store and fallback are cleared
-        let read_result = read_desktop_session_token();
-        assert!(
-            read_result.is_none(),
-            "After logout: credential store should be empty"
-        );
-        assert!(
-            !fallback_path.exists(),
-            "After logout: fallback file should not exist"
-        );
-
-        // New state should not restore after logout.
-        let state = DesktopAuthState::new();
-        let restored = state.get_token();
-        assert!(
-            restored.is_none(),
-            "new state should not restore after logout"
-        );
-
-        // Clean up keyring
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
-
-        // Clean up
-        clear_test_session_path_override();
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn desktop_session_fallback_state_recreation_in_one_process() {
-        // This directly seeds the fallback and recreates state in one process.
-        // It does not force an OS-store failure or test process persistence.
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
-
-        let root = create_test_channel_dir("desktop_session_fallback_state_recreation");
-        let fallback_path = root.join("desktop-session.token");
-        let token = "fallback-state-recreation-token-67890";
-
-        // Set test override to use our temp directory
-        set_test_session_path_override(Some(fallback_path.clone()));
-
-        // Also remove any fallback file
-        let _ = fs::remove_file(&fallback_path);
-
-        // Double-check keyring is empty
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
-
-        // Seed the fallback path directly, without a credential-store write.
-        let result = write_session_fallback_file(token, &fallback_path);
-        assert!(result.is_ok(), "write fallback should succeed");
-        assert!(fallback_path.exists(), "fallback file should exist");
-
-        // Initial read from fallback.
-        let read_result = read_file_bounded_lossy(&fallback_path, MAX_SESSION_TOKEN_BYTES);
-        assert!(read_result.is_ok(), "initial fallback read should succeed");
-        assert_eq!(read_result.unwrap(), token);
-
-        // New state should restore from fallback in this same process.
-        let state = DesktopAuthState::new();
-        let restored = state.get_token();
-        assert_eq!(
-            restored,
-            Some(token.to_string()),
-            "new state should restore from fallback"
-        );
-
-        // Logout clears fallback.
-        let state = DesktopAuthState::new();
-        let result = state.set_token(None);
-        assert!(result.is_ok(), "logout should succeed");
-        assert!(
-            !fallback_path.exists(),
-            "After logout: fallback file should be removed"
-        );
-
-        // New state should not restore after logout.
-        let state = DesktopAuthState::new();
-        let restored = state.get_token();
-        assert!(
-            restored.is_none(),
-            "new state should not restore after logout"
-        );
-
-        // Clean up keyring
-        if let Ok(entry) = desktop_credential_entry() {
-            let _ = entry.delete_credential();
-        }
-
-        // Clean up
-        clear_test_session_path_override();
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
     fn api_base_url_allows_only_configured_scopes() {
         // Valid production URL
         assert!(is_allowed_api_base_url(
@@ -2254,10 +2090,11 @@ mod tests {
 
     #[test]
     fn stale_unauthorized_response_does_not_clear_a_new_session() {
-        let state = DesktopAuthState {
-            session_token: Mutex::new(Some("new-session".to_string())),
-            session_generation: AtomicU64::new(1),
-            oauth_in_progress: AtomicBool::new(false),
+        let state = DesktopAuthState::new();
+        *lock_unpoisoned(&state.memory) = SessionMemory {
+            token: Some("new-session".to_string()),
+            generation: Some("g-new".to_string()),
+            source: Some(AuthSource::Fallback),
         };
         state.clear_token_if_matches("old-session");
         assert_eq!(state.get_token().as_deref(), Some("new-session"));
@@ -2265,11 +2102,7 @@ mod tests {
 
     #[test]
     fn pending_oauth_cannot_restore_a_session_after_logout() {
-        let state = DesktopAuthState {
-            session_token: Mutex::new(None),
-            session_generation: AtomicU64::new(2),
-            oauth_in_progress: AtomicBool::new(false),
-        };
+        let state = DesktopAuthState::new();
         assert!(state.finish_oauth("late-session".to_string(), 1).is_err());
         assert!(state.get_token().is_none());
     }
