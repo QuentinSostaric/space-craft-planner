@@ -132,12 +132,12 @@ par `session_authority_process.rs`.
 | R07 | secure(g) inaccessible puis récupération : aucune session en panne, même g ensuite, aucun fallback ancien | `r07_secure_inaccessible_then_recovery` |
 | R08 | secure(g) avec T1 brut/autre génération : aucune session | `r08_secure_wrong_generation_or_raw_t1_no_session` |
 | R09 | Logout backend sain/NoEntry : none avant delete, mémoire vide, relance sans session | `r09_logout_healthy_backend`, `r09_logout_noentry` |
-| R10 | Logout sans Entry puis récupération : none conservé, jamais T1, purge différée | `r10_logout_without_entry_none_kept` + `integ_logout_without_entry_none_kept` |
+| R10 | Logout sans Entry puis récupération : none conservé, jamais T1, purge différée (assertion tombstone `none` renforcée) | `r10_logout_without_entry_none_kept` + `integ_logout_without_entry_none_kept` |
 | R11 | Logout delete refusé : none protège, erreur physique visible | `r11_logout_delete_refused` |
-| R12 | Erreurs chemin/permissions/écriture/sync/remplacement distinguées avant remplacement | `r12_path_error_before_replace`, `r12_registre_chemin_est_repertoire_erreur_avant_remplacement`, `r12_aucun_temporaire_orpelin_apres_echec_installation` |
-| R13 | Crash à chaque frontière : pending/none sans session, jamais T1 opportuniste | `r13_crash_after_pending_no_session`, `r13_crash_after_none_no_session`, `r13_crash_apres_set_envelope_valide_registre_encore_pending`, `r13_crash_apres_commit_secure_os_vide`, `r13_crash_apres_none_purge_quand_store_recupere` + `integ_crash_after_pending_no_session` |
+| R12 | Erreurs chemin/permissions/écriture/sync/remplacement distinguées avant remplacement ; indéterminé après remplacement (sync_dir) | `r12_path_error_before_replace`, `r12_registre_chemin_est_repertoire_erreur_avant_remplacement`, `r12_aucun_temporaire_orpelin_apres_echec_installation`, `r12_install_sync_dir_echec_apres_remplacement_indeterminate` |
+| R13 | Crash à chaque frontière : pending/none sans session, jamais T1 opportuniste ; réconciliation après remplacement non acquitté | `r13_crash_after_pending_no_session`, `r13_crash_after_none_no_session`, `r13_crash_apres_set_envelope_valide_registre_encore_pending`, `r13_crash_apres_commit_secure_os_vide`, `r13_crash_apres_none_purge_quand_store_recupere`, `r12_install_sync_dir_echec_apres_remplacement_indeterminate` + `integ_crash_after_pending_no_session` |
 | R14 | Registre absent/legacy/vide/corrompu/trop grand/symlink/version/champs incohérents : aucune restauration | `r14_registry_*_no_restore`, `r14_registre_oversized_no_restore`, `r14_registre_fallback_sans_token_no_restore`, `r14_registre_none_avec_generation_incoherente`, `r14_registre_generation_hex_invalide`, `r14_registre_etat_inconnu`, `r14_enveloppe_trop_grosse_erreur_pas_de_session` |
-| R15 | Deux processus, sérialisation, dernier commit gagnant, pas de purge tardive | `r15_two_processes_last_commit_wins`, `r15_cache_invalidation_before_emit` + `integ_two_processes_last_commit_wins` |
+| R15 | Deux processus, sérialisation, dernier commit gagnant, pas de purge tardive | `r15_two_processes_last_commit_wins`, `r15_cache_invalidation_before_emit`, `r15_threads_login_login_last_commit_wins`, `r15_threads_login_logout`, `r15_threads_purge_delayed_vs_nouveau_login`, `r15_e2e_child_process_login_login_last_commit_wins`, `r15_e2e_child_process_login_logout` + `integ_two_processes_last_commit_wins` |
 | R16 | Migration legacy : reconnexion explicite puis format moderne | `r16_migration_explicit_reconnect` |
 | R17 | Pas de nouvelle copie en clair, pas de token dans secure/pending/none/diagnostics, bornes conservées | `r17_no_token_in_non_fallback_states`, `r17_generation_not_derived`, `r17_registre_fichier_0600_unix`, `r17_echec_installation_registre_inchange_aucune_session`, `r17_diagnostic_ne_fuite_pas_le_jeton` |
 
@@ -169,11 +169,59 @@ injecté par un magasin synthétique.
   par l'atomicité du registre.
 - Aucun secret n'est publié dans les diagnostics, les journaux ou les rapports.
 - Un remplacement réussi dont la synchronisation du répertoire échouerait ensuite
-  (indéterminé post-remplacement) est signalé comme une erreur d'E/S, jamais
-  comme un succès silencieux. L'injection déterministe de cette panne entre le
-  renommage et la synchronisation n'est pas réalisable sur Linux sans fault-injection
-  dédié ; la branche Windows est prouvée compilable par
-  `cargo check --target x86_64-pc-windows-gnu`.
+  (indéterminé post-remplacement) est signalé comme `AuthorityError::Indeterminate`,
+  jamais comme un succès silencieux. L'injection est déterministe sous Linux via
+  l'override `sync_dir_override` des tests unitaires.
+- La branche Windows (`MoveFileExW`, `LockFile`) est compilée conditionnellement
+  et n'est pas exécutée localement. `cargo check --target x86_64-pc-windows-gnu`
+  sur le crate Tauri complet reste bloqué par l'absence de `x86_64-w64-mingw32-gcc`
+  (build C de `ring`), sans rapport avec ce module. Le fichier réel
+  `src/session_authority.rs` est en revanche vérifié pour cette cible via une
+  crate minimale qui l'inclut tel quel (voir « Preuves Windows »).
+  Les ACL Windows (héritage de droits, équivalents du répertoire `0o700` /
+  fichier `0o600`) ne sont pas vérifiées localement.
+
+## Preuves rouge->vert (R01/R02/R10)
+
+La revue `t_f30113f5` a mesuré, par mutations sur une copie isolée de `a8d167b` :
+- suppression du repli `fallback` sur `Unavailable` -> R01/R02/R03 passent au rouge ;
+- suppression de la tombstone au logout -> R09/R10/R11 passent au rouge (et
+  `integ_logout_without_entry_none_kept` restait vert car son assertion était
+  trop faible : aucune vérification de la tombstone `none` ; assertion ajoutée).
+
+Cette restauration rétablit ces comportements (correctif additif sur
+`fix/desktop-session-authority-protocol`, par-dessus la base `a8d167b` ; aucun
+push/PR/merge/release). Les runs de référence ci-dessous sont exécutés sur le
+worktree isolé :
+
+```
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check   rc = 0
+cargo test --manifest-path src-tauri/Cargo.toml --lib       rc = 0  (unitaires + nouveaux)
+cargo test --manifest-path src-tauri/Cargo.toml --test session_authority_process   rc = 0
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings   rc = 0
+```
+
+Windows : voir ci-dessous.
+
+## Preuves Windows (cible `x86_64-pc-windows-gnu`)
+
+Crate minimale reproductible : un `Cargo.toml` déclarant les mêmes dépendances
+que `src-tauri/Cargo.toml` pour ce module (`serde` + `derive`, `serde_json`,
+`getrandom 0.4`, `keyring 4`, et sous `cfg(windows)` `windows-sys 0.52` avec
+`Win32_Foundation` + `Win32_Storage_FileSystem`), le `Cargo.lock` du dépôt, et
+un `src/lib.rs` réduit à :
+
+```rust
+#[path = "<repo>/src-tauri/src/session_authority.rs"]
+pub mod session_authority;
+```
+
+Résultats : `cargo check --target x86_64-pc-windows-gnu` rc = 0 et
+`cargo clippy --target x86_64-pc-windows-gnu -- -D warnings` rc = 0. Ce contrôle
+a d'abord révélé deux erreurs de type (`HANDLE` = `isize` dans `windows-sys 0.52`,
+corrigées par un cast `as windows_sys::Win32::Foundation::HANDLE`). Limites :
+compilation seulement (ni édition de liens ni exécution), le reste du crate Tauri
+n'est pas vérifié pour Windows, ACL Windows non vérifiées, macOS non validé.
 
 ## Intégration avec #108
 

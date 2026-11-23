@@ -21,7 +21,10 @@ use std::error::Error;
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
+#[cfg(unix)]
 use std::os::fd::AsRawFd;
+#[cfg(windows)]
+use std::os::windows::io::AsRawHandle;
 use std::path::{Path, PathBuf};
 
 use getrandom;
@@ -32,7 +35,9 @@ const GENERATION_HEX_LEN: usize = 64;
 const MAX_REGISTRY_BYTES: usize = 8 * 1024;
 const MAX_ENVELOPE_BYTES: usize = 8 * 1024;
 const MAX_TOKEN_BYTES: usize = 8 * 1024;
+#[cfg(test)]
 const REGISTRY_FILE_NAME: &str = "desktop-session.token";
+#[cfg(test)]
 const LOCK_FILE_NAME: &str = "desktop-session.lock";
 
 // ---------------------------------------------------------------------------
@@ -402,7 +407,16 @@ fn read_registry(path: &Path) -> Result<Option<Authority>, AuthorityError> {
 }
 
 /// Écriture atomique et durable du registre. Aucune fenêtre où le fichier disparaît.
-fn write_registry_atomic(path: &Path, content: &[u8]) -> Result<(), AuthorityError> {
+///
+/// Toute erreur *avant* le remplacement (`replace_file`) est un echec certain :
+/// le registre precedent est intact. Une erreur de `sync_dir` *apres* le
+/// remplacement signifie que le nouveau registre est peut-etre installe mais que
+/// sa durabilite n'est pas prouvee : resultat `Indeterminate`.
+fn write_registry_atomic(
+    path: &Path,
+    content: &[u8],
+    sync_dir_fn: fn(&Path) -> Result<(), AuthorityError>,
+) -> Result<(), AuthorityError> {
     let parent = registry_dir(path)?;
     fs::create_dir_all(parent).map_err(|e| AuthorityError::Io(format!("create directory: {e}")))?;
     secure_dir_perms(parent)?;
@@ -426,8 +440,14 @@ fn write_registry_atomic(path: &Path, content: &[u8]) -> Result<(), AuthorityErr
         .map_err(|e| AuthorityError::Io(format!("sync temporary: {e}")))?;
     drop(file);
 
-    replace_file(path, &temp_path)?;
-    sync_dir(parent)?;
+    replace_file(path, &temp_path)?; // remplacement : aucune erreur au-dela = certain
+                                     // Apres le remplacement, une perte de synchronisation du repertoire rend le
+                                     // commit effectif mais sa durabilite non prouvee : indetermine.
+    sync_dir_fn(parent).map_err(|e| {
+        AuthorityError::Indeterminate(format!(
+            "synchronisation repertoire apres remplacement: {e}"
+        ))
+    })?;
     let _ = fs::remove_file(&temp_path);
     Ok(())
 }
@@ -442,11 +462,11 @@ fn replace_file(path: &Path, temp: &Path) -> Result<(), AuthorityError> {
     }
     #[cfg(windows)]
     {
-        return replace_file_windows(path, temp);
+        replace_file_windows(path, temp)
     }
     #[cfg(not(any(unix, windows)))]
     {
-        fs::rename(temp, path).map_err(|e| AuthorityError::Io(format!("replace registry: {e}")))?;
+        fs::rename(temp, path).map_err(|e| AuthorityError::Io(format!("replace registry: {e}")))
     }
 }
 
@@ -498,7 +518,6 @@ fn sync_dir(path: &Path) -> Result<(), AuthorityError> {
 /// (jamais supprimé/recréé pour déverrouiller) ; le verrou est relâché à la chute.
 pub struct FileLock {
     file: File,
-    path: PathBuf,
 }
 
 impl FileLock {
@@ -516,10 +535,7 @@ impl FileLock {
             .open(path)
             .map_err(|e| AuthorityError::Io(format!("open lock: {e}")))?;
         lock_file(&file)?;
-        Ok(Self {
-            file,
-            path: path.to_path_buf(),
-        })
+        Ok(Self { file })
     }
 }
 
@@ -543,7 +559,7 @@ fn lock_file(file: &File) -> Result<(), AuthorityError> {
     }
     #[cfg(windows)]
     {
-        return lock_file_windows(file);
+        lock_file_windows(file)
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -555,10 +571,11 @@ fn lock_file(file: &File) -> Result<(), AuthorityError> {
 
 #[cfg(windows)]
 fn lock_file_windows(file: &File) -> Result<(), AuthorityError> {
-    use std::os::windows::fs::FileExt;
     // `LockFile` échoue immédiatement si la région est déjà verrouillée : on boucle
     // avec sommeil (verrou bloquant, tenu le temps de la transaction locale uniquement).
-    let handle = file.as_raw_handle() as *mut std::ffi::c_void;
+    // NOTE : sous Windows, `flock` n'est pas disponible ; `LockFile` par descripteur
+    // exclut bien les *autres processus*, mais pas deux threads d'un meme processus.
+    let handle = file.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE;
     for _ in 0..600 {
         let ok = unsafe {
             windows_sys::Win32::Storage::FileSystem::LockFile(handle, 0, 0, u32::MAX, u32::MAX)
@@ -581,8 +598,7 @@ fn lock_file_windows(file: &File) -> Result<(), AuthorityError> {
 
 #[cfg(windows)]
 fn unlock_file(file: &File) {
-    use std::os::windows::fs::FileExt;
-    let handle = file.as_raw_handle() as *mut std::ffi::c_void;
+    let handle = file.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE;
     let _ = unsafe {
         windows_sys::Win32::Storage::FileSystem::UnlockFile(handle, 0, 0, u32::MAX, u32::MAX)
     };
@@ -631,12 +647,49 @@ pub struct InstallOutcome {
     pub generation: String,
 }
 
+/// Échec d'installation de session avec indication de l'avancement de la
+/// transaction : `pending(g)` a-t-il ete ecrit durablement ?
+///
+/// - `BeforePending` : aucun remplacement n'a ete amorce ; ni le trousseau ni
+///   l'etat memoire precedent ne sont mutés.
+/// - `AfterPending` : `pending(g)` est durable (ou peut l'etre) ; la memoire
+///   doit etre videe et le registre relu (reconciliation) avant toute reprise.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InstallError {
+    BeforePending(AuthorityError),
+    AfterPending(AuthorityError),
+}
+
+impl fmt::Display for InstallError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InstallError::BeforePending(e) => write!(f, "avant pending: {e}"),
+            InstallError::AfterPending(e) => write!(f, "apres pending: {e}"),
+        }
+    }
+}
+
+impl Error for InstallError {}
+
+impl From<InstallError> for AuthorityError {
+    fn from(e: InstallError) -> Self {
+        match e {
+            InstallError::BeforePending(a) | InstallError::AfterPending(a) => a,
+        }
+    }
+}
+
+#[cfg(test)]
+type SyncDirFn = fn(&Path) -> Result<(), AuthorityError>;
+
 /// Instance du protocole d'autorité. `S` est le magasin de credentials (production :
 /// `KeyringStore` ; tests : magasin synthétique).
 pub struct SessionAuthority<S: CredentialStore> {
     store: S,
     registry_path: PathBuf,
     lock_path: PathBuf,
+    #[cfg(test)]
+    sync_dir_override: Option<SyncDirFn>,
 }
 
 impl<S: CredentialStore> SessionAuthority<S> {
@@ -645,7 +698,26 @@ impl<S: CredentialStore> SessionAuthority<S> {
             store,
             registry_path,
             lock_path,
+            #[cfg(test)]
+            sync_dir_override: None,
         }
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn with_sync_dir_override(mut self, override_: Option<SyncDirFn>) -> Self {
+        self.sync_dir_override = override_;
+        self
+    }
+
+    #[cfg(not(test))]
+    fn effective_sync_dir(_auth: &SessionAuthority<S>) -> fn(&Path) -> Result<(), AuthorityError> {
+        sync_dir
+    }
+
+    #[cfg(test)]
+    fn effective_sync_dir(auth: &SessionAuthority<S>) -> fn(&Path) -> Result<(), AuthorityError> {
+        auth.sync_dir_override.unwrap_or(sync_dir)
     }
 
     /// Lit l'autorité et décide de la session à restaurer. Lecture seule sur
@@ -699,39 +771,53 @@ impl<S: CredentialStore> SessionAuthority<S> {
     }
 
     /// Installe le jeton T2 (login). Retourne le commit et la génération.
-    pub fn install_session(&self, token: &str) -> Result<InstallOutcome, AuthorityError> {
+    pub fn install_session(&self, token: &str) -> Result<InstallOutcome, InstallError> {
         // Validation avant toute mutation : refus fermé si le jeton est invalide.
-        validate_token(token)?;
-        let _lock = FileLock::open_and_lock(&self.lock_path)?;
-        let generation = new_generation()?;
+        validate_token(token).map_err(InstallError::BeforePending)?;
+        let _lock =
+            FileLock::open_and_lock(&self.lock_path).map_err(InstallError::BeforePending)?;
+        let generation = new_generation().map_err(InstallError::BeforePending)?;
 
         // 1. `pending(g)` durable AVANT toute mutation du trousseau.
-        self.write_registry(&Authority::Pending {
+        //    Echec certain avant remplacement : le trousseau n'est pas touche.
+        //    Remplacement deja opere avant l'erreur de synchronisation : indetermine.
+        match self.write_registry(&Authority::Pending {
             generation: generation.clone(),
-        })?;
+        }) {
+            Err(AuthorityError::Indeterminate(msg)) => {
+                return Err(InstallError::AfterPending(AuthorityError::Indeterminate(
+                    msg,
+                )))
+            }
+            Err(e) => return Err(InstallError::BeforePending(e)),
+            Ok(()) => {}
+        }
 
         // 2. Mutation du trousseau OS.
         match self.store.open() {
-            Err(StoreError::Unavailable) => {
-                // Backend indisponible : le fallback reçoit le jeton, autorité transférée.
-                self.write_registry(&Authority::Fallback {
-                    generation: generation.clone(),
-                    token: token.to_string(),
-                })?;
-                Ok(InstallOutcome {
+            // Toute erreur de construction du handle (Unavailable, Other, …) mene
+            // au repli fallback(g, T2) sans laisser l'etat `pending` en place.
+            Err(_) => match self.write_registry(&Authority::Fallback {
+                generation: generation.clone(),
+                token: token.to_string(),
+            }) {
+                Ok(()) => Ok(InstallOutcome {
                     commit: CommitResult::Fallback,
                     generation,
-                })
-            }
-            Err(e) => Err(AuthorityError::Store(e)),
+                }),
+                Err(e) => Err(InstallError::AfterPending(e)),
+            },
             Ok(entry) => {
                 let envelope = Envelope {
                     version: 1,
                     generation: generation.clone(),
                     token: token.to_string(),
                 };
-                let payload = serde_json::to_string(&envelope)
-                    .map_err(|e| AuthorityError::Io(format!("serialize envelope: {e}")))?;
+                let payload = serde_json::to_string(&envelope).map_err(|e| {
+                    InstallError::AfterPending(AuthorityError::Io(format!(
+                        "serialize envelope: {e}"
+                    )))
+                })?;
                 let set_ok = entry.set_password(&payload).is_ok();
                 let readback_ok = set_ok
                     && matches!(
@@ -744,27 +830,33 @@ impl<S: CredentialStore> SessionAuthority<S> {
                         }
                     );
                 if readback_ok {
-                    // Trousseau vérifié : `secure(g)` devient l'autorité.
-                    self.write_registry(&Authority::Secure {
+                    // Trousseau verifie : `secure(g)` devient l'autorite.
+                    match self.write_registry(&Authority::Secure {
                         generation: generation.clone(),
-                    })?;
-                    Ok(InstallOutcome {
-                        commit: CommitResult::Secure,
-                        generation,
-                    })
+                    }) {
+                        Ok(()) => Ok(InstallOutcome {
+                            commit: CommitResult::Secure,
+                            generation,
+                        }),
+                        Err(e) => Err(InstallError::AfterPending(e)),
+                    }
                 } else {
-                    // Écriture/read-back échoué ou invalide : repli `fallback(g, T2)`.
-                    self.write_registry(&Authority::Fallback {
+                    // Ecriture/read-back echec ou invalide : repli `fallback(g, T2)`.
+                    match self.write_registry(&Authority::Fallback {
                         generation: generation.clone(),
                         token: token.to_string(),
-                    })?;
-                    // Nettoyage différé de l'ancien jeton OS si suppression refusée ;
-                    // jamais un rejet de T2.
-                    let _ = self.purge_os_locked();
-                    Ok(InstallOutcome {
-                        commit: CommitResult::Fallback,
-                        generation,
-                    })
+                    }) {
+                        Ok(()) => {
+                            // Nettoyage differe de l'ancien jeton OS si suppression refusee ;
+                            // jamais un rejet de T2.
+                            let _ = self.purge_os_locked();
+                            Ok(InstallOutcome {
+                                commit: CommitResult::Fallback,
+                                generation,
+                            })
+                        }
+                        Err(e) => Err(InstallError::AfterPending(e)),
+                    }
                 }
             }
         }
@@ -778,7 +870,10 @@ impl<S: CredentialStore> SessionAuthority<S> {
 
         match self.store.open() {
             Err(StoreError::Unavailable) => Ok(LogoutResult::DurableDeferred),
-            Err(e) => Err(AuthorityError::Store(e)),
+            // Tombstone durable deja ecrite : une ouverture du magasin qui echoue
+            // autrement qu'en `Unavailable` ne remet pas en cause la durabilite de
+            // la tombstone ; le nettoyage OS est differe et signale explicitement.
+            Err(_) => Ok(LogoutResult::DurableDeferred),
             Ok(entry) => match entry.delete_credential() {
                 Ok(()) | Err(StoreError::NoEntry) => Ok(LogoutResult::Durable),
                 Err(_) => Ok(LogoutResult::DurableDeferred),
@@ -850,7 +945,11 @@ impl<S: CredentialStore> SessionAuthority<S> {
         let raw = AuthorityFile::from_authority(authority.clone());
         let content = serde_json::to_string(&raw)
             .map_err(|e| AuthorityError::Io(format!("serialize registry: {e}")))?;
-        write_registry_atomic(&self.registry_path, content.as_bytes())
+        write_registry_atomic(
+            &self.registry_path,
+            content.as_bytes(),
+            Self::effective_sync_dir(self),
+        )
     }
 
     fn read_envelope(&self) -> Result<Option<Envelope>, AuthorityError> {
@@ -868,7 +967,9 @@ impl<S: CredentialStore> SessionAuthority<S> {
                     }
                 }
                 Ok(None) => Ok(None),
-                Err(_) => Ok(None),
+                // Une erreur de lecture ne se confond pas avec un magasin vide :
+                // signaler l'indisponibilite, aucune session.
+                Err(e) => Err(AuthorityError::Store(e)),
             },
         }
     }
@@ -882,6 +983,7 @@ impl<S: CredentialStore> SessionAuthority<S> {
 mod tests {
     use super::*;
     use std::collections::VecDeque;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
 
     // ------------------------------------------------------------------
@@ -1002,6 +1104,7 @@ mod tests {
         entry: Mutex<Option<Arc<SyntheticEntry>>>,
         state: Mutex<StoreState>,
         open_count: Mutex<u64>,
+        open_error: Mutex<Option<StoreError>>,
     }
 
     /// Partagé par tous les clones du magasin : un `open()` sur une instance
@@ -1026,8 +1129,15 @@ mod tests {
                     entry: Mutex::new(None),
                     state: Mutex::new(StoreState::Sain),
                     open_count: Mutex::new(0),
+                    open_error: Mutex::new(None),
                 }),
             }
+        }
+
+        /// Force `open()` a renvoyer cette erreur (ex. `StoreError::Other`),
+        /// quel que soit l'etat du magasin.
+        fn set_open_error(&self, e: StoreError) {
+            *self.inner.open_error.lock().unwrap() = Some(e);
         }
 
         /// Récupère l'entrée existante ou en crée une par défaut héritant de
@@ -1075,20 +1185,9 @@ mod tests {
                 .unwrap_or_default()
         }
 
-        fn clear_history(&self) {
-            if let Some(e) = self.inner.entry.lock().unwrap().as_ref() {
-                e.history.lock().unwrap().clear();
-            }
-        }
-
         fn set_fail_set(&self, v: bool) {
             let e = self.ensure_entry();
             *e.fail_set.lock().unwrap() = v;
-        }
-
-        fn set_fail_get(&self, v: bool) {
-            let e = self.ensure_entry();
-            *e.fail_get.lock().unwrap() = v;
         }
 
         fn set_fail_delete(&self, v: bool, result: Result<(), StoreError>) {
@@ -1111,6 +1210,11 @@ mod tests {
         type Entry = Arc<SyntheticEntry>;
         fn open(&self) -> Result<Self::Entry, StoreError> {
             *self.inner.open_count.lock().unwrap() += 1;
+            // Une erreur forcée sur `open()` l'emporte sur l'état du magasin
+            // (injection de panne pour les tests de repli et de déconnexion).
+            if let Some(e) = self.inner.open_error.lock().unwrap().clone() {
+                return Err(e);
+            }
             // Copier l'état avant ensure_entry(), qui reverrouille `state` (Mutex non réentrant).
             let state = self.inner.state.lock().unwrap().clone();
             match state {
@@ -1493,7 +1597,14 @@ mod tests {
         let err = auth.install_session("T2").unwrap_err();
         let err_text = format!("{err}");
         assert!(!err_text.contains("T2"));
-        assert!(!matches!(err, AuthorityError::Indeterminate(_)));
+        assert!(!matches!(
+            err,
+            InstallError::BeforePending(AuthorityError::Indeterminate(_))
+        ));
+        assert!(!matches!(
+            err,
+            InstallError::AfterPending(AuthorityError::Indeterminate(_))
+        ));
     }
 
     // ------------------------------------------------------------------
@@ -1748,8 +1859,22 @@ mod tests {
             !err_text.contains("T2"),
             "le diagnostic ne fuite pas le jeton"
         );
-        assert!(!matches!(err, AuthorityError::Indeterminate(_)));
-        assert!(!matches!(err, AuthorityError::Unavailable(_)));
+        assert!(!matches!(
+            err,
+            InstallError::BeforePending(AuthorityError::Indeterminate(_))
+        ));
+        assert!(!matches!(
+            err,
+            InstallError::AfterPending(AuthorityError::Indeterminate(_))
+        ));
+        assert!(!matches!(
+            err,
+            InstallError::BeforePending(AuthorityError::Unavailable(_))
+        ));
+        assert!(!matches!(
+            err,
+            InstallError::AfterPending(AuthorityError::Unavailable(_))
+        ));
     }
 
     #[test]
@@ -2024,5 +2149,118 @@ mod tests {
             .install_session("JETON-SECRET-NE-PAS-FUIR")
             .unwrap_err();
         assert!(!format!("{err}").contains("JETON-SECRET-NE-PAS-FUIR"));
+    }
+
+    // ------------------------------------------------------------------
+    // R12 : indéterminé après remplacement (échec de sync_dir / acquittement).
+    //       Remplacement déjà opéré : l'état committé est lisible, la
+    //       réconciliation lit l'état réellement installé, jamais de T1
+    //       opportuniste, aucun temporaire orphelin.
+    // ------------------------------------------------------------------
+
+    static SYNC_DIR_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    fn sync_dir_force_echec_second(_path: &Path) -> Result<(), AuthorityError> {
+        let n = SYNC_DIR_CALLS.fetch_add(1, Ordering::Relaxed);
+        if n == 0 {
+            Ok(())
+        } else {
+            Err(AuthorityError::Io("synchronisation forcée en échec".into()))
+        }
+    }
+
+    #[test]
+    fn r12_install_sync_dir_echec_apres_remplacement_indeterminate() {
+        // Premier appel (pending) réussi ; le second (commit secure) échoue sur
+        // sync_dir : le registre est déjà remplacé, sa durabilité n'est pas prouvée.
+        SYNC_DIR_CALLS.store(0, Ordering::Relaxed);
+        let root = temp_dir();
+        let store = SyntheticStore::new();
+        store.set_state(StoreState::Sain);
+        let auth = make_authority(store.clone(), &root)
+            .with_sync_dir_override(Some(sync_dir_force_echec_second));
+        let err = auth.install_session("T2-indetermine").unwrap_err();
+        assert!(matches!(
+            err,
+            InstallError::AfterPending(AuthorityError::Indeterminate(_))
+        ));
+        let state = registry_state(&root).unwrap();
+        assert!(matches!(
+            state,
+            Authority::Secure { .. } | Authority::Fallback { .. }
+        ));
+        assert!(!matches!(state, Authority::Pending { .. }));
+        let leftovers: Vec<_> = std::fs::read_dir(&root)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with(".desktop-session-")
+            })
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "aucun temporaire de registre orphelin"
+        );
+        // Réconciliation : une nouvelle instance lit l'état réellement installé.
+        let auth2 = make_authority(store.clone(), &root);
+        let read = auth2.read_session().unwrap();
+        assert_eq!(read.token, Some("T2-indetermine".to_string()));
+        assert!(matches!(read.authority, Authority::Secure { .. }));
+    }
+
+    // ------------------------------------------------------------------
+    // R03/R12 : toute erreur de construction `open()` (y compris
+    //           `StoreError::Other`) mène au repli `fallback(g, T2)` sans
+    //       laisser l'état `pending`.
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn install_open_error_other_fallback_sans_pending() {
+        let root = temp_dir();
+        let store = SyntheticStore::new();
+        store.set_state(StoreState::Sain);
+        store.set_open_error(StoreError::Other("backend verrouille".into()));
+        let auth = make_authority(store.clone(), &root);
+        let outcome = auth.install_session("T2-autre").unwrap();
+        assert_eq!(outcome.commit, CommitResult::Fallback);
+        match registry_state(&root).unwrap() {
+            Authority::Fallback { token, .. } => assert_eq!(token, "T2-autre"),
+            other => panic!("expected fallback, got {other:?}"),
+        }
+        assert!(!matches!(
+            registry_state(&root).unwrap(),
+            Authority::Pending { .. }
+        ));
+        let history = store.history();
+        assert!(history.iter().all(|c| {
+            !matches!(
+                c,
+                StoreCall::Set { .. } | StoreCall::Get { .. } | StoreCall::Delete { .. }
+            )
+        }));
+    }
+
+    // ------------------------------------------------------------------
+    // R10 : open() != Unavailable après tombstone durable ->
+    //       `LogoutResult::DurableDeferred`, tombstone conservée, nettoyage
+    //       différé (pas de suppression OS).
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn logout_open_error_other_durable_deferred() {
+        let root = temp_dir();
+        let store = SyntheticStore::new();
+        store.set_state(StoreState::Sain);
+        store.set_open_error(StoreError::Other("ferme".into()));
+        let auth = make_authority(store.clone(), &root);
+        let result = auth.logout().unwrap();
+        assert_eq!(result, LogoutResult::DurableDeferred);
+        assert!(matches!(registry_state(&root).unwrap(), Authority::None));
+        let history = store.history();
+        assert!(history
+            .iter()
+            .all(|c| !matches!(c, StoreCall::Delete { .. })));
     }
 }
