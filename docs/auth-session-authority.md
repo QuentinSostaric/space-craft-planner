@@ -189,6 +189,20 @@ La revue `t_f30113f5` a mesuré, par mutations sur une copie isolée de `a8d167b
   `integ_logout_without_entry_none_kept` restait vert car son assertion était
   trop faible : aucune vérification de la tombstone `none` ; assertion ajoutée).
 
+Mutations rejouées sur le correctif (copie jetable, une mutation à la fois) :
+- M1, `install_session` renvoie l'erreur au lieu du repli `fallback` sur toute
+  erreur de `open()` -> rouges : `r01_factory_fails_before_handle_t1_remains_t2_fallback`,
+  `r02_recovery_t2_only_t1_never_purge_under_lock`, `r03_persistent_failure_fallback_without_keyring`,
+  `install_open_error_other_fallback_sans_pending`, `integ_recovery_other_process_t2_only`,
+  `r15_e2e_child_process_login_login_last_commit_wins`, `r15_e2e_child_process_login_logout`,
+  `r15_threads_login_login_last_commit_wins`.
+- M2, `logout` n'écrit plus la tombstone `none` -> rouges : `r09_logout_healthy_backend`,
+  `r09_logout_noentry`, `r10_logout_without_entry_none_kept`, `r11_logout_delete_refused`,
+  `logout_open_error_other_durable_deferred`, `r15_e2e_child_process_login_logout`,
+  et `integ_logout_without_entry_none_kept` (qui restait vert avant le renforcement :
+  il vérifie maintenant que le registre sur disque porte `state = "none"`).
+Sans mutation, tous ces tests sont verts.
+
 Cette restauration rétablit ces comportements (correctif additif sur
 `fix/desktop-session-authority-protocol`, par-dessus la base `a8d167b` ; aucun
 push/PR/merge/release). Les runs de référence ci-dessous sont exécutés sur le

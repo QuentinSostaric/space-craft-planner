@@ -187,6 +187,11 @@ fn integ_logout_without_entry_none_kept() {
     let auth = auth_for(store.clone(), &root);
     let result = auth.logout().unwrap();
     assert!(matches!(result, LogoutResult::DurableDeferred));
+    // La tombstone `none` doit exister sur disque : un registre absent se lit
+    // aussi comme `None` et masquerait une tombstone jamais écrite.
+    let raw = std::fs::read(root.join("desktop-session.token")).expect("tombstone none ecrite");
+    let file: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+    assert_eq!(file["state"], "none");
     // Relance : none conservé, T1 ghost jamais restauré.
     store.set_value(Some("T1-ghost"));
     store.set_state(St::Sain);
